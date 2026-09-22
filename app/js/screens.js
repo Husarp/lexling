@@ -310,8 +310,9 @@ function newer(a, b) {
 export async function settingsScreen(root, _, refresh) {
   dataIndex ??= await fetch('data/index.json').then(r => r.json());
   const seg = (key, values, label) => `<div class="seg">${values.map(v => `<button type="button" data-k="${key}" data-v="${v}" class="${on(settings[key] === v)}">${label(v)}</button>`).join('')}</div>`;
+  const waiting = REPO && settings.latest && newer(settings.latest, VERSION);
   const updateLine = !REPO ? t('set.noRepo')
-    : settings.latest && newer(settings.latest, VERSION) ? t('set.available', { v: settings.latest })
+    : waiting ? t('set.available', { v: settings.latest })
       : settings.lastCheck ? `${t('set.upToDate')} ${DOT} ${t('set.checked', { d: dateTime(settings.lastCheck) })}` : t('set.never');
   root.innerHTML = `<div class="app" data-screen="settings">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
@@ -328,7 +329,10 @@ export async function settingsScreen(root, _, refresh) {
     </section>
     <section class="group">
       <h2 class="title">${t('set.updates')}</h2>
-      <div class="row"><div class="row-text"><strong>${t('set.version', { v: VERSION })}</strong><span id="update-line">${updateLine}</span></div><button type="button" class="btn btn-outline" id="check" ${REPO ? '' : 'disabled'}>${t('set.check')}</button></div>
+      <div class="row"><div class="row-text"><strong>${t('set.version', { v: VERSION })}</strong><span id="update-line">${updateLine}</span></div>
+        ${waiting
+    ? `<button type="button" class="btn btn-primary" id="get">${t('set.get')} <span class="arrow">→</span></button>`
+    : `<button type="button" class="btn btn-outline" id="check" ${REPO ? '' : 'disabled'}>${t('set.check')}</button>`}</div>
     </section>
     <section class="group">
       <h2 class="title">${t('set.about')}</h2>
@@ -365,8 +369,20 @@ export async function settingsScreen(root, _, refresh) {
     applyAccent();
     root.querySelectorAll('[data-accent]').forEach(o => o.classList.toggle('on', o === el));
   }));
+  // Telling someone an update exists and then leaving them to find it is half an answer, so when one
+  // is waiting the button becomes the way to get it: the release page, with the installer and the
+  // APK on it. It has to leave the app, and each of the three places this runs needs asking
+  // differently - the desktop wrapper through its Python bridge, Android and a browser through the
+  // ordinary one, which Capacitor hands to the system browser.
+  root.querySelector('#get')?.addEventListener('click', () => {
+    const url = `https://github.com/${REPO}/releases/latest`;
+    const api = window.pywebview?.api;
+    if (api?.open_url) api.open_url(url);
+    else window.open(url, '_blank', 'noopener');
+  });
+
   const check = root.querySelector('#check');
-  check.addEventListener('click', async () => {
+  check?.addEventListener('click', async () => {
     check.disabled = true;
     check.textContent = t('set.checking');
     try {

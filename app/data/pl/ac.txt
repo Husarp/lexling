@@ -3725,6 +3725,7 @@ aliasingu
 aliasów
 aliasu
 aliasy
+alibi
 alienacja
 alienacją
 alienację
@@ -18631,7 +18632,6 @@ biblioteki
 bibliotekom
 bibliotekoznawca
 bibliotekoznawców
-bibliotekoznawczyni
 bibliotekoznawstwa
 bibliotekoznawstwem
 bibliotekoznawstwie
@@ -19415,6 +19415,7 @@ bikera
 bikerów
 bikery
 bikerzy
+bikini
 bikiniarz
 bikiniarze
 bikiniarzy
@@ -22007,6 +22008,7 @@ błyszczykowi
 błyszczyku
 błyszczysz
 bo
+boa
 boazeria
 boazerią
 boazeriami
@@ -66518,6 +66520,7 @@ esplanada
 esplanadę
 esplanady
 esplanadzie
+espresso
 esprit
 essen
 esseński
@@ -97984,8 +97987,6 @@ jednokrotne
 jednokrotnego
 jednokrotnej
 jednokrotnie
-jednokrotność
-jednokrotności
 jednokrotny
 jednokrotnych
 jednokrotnym
@@ -99901,8 +99902,6 @@ jurysty
 jurze
 justunek
 justunku
-justycjariusz
-justycjariusza
 jut
 juta
 jutą
@@ -107721,6 +107720,7 @@ kiwaniem
 kiwaniu
 kiwano
 kiwasz
+kiwi
 kiwną
 kiwnąć
 kiwnął
@@ -137181,11 +137181,9 @@ lupki
 łupkowym
 łupkowymi
 łupku
-łupliwe
 łupliwość
 łupliwości
 łupliwością
-łupliwy
 lupo
 łupom
 łupom
@@ -147377,9 +147375,6 @@ miętowe
 miętowego
 miętowej
 miętówek
-miętówek
-miętówka
-miętówkę
 miętówki
 miętowy
 miętowych
@@ -161501,20 +161496,10 @@ namaczane
 namaczania
 namaczanie
 namaczaniu
-namagnesować
-namagnesowana
-namagnesowane
-namagnesowanego
-namagnesowanej
-namagnesowania
 namagnesowania
 namagnesowanie
 namagnesowaniem
-namagnesowaniem
 namagnesowaniu
-namagnesowaniu
-namagnesowany
-namagnesowanych
 namalować
 namalował
 namalowała
@@ -254704,7 +254689,6 @@ przeczuciu
 przeczuciu
 przeczuł
 przeczuleni
-przeczulenie
 przeczulica
 przeczulicy
 przeczulona
@@ -313020,6 +313004,7 @@ spadzistych
 spadzistym
 spadzistymi
 spąg
+spaghetti
 spągiem
 spągowca
 spągowiec
@@ -327134,6 +327119,7 @@ susami
 susceptancja
 suseł
 susem
+sushi
 susi
 suska
 suską
@@ -336492,6 +336478,7 @@ taboryci
 taborytów
 taborze
 tabów
+tabu
 tabula
 tabulacja
 tabulacji
@@ -345031,8 +345018,6 @@ triatlonie
 triatlonista
 triatlonistów
 triatlonu
-tribologia
-tribologii
 tribus
 triceps
 tricepsa
@@ -426518,7 +426503,6 @@ zbłąkanej
 zbłąkany
 zbłąkanych
 zbłąkanym
-zblakły
 zblanszować
 zblanszowane
 zblanszowanych

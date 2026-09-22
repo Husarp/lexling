@@ -1,4 +1,4 @@
-// Every piece of UI text. Strings may contain markup (they are ours); anything a player typed goes through esc().
+﻿// Every piece of UI text. Strings may contain markup (they are ours); anything a player typed goes through esc().
 // Arrays are plural forms: en [one, other] · pl [one, few, many]  (1 próba · 2 próby · 5 prób).
 const STR = {
   en: {
@@ -98,7 +98,7 @@ const STR = {
     'set.fuzzy': 'Better suggestions', 'set.fuzzyDesc': 'Also suggests words when the spelling is close — rz for ż, u for ó, om for ą.',
     'set.updates': 'Updates', 'set.version': 'Version {v}', 'set.upToDate': 'Up to date', 'set.checked': 'checked {d}', 'set.never': 'Not checked yet',
     'set.available': 'Version {v} is available', 'set.failed': 'Couldn\'t check — no connection?', 'set.noRepo': 'Update source is not set up yet',
-    'set.check': 'Check for updates', 'set.checking': 'Checking…',
+    'set.check': 'Check for updates', 'set.checking': 'Checking…', 'set.get': 'Get it',
     'set.about': 'About', 'set.aboutText': '<strong>WordGuess</strong> — a semantic word game. Guess the hidden word; each guess is ranked by how close in meaning it is.',
     'set.vocab': 'Vocab', 'set.vocabText': 'Polish {pl} words <span class="dot">·</span> English {en} words <span class="dot">·</span> bundled, offline',
     'set.vectors': 'Vectors', 'set.vectorsReal': 'fastText cc.pl.300 / cc.en.300, {d} dimensions, int8',
@@ -199,7 +199,7 @@ const STR = {
     'set.fuzzy': 'Lepsze podpowiedzi', 'set.fuzzyDesc': 'Podpowiada też przy bliskiej pisowni — rz zamiast ż, u zamiast ó, om zamiast ą.',
     'set.updates': 'Aktualizacje', 'set.version': 'Wersja {v}', 'set.upToDate': 'Aktualna', 'set.checked': 'sprawdzono {d}', 'set.never': 'Jeszcze nie sprawdzano',
     'set.available': 'Dostępna jest wersja {v}', 'set.failed': 'Nie udało się sprawdzić — brak połączenia?', 'set.noRepo': 'Źródło aktualizacji nie jest jeszcze ustawione',
-    'set.check': 'Sprawdź aktualizacje', 'set.checking': 'Sprawdzam…',
+    'set.check': 'Sprawdź aktualizacje', 'set.checking': 'Sprawdzam…', 'set.get': 'Pobierz',
     'set.about': 'O grze', 'set.aboutText': '<strong>WordGuess</strong> — semantyczna gra słowna. Odgadnij ukryte słowo; każda próba jest oceniana według bliskości znaczenia.',
     'set.vocab': 'Słownik', 'set.vocabText': 'polski: {pl} słów <span class="dot">·</span> angielski: {en} słów <span class="dot">·</span> w zestawie, offline',
     'set.vectors': 'Wektory', 'set.vectorsReal': 'fastText cc.pl.300 / cc.en.300, {d} wymiarów, int8',

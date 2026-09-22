@@ -3,6 +3,7 @@
 // for English parts of speech, LibreOffice's WordNet-based thesaurus. Build-time only.
 import { readFileSync } from 'node:fs';
 import { readAff, readDic, suffixed, prefixed } from './hunspell.mjs';
+import { INDECLINABLE } from './seeds.mjs';
 
 const OFFICE = process.env.WG_DICTS || 'C:/Program Files/LibreOffice/share/extensions/';
 export const POS = ['noun', 'adj', 'verb', 'adv', 'other'];
@@ -18,6 +19,7 @@ const PL_ADJ = new Set('XYxy');                  // adjective declension (+ y: t
 const PL_DERIVED = new Set('EGgvij');            // participles (-ący, -ony, -ty) and gerunds (-anie, -enie, -cie)
 const PL_WORD = /^[a-ząćęłńóśźż]{2,}$/;
 const FLAGLESS_MAX_RANK = 20000;                 // flagless entries are mostly stray inflected forms; keep only the common ones (i, na, się, jest…)
+const PL_INDECLINABLE = new Set(INDECLINABLE.pl.split(' ').filter(Boolean));
 
 export function polish(rank) {
   const aff = readAff(OFFICE + 'dict-pl/pl_PL.aff', 'iso-8859-2');
@@ -27,7 +29,15 @@ export function polish(rank) {
   }
   const lex = new Map();
   for (const [word, flags] of flagsOf) {
-    if (!flags) { if (rank.get(word) < FLAGLESS_MAX_RANK) entry(lex, word, OTHER); continue; }
+    // A flagless entry is usually a stray inflected form, so only the common ones are kept, and as
+    // "other" rather than a noun. Indeclinable loanwords are the exception: kiwi, mango, salami are
+    // ordinary nouns that simply never change ending, and this rule was leaving them out of the game
+    // entirely. They are listed by hand because no flag tells them apart from the strays.
+    if (!flags) {
+      if (PL_INDECLINABLE.has(word)) entry(lex, word, NOUN);
+      else if (rank.get(word) < FLAGLESS_MAX_RANK) entry(lex, word, OTHER);
+      continue;
+    }
     const fl = [...new Set(flags)];
     const pos = fl.some(f => PL_VERB.has(f)) ? VERB : fl.some(f => PL_ADJ.has(f)) ? ADJ : NOUN;
     const e = entry(lex, word, pos);

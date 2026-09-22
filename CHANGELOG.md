@@ -6,6 +6,36 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.15.0 — 2026-09-22 17:05: A way to actually get the update, Body and School, and `kiwi`
+*(not packaged yet)*
+
+**The update check said an update existed and then stopped.** No button, no link, nothing to press —
+you were told and then left to find it yourself. When one is waiting, the *Check for updates* button
+now becomes **Get it →** and opens the release page, where the installer and the APK are.
+
+Leaving the app has to be asked for differently in each of the three places this runs, so the button
+tries them in turn. Android and a browser use the ordinary `window.open`, which Capacitor hands to
+the system browser. The desktop app cannot: its window *is* the browser, so following a link would
+replace the game with a web page and leave no way back. It now has a small bridge
+(`window.pywebview.api.open_url`) that hands the link to the real browser instead, and it accepts
+nothing but a `https://github.com/…` address.
+
+**Seed pass for Body and School**, the same fix as Food and Nature: the words were all in the
+dictionary and simply untagged.
+- **Body 80 → 94** — `włos wąs brew podbródek pierś jelito śledziona pęcherz migdałek przepona`.
+- **School 52 → 136**, which puts Polish *ahead* of English's 107: the school day itself
+  (`szkoła klasa przerwa dzwonek`), its rooms (`korytarz szatnia boisko`), its equipment
+  (`gąbka pióro cyrkiel ekierka tornister plecak`) and its paperwork
+  (`dziennik ocena klasówka dyktando legitymacja ferie`).
+
+**`kiwi` is in the game.** It was not missing from the dictionary at all — the lexicon was throwing
+it away. Nouns that never change their ending are listed with no inflection flags, and flagless
+entries are dropped unless they are very common, because most of them are stray inflected forms.
+`kiwi` sits at rank 29 090 and so went in the bin, and even the ones that survived were marked
+"other", which can never be the answer. Indeclinable loanwords are now named by hand and kept as
+proper nouns: `kiwi mango awokado spaghetti sushi espresso whisky curry zoo jury bikini tabu menu`.
+`kiwi` is now #7040, a noun, can be the secret, and lives in Food.
+
 ## 0.14.2 — 2026-09-22 16:10: A seed pass for Polish Food and Nature
 *(not packaged yet)*
 

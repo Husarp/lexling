@@ -57,10 +57,16 @@ export const SEEDS = {
       + 'źródło stok zbocze step tundra gaj bór puszcza '
       + 'glina torf granit bazalt żwir',
     weather: 'deszcz śnieg wiatr burza chmura mgła mróz grzmot błyskawica grad tęcza susza powódź upał wilgotność zamieć ulewa mżawka wichura szron gołoledź skwar przymrozek zachmurzenie opad odwilż huragan tornado',
-    body: 'głowa ręka ramię noga stopa oko ucho nos usta ząb język włosy skóra kość krew serce płuco wątroba żołądek kolano łokieć bark palec kciuk szyja mózg mięsień nerw czoło broda policzek warga powieka rzęsa paznokieć pięta biodro żebro nerka tętnica nadgarstek kostka',
+    body: 'głowa ręka ramię noga stopa oko ucho nos usta ząb język włosy skóra kość krew serce płuco wątroba żołądek kolano łokieć bark palec kciuk szyja mózg mięsień nerw czoło broda policzek warga powieka rzęsa paznokieć pięta biodro żebro nerka tętnica nadgarstek kostka '
+      // untagged until now, the same way Food and Nature were
+      + 'włos wąs brew podbródek pierś jelito śledziona pęcherz żyła migdałek przepona',
     people: 'matka ojciec siostra brat syn córka niemowlę dziecko przyjaciel sąsiad rodzina żona mąż wujek ciocia kuzyn babcia dziadek gość nieznajomy para dziewczyna chłopak kobieta nastolatek dorosły',
     jobs: 'lekarz pielęgniarka nauczyciel rolnik żołnierz kucharz piekarz rzeźnik prawnik sędzia inżynier naukowiec pisarz piosenkarz aktor pilot marynarz kelner fryzjer krawiec stolarz hydraulik elektryk księgowy kierownik mechanik',
-    school: 'ołówek zeszyt gumka linijka tablica kreda lekcja egzamin uczeń student uniwersytet dyplom podręcznik piórnik kredka wykład semestr matura świadectwo ławka korepetycje przedszkole nauczycielka wypracowanie',
+    school: 'ołówek zeszyt gumka linijka tablica kreda lekcja egzamin uczeń student uniwersytet dyplom podręcznik piórnik kredka wykład semestr matura świadectwo ławka korepetycje przedszkole nauczycielka wypracowanie '
+      // the school day itself, its rooms and its equipment - all untagged before
+      + 'szkoła klasa przerwa dzwonek uczennica korytarz szatnia boisko '
+      + 'gąbka pióro cyrkiel ekierka tornister plecak '
+      + 'dziennik ocena klasówka dyktando czytanka legitymacja plastyka wuef ferie',
     science: 'atom cząsteczka pierwiastek wodór tlen węgiel azot kwas gaz ciecz energia grawitacja masa objętość gęstość doświadczenie laboratorium mikroskop chemia fizyka biologia reakcja wzór komórka bakteria wirus teoria',
     sport: 'piłka koszykówka siatkówka tenis hokej golf boks pływanie kolarstwo bramka mecz zawodnik trener sędzia stadion medal mistrzostwo turniej wyścig maraton siłownia szachy sportowiec',
     music: 'muzyka piosenka gitara pianino skrzypce bęben flet trąbka zespół koncert orkiestra melodia rytm album obraz rysunek rzeźba taniec wiersz powieść film teatr',
@@ -141,6 +147,15 @@ export const NOT_IN = {
     feelings: 'feeling emotion mood',
     abstract: 'concept notion idea',
   },
+};
+
+// Nouns that never change their ending, so the dictionary lists them with no inflection flags at all.
+// The lexicon throws flagless entries away unless they are very common, because most of them are
+// stray inflected forms - but these are real, ordinary nouns, and without this `kiwi` was not in the
+// game at all. Listed by hand because no flag distinguishes them from the strays.
+export const INDECLINABLE = {
+  pl: 'kiwi mango awokado salami spaghetti sushi espresso whisky curry zoo jury bikini tabu menu alibi boa',
+  en: '',
 };
 
 // Words the cross-language filter in build-data.mjs must keep even though the other language uses them

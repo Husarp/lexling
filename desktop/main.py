@@ -39,6 +39,7 @@ import tempfile
 import threading
 import time
 import urllib.request
+import webbrowser
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -128,6 +129,22 @@ def wait_ready(window, seconds: float) -> str | None:
     return None
 
 
+class Bridge:
+    """What the page may ask the desktop app to do, reachable as window.pywebview.api.
+
+    Only one thing so far: open a link in the real browser. A link cannot simply be followed here,
+    because this window IS the browser - following it would replace the game with a web page and
+    leave no way back. Android and a plain browser need none of this; they use window.open.
+    """
+
+    def open_url(self, url: str) -> bool:
+        # never hand an arbitrary string to the shell: only ordinary web links, and only ours
+        if not re.fullmatch(r"https://github\.com/[\w.\-/]+", url or ""):
+            return False
+        webbrowser.open(url)
+        return True
+
+
 def show_when_ready(window) -> None:
     wait_ready(window, 8)
     window.show()   # after 8 s show it regardless: a visible problem beats an invisible app
@@ -189,7 +206,8 @@ def main() -> None:
     except OSError as e:
         ctypes.windll.user32.MessageBoxW(None, f"{APP} cannot start: port {port} is used by another program.\n\n{e}", APP, 0x10)
         return
-    window = webview.create_window(APP, f"http://127.0.0.1:{port}/index.html", hidden=True, **WINDOW)
+    window = webview.create_window(APP, f"http://127.0.0.1:{port}/index.html", hidden=True,
+                                   js_api=Bridge(), **WINDOW)
 
     if args.selftest:
         # Isolated on every axis: its own port, and a throwaway profile so a build can never read or

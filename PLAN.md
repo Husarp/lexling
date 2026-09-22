@@ -92,8 +92,12 @@ diminutives and things that are not animals.
 - [x] Seed pass for Food and Nature (0.14.2). The gap was not missing vocabulary but missing tags:
       common words sit near several categories and so win none, and the categoriser drops them. Naming
       them as seeds fixed it — Nature 71 → 147, Food 228 → 296, Animals 94 → 110 (the fish).
-- [ ] Still open: the same pass for Body (-32) and School (-31), and `kiwi` really is absent from the
-      Polish vocabulary — that one needs the word list widened, not a seed.
+- [x] Seed pass for Body (80 → 94) and School (52 → 136, now ahead of English) — 0.15.0.
+- [x] `kiwi` added (0.15.0). It was never absent from the dictionary: the lexicon drops flagless
+      entries below rank 20 000 as stray inflected forms, and indeclinable loanwords look exactly
+      like those. They are now listed by hand in `INDECLINABLE` and kept as nouns.
+- [ ] `salami` is still missing — flagless like `kiwi` and listed, but it does not reach the
+      vocabulary, so something else drops it. Worth a look if another loanword turns up missing.
 - [ ] Still open: whether group words (`ptak`, `ryba`, `owad`) should be answers in Animals. Kept for
       now — the owner said kinds of animals are fair.
 
