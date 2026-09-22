@@ -67,3 +67,14 @@ if ($LASTEXITCODE) { throw "Building the installer failed" }
 
 $size = "{0:N0}" -f ((Get-Item "$Build\WordGuessSetup.exe").Length / 1MB)
 Write-Output "Built $Build\WordGuessSetup.exe ($size MB)"
+
+# 5. a note saying WHICH version these files came from. A build folder can say when it was made but
+#    never what it is, and that is the one thing the dev-status dashboard cannot work out on its own.
+#    Written last, so it only ever exists after a build that actually finished.
+$artifacts = @()
+foreach ($a in @(@("WordGuessSetup.exe", "Windows"), @("WordGuess-debug.apk", "Android"))) {
+    $path = "$Build\$($a[0])"
+    if (Test-Path $path) { $artifacts += @{ name = $a[0]; kind = $a[1] } }
+}
+@{ version = $version; builtAt = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ss"); artifacts = $artifacts } |
+    ConvertTo-Json -Depth 4 | Set-Content "$Build\BUILT.json" -Encoding UTF8

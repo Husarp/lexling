@@ -40,6 +40,15 @@ $out = "$Root\build\WordGuess-$(if ($Release) { 'release' } else { 'debug' }).ap
 Copy-Item $built.FullName $out -Force
 Write-Output ("Built $out ({0:N1} MB)" -f ($built.Length / 1MB))
 
+# Record which version this came from, the same note scripts\build.ps1 writes, so the dev-status
+# dashboard stays right whether the APK or the installer was built last.
+$artifacts = @()
+foreach ($a in @(@("WordGuessSetup.exe", "Windows"), @("WordGuess-debug.apk", "Android"), @("WordGuess-release.apk", "Android"))) {
+    if (Test-Path "$Root\build\$($a[0])") { $artifacts += @{ name = $a[0]; kind = $a[1] } }
+}
+@{ version = $version; builtAt = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ss"); artifacts = $artifacts } |
+    ConvertTo-Json -Depth 4 | Set-Content "$Root\build\BUILT.json" -Encoding UTF8
+
 if ($Install) {
     $adb = "$Sdk\platform-tools\adb.exe"
     $devices = (& $adb devices | Select-String "\tdevice$")
