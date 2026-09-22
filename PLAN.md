@@ -112,42 +112,69 @@ green / yellow / grey feedback. What makes it ours rather than a Wordle clone:
   `score = length ÷ tries × 100` — a 5-letter word in 3 tries scores 167, in one try 500. It rewards
   both longer words and fewer guesses, which is the right direction.
 
-### What has to be decided before writing any of it
-- [ ] **Polish letters with marks.** Is `ó` the same letter as `o`, or a different one? This changes
-      everything: the alphabet size (26 vs 32), the keyboard, the difficulty, and whether typing
-      `zolw` is a legal guess. Polish Wordle clones mostly treat them as distinct. **Owner's call.**
-- [ ] **Which words can be hidden.** The main game only hides vetted nouns, but for this mode verbs
-      and adjectives are just as good, and restricting to nouns would thin the pool badly at some
-      lengths. Suggest: any common word of the chosen length, still excluding the stoplist.
-- [ ] **The exact score formula** (see above), and whether unused tries add a bonus.
+### Decided 2026-09-23
+- **Polish letters are separate letters**, and they are a **setting you turn on or off**:
+  - **off** — the hidden word is guaranteed to contain none of `ąćęłńóśźż`;
+  - **on** — the hidden word is drawn from everything, so it may contain them, and each one counts
+    as **two letters** when the score is worked out. Harder word, bigger score.
+- **Any common word may be hidden**, whatever its part of speech — but always in its **base form**,
+  never an inflected one. `ac.txt` distinguishes the two already.
+- **Word difficulty is chosen** the same way as in the main mode, and feeds the score.
+- **Score** = letters ÷ guesses actually used × 100, where a Polish letter counts as two and unused
+  tries simply never enter the sum. Worked example: `żółw` with Polish letters on is ż+ó+ł+w =
+  2+2+2+1 = **7**; solved on the third guess → 7 ÷ 3 × 100 = **233**, then multiplied by the
+  difficulty. That multiplier is the one number still to pick — suggest Relaxed ×0.75, Easy ×1,
+  Normal ×1.25, Hard ×1.5.
+- **Repeated letters** follow Wordle's exact rule. **No colour-blind mode** — not wanted.
+- **Categories are used**, and **badges are used**, with a separate section per mode on the badges
+  screen rather than one mixed list.
+- **The menu splits the Play button in two**, one per mode, each with its own arrow direction.
+- **The phone's own keyboard is used** — no custom on-screen keyboard. Polish marks live under their
+  plain counterparts on a long press, which is how Android's Polish layout already behaves.
 
-### What I would build
-- [ ] **Reuse the vocabulary and the guess validator we already have.** `resolve()` already decides
-      whether a typed word is real, and `ac.txt` already holds every inflected form — so "is this a
-      word?" is solved.
-- [ ] **An on-screen keyboard is not optional here.** The phone's own keyboard cannot colour its
-      keys, and knowing which letters are dead is half the game. Polish needs 32 keys, which is the
-      hard part of the layout at 320 px.
-- [ ] **Repeated letters** must follow Wordle's exact rule (two `a`s in the guess, one in the answer
-      → first `a` coloured, second grey). It is fiddly and worth its own tests.
-- [ ] **Colour-blind option.** Green/yellow is the one place in this app where colour alone carries
-      meaning. Either a shape/letter marker or an alternative palette.
+### The one thing that answer costs, and what I suggest instead
+Using the system keyboard means **its keys cannot be coloured**, and in Wordle knowing which letters
+are already dead is half the game — on paper you would be holding that in your head.
+- [ ] Suggest a **letter strip**: one read-only row above the guesses showing the alphabet, each
+      letter grey / yellow / green. It is not a keyboard, nothing is typed on it, so the phone's
+      keyboard stays exactly as it is — and the information is still on screen. Cheap to build and it
+      sidesteps the 32-key layout problem entirely.
 
-### Suggestions worth considering
-- [ ] **Use the categories.** "Guess a 5-letter animal" is a genuinely different game from plain
-      Wordle, and we have 20 categories already cleaned up for exactly this kind of use.
-- [ ] **Use the difficulty score.** `hardOf` already rates every word 0–100, so Relaxed/Easy/Normal/
-      Hard can mean the same thing here as in the main game rather than being reinvented.
-- [ ] **Hard mode** — once a letter is revealed you must keep using it. Standard, cheap, and the
-      people who want it want it a lot.
-- [ ] **A result grid to copy**, the coloured-squares block Wordle made famous. Pure clipboard, works
-      offline, and it is the one thing that makes a score worth having.
-- [ ] **Badges and stats.** The badge system exists; this mode should feed it rather than keep a
-      separate scoreboard. Best score, streak, wins by length.
-- [ ] **Save and resume**, like the main mode — several games at once, each one picking up where it
-      was left.
-- [ ] **Where it lives in the UI.** The menu currently goes straight to "Play". With two modes it
-      needs a choice, and that screen should not make the original mode feel demoted.
+### To build
+- [ ] **Reuse the vocabulary and the validator.** `resolve()` already decides whether a typed word is
+      real and `ac.txt` already holds every inflected form, so "is this a word?" is solved, as is
+      "is this the base form?".
+- [ ] **Repeated letters** exactly (two `a`s guessed, one in the answer → first coloured, second
+      grey). Fiddly; worth its own tests.
+- [ ] **Hard mode** — a revealed letter must be reused. Standard, cheap, wanted by the people who
+      want it.
+- [ ] **A result grid to copy** — the coloured squares. Pure clipboard, works offline, and the thing
+      that makes a score worth having.
+- [ ] **Save and resume**, like the main mode.
+
+## Merging a Scrabble game in — asked 2026-09-23, my answer
+**Yes eventually, no now**, and the reason is not the one you would expect.
+
+Size is not the obstacle. Scrabble needs a list of every legal word, and that is `ac.txt` — already
+in the app, 4.8 MB Polish and 0.7 MB English, already shipped. Adding Scrabble to WordGuess would
+cost almost nothing in download size, because the expensive part of this app (the 30 MB of vectors)
+is already paid for and Scrabble does not use it. Going the other way is what would be wasteful: a
+standalone Scrabble carrying WordGuess's vectors it never opens.
+
+What genuinely overlaps is bigger than the word list: both languages and all their text, the
+installer, the update check, saves, badges, statistics, the whole look. Two apps means maintaining
+two of each of those forever.
+
+The real cost is effort and focus. A Scrabble worth playing needs an opponent, and a computer
+opponent means move generation across a 15×15 board — a DAWG or GADDAG over the whole dictionary.
+That is the largest single piece of work discussed for this project so far, larger than the semantic
+engine was. Starting it before the letters mode exists is how a project ends up with three
+half-games.
+
+- [ ] So: finish the letters mode, ship it, then decide. If it is merged, WordGuess becomes the name
+      of a collection of three word games rather than one game, and the menu, badges and statistics
+      all have to carry a third.
+- [ ] Worth knowing early: **"Scrabble" is a trademark.** A shipped game needs its own name.
 
 ## OPEN QUESTIONS (waiting on owner)
 - [ ] Polish badge names — current picks: Wordsmith → **Mistrz słów**, Typist → **Skryba**,
