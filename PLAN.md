@@ -101,6 +101,54 @@ diminutives and things that are not animals.
 - [ ] Still open: whether group words (`ptak`, `ryba`, `owad`) should be answers in Animals. Kept for
       now — the owner said kinds of animals are fair.
 
+## M12 — Letters mode (a Wordle inside WordGuess) — PLANNED, not started
+Asked for 2026-09-23. A second game mode: guess a hidden word letter by letter, with the usual
+green / yellow / grey feedback. What makes it ours rather than a Wordle clone:
+
+- **Not one word a day.** A random word from the dictionary we already have, so you can play as many
+  as you like, offline, with no clock and no sync.
+- **You choose the shape of the game**: word length, and how many tries you get.
+- **A score**, so games can be compared. Owner's formula, to be confirmed:
+  `score = length ÷ tries × 100` — a 5-letter word in 3 tries scores 167, in one try 500. It rewards
+  both longer words and fewer guesses, which is the right direction.
+
+### What has to be decided before writing any of it
+- [ ] **Polish letters with marks.** Is `ó` the same letter as `o`, or a different one? This changes
+      everything: the alphabet size (26 vs 32), the keyboard, the difficulty, and whether typing
+      `zolw` is a legal guess. Polish Wordle clones mostly treat them as distinct. **Owner's call.**
+- [ ] **Which words can be hidden.** The main game only hides vetted nouns, but for this mode verbs
+      and adjectives are just as good, and restricting to nouns would thin the pool badly at some
+      lengths. Suggest: any common word of the chosen length, still excluding the stoplist.
+- [ ] **The exact score formula** (see above), and whether unused tries add a bonus.
+
+### What I would build
+- [ ] **Reuse the vocabulary and the guess validator we already have.** `resolve()` already decides
+      whether a typed word is real, and `ac.txt` already holds every inflected form — so "is this a
+      word?" is solved.
+- [ ] **An on-screen keyboard is not optional here.** The phone's own keyboard cannot colour its
+      keys, and knowing which letters are dead is half the game. Polish needs 32 keys, which is the
+      hard part of the layout at 320 px.
+- [ ] **Repeated letters** must follow Wordle's exact rule (two `a`s in the guess, one in the answer
+      → first `a` coloured, second grey). It is fiddly and worth its own tests.
+- [ ] **Colour-blind option.** Green/yellow is the one place in this app where colour alone carries
+      meaning. Either a shape/letter marker or an alternative palette.
+
+### Suggestions worth considering
+- [ ] **Use the categories.** "Guess a 5-letter animal" is a genuinely different game from plain
+      Wordle, and we have 20 categories already cleaned up for exactly this kind of use.
+- [ ] **Use the difficulty score.** `hardOf` already rates every word 0–100, so Relaxed/Easy/Normal/
+      Hard can mean the same thing here as in the main game rather than being reinvented.
+- [ ] **Hard mode** — once a letter is revealed you must keep using it. Standard, cheap, and the
+      people who want it want it a lot.
+- [ ] **A result grid to copy**, the coloured-squares block Wordle made famous. Pure clipboard, works
+      offline, and it is the one thing that makes a score worth having.
+- [ ] **Badges and stats.** The badge system exists; this mode should feed it rather than keep a
+      separate scoreboard. Best score, streak, wins by length.
+- [ ] **Save and resume**, like the main mode — several games at once, each one picking up where it
+      was left.
+- [ ] **Where it lives in the UI.** The menu currently goes straight to "Play". With two modes it
+      needs a choice, and that screen should not make the original mode feel demoted.
+
 ## OPEN QUESTIONS (waiting on owner)
 - [ ] Polish badge names — current picks: Wordsmith → **Mistrz słów**, Typist → **Skryba**,
       Sharpshooter → **Snajper**. Change if you prefer others.
