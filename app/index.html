@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>WordGuess</title>
+<!-- the page is already the right colour before any stylesheet or script arrives: no white flash -->
+<style>html{background:#000}html[data-theme=light]{background:#F5F5F5}</style>
+<script>
+try {
+  var theme = (JSON.parse(localStorage.getItem('wg.settings')) || {}).theme || 'dark';
+  if (theme === 'system') theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  document.documentElement.dataset.theme = theme;
+} catch (e) {}
+</script>
+<link rel="preload" href="fonts/BarlowCondensed-ExtraBold.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="fonts/BarlowCondensed-Bold.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="fonts/Inter-Regular.otf" as="font" type="font/otf" crossorigin>
+<link rel="preload" href="fonts/Inter-Medium.otf" as="font" type="font/otf" crossorigin>
+<link rel="preload" href="fonts/Inter-SemiBold.otf" as="font" type="font/otf" crossorigin>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="root"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

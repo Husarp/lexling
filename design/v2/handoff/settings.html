@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>WordGuess — Settings</title>
+<style>
+/* ── WordGuess design tokens · derived from 13/DEVS brand (orange #DB5126 · black · white) ── */
+:root{
+  --bg:#000000; --surface:#1A1A1A; --surface-2:#262626;
+  --line:#4A4A4A; --line-soft:#2A2A2A;
+  --text:#FFFFFF; --text-muted:#9E9E9E; --text-dim:#5C5C5C;
+  --accent:#DB5126; --accent-hover:#B33D18; --accent-soft:rgba(219,81,38,.16); --on-accent:#FFFFFF;
+  --error:#C0392B; --success:#27AE60;
+  /* guess-box fill ramp: far → close */
+  --fill-cold:#C0392B; --fill-warm:#DB5126; --fill-mid:#E8B923; --fill-hot:#27AE60; --fill-alpha:.55;
+  /* badge tiers */
+  --tier-bronze:#A9713F; --tier-silver:#B9BFC7; --tier-gold:#E0AF2B; --tier-diamond:#DDF3FF; --tier-amethyst:#9B6BB0;
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px; --space-6:24px; --space-8:32px; --space-10:40px; --space-12:48px;
+  --radius-sm:10px; --radius-md:12px; --radius-lg:16px; --radius-pill:9999px;
+  --font-display:"Barlow Condensed","Arial Narrow","Roboto Condensed","Helvetica Neue",sans-serif;
+  --font-body:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --shadow-md:0 4px 12px rgba(0,0,0,.35); --focus:0 0 0 3px rgba(219,81,38,.35);
+  --dur:250ms; --ease:cubic-bezier(.25,0,0,1);
+  --gutter:clamp(12px,4vw,40px); --col:720px;
+}
+[data-theme="light"]{
+  --bg:#F5F5F5; --surface:#FFFFFF; --surface-2:#EEEEEE; --line:#E0E0E0; --line-soft:#EEEEEE;
+  --text:#000000; --text-muted:#4A4A4A; --text-dim:#9E9E9E; --accent-soft:#F2E8E4; --fill-alpha:.35;
+  --shadow-md:0 4px 12px rgba(0,0,0,.10);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0}
+html{height:100%;-webkit-text-size-adjust:100%}
+body{min-height:100%;background:var(--bg);color:var(--text);font:400 16px/1.6 var(--font-body);-webkit-font-smoothing:antialiased;text-wrap:pretty}
+a{color:var(--text);text-decoration:none}a:hover{color:var(--accent)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:none;box-shadow:var(--focus)}
+/* shell */
+.app{min-height:100dvh;display:flex;flex-direction:column;background:var(--bg)}
+.topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:var(--space-3);min-height:56px;padding:var(--space-2) var(--gutter);background:var(--bg);border-top:3px solid var(--accent);border-bottom:1px solid var(--line-soft)}
+.brand{font:800 clamp(22px,3vw,26px)/1 var(--font-display);letter-spacing:-.02em;text-transform:uppercase;white-space:nowrap}
+.brand b{color:var(--accent);font-weight:800}
+.topbar .spacer{flex:1}
+.topbar .btn{padding:0 var(--space-3);min-width:0}
+.main{flex:1;width:100%;max-width:var(--col);margin:0 auto;padding:var(--space-6) var(--gutter) var(--space-12);display:flex;flex-direction:column;gap:var(--space-6)}
+.footer{padding:var(--space-3) var(--gutter);border-top:1px solid var(--line-soft);font-size:12px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-4)}
+/* type */
+.eyebrow{font:600 12px/1.2 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted)}
+.title{display:flex;align-items:center;gap:var(--space-3);font:700 clamp(24px,4.5vw,30px)/1.05 var(--font-display);letter-spacing:-.02em;text-transform:uppercase}
+.title::before{content:"";flex:none;width:4px;height:.9em;background:var(--accent)}
+.display{font:800 clamp(40px,10vw,72px)/.95 var(--font-display);letter-spacing:-.02em;text-transform:uppercase}
+.num{font:800 1em/1 var(--font-display);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.muted{color:var(--text-muted)}
+.dot,.arrow{color:var(--accent)}
+.help{font-size:14px;color:var(--text-muted)}
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-height:44px;padding:0 var(--space-5);border-radius:var(--radius-sm);border:1.5px solid transparent;font:600 13px/1 var(--font-body);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;transition:background var(--dur) var(--ease),color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}.btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn-outline{border-color:var(--text);color:var(--text)}.btn-outline:hover{background:var(--text);color:var(--bg)}
+.btn-ghost{color:var(--text-muted)}.btn-ghost:hover{color:var(--accent);background:var(--accent-soft)}
+.btn-danger{color:var(--error)}.btn-danger:hover{background:var(--error);color:#fff}
+.btn-lg{min-height:56px;padding:0 var(--space-8);font-size:15px}
+.btn-block{width:100%}
+.btn .arrow{transition:transform var(--dur) var(--ease)}.btn:hover .arrow{transform:translateX(4px)}
+.btn-primary .arrow,.btn-outline:hover .arrow{color:inherit}
+/* cards & controls */
+.card{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-lg)}
+.field{display:grid;gap:var(--space-2)}
+.field-head{display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-3)}
+.seg{display:flex;gap:4px;padding:4px;background:var(--surface);border:1px solid var(--line-soft);border-radius:14px}
+.seg button{flex:1 1 0;min-width:0;min-height:42px;padding:0 var(--space-3);border-radius:10px;font:600 12px/1 var(--font-body);letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--accent);color:var(--on-accent)}
+.chips{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.chip{min-height:40px;padding:0 var(--space-4);border:1.5px solid var(--line);border-radius:var(--radius-sm);font:500 14px/1 var(--font-body);color:var(--text);transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease)}
+.chip:hover{border-color:var(--text)}.chip.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.toggle{flex:none;width:48px;height:28px;border-radius:9999px;background:var(--line);position:relative;transition:background var(--dur) var(--ease)}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform var(--dur) var(--ease)}
+.toggle.on{background:var(--accent)}.toggle.on::after{transform:translateX(20px)}
+.input{width:100%;min-height:48px;padding:0 var(--space-4);background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius-sm);color:var(--text);font:500 16px/1.2 var(--font-body);transition:border-color var(--dur) var(--ease)}
+.input::placeholder{color:var(--text-dim)}.input:focus{border-color:var(--accent);box-shadow:var(--focus);outline:0}
+input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+.row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3) var(--space-4);padding:var(--space-4) 0;border-bottom:1px solid var(--line-soft)}
+.row-text{flex:1 1 220px;min-width:0}
+.row-text strong{display:block;font-weight:600}
+.row-text span{display:block;font-size:14px;color:var(--text-muted)}
+/* dev-only: state labels for this handoff file. Ship the .app inside each <section class="demo">, not the wrapper. */
+.demo{padding:var(--space-8) 0 0}
+.demo + .demo{border-top:1px dashed var(--line)}
+.demo .app{min-height:auto}
+.demo.tall .app{min-height:min(100dvh,800px)}
+.state{display:inline-flex;align-items:center;gap:var(--space-2);margin:0 var(--gutter) var(--space-4);padding:6px 10px;border:1px dashed var(--accent);border-radius:var(--radius-sm);font:600 11px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+
+.group{display:grid;gap:0}
+.group .title{margin-bottom:var(--space-2)}
+.row .seg{flex:0 1 320px;width:100%;max-width:320px}
+@media (max-width:480px){.row .seg{max-width:none}}
+.about{display:grid;gap:var(--space-3);padding:var(--space-5);font-size:14px;color:var(--text-muted)}
+.about strong{color:var(--text)}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--space-1) var(--space-4)}
+.kv dt{color:var(--text-dim)}.kv dd{overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+  <a class="brand" href="main-menu.html">Word<b>/</b>Guess</a>
+  <span class="spacer"></span>
+  <a class="btn btn-ghost" href="main-menu.html">← Menu</a>
+</header>
+  <main class="main">
+    <h1 class="title">Settings</h1>
+    <section class="group">
+      <div class="row"><div class="row-text"><strong>App language</strong><span>Interface only — game vocab is chosen per game.</span></div><div class="seg"><button type="button" class="on">Polski</button><button type="button">English</button></div></div>
+      <div class="row"><div class="row-text"><strong>Theme</strong><span>Dark matches the window colour; no flash on launch.</span></div><div class="seg"><button type="button" class="on">Dark</button><button type="button">Light</button><button type="button">System</button></div></div>
+      <div class="row"><div class="row-text"><strong>Sound</strong><span>Short click on guess, chime on win.</span></div><button type="button" class="toggle on" role="switch" aria-checked="true" aria-label="Sound"></button></div>
+    </section>
+    <section class="group">
+      <h2 class="title">Updates</h2>
+      <div class="row"><div class="row-text"><strong>Version 0.4.1</strong><span>Up to date <span class="dot">·</span> checked 21 Sep 2026, 18:04</span></div><button type="button" class="btn btn-outline">Check for updates</button></div>
+    </section>
+    <section class="group">
+      <h2 class="title">About</h2>
+      <div class="card about">
+        <p><strong>WordGuess</strong> — a semantic word game. Guess the hidden word; each guess is ranked by how close in meaning it is.</p>
+        <dl class="kv">
+          <dt>Vocab</dt><dd>Polish 48 210 words <span class="dot">·</span> English 52 004 words <span class="dot">·</span> bundled, offline</dd>
+          <dt>Vectors</dt><dd>fastText cc.pl.300 / cc.en.300 → 128-dim PCA, int8</dd>
+          <dt>Saves</dt><dd>Stored outside the program folder — updates never touch them. <a href="#" style="color:var(--accent)">Open saves folder →</a></dd>
+        </dl>
+      </div>
+    </section>
+  </main>
+  <footer class="footer"><span>WordGuess v0.4.1</span><span class="dot">·</span><span>© 2026</span></footer>
+</div>
+</body>
+</html>

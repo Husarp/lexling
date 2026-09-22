@@ -1,0 +1,17 @@
+# 2.6 GB of downloaded fastText vectors + pipeline caches - build-time only (see tools/build-data.mjs)
+tools/raw/
+# scripts/build.ps1 output: program folder, payload.zip, WordGuessSetup.exe, WordGuess-debug.apk
+build/
+__pycache__/
+.venv/
+node_modules/
+
+# Android (scripts/build-android.ps1). The android/ project itself is kept - it holds the manifest
+# and the generated launcher icons - but not what Gradle and `cap sync` regenerate.
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/capacitor-cordova-android-plugins/

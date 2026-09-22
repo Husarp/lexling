@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">WordGuess</string>
+    <string name="title_activity_main">WordGuess</string>
+    <string name="package_name">com.trivioflow.wordguess</string>
+    <string name="custom_url_scheme">com.trivioflow.wordguess</string>
+</resources>

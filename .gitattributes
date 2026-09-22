@@ -1,0 +1,17 @@
+# Everything is written with LF and read on Windows, Linux and Android - keep it that way in the
+# repository and in the working copy, so a clone on another machine is byte-identical to this one.
+* text=auto eol=lf
+
+# The word data is read byte for byte. engine.js splits ac.txt on '\n', so a CRLF checkout would leave
+# a stray '\r' on the end of every word and not one guess would ever match. Never touch these.
+app/data/** -text
+*.bin -text
+
+# Binary assets Git must not "fix" either.
+*.otf -text
+*.ttf -text
+*.png -text
+*.ico -text
+*.zip -text
+*.wav -text
+*.mp3 -text

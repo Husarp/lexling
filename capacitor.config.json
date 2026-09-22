@@ -1,0 +1,11 @@
+{
+  "appId": "com.trivioflow.wordguess",
+  "appName": "WordGuess",
+  "webDir": "app",
+  "android": {
+    "backgroundColor": "#000000"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

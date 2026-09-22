@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>WordGuess — Game</title>
+<style>
+/* ── WordGuess design tokens · derived from 13/DEVS brand (orange #DB5126 · black · white) ── */
+:root{
+  --bg:#000000; --surface:#1A1A1A; --surface-2:#262626;
+  --line:#4A4A4A; --line-soft:#2A2A2A;
+  --text:#FFFFFF; --text-muted:#9E9E9E; --text-dim:#5C5C5C;
+  --accent:#DB5126; --accent-hover:#B33D18; --accent-soft:rgba(219,81,38,.16); --on-accent:#FFFFFF;
+  --error:#C0392B; --success:#27AE60;
+  /* guess-box fill ramp: far → close */
+  --fill-cold:#C0392B; --fill-warm:#DB5126; --fill-mid:#E8B923; --fill-hot:#27AE60; --fill-alpha:.55;
+  /* badge tiers */
+  --tier-bronze:#A9713F; --tier-silver:#B9BFC7; --tier-gold:#E0AF2B; --tier-diamond:#DDF3FF; --tier-amethyst:#9B6BB0;
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px; --space-6:24px; --space-8:32px; --space-10:40px; --space-12:48px;
+  --radius-sm:10px; --radius-md:12px; --radius-lg:16px; --radius-pill:9999px;
+  --font-display:"Barlow Condensed","Arial Narrow","Roboto Condensed","Helvetica Neue",sans-serif;
+  --font-body:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --shadow-md:0 4px 12px rgba(0,0,0,.35); --focus:0 0 0 3px rgba(219,81,38,.35);
+  --dur:250ms; --ease:cubic-bezier(.25,0,0,1);
+  --gutter:clamp(12px,4vw,40px); --col:720px;
+}
+[data-theme="light"]{
+  --bg:#F5F5F5; --surface:#FFFFFF; --surface-2:#EEEEEE; --line:#E0E0E0; --line-soft:#EEEEEE;
+  --text:#000000; --text-muted:#4A4A4A; --text-dim:#9E9E9E; --accent-soft:#F2E8E4; --fill-alpha:.35;
+  --shadow-md:0 4px 12px rgba(0,0,0,.10);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0}
+html{height:100%;-webkit-text-size-adjust:100%}
+body{min-height:100%;background:var(--bg);color:var(--text);font:400 16px/1.6 var(--font-body);-webkit-font-smoothing:antialiased;text-wrap:pretty}
+a{color:var(--text);text-decoration:none}a:hover{color:var(--accent)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:none;box-shadow:var(--focus)}
+/* shell */
+.app{min-height:100dvh;display:flex;flex-direction:column;background:var(--bg)}
+.topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:var(--space-3);min-height:56px;padding:var(--space-2) var(--gutter);background:var(--bg);border-top:3px solid var(--accent);border-bottom:1px solid var(--line-soft)}
+.brand{font:800 clamp(22px,3vw,26px)/1 var(--font-display);letter-spacing:-.02em;text-transform:uppercase;white-space:nowrap}
+.brand b{color:var(--accent);font-weight:800}
+.topbar .spacer{flex:1}
+.topbar .btn{padding:0 var(--space-3);min-width:0}
+.main{flex:1;width:100%;max-width:var(--col);margin:0 auto;padding:var(--space-6) var(--gutter) var(--space-12);display:flex;flex-direction:column;gap:var(--space-6)}
+.footer{padding:var(--space-3) var(--gutter);border-top:1px solid var(--line-soft);font-size:12px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-4)}
+/* type */
+.eyebrow{font:600 12px/1.2 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted)}
+.title{display:flex;align-items:center;gap:var(--space-3);font:700 clamp(24px,4.5vw,30px)/1.05 var(--font-display);letter-spacing:-.02em;text-transform:uppercase}
+.title::before{content:"";flex:none;width:4px;height:.9em;background:var(--accent)}
+.display{font:800 clamp(40px,10vw,72px)/.95 var(--font-display);letter-spacing:-.02em;text-transform:uppercase}
+.num{font:800 1em/1 var(--font-display);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.muted{color:var(--text-muted)}
+.dot,.arrow{color:var(--accent)}
+.help{font-size:14px;color:var(--text-muted)}
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-height:44px;padding:0 var(--space-5);border-radius:var(--radius-sm);border:1.5px solid transparent;font:600 13px/1 var(--font-body);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;transition:background var(--dur) var(--ease),color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}.btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn-outline{border-color:var(--text);color:var(--text)}.btn-outline:hover{background:var(--text);color:var(--bg)}
+.btn-ghost{color:var(--text-muted)}.btn-ghost:hover{color:var(--accent);background:var(--accent-soft)}
+.btn-danger{color:var(--error)}.btn-danger:hover{background:var(--error);color:#fff}
+.btn-lg{min-height:56px;padding:0 var(--space-8);font-size:15px}
+.btn-block{width:100%}
+.btn .arrow{transition:transform var(--dur) var(--ease)}.btn:hover .arrow{transform:translateX(4px)}
+.btn-primary .arrow,.btn-outline:hover .arrow{color:inherit}
+/* cards & controls */
+.card{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-lg)}
+.field{display:grid;gap:var(--space-2)}
+.field-head{display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-3)}
+.seg{display:flex;gap:4px;padding:4px;background:var(--surface);border:1px solid var(--line-soft);border-radius:14px}
+.seg button{flex:1 1 0;min-width:0;min-height:42px;padding:0 var(--space-3);border-radius:10px;font:600 12px/1 var(--font-body);letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--accent);color:var(--on-accent)}
+.chips{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.chip{min-height:40px;padding:0 var(--space-4);border:1.5px solid var(--line);border-radius:var(--radius-sm);font:500 14px/1 var(--font-body);color:var(--text);transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease)}
+.chip:hover{border-color:var(--text)}.chip.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.toggle{flex:none;width:48px;height:28px;border-radius:9999px;background:var(--line);position:relative;transition:background var(--dur) var(--ease)}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform var(--dur) var(--ease)}
+.toggle.on{background:var(--accent)}.toggle.on::after{transform:translateX(20px)}
+.input{width:100%;min-height:48px;padding:0 var(--space-4);background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius-sm);color:var(--text);font:500 16px/1.2 var(--font-body);transition:border-color var(--dur) var(--ease)}
+.input::placeholder{color:var(--text-dim)}.input:focus{border-color:var(--accent);box-shadow:var(--focus);outline:0}
+input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+.row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3) var(--space-4);padding:var(--space-4) 0;border-bottom:1px solid var(--line-soft)}
+.row-text{flex:1 1 220px;min-width:0}
+.row-text strong{display:block;font-weight:600}
+.row-text span{display:block;font-size:14px;color:var(--text-muted)}
+/* dev-only: state labels for this handoff file. Ship the .app inside each <section class="demo">, not the wrapper. */
+.demo{padding:var(--space-8) 0 0}
+.demo + .demo{border-top:1px dashed var(--line)}
+.demo .app{min-height:auto}
+.demo.tall .app{min-height:min(100dvh,800px)}
+.state{display:inline-flex;align-items:center;gap:var(--space-2);margin:0 var(--gutter) var(--space-4);padding:6px 10px;border:1px dashed var(--accent);border-radius:var(--radius-sm);font:600 11px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+
+.status{display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--space-3) var(--space-5);padding-bottom:var(--space-4);border-bottom:1px solid var(--line-soft)}
+.stat{display:grid;gap:2px}
+.stat .num{font-size:clamp(24px,5vw,32px)}
+.status-actions{margin-left:auto;display:flex;gap:var(--space-1);flex-wrap:wrap}
+@media (max-width:400px){.status-actions{margin-left:0;width:100%}}
+.guess-input{position:relative}
+.guess-input .input{min-height:56px;font-size:clamp(18px,4.5vw,22px);padding-right:112px}
+.guess-input .submit{position:absolute;right:6px;top:6px;bottom:6px;min-height:0;padding:0 var(--space-4)}
+.ac{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:3;overflow:hidden;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:var(--shadow-md)}
+.ac button{display:flex;justify-content:space-between;gap:var(--space-3);width:100%;min-height:44px;padding:var(--space-2) var(--space-4);text-align:left;font-size:16px}
+.ac button:hover,.ac button.hl{background:var(--surface-2)}
+.ac b{color:var(--accent);font-weight:600}
+.ac .to{color:var(--text-muted);font-size:13px;white-space:nowrap}
+.guesses{display:grid;gap:var(--space-2)}
+.guess{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);min-height:60px;padding:var(--space-2) var(--space-4);background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-md);transition:transform 400ms var(--ease)}
+.guess .fill{position:absolute;top:0;bottom:0;left:0;width:var(--pct);background:var(--fill);opacity:var(--fill-alpha);transition:width 600ms var(--ease),background 600ms var(--ease)}
+.guess>*{position:relative}
+.guess .word{font:700 clamp(20px,5vw,26px)/1 var(--font-display);letter-spacing:-.01em;overflow-wrap:anywhere}
+.guess .form{display:block;margin-top:4px;font:400 12px/1.2 var(--font-body);color:var(--text);opacity:.75}
+.guess .rank{text-align:right;font:800 clamp(24px,6vw,32px)/1 var(--font-display);font-variant-numeric:tabular-nums;white-space:nowrap}
+.guess .rank small{display:block;margin-top:2px;font:600 10px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;opacity:.7}
+.guess.new{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.guess.secret{border-color:var(--fill-hot)}.guess.secret .fill{opacity:.85}
+.guess.secret .word,.guess.secret .rank{color:#fff}
+.divider{display:flex;align-items:center;gap:var(--space-3);color:var(--text-muted);font:600 11px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;padding:var(--space-2) 0}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+.history summary{list-style:none;display:flex;align-items:center;gap:var(--space-2);min-height:44px;cursor:pointer;color:var(--text-muted);font:600 12px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase}
+.history summary::-webkit-details-marker{display:none}
+.history summary .arrow{display:inline-block;transition:transform var(--dur) var(--ease)}
+.history[open] summary .arrow{transform:rotate(90deg)}
+.hist{display:grid;grid-template-columns:3ch minmax(0,1fr) minmax(64px,120px) auto;align-items:center;gap:var(--space-2) var(--space-3);font-size:14px;padding-top:var(--space-2)}
+.hist>span{padding:var(--space-1) 0;border-bottom:1px solid var(--line-soft);min-height:32px;display:flex;align-items:center}
+.hist .i{color:var(--text-dim);font-variant-numeric:tabular-nums}
+.hist .r{justify-content:flex-end;font:700 16px/1 var(--font-display);font-variant-numeric:tabular-nums}
+.bar{height:4px;background:var(--surface-2);border-radius:var(--radius-sm);overflow:hidden;width:100%}
+.bar i{display:block;height:100%;width:var(--pct);background:var(--fill)}
+.empty{display:grid;gap:var(--space-4);padding:var(--space-6) var(--space-5);border-left:3px solid var(--accent)}
+.empty h2{font:700 clamp(22px,5vw,28px)/1.05 var(--font-display);text-transform:uppercase;letter-spacing:-.02em}
+.legend{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--space-3);font-size:12px;color:var(--text-muted)}
+.ramp{height:8px;border-radius:var(--radius-sm);background:linear-gradient(90deg,var(--fill-cold),var(--fill-warm),var(--fill-mid),var(--fill-hot))}
+.win{display:grid;gap:var(--space-4);padding:var(--space-6) var(--space-5);background:var(--accent);color:#fff;border-radius:var(--radius-md)}
+.win .eyebrow{color:rgba(255,255,255,.8)}
+.win .display{font-size:clamp(44px,12vw,80px)}
+.win-stats{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-4);font-size:15px}
+.win-stats b{font:800 1.2em/1 var(--font-display)}
+.win-actions{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.win .btn-outline{border-color:#fff;color:#fff}.win .btn-outline:hover{background:#fff;color:var(--accent)}
+.win .btn-primary{background:#000;border-color:#000}.win .btn-primary:hover{background:#1A1A1A;border-color:#1A1A1A}
+</style>
+</head>
+<body>
+<section class="demo tall">
+<div class="state">State · 0 guesses</div>
+<div class="app">
+  <header class="topbar">
+  <a class="brand" href="main-menu.html">Word<b>/</b>Guess</a>
+  <span class="spacer"></span>
+  <span class="eyebrow">Evening puzzle</span>
+</header>
+  <main class="main">
+    <div class="status">
+  <div class="stat"><span class="eyebrow">Guesses</span><span class="num">0</span></div>
+  <div class="stat"><span class="eyebrow">Category</span><span class="num" style="font-weight:700">Animals</span></div>
+  <div class="stat"><span class="eyebrow">Language</span><span class="num" style="font-weight:700">PL</span></div>
+  <div class="status-actions"><a class="btn btn-ghost" href="game-picker.html">Save &amp; exit</a><button class="btn btn-ghost btn-danger" type="button">Give up</button></div>
+</div>
+    <div class="guess-input">
+      <input class="input" type="text" placeholder="Type a word…" aria-label="Your guess" autofocus>
+      <button class="btn btn-primary submit" type="button">Guess</button>
+    </div>
+    <div class="card empty">
+      <h2>Any word you know is a guess</h2>
+      <p class="help">The number you get back is a <strong style="color:var(--text)">rank</strong> — how many words are closer in meaning to the secret. <strong style="color:var(--text)">1</strong> means nothing is closer. Thousands means change direction.</p>
+      <div class="legend"><span>far</span><div class="ramp"></div><span>close</span></div>
+      <p class="help"><span class="arrow">→</span> Typed <em>psami</em>? It counts as <em>pies</em> — forms collapse to the base word.</p>
+    </div>
+  </main>
+</div>
+</section>
+
+<section class="demo tall">
+<div class="state">State · mid-game, autocomplete open, latest guess outside top 5</div>
+<div class="app">
+  <header class="topbar">
+  <a class="brand" href="main-menu.html">Word<b>/</b>Guess</a>
+  <span class="spacer"></span>
+  <span class="eyebrow">Evening puzzle</span>
+</header>
+  <main class="main">
+    <div class="status">
+  <div class="stat"><span class="eyebrow">Guesses</span><span class="num">15</span></div>
+  <div class="stat"><span class="eyebrow">Category</span><span class="num" style="font-weight:700">Animals</span></div>
+  <div class="stat"><span class="eyebrow">Language</span><span class="num" style="font-weight:700">PL</span></div>
+  <div class="status-actions"><a class="btn btn-ghost" href="game-picker.html">Save &amp; exit</a><button class="btn btn-ghost btn-danger" type="button">Give up</button></div>
+</div>
+    <div class="guess-input">
+      <input class="input" type="text" value="kot" aria-label="Your guess" autofocus>
+      <button class="btn btn-primary submit" type="button">Guess</button>
+      <div class="ac" role="listbox">
+        <button type="button" class="hl" role="option"><span><b>kot</b></span><span class="to">noun</span></button>
+        <button type="button" role="option"><span><b>kot</b>ek</span><span class="to">noun</span></button>
+        <button type="button" role="option"><span><b>kot</b>ka</span><span class="to">noun</span></button>
+        <button type="button" role="option"><span><b>kot</b>ły</span><span class="to">→ kocioł</span></button>
+      </div>
+    </div>
+    <ol class="guesses" aria-label="Top 5 closest guesses">
+      <li class="guess ">
+  <span class="fill" style="--pct:85%;--fill:var(--fill-hot)"></span>
+  <span class="word">mysz</span>
+  <span class="rank">5</span>
+</li>
+      <li class="guess new">
+  <span class="fill" style="--pct:77%;--fill:var(--fill-hot)"></span>
+  <span class="word">pies<span class="form">psami → pies</span></span>
+  <span class="rank">12<small>latest</small></span>
+</li>
+      <li class="guess ">
+  <span class="fill" style="--pct:72%;--fill:var(--fill-mid)"></span>
+  <span class="word">tygrys</span>
+  <span class="rank">21</span>
+</li>
+      <li class="guess ">
+  <span class="fill" style="--pct:66%;--fill:var(--fill-mid)"></span>
+  <span class="word">zwierzę<span class="form">zwierzęta → zwierzę</span></span>
+  <span class="rank">38</span>
+</li>
+      <li class="guess ">
+  <span class="fill" style="--pct:47%;--fill:var(--fill-warm)"></span>
+  <span class="word">ryba</span>
+  <span class="rank">312</span>
+</li>
+    </ol>
+    <div class="divider">latest</div>
+    <ol class="guesses" aria-label="Latest guess">
+      <li class="guess new">
+  <span class="fill" style="--pct:31%;--fill:var(--fill-cold)"></span>
+  <span class="word">dom</span>
+  <span class="rank">1834<small>latest</small></span>
+</li>
+    </ol>
+    <details class="history">
+      <summary><span class="arrow">→</span> All guesses <span class="num" style="color:var(--text)">15</span></summary>
+      <div class="hist"><span class="i">15</span><span>pies <span class="muted" style="font-size:12px">psami → pies</span></span><span><i class="bar"><i style="--pct:77%;--fill:var(--fill-hot)"></i></i></span><span class="r">12</span>
+<span class="i">14</span><span>dom</span><span><i class="bar"><i style="--pct:31%;--fill:var(--fill-cold)"></i></i></span><span class="r">1834</span>
+<span class="i">13</span><span>tygrys</span><span><i class="bar"><i style="--pct:72%;--fill:var(--fill-mid)"></i></i></span><span class="r">21</span>
+<span class="i">12</span><span>szczęśliwy</span><span><i class="bar"><i style="--pct:19%;--fill:var(--fill-cold)"></i></i></span><span class="r">6547</span>
+<span class="i">11</span><span>mysz</span><span><i class="bar"><i style="--pct:85%;--fill:var(--fill-hot)"></i></i></span><span class="r">5</span>
+<span class="i">10</span><span>zwierzę <span class="muted" style="font-size:12px">zwierzęta → zwierzę</span></span><span><i class="bar"><i style="--pct:66%;--fill:var(--fill-mid)"></i></i></span><span class="r">38</span>
+<span class="i">9</span><span>ryba</span><span><i class="bar"><i style="--pct:47%;--fill:var(--fill-warm)"></i></i></span><span class="r">312</span></div>
+    </details>
+  </main>
+</div>
+</section>
+
+<section class="demo tall">
+<div class="state">State · won</div>
+<div class="app">
+  <header class="topbar">
+  <a class="brand" href="main-menu.html">Word<b>/</b>Guess</a>
+  <span class="spacer"></span>
+  <span class="eyebrow">Evening puzzle</span>
+</header>
+  <main class="main">
+    <div class="status">
+  <div class="stat"><span class="eyebrow">Guesses</span><span class="num">16</span></div>
+  <div class="stat"><span class="eyebrow">Category</span><span class="num" style="font-weight:700">Animals</span></div>
+  <div class="stat"><span class="eyebrow">Language</span><span class="num" style="font-weight:700">PL</span></div>
+  <div class="stat"><span class="eyebrow">Time</span><span class="num">6:12</span></div>
+</div>
+    <div class="win">
+      <span class="eyebrow">You got it</span>
+      <p class="display">kot</p>
+      <div class="win-stats"><span><b>16</b> guesses</span><span>·</span><span><b>6:12</b> in game</span><span>·</span><span>best win <b>5</b></span></div>
+      <div class="win-actions"><a class="btn btn-primary" href="new-game.html">New game <span class="arrow">→</span></a><a class="btn btn-outline" href="main-menu.html">Menu</a></div>
+    </div>
+    <ol class="guesses" aria-label="Closest guesses">
+      <li class="guess secret">
+  <span class="fill" style="--pct:100%;--fill:var(--fill-hot)"></span>
+  <span class="word">kot<span class="form">kota → kot</span></span>
+  <span class="rank">✓<small>secret</small></span>
+</li>
+      <li class="guess ">
+  <span class="fill" style="--pct:85%;--fill:var(--fill-hot)"></span>
+  <span class="word">mysz</span>
+  <span class="rank">5</span>
+</li>
+      <li class="guess ">
+  <span class="fill" style="--pct:77%;--fill:var(--fill-hot)"></span>
+  <span class="word">pies<span class="form">psami → pies</span></span>
+  <span class="rank">12</span>
+</li>
+      <li class="guess ">
+  <span class="fill" style="--pct:72%;--fill:var(--fill-mid)"></span>
+  <span class="word">tygrys</span>
+  <span class="rank">21</span>
+</li>
+      <li class="guess ">
+  <span class="fill" style="--pct:66%;--fill:var(--fill-mid)"></span>
+  <span class="word">zwierzę<span class="form">zwierzęta → zwierzę</span></span>
+  <span class="rank">38</span>
+</li>
+    </ol>
+    <details class="history">
+      <summary><span class="arrow">→</span> All guesses <span class="num" style="color:var(--text)">16</span></summary>
+      <div class="hist"><span class="i">16</span><span>kot <span class="muted" style="font-size:12px">kota → kot</span></span><span><i class="bar"><i style="--pct:100%;--fill:var(--fill-hot)"></i></i></span><span class="r">✓</span>
+<span class="i">15</span><span>pies <span class="muted" style="font-size:12px">psami → pies</span></span><span><i class="bar"><i style="--pct:77%;--fill:var(--fill-hot)"></i></i></span><span class="r">12</span>
+<span class="i">14</span><span>dom</span><span><i class="bar"><i style="--pct:31%;--fill:var(--fill-cold)"></i></i></span><span class="r">1834</span>
+<span class="i">13</span><span>tygrys</span><span><i class="bar"><i style="--pct:72%;--fill:var(--fill-mid)"></i></i></span><span class="r">21</span>
+<span class="i">12</span><span>szczęśliwy</span><span><i class="bar"><i style="--pct:19%;--fill:var(--fill-cold)"></i></i></span><span class="r">6547</span>
+<span class="i">11</span><span>mysz</span><span><i class="bar"><i style="--pct:85%;--fill:var(--fill-hot)"></i></i></span><span class="r">5</span>
+<span class="i">10</span><span>zwierzę <span class="muted" style="font-size:12px">zwierzęta → zwierzę</span></span><span><i class="bar"><i style="--pct:66%;--fill:var(--fill-mid)"></i></i></span><span class="r">38</span>
+<span class="i">9</span><span>ryba</span><span><i class="bar"><i style="--pct:47%;--fill:var(--fill-warm)"></i></i></span><span class="r">312</span></div>
+    </details>
+  </main>
+</div>
+</section>
+</body>
+</html>
