@@ -6,6 +6,35 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.14.2 — 2026-09-22 16:10: A seed pass for Polish Food and Nature
+*(not packaged yet)*
+
+Polish was far behind English in these two — Food by 66 words, Nature by 38. The cause turned out not
+to be missing vocabulary but missing *tags*: `las`, `dąb`, `sosna`, `mąka`, `orzech`, `bułka` and
+fifty more were all in the dictionary with **no category at all**. A common word sits near several
+categories at once, so it never wins one clearly and the categoriser leaves it out on purpose. A seed
+word is a member by definition, so the fix is to name them.
+
+- **Nature 71 → 147.** Trees (`dąb sosna brzoza świerk buk klon wierzba jodła modrzew topola`),
+  flowers (`róża stokrotka tulipan mak słonecznik mniszek fiołek konwalia`), plants
+  (`roślina krzew paproć porost kora pąk`), terrain (`źródło stok zbocze step tundra gaj bór
+  puszcza`) and ground (`glina torf granit bazalt`).
+- **Food 228 → 296.** Staples (`mąka bułka śmietana drożdże orzech`), baked goods (`naleśnik pączek
+  rogalik piernik makowiec wafel beza`), meat (`stek kotlet schab boczek klops`), condiments
+  (`musztarda majonez keczup chrzan szafran`) and the rest.
+- **Animals 94 → 110**, because the fish had nowhere to live: `łosoś karp pstrąg dorsz makrela
+  szczupak okoń sandacz tuńczyk halibut flądra`.
+
+Three things came along that had to be sent away again, all of them sitting next to the seeds in the
+vector space rather than belonging to the category:
+
+- **cosmetics in Food** — `krem`, `peeling`, `balsam`, `puder`, `pasta`. Things you put on your skin,
+  not in your mouth.
+- **building materials in Nature** — `beton`, `cement`, `klinkier`, `tłuczeń`, `kruszywo`. The stone
+  seeds pull in what stone is turned into.
+- **brands and leftovers** — `nutella`, `milka`, plus `konie` (a plural kept as a word of its own)
+  and diminutives whose stem shifts too far for the automatic rule (`masełko`, `jajeczko`, `bułeczka`).
+
 ## 0.14.1 — 2026-09-22 15:35: Guessing the same word again clears the box
 *(not packaged yet)*
 

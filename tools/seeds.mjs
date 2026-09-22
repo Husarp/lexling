@@ -30,15 +30,32 @@ export const SEEDS = {
     abstract: 'time idea thought truth reason freedom peace war power justice future past memory dream chance luck history culture society knowledge wisdom meaning purpose',
   },
   pl: {
-    animals: 'kot pies koń krowa świnia owca koza kura kaczka królik szczur lew tygrys niedźwiedź wilk lis jeleń słoń żyrafa małpa zebra wieloryb delfin rekin ośmiornica żaba żółw wąż jaszczurka pająk mrówka pszczoła motyl orzeł sowa papuga wiewiórka chomik kotek szczeniak',
-    food: 'chleb masło ser jajko mleko mięso kiełbasa zupa pizza makaron ryż ziemniak marchew cebula pomidor ogórek kapusta czosnek pieprz cukier miód jabłko banan pomarańcza cytryna winogrono wiśnia truskawka gruszka śliwka ciasto czekolada ciastko kawa herbata sok wino piwo śniadanie obiad',
+    animals: 'kot pies koń krowa świnia owca koza kura kaczka królik szczur lew tygrys niedźwiedź wilk lis jeleń słoń żyrafa małpa zebra wieloryb delfin rekin ośmiornica żaba żółw wąż jaszczurka pająk mrówka pszczoła motyl orzeł sowa papuga wiewiórka chomik kotek szczeniak '
+      + 'łosoś śledź makrela dorsz karp pstrąg bydło',
+    food: 'chleb masło ser jajko mleko mięso kiełbasa zupa pizza makaron ryż ziemniak marchew cebula pomidor ogórek kapusta czosnek pieprz cukier miód jabłko banan pomarańcza cytryna winogrono wiśnia truskawka gruszka śliwka ciasto czekolada ciastko kawa herbata sok wino piwo śniadanie obiad '
+      // added after comparing with English, which had 66 more: these were all in the vocabulary but
+      // the categoriser left them uncategorised, because a common word sits near several categories
+      // at once and so never wins one clearly. A seed is a member by definition.
+      + 'mąka bułka tost naleśnik pączek rogalik herbatnik keks wafel piernik makowiec strucla beza '
+      + 'stek kotlet schab boczek klops pulpet szynka '
+      + 'orzech migdał rodzynka daktyl figa sezam '
+      + 'musztarda majonez keczup chrzan ocet szafran '
+      + 'drożdże śmietana maślanka serek twaróg '
+      + 'frytka chipsy kluski knedle lody sorbet',
     household: 'krzesło stół łóżko kanapa półka lampa lustro dywan zasłona poduszka koc ręcznik łyżka widelec talerz kubek miska czajnik lodówka piekarnik kuchenka zlew wiadro miotła mydło meble szuflada szafa wazon',
     clothing: 'koszula spodnie dżinsy sukienka spódnica kurtka płaszcz sweter skarpeta but czapka kapelusz rękawiczka szalik pasek krawat mundur bielizna sandał bluzka bluza marynarka garnitur koszulka szorty klapki spodenki podkoszulek trampki kamizelka',
     tools: 'młotek śrubokręt piła wiertarka gwóźdź śruba szczypce siekiera łopata grabie drabina lina łańcuch drut dłuto imadło warsztat nożyczki igła wkrętak obcęgi kielnia poziomica wiertło pilnik szlifierka gwint młot nakrętka podkładka',
     tech: 'komputer laptop klawiatura ekran monitor drukarka aparat bateria ładowarka kabel głośnik słuchawki mikrofon router serwer oprogramowanie internet strona hasło robot dron satelita procesor smartfon',
     vehicles: 'samochód autobus pociąg tramwaj samolot rower motocykl ciężarówka furgonetka taksówka łódź statek prom helikopter traktor hulajnoga silnik koło paliwo bilet podróż pasażer przyczepa',
     buildings: 'dom mieszkanie zamek kościół wieża hotel restauracja sklep muzeum biblioteka teatr szpital fabryka więzienie dworzec lotnisko most ściana dach drzwi okno schody kuchnia sypialnia łazienka garaż piwnica balkon',
-    nature: 'góra wzgórze dolina las drzewo kwiat trawa liść korzeń nasiono rzeka jezioro morze ocean plaża wyspa pustynia jaskinia skała kamień piasek pole łąka bagno wodospad gleba mech grzyb krzak strumień staw zatoka klif gałąź pień polana wydma szczyt przełęcz wąwóz',
+    nature: 'góra wzgórze dolina las drzewo kwiat trawa liść korzeń nasiono rzeka jezioro morze ocean plaża wyspa pustynia jaskinia skała kamień piasek pole łąka bagno wodospad gleba mech grzyb krzak strumień staw zatoka klif gałąź pień polana wydma szczyt przełęcz wąwóz '
+      // English had 38 more, and the difference was almost entirely trees, flowers and ground:
+      // all present in the vocabulary, none of them tagged
+      + 'sosna dąb brzoza świerk wierzba buk klon jodła modrzew topola '
+      + 'roślina krzew paproć porost kora pąk pyłek '
+      + 'róża stokrotka tulipan mniszek fiołek konwalia mak słonecznik '
+      + 'źródło stok zbocze step tundra gaj bór puszcza '
+      + 'glina torf granit bazalt żwir',
     weather: 'deszcz śnieg wiatr burza chmura mgła mróz grzmot błyskawica grad tęcza susza powódź upał wilgotność zamieć ulewa mżawka wichura szron gołoledź skwar przymrozek zachmurzenie opad odwilż huragan tornado',
     body: 'głowa ręka ramię noga stopa oko ucho nos usta ząb język włosy skóra kość krew serce płuco wątroba żołądek kolano łokieć bark palec kciuk szyja mózg mięsień nerw czoło broda policzek warga powieka rzęsa paznokieć pięta biodro żebro nerka tętnica nadgarstek kostka',
     people: 'matka ojciec siostra brat syn córka niemowlę dziecko przyjaciel sąsiad rodzina żona mąż wujek ciocia kuzyn babcia dziadek gość nieznajomy para dziewczyna chłopak kobieta nastolatek dorosły',
@@ -69,18 +86,29 @@ export const NOT_IN = {
     // owca→owieczka, kot→kociak, pies→psiak, kura→kokoszka, and `kota`, which is a case form of
     // `kot` that the dictionary kept as a word of its own
     animals: 'zwierzę zwierz zwierzak zwierzątko pupil ssak gryzoń drapieżnik czworonóg stworek słodziak pluszak aniołek smok wilkołak pyszczek rudzielec zwinka sunia kiciuś piesio szczenię miś '
-      + 'kota kociak psiak suczka owieczka kokoszka jelonek ptaszek '
+      + 'kota kociak psiak suczka owieczka kokoszka jelonek ptaszek konie trzoda śledzik '
       // `miś` is a teddy bear, so it is blocked above - which leaves its diminutives with no base
       // for the automatic rule to find. The animal is `niedźwiedź`.
       + 'misiek misio misiaczek niedźwiadek',
-    food: 'jedzenie żywność posiłek produkt danie potrawa składnik kuchnia smak dieta porcja',
+    // brand names are not words to guess, and these diminutives change their stem too much for the
+    // automatic rule (masło→masełko, jajko→jajeczko, bułka→bułeczka)
+    food: 'jedzenie żywność posiłek produkt danie potrawa składnik kuchnia smak dieta porcja przepis spód '
+      + 'nutella milka cola grapefruit '
+      // things you put on your skin, not in your mouth - they sit right next to food in the vectors
+      + 'krem peeling balsam puder pasta soda '
+      // equipment rather than food
+      + 'tortownica kawiarka '
+      + 'masełko jajeczko jabłuszko ciacho mięcho jedzonko twarożek papryczka bułeczka polędwiczka kiełbaska serduszko '
+      + 'soczek barszczyk ślimaczek buła udko żelek murzynek truskawkowo',
     household: 'dom gospodarstwo sprzęt wyposażenie urządzenie przedmiot',
     clothing: 'ubranie odzież strój ubiór garderoba moda rozmiar materiał',
     tools: 'narzędzie sprzęt urządzenie przyrząd',
     tech: 'technologia urządzenie sprzęt elektronika',
     vehicles: 'pojazd transport komunikacja',
     buildings: 'budynek budowla konstrukcja obiekt architektura',
-    nature: 'przyroda natura środowisko krajobraz teren',
+    // the stone seeds pull in what stone is turned into, which is a building material, not nature
+    nature: 'przyroda natura środowisko krajobraz teren '
+      + 'beton cement klinkier fornir tłuczeń kruszywo grys mahoń teak molo promenada rabata',
     weather: 'pogoda klimat temperatura prognoza',
     body: 'ciało organizm narząd organ',
     people: 'człowiek ludzie osoba osobnik jednostka',

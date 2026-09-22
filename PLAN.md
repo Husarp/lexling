@@ -89,9 +89,11 @@ diminutives and things that are not animals.
       English compounds `rainbow`, `sunshine`, `snowfall`.
 - [x] Word data rebuilt for both languages. Polish Animals 150 → 94, all of them animals.
 - [x] A one-line description per category on the new-game screen, in both languages.
-- [ ] Still open: Polish has fewer words than English in Food (-66), Nature, Body and School even
-      after the clean-up. Some are genuinely missing from the vocabulary — `kiwi` is not there at
-      all. Worth a pass over the seed lists for those categories.
+- [x] Seed pass for Food and Nature (0.14.2). The gap was not missing vocabulary but missing tags:
+      common words sit near several categories and so win none, and the categoriser drops them. Naming
+      them as seeds fixed it — Nature 71 → 147, Food 228 → 296, Animals 94 → 110 (the fish).
+- [ ] Still open: the same pass for Body (-32) and School (-31), and `kiwi` really is absent from the
+      Polish vocabulary — that one needs the word list widened, not a seed.
 - [ ] Still open: whether group words (`ptak`, `ryba`, `owad`) should be answers in Animals. Kept for
       now — the owner said kinds of animals are fair.
 
