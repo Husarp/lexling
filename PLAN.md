@@ -102,78 +102,89 @@ diminutives and things that are not animals.
       now — the owner said kinds of animals are fair.
 
 ## M12 — Letters mode (a Wordle inside WordGuess) — PLANNED, not started
-Asked for 2026-09-23. A second game mode: guess a hidden word letter by letter, with the usual
-green / yellow / grey feedback. What makes it ours rather than a Wordle clone:
+Asked for 2026-09-23, settled the same day. Guess a hidden word letter by letter with the usual
+green / yellow / grey feedback. What makes it ours rather than a Wordle clone: **not one word a day**
+— a random word from the dictionary the game already ships, played as often as you like, offline,
+with no clock and no sync, and with the shape of the game chosen by the player.
 
-- **Not one word a day.** A random word from the dictionary we already have, so you can play as many
-  as you like, offline, with no clock and no sync.
-- **You choose the shape of the game**: word length, and how many tries you get.
-- **A score**, so games can be compared. Owner's formula, to be confirmed:
-  `score = length ÷ tries × 100` — a 5-letter word in 3 tries scores 167, in one try 500. It rewards
-  both longer words and fewer guesses, which is the right direction.
+A reminder is set for 2026-09-25 20:00 to pick this back up.
 
-### Decided 2026-09-23
-- **Polish letters are separate letters**, and they are a **setting you turn on or off**:
+### Settled
+- **The player chooses**: word length, number of tries, category, difficulty, and whether Polish
+  letters with marks may appear.
+- **Polish letters are separate letters**, and they are a switch:
   - **off** — the hidden word is guaranteed to contain none of `ąćęłńóśźż`;
-  - **on** — the hidden word is drawn from everything, so it may contain them, and each one counts
-    as **two letters** when the score is worked out. Harder word, bigger score.
-- **Any common word may be hidden**, whatever its part of speech — but always in its **base form**,
-  never an inflected one. `ac.txt` distinguishes the two already.
-- **Word difficulty is chosen** the same way as in the main mode, and feeds the score.
-- **Score** = letters ÷ guesses actually used × 100, where a Polish letter counts as two and unused
-  tries simply never enter the sum. Worked example: `żółw` with Polish letters on is ż+ó+ł+w =
-  2+2+2+1 = **7**; solved on the third guess → 7 ÷ 3 × 100 = **233**, then multiplied by the
-  difficulty. That multiplier is the one number still to pick — suggest Relaxed ×0.75, Easy ×1,
-  Normal ×1.25, Hard ×1.5.
-- **Repeated letters** follow Wordle's exact rule. **No colour-blind mode** — not wanted.
-- **Categories are used**, and **badges are used**, with a separate section per mode on the badges
+  - **on** — the word is drawn from everything, so it may contain them, and each one counts as
+    **two letters** in the score. Harder word, bigger score.
+- **Any common word may be hidden**, whatever its part of speech, but always in its **base form** —
+  never an inflected one.
+- **A guess must be a real word** of the right length. `resolve()` already answers that.
+- **Difficulty** is chosen as in the main mode and multiplies the score.
+- **Score** = letters ÷ guesses **actually used** × 100 × difficulty. A Polish letter counts as two;
+  tries you did not need simply never enter the sum, which is the bonus for finishing early.
+  Worked example: `żółw` with Polish letters on is ż+ó+ł+w = 2+2+2+1 = **7**; solved on the third
+  guess → 7 ÷ 3 × 100 = **233**, then × difficulty.
+- **Repeated letters** follow Wordle's exact rule: two `a`s guessed against one `a` in the answer
+  colours the first and greys the second. Fiddly; worth its own tests.
+- **No colour-blind mode** — not wanted.
+- **Categories are used.** **Badges are used**, with a separate section per mode on the badges
   screen rather than one mixed list.
 - **The menu splits the Play button in two**, one per mode, each with its own arrow direction.
-- **The phone's own keyboard is used** — no custom on-screen keyboard. Polish marks live under their
+- **The phone's own keyboard is used** — no custom on-screen keyboard. Polish marks sit under their
   plain counterparts on a long press, which is how Android's Polish layout already behaves.
 
-### The one thing that answer costs, and what I suggest instead
+### Still open
+- [ ] **The difficulty multiplier.** Suggested Relaxed ×0.75, Easy ×1, Normal ×1.25, Hard ×1.5.
+- [ ] **The letter strip** (below) — confirm or drop.
+- [ ] **What a loss scores.** Running out of tries presumably scores nothing, but say so.
+- [ ] **The ranges**: which word lengths and how many tries may be chosen. Wordle is 5 and 6.
+
+### The letter strip — what the keyboard decision costs
 Using the system keyboard means **its keys cannot be coloured**, and in Wordle knowing which letters
-are already dead is half the game — on paper you would be holding that in your head.
-- [ ] Suggest a **letter strip**: one read-only row above the guesses showing the alphabet, each
-      letter grey / yellow / green. It is not a keyboard, nothing is typed on it, so the phone's
-      keyboard stays exactly as it is — and the information is still on screen. Cheap to build and it
-      sidesteps the 32-key layout problem entirely.
+are already dead is half the game; without it you hold that in your head.
+- [ ] Suggested instead: a **read-only letter strip**, one row above the guesses showing the
+      alphabet with each letter grey / yellow / green. Nothing is typed on it, so the phone's
+      keyboard is untouched, the information is still on screen, and the 32-key layout problem never
+      arises.
+
+### Consequences worth knowing before building
+- [ ] **The word pool is not the one the main mode uses.** `m.secret` is vetted **nouns**; this mode
+      wants any part of speech. Either a second list from the pipeline or a runtime filter over
+      `words` — decide which, because it changes `vocab.json`.
+- [ ] **Categories are built from nouns only.** So choosing a category quietly restricts this mode to
+      nouns. That is fine, but it should be said on screen rather than discovered.
+- [ ] **The choices can combine into an empty pool** — a 9-letter Relaxed animal with no Polish
+      letters may not exist. The main mode already solves this with a 20-word floor and a readout
+      saying how many words a game can hide; do the same here rather than inventing something new.
 
 ### To build
-- [ ] **Reuse the vocabulary and the validator.** `resolve()` already decides whether a typed word is
-      real and `ac.txt` already holds every inflected form, so "is this a word?" is solved, as is
-      "is this the base form?".
-- [ ] **Repeated letters** exactly (two `a`s guessed, one in the answer → first coloured, second
-      grey). Fiddly; worth its own tests.
-- [ ] **Hard mode** — a revealed letter must be reused. Standard, cheap, wanted by the people who
-      want it.
+- [ ] Reuse the vocabulary and the validator: `resolve()` for "is this a word?", `ac.txt` for "is
+      this the base form?".
+- [ ] **Hard mode** — a revealed letter must be reused. Standard, cheap, and wanted by the people who
+      want it at all.
 - [ ] **A result grid to copy** — the coloured squares. Pure clipboard, works offline, and the thing
       that makes a score worth having.
 - [ ] **Save and resume**, like the main mode.
 
-## Merging a Scrabble game in — asked 2026-09-23, my answer
-**Yes eventually, no now**, and the reason is not the one you would expect.
+## M13 — Merging a Scrabble game in — asked 2026-09-23, answered: yes eventually, no now
+**Size is not the obstacle,** which is the surprising part. Scrabble needs a list of every legal
+word, and that is `ac.txt` — already in the app, 4.8 MB Polish and 0.7 MB English, already shipped.
+Adding Scrabble to WordGuess would cost almost nothing to download, because the expensive part of
+this app (30 MB of vectors) is already paid for and Scrabble never opens it. The waste runs the other
+way: a standalone Scrabble carrying vectors it does not use.
 
-Size is not the obstacle. Scrabble needs a list of every legal word, and that is `ac.txt` — already
-in the app, 4.8 MB Polish and 0.7 MB English, already shipped. Adding Scrabble to WordGuess would
-cost almost nothing in download size, because the expensive part of this app (the 30 MB of vectors)
-is already paid for and Scrabble does not use it. Going the other way is what would be wasteful: a
-standalone Scrabble carrying WordGuess's vectors it never opens.
-
-What genuinely overlaps is bigger than the word list: both languages and all their text, the
+**What genuinely overlaps is bigger than the word list**: both languages and every string, the
 installer, the update check, saves, badges, statistics, the whole look. Two apps means maintaining
-two of each of those forever.
+two of each of those forever. That is the real argument for merging.
 
-The real cost is effort and focus. A Scrabble worth playing needs an opponent, and a computer
-opponent means move generation across a 15×15 board — a DAWG or GADDAG over the whole dictionary.
-That is the largest single piece of work discussed for this project so far, larger than the semantic
-engine was. Starting it before the letters mode exists is how a project ends up with three
-half-games.
+**The real cost is focus.** A Scrabble worth playing needs an opponent, and a computer opponent means
+move generation across a 15×15 board — a DAWG or GADDAG over the whole dictionary. That is the
+largest single piece of work discussed for this project, larger than the semantic engine was.
+Starting it before the letters mode exists is how a project ends up with three half-games.
 
-- [ ] So: finish the letters mode, ship it, then decide. If it is merged, WordGuess becomes the name
-      of a collection of three word games rather than one game, and the menu, badges and statistics
-      all have to carry a third.
+- [ ] Finish the letters mode, ship it, then decide.
+- [ ] If merged, WordGuess stops being one game and becomes the name of a collection of three, and
+      the menu, the badges screen and the statistics all have to carry a third.
 - [ ] Worth knowing early: **"Scrabble" is a trademark.** A shipped game needs its own name.
 
 ## OPEN QUESTIONS (waiting on owner)
