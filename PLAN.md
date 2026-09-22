@@ -183,6 +183,11 @@ Details and the measurements behind every choice: DESIGN.md §2.
       pywebview + pyinstaller; creating one needs a pip download).
 - [~] GitHub Releases update check — UI + check logic done in Settings; set `REPO` in
       `app/js/version.js` once the GitHub repository exists (button is disabled until then).
+- [~] Git — repository initialised 2026-09-22, branch `main`, first commit `1314ad9` (152 files,
+      41.5 MB; `tools/raw`, `build/`, `node_modules/` and the Gradle output stay out). `.gitattributes`
+      forces LF and marks `app/data/**` binary — a CRLF checkout would put a stray `\r` on every word
+      in `ac.txt` and no guess would ever match. **Owner chose: private repository.**
+      Waiting on: an empty private repo on GitHub (its URL), then `git remote add` + push.
 - [ ] "Open saves folder →" link in About (design has it; needs the wrapper's API).
 - [ ] **Credits in About before distributing**: the word data derives from fastText (CC BY-SA 3.0:
       attribution + share-alike), the sjp.pl and SCOWL dictionaries and WordNet — table in README.

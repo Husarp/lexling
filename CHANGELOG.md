@@ -6,6 +6,19 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.13.3 — 2026-09-22 12:31: Put the project under Git
+*(not packaged yet — no code change, repository housekeeping)*
+
+- `git init`, branch `main`, first commit `1314ad9`: 152 files, 41.5 MB. The 2.6 GB of raw fastText
+  vectors, `build/`, `node_modules/` and everything Gradle regenerates stay out, as `.gitignore`
+  already said. Largest committed file is `app/data/pl/vectors.bin` at 17 MB, well under GitHub's
+  100 MB ceiling.
+- Added `.gitattributes`. Without it Git would have "helpfully" converted `app/data/*/ac.txt` to CRLF
+  on checkout, and since `engine.js` splits that file on `\n`, every word would carry a trailing `\r`
+  and **no guess would ever match** on a fresh clone. The data files are now marked binary and the
+  whole tree is pinned to LF.
+- Repository will be **private** (owner's choice). Not yet pushed: that needs a GitHub sign-in.
+
 ## 0.13.2 — 2026-09-22 12:04: One row per spelling — an ambiguous word is offered once
 *(not packaged yet)*
 
