@@ -52,6 +52,69 @@ export const SEEDS = {
   },
 };
 
+// Words that are perfectly good words but wrong as the ANSWER inside a given category. Playing
+// "Animals" and being asked for `zwierzę` ("animal"), `pluszak` (a plush toy) or `wilkołak` (a
+// werewolf) is the same frustration in three flavours: you are hunting animals, not words about
+// animals. They stay guessable - they are simply never what the game is hiding.
+//
+// Four kinds keep showing up, so look for these when adding a category:
+//   · the category's own name and its group words   zwierzę, ssak, drapieżnik / pet, wildlife, mammal
+//   · things that are not members at all            pluszak, aniołek / zoo, leash, manure
+//   · myths                                          smok, wilkołak / dragon, mermaid, werewolf
+//   · people and places around the members           weterynarz / hunter, breeder, veterinary
+// Diminutives (kotek, piesek, rybka) are removed automatically - see DIMINUTIVE in build-data.mjs.
+export const NOT_IN = {
+  pl: {
+    // the last group are diminutives whose stem changes too much for the automatic rule:
+    // owca→owieczka, kot→kociak, pies→psiak, kura→kokoszka, and `kota`, which is a case form of
+    // `kot` that the dictionary kept as a word of its own
+    animals: 'zwierzę zwierz zwierzak zwierzątko pupil ssak gryzoń drapieżnik czworonóg stworek słodziak pluszak aniołek smok wilkołak pyszczek rudzielec zwinka sunia kiciuś piesio szczenię miś '
+      + 'kota kociak psiak suczka owieczka kokoszka jelonek ptaszek '
+      // `miś` is a teddy bear, so it is blocked above - which leaves its diminutives with no base
+      // for the automatic rule to find. The animal is `niedźwiedź`.
+      + 'misiek misio misiaczek niedźwiadek',
+    food: 'jedzenie żywność posiłek produkt danie potrawa składnik kuchnia smak dieta porcja',
+    household: 'dom gospodarstwo sprzęt wyposażenie urządzenie przedmiot',
+    clothing: 'ubranie odzież strój ubiór garderoba moda rozmiar materiał',
+    tools: 'narzędzie sprzęt urządzenie przyrząd',
+    tech: 'technologia urządzenie sprzęt elektronika',
+    vehicles: 'pojazd transport komunikacja',
+    buildings: 'budynek budowla konstrukcja obiekt architektura',
+    nature: 'przyroda natura środowisko krajobraz teren',
+    weather: 'pogoda klimat temperatura prognoza',
+    body: 'ciało organizm narząd organ',
+    people: 'człowiek ludzie osoba osobnik jednostka',
+    jobs: 'zawód praca posada stanowisko zatrudnienie',
+    school: 'szkoła nauka edukacja nauczanie',
+    science: 'nauka badanie',
+    sport: 'sport dyscyplina',
+    music: 'muzyka sztuka dzieło',
+    feelings: 'uczucie emocja nastrój',
+    abstract: 'pojęcie idea',
+  },
+  en: {
+    animals: 'pet wildlife breed zoo hunter litter veterinary slaughter aquarium leash crate safari manure swarm hive breeder predator shepherd pest poultry livestock mammal mammalian canine feline rodent venom paw fin mermaid werewolf dragon doggy kitty bunny critter creature beast',
+    food: 'food meal dish recipe ingredient cuisine diet flavour flavor portion serving nutrition',
+    household: 'household furniture appliance item object equipment',
+    clothing: 'clothing clothes garment outfit apparel wardrobe fashion size fabric',
+    tools: 'tool equipment device instrument hardware',
+    tech: 'technology device gadget electronics hardware',
+    vehicles: 'vehicle transport transportation',
+    buildings: 'building structure construction architecture premises',
+    nature: 'nature environment landscape terrain scenery',
+    weather: 'weather climate temperature forecast',
+    body: 'body organism organ anatomy',
+    people: 'person people human individual folk',
+    jobs: 'job work occupation profession career employment',
+    school: 'school education learning teaching',
+    science: 'science research study',
+    sport: 'sport sports discipline',
+    music: 'music art artwork',
+    feelings: 'feeling emotion mood',
+    abstract: 'concept notion idea',
+  },
+};
+
 // Words the cross-language filter in build-data.mjs must keep even though the other language uses them
 // far more (see FOREIGN_RATIO there). English "ten" is the only real case so far: Polish "ten" (= this)
 // is 25x more common on the web, but the number word obviously belongs in an English game.

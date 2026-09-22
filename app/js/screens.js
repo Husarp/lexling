@@ -140,6 +140,7 @@ export function newGameScreen(root, _, refresh) {
       <div class="field">
         <div class="field-head"><span class="eyebrow">${t('new.cat')}</span><span class="help">${t('new.catHint')}</span></div>
         <div class="chips">${CATS.map(c => `<button type="button" class="chip" data-k="cat" data-v="${c}">${t('cat.' + c)}</button>`).join('')}</div>
+        <p class="help cat-about" id="cat-about"></p>
       </div>
       <div class="field" style="gap:var(--space-4)">
         <span class="eyebrow">${t('new.len')}</span>
@@ -181,6 +182,8 @@ export function newGameScreen(root, _, refresh) {
     toggle.setAttribute('aria-checked', o.friend);
     $('#secret-field').hidden = !o.friend;
     $('#forms-help').innerHTML = t('new.formsHelp', { forms: o.lang === 'pl' ? '<em>żyrafie</em>, <em>żyrafy</em>' : '<em>giraffes</em>, <em>mice</em>' });
+    // what the chosen category actually covers, so you are not hunting for a word it never hides
+    $('#cat-about').textContent = t('about.' + o.cat);
     $('.summary').innerHTML = [LANG_NAMES[o.lang], t('cat.' + o.cat), t('band.' + o.band), t('diff.' + o.diff), o.friend && t('new.friendShort')]
       .filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
     err.hidden = true;

@@ -6,6 +6,55 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.14.1 — 2026-09-22 15:35: Guessing the same word again clears the box
+*(not packaged yet)*
+
+Typing a word that has already been guessed left it sitting in the field, so the player had to
+delete it by hand before trying anything else. The word is not wrong, it is spent — so the field
+clears itself and the suggestion list closes, while the message still says which word it was and
+what rank it got. The cursor stays in the box, so the next guess can be typed straight away.
+
+A word the game does not know is left alone on purpose: that one is usually a typo worth correcting
+rather than starting over.
+
+## 0.14.0 — 2026-09-22 15:20: Categories hide members of the category, and say what they cover
+*(not packaged yet)*
+
+Reported from a Polish game: the answer in **Animals** was `zwierzak` — a word meaning "animal".
+Looking at the whole category explained why. Of its 150 words, about half were not animals:
+
+| | |
+|---|---|
+| words meaning "animal" | zwierzę, zwierz, zwierzak, zwierzątko, pupil, czworonóg, drapieżnik, gryzoń |
+| not animals at all | **pluszak** (a plush toy), **aniołek** (an angel), smok, wilkołak, pyszczek |
+| pet names | sunia, kiciuś, piesio, misio, słodziak |
+| the same animal again | kotek, kociak, koteczka, kocur, kocurek beside `kot`; piesek, psiak, suczka beside `pies` |
+
+Nine of the twenty words a Relaxed game could pick were a dog or a cat. English had the same
+disease in its own accent — `pet`, `zoo`, `leash`, `manure`, `mermaid`, `werewolf`, `veterinary`.
+
+Two things now clean every category, and the word data was rebuilt with both:
+
+- **A per-category blocklist** (`NOT_IN` in `tools/seeds.mjs`) for words *about* a category rather
+  than *in* it. Four kinds keep appearing, so they are called out there: the category's own name,
+  non-members, myths, and the people and places around the members.
+- **Diminutives are dropped automatically.** A member is removed when the category already holds the
+  shorter, commoner word it is built from. Polish reshapes the stem, so the ending is stripped first
+  and the rest has to agree within two characters: ryba→rybka, świnia→świnka, ptak→ptaszek.
+
+Polish Animals: 150 → 94, and all 94 are animals. Relaxed now offers *lis, pies, kot, ptak, królik,
+ryba, wilk, koń, kaczka, tygrys, lew, krowa, niedźwiedź, wąż, motyl, orzeł*.
+
+**English keeps its compounds.** A plain prefix rule deleted `rainbow`, `sunshine`, `snowfall` and
+`raindrop`, because English builds new words from the same parts instead of shrinking them. The
+ending now has to be a real diminutive, so those came back; English Animals loses 40 words to the
+blocklist and only 4 to the diminutive rule.
+
+**Every category now says what it covers**, under the chips on the new-game screen — 21 descriptions
+in both languages. Animals reads *"Real animals, from pets to wild ones and insects. Never words
+meaning 'animal', and never made-up creatures."* The point is to show where the edges are, so no one
+spends guesses on a word the category will never hide.
+
 ## 0.13.4 — 2026-09-22 14:35: Hints could walk backwards
 *(not packaged yet)*
 

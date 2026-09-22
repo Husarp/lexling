@@ -143,7 +143,14 @@ export async function gameScreen(root, id) {
     if (!hit) return say(t('game.unknown', { w: text }));
     const word = m.words[hit.idx];
     const before = game.guesses.find(g => g.w === word);
-    if (before) return say(t('game.already', { w: word, r: num(before.rank) }));
+    if (before) {
+      // The word is right, it is just spent - so clear the field instead of leaving the player to
+      // delete it by hand. Setting .value fires no input event, so the message below stays put.
+      input.value = '';
+      picked = false; hl = 0;
+      paintAc();
+      return say(t('game.already', { w: word, r: num(before.rank) }));
+    }
 
     const r = rank[hit.idx];
     game.guesses.push({ w: word, typed: hit.typed !== word ? hit.typed : '', rank: r, pct: pct(r, m.count) });

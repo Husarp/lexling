@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { tokenRanks, vectorsOf, DIMS as D } from './fasttext.mjs';
 import { polish, english, POS } from './lexicon.mjs';
 import { normalizeRows, allButTheTop } from './vecmath.mjs';
-import { SEEDS, NEVER_SECRET, KEEP, CATEGORIES } from './seeds.mjs';
+import { SEEDS, NEVER_SECRET, NOT_IN, KEEP, CATEGORIES } from './seeds.mjs';
 import { fold } from '../app/js/engine.js';
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'app', 'data');
@@ -145,6 +145,46 @@ function difficulty(x, idx, n, words) {
   return { idx, score, hardest: show.slice(0, 10).map(i => words[idx[i]]), easiest: show.slice(-10).map(i => words[idx[i]]) };
 }
 
+// A category full of kot, kotek, kociak, koteczka, kocur, kocurek is not twenty animals, it is five
+// animals wearing hats. Polish makes a diminutive of almost anything, and they all sit in the same
+// corner of the vector space as the plain word, so they all pass the category test - but as the
+// ANSWER they are miserable: you have already typed the word, in the form everyone uses.
+//
+// So a member is dropped when the category already holds a shorter, more common word it is built
+// from. Comparison is on folded spellings and needs only three characters to agree, because that is
+// what rybka/ryba and ptaszek/ptak come down to. The shorter word is always the one kept.
+// Matching on a plain prefix is not enough, because a Polish diminutive usually reshapes the stem:
+// ryba → rybka, świnia → świnka, ptak → ptaszek. So the suffix is stripped first and what is left
+// has to agree with the base to within two characters. Loosening the prefix rule instead would cost
+// real words - at three characters `krowa` swallows `krokodyl`.
+// Polish diminutives and feminines (kotek, rybka, słonica), plus the few English endings that do the
+// same job (duckling, piglet, lioness). English compounds - rainbow, snowfall - are deliberately not
+// here: they are new words, not small versions of an old one.
+const ENDINGS = 'uszek|aszek|iczek|eczka|uszka|atko|czek|eczek|ulec|unia|usia|ica|yca|ling|ette|ess|let|ek|ik|yk|ka|ko|us';
+const DIMINUTIVE = new RegExp(`^(${ENDINGS})$`);
+const DIMINUTIVE_END = new RegExp(`(${ENDINGS})$`);
+function dropDerived(members, words) {
+  const sorted = [...members].sort((a, b) => a.w - b.w);          // most common first
+  const kept = [];
+  for (const m of sorted) {
+    const mine = fold(words[m.w]);
+    const stripped = mine.replace(DIMINUTIVE_END, '');
+    const derived = kept.some(k => {
+      // no length guard is needed: `kept` is walked most-common-first, so the base is already the
+      // word people actually use. Requiring it to be shorter kept świnia/świnka, both six letters.
+      const base = fold(words[k.w]);
+      if (base === mine) return false;
+      // The tail has to be a diminutive ending, not just anything. English builds compounds from the
+      // same parts - rain+bow, sun+shine, snow+fall - and a plain prefix test deleted all three.
+      if (mine.length > base.length && mine.startsWith(base) && DIMINUTIVE.test(mine.slice(base.length))) return true;
+      // no early return above: zajączek keeps the whole of zając and still needs the test below
+      return stripped.length >= 3 && base.startsWith(stripped) && base.length - stripped.length <= 2;
+    });
+    if (!derived) kept.push(m);
+  }
+  return kept;
+}
+
 // Two rounds: the hand-picked seeds tag the clear cases, then those confident members serve as extra
 // examples, which reaches the corners a short seed list cannot describe (dog breeds, kitchen tools…).
 function categorize(x, pool, index, seeds) {
@@ -191,6 +231,13 @@ async function build(lang) {
 
   const cats = categorize(x, nouns, index, SEEDS[lang]);
   for (const c of cats) {
+    // a category's answers must be members of it, not words about it, and not the same word twice
+    const banned = new Set((NOT_IN[lang]?.[c.name] || '').split(' ').filter(Boolean));
+    const named = c.members.length;
+    c.members = c.members.filter(m => !banned.has(words[m.w]));
+    const afterBanned = c.members.length;
+    c.members = dropDerived(c.members, words);
+    log(`category ${c.name}: ${named} tagged -> ${afterBanned} after the blocklist -> ${c.members.length} after dropping diminutives`);
     c.members.sort((a, b) => a.w - b.w);
     const weakest = [...c.members].sort((a, b) => a.score - b.score).slice(0, 10).map(m => words[m.w]);
     log(`category ${c.name}: ${c.members.length} words · e.g. ${c.members.filter((_, i) => i % Math.ceil(c.members.length / 12) === 0).map(m => words[m.w]).join(' ')}`);

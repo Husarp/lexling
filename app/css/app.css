@@ -307,3 +307,6 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 /* other screens: just give the little height back */
 [data-kb] .topbar{position:static;min-height:44px}
 [data-kb] .main{padding-top:calc(var(--space-3) + var(--safe-t));padding-bottom:calc(var(--space-6) + var(--safe-b))}
+
+/* what the chosen category covers - sits under the chips on the new-game screen */
+[data-screen=new] .cat-about{margin:0;padding-top:var(--space-2);line-height:1.45}

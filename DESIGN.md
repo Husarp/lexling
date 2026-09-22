@@ -166,6 +166,27 @@ base spelling. The cost is that the rarer reading needs its full base word — i
 `płazy` scores *płaz* and you have to type `płaza`. The guess box shows `płazy → płaz`, so the word
 actually scored is never hidden from the player.
 
+### A category hides members of itself
+Tagging by vector similarity puts everything *near* a category into it, and near is not the same as
+in. Polish Animals came out as 150 words of which roughly half were not animals: words meaning
+"animal" (`zwierzę`, `zwierzak`, `czworonóg`), things that merely live nearby (`pluszak` — a plush
+toy, `aniołek` — an angel), myths (`smok`, `wilkołak`), pet names (`sunia`, `kiciuś`), and the same
+animal five times over (`kot`, `kotek`, `kociak`, `koteczka`, `kocur`). English had it too: `pet`,
+`zoo`, `leash`, `manure`, `mermaid`, `veterinary`.
+
+Two filters run after tagging:
+- **`NOT_IN` in `tools/seeds.mjs`** — a hand list per category, for words *about* it rather than *in*
+  it. The same four kinds keep appearing: the category's own name and group words, non-members,
+  myths, and the people and places around the members.
+- **Diminutives** — a member is dropped when the category already holds the shorter, commoner word it
+  is built from. A plain prefix test is not enough, because Polish reshapes the stem (ryba→rybka,
+  świnia→świnka, ptak→ptaszek), so the ending is stripped first and the rest must agree within two
+  characters. The ending must be a real diminutive: English builds *compounds* from the same parts,
+  and a loose rule deleted `rainbow`, `sunshine` and `snowfall`.
+
+Each category also carries a one-line description shown under the chips on the new-game screen,
+saying where its edges are — what it hides and what it never will.
+
 ### Categories
 **20 of them**: animals, food, household, clothing, tools, tech, vehicles, buildings, nature, weather,
 body, people, jobs, school, science, sport, music, feelings, abstract, verbs. *Objects* and *Places*

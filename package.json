@@ -1,6 +1,6 @@
 ﻿{
   "name": "wordguess",
-  "version": "0.13.4",
+  "version": "0.14.1",
   "private": true,
   "description": "WordGuess - Android wrapper. The game itself is app/ and needs none of this; these packages only build the APK (see PLAN.md M6).",
   "scripts": {

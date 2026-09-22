@@ -1,4 +1,4 @@
-# WordGuess — Development Plan
+﻿# WordGuess — Development Plan
 
 Forward-looking backlog only — full history lives in `CHANGELOG.md`.
 Game/engine design decisions live in `DESIGN.md`.
@@ -79,6 +79,21 @@ Owner's report: too hard even on easy inside a category. Measured first (DESIGN.
 - [ ] Follow-up for the next data rebuild: junk dictionary entries that win the shorter-base test —
       *okular* beating *okulary*, *czerp* beating *czerpać*, *głup*, *strzel*, *zerwa*. Add them to
       `NEVER_SECRET` / drop them from the vocabulary in `tools/seeds.mjs`.
+
+## M11 — Categories that mean what they say — DONE 2026-09-22
+Owner, playing Polish: the answer in Animals was `zwierzak` ("animal"), and the category was full of
+diminutives and things that are not animals.
+- [x] `NOT_IN` blocklist per category for words about a category rather than in it.
+- [x] Diminutives dropped automatically, with the ending stripped first so Polish stem changes are
+      caught (ryba→rybka). Restricted to real diminutive endings after a loose version deleted the
+      English compounds `rainbow`, `sunshine`, `snowfall`.
+- [x] Word data rebuilt for both languages. Polish Animals 150 → 94, all of them animals.
+- [x] A one-line description per category on the new-game screen, in both languages.
+- [ ] Still open: Polish has fewer words than English in Food (-66), Nature, Body and School even
+      after the clean-up. Some are genuinely missing from the vocabulary — `kiwi` is not there at
+      all. Worth a pass over the seed lists for those categories.
+- [ ] Still open: whether group words (`ptak`, `ryba`, `owad`) should be answers in Animals. Kept for
+      now — the owner said kinds of animals are fair.
 
 ## OPEN QUESTIONS (waiting on owner)
 - [ ] Polish badge names — current picks: Wordsmith → **Mistrz słów**, Typist → **Skryba**,
