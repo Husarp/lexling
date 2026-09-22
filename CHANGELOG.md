@@ -1,4 +1,4 @@
-# CHANGELOG — WordGuess
+﻿# CHANGELOG — WordGuess
 
 All notable changes to this project are listed here. Newest on top.
 Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
@@ -7,7 +7,7 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 ---
 
 ## 0.13.3 — 2026-09-22 12:31: Put the project under Git
-*(not packaged yet — no code change, repository housekeeping)*
+*(no code change, repository housekeeping)*
 
 - `git init`, branch `main`, first commit `1314ad9`: 152 files, 41.5 MB. The 2.6 GB of raw fastText
   vectors, `build/`, `node_modules/` and everything Gradle regenerates stay out, as `.gitignore`
@@ -17,10 +17,15 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
   on checkout, and since `engine.js` splits that file on `\n`, every word would carry a trailing `\r`
   and **no guess would ever match** on a fresh clone. The data files are now marked binary and the
   whole tree is pinned to LF.
-- Repository will be **private** (owner's choice). Not yet pushed: that needs a GitHub sign-in.
+- The project then moved accounts: it lives at **github.com/Husarp/wordguess**, public, and every
+  commit was rewritten onto a GitHub noreply address so no personal email is in the history.
+  `REPO` in `app/js/version.js` points there, which is what the Settings update check reads.
+- **First packaged release.** `WordGuessSetup.exe` (52 MB) and `WordGuess-debug.apk` (35 MB) carry
+  0.13.3, so everything in 0.13.0 through 0.13.2 — hints, the Relaxed level, absolute difficulty
+  bands, the message above the field and the spelling fixes — ships for the first time here.
 
 ## 0.13.2 — 2026-09-22 12:04: One row per spelling — an ambiguous word is offered once
-*(not packaged yet)*
+*(first shipped in 0.13.3)*
 
 Reported: typing `płazy` offered it **twice**, once pointing at *płaz* and once at *płaza*. Both are
 correct — `płazy` is a legal plural of *płaz* (the animal) and of *płaza* (the flat of a blade) — but
@@ -51,7 +56,7 @@ Known and left alone: a handful of junk dictionary entries still win test 3 — 
 dictionary, not a bad rule; the fix is the pipeline stoplist at the next data rebuild.
 
 ## 0.13.1 — 2026-09-22 11:18: The game's reply moved above the field; your own spelling wins
-*(not packaged yet)*
+*(first shipped in 0.13.3)*
 
 Two things reported from the phone, both real.
 
@@ -66,7 +71,7 @@ Two things reported from the phone, both real.
   never does so ahead of the word you wrote.
 
 ## 0.13.0 — 2026-09-22 10:42: Hints, a Relaxed level, and difficulty that means the same everywhere
-*(not packaged yet)*
+*(first shipped in 0.13.3)*
 
 The game was too hard, and measuring it showed why: **difficulty was a frequency slice inside the
 category, so it meant something different in every one**. Easy Animals averaged difficulty 49 while
