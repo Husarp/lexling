@@ -15,3 +15,29 @@ android/local.properties
 android/app/src/main/assets/public/
 android/app/src/main/assets/capacitor.config.json
 android/capacitor-cordova-android-plugins/
+
+# ── Not part of the program ───────────────────────────────────────────────────────────────────────
+# This repository is PUBLIC. Anything not listed here is published the moment it is committed, so
+# working material lives on disk only. What the app needs to build and run is in app/, tools/,
+# desktop/, installer/, android/ and scripts/ - everything else is notes.
+
+# Private notes and plans. Put new ones in notes/ and they are ignored automatically.
+notes/
+letterex-plan(scrabble).md
+
+# Design working material: the handoff pages the UI was built from, the conversation exports and
+# the delivery archives. Kept on disk, not shipped - DESIGN.md still describes what they contained.
+design/
+*.dc.html
+*.zip
+
+# Editors and operating systems leaving things behind
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
+*~
+*.tmp
+*.bak
+*.log
