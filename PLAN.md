@@ -61,6 +61,12 @@ Owner's report: too hard even on easy inside a category. Measured first (DESIGN.
 - [ ] Not built: opening-word suggestions (owner: you can already type any word).
 - [ ] Worth watching while playing: whether Relaxed is now too easy, and whether the first hint
       (rank ~500 when nothing has landed) is the right starting distance.
+- [x] **Hints walked backwards** (reported from a real game, fixed 2026-09-22 in 0.13.4). A hint must
+      now be strictly closer than the best guess so far; without that ceiling the ladder reversed
+      once the words near the target were used up.
+- [ ] Open, now that the ladder is monotonic: the step is a straight halving, so from rank 12 you
+      get roughly two more hints before they stop. Smaller steps late on would give more of them —
+      worth deciding after playing a few games.
 
 ## M10 — Reported from the phone — DONE 2026-09-22
 - [x] The game's reply ("already guessed", "not a word") was printed under the field, where the

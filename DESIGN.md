@@ -137,7 +137,12 @@ testing the result on the real data:
 - only **words people know** (inside the 12 000 most common). Without this, `żółw` was hinted with
   *sumatrzański* and *jukatański*: species-name geography, well ranked and useless;
 - never the secret's **own word family**, after the first version answered `żółw` with *żółwi* and
-  `wiatr` with *wiatru*.
+  `wiatr` with *wiatru*;
+- and, above all, **closer than the best guess so far**. Halving the target is not enough on its
+  own: once the words near it are used up, the cheapest candidate left is one further away, and the
+  ladder walks backwards. From a best of rank 12, `żółw` gave 5, 9, 11, 12, 15, 16, 19, 24 — four
+  of them worse than the guess the player already had. A hint now carries a hard ceiling, and when
+  there is no progress left to give, none is offered.
 
 A hint lands in the list like a guess, outlined and marked, and carries its rank — so it moves the game
 on exactly as a good guess would. Hints are not counted as guesses, and a win that used one is not a

@@ -6,6 +6,36 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.13.4 — 2026-09-22 14:35: Hints could walk backwards
+*(not packaged yet)*
+
+Reported from a real game: with a best guess at rank 12, five hints in a row came back in the
+12–14 range — no better than the guess already on the board — and only then one at rank 2.
+
+Reproduced exactly. A hint aimed at **half** the best rank and then picked whichever candidate had
+the lowest `|rank − target|`. Nothing said the answer had to be *closer* than what the player
+already had. Once the good words near the target were used up, the cheapest one left was simply
+further away, so the ladder walked backwards. Simulated from a best of 12:
+
+```
+żółw     5 → 9 → 11 → 12 → 15 → 16 → 19 → 24     every hint worse than the last
+rower   17 → 7 → 38 → 15 → 19 → 34 → 36 → 41     and the first one worse than the player's 12
+kot      7 → 2 → 10 → 11 → 19 → 26 → 28 → 36
+```
+
+A hint now has a hard ceiling: it must be **strictly closer than the best guess so far**. When there
+is no progress left to give, none is offered — better than a worse word dressed up as help. The
+`±40` window around the target is gone, since the ceiling does that job properly.
+
+The ladder over a whole game now halves cleanly, 8–10 hints from a standing start:
+
+```
+kot      473 → 230 → 97 → 49 → 26 → 11 → 7 → 2
+doctor   511 → 253 → 128 → 69 → 37 → 29 → 16 → 8 → 4 → 2
+```
+
+Checked across 13 secrets in both languages: **not one backwards step**.
+
 ## 0.13.3 — 2026-09-22 12:31: Put the project under Git
 *(no code change, repository housekeeping)*
 

@@ -233,14 +233,18 @@ export function pickSecret(m, opts) {
 // that is still far away and only points a direction; as you close in, hints close in with you. There
 // is no limit, but once your best guess is rank 2 there is nothing left to hint at.
 //
-// Two additions of our own, both from testing this against the real data:
+// Three additions of our own, all from testing this against the real data:
+//  * a hint must be CLOSER than anything you already have. Aiming at half your best rank is not
+//    enough on its own: once the words near that target have been used, the cheapest one left is
+//    simply further away, and the ladder walks backwards. Measured with a best guess of rank 12,
+//    `żółw` handed out 5, 9, 11, 12, 15, 16, 19, 24 - each hint worse than the last, and four of
+//    them worse than the guess the player already had.
 //  * prefer a word of a DIFFERENT part of speech than the secret. For `kot` that gives długowłosy,
 //    oswojony, koci - clues rather than near-answers like `pies`.
 //  * only offer words people actually know. Without this, `żółw` hints came back as `sumatrzański`
 //    and `jukatański`: species-name geography, perfectly well ranked and completely useless.
 const HINT_FIRST = 1000;     // where the first hint sits when nothing has landed yet
 const HINT_COMMON = 12000;   // "a word people know": its place in the frequency list
-const HINT_NEAR = 40;        // how far either side of the target rank we may look
 export const HINT_FLOOR = 2; // no hints left once the best guess is this close
 
 // Same word family: żółw/żółwi, wiatr/wiatru, kot/kotek, lekarz/lekarski. These rank at the very top
@@ -252,18 +256,22 @@ function related(a, b) {
 }
 
 export function hint(m, rank, secret, { best = 0, taken = [] } = {}) {
-  const target = Math.max(HINT_FLOOR, Math.floor((best || HINT_FIRST) / 2));
+  // Aim at half the best rank, but never hand back something no better than the player already has.
+  // The ceiling is what makes a hint a hint: every one is progress, and when there is no progress
+  // left to give, none is offered rather than a worse word dressed up as help.
+  const ceiling = best ? best - 1 : HINT_FIRST;
+  if (ceiling < 1) return null;
+  const target = Math.max(1, Math.floor((best || HINT_FIRST) / 2));
   const skip = new Set(taken);
   const pos = m.pos[secret];
   const word = m.words[secret];
   let pick = null, pickCost = Infinity;
   for (let i = 0; i < m.count; i++) {
     const r = rank[i];
-    if (!r || i === secret || skip.has(m.words[i])) continue;
-    const away = Math.abs(r - target);
-    if (away > HINT_NEAR || related(word, m.words[i])) continue;
+    if (!r || r > ceiling || i === secret || skip.has(m.words[i])) continue;
+    if (related(word, m.words[i])) continue;
     // the cost decides the winner: rare words are heavily penalised, same part of speech mildly
-    const cost = away + (i > HINT_COMMON ? 1000 : 0) + (m.pos[i] === pos ? 25 : 0);
+    const cost = Math.abs(r - target) + (i > HINT_COMMON ? 1000 : 0) + (m.pos[i] === pos ? 25 : 0);
     if (cost < pickCost) { pickCost = cost; pick = i; }
   }
   return pick === null ? null : { idx: pick, rank: rank[pick] };
