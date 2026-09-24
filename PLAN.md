@@ -113,7 +113,8 @@ green / yellow / grey feedback. What makes it ours rather than a Wordle clone: *
 — a random word from the dictionary the game already ships, played as often as you like, offline,
 with no clock and no sync, and with the shape of the game chosen by the player.
 
-A reminder is set for 2026-09-25 20:00 to pick this back up.
+Design handoff requested 2026-09-24 (prompt in `notes/letters-design-prompt.md`); the index page
+arrived, the six screens it points to have not yet.
 
 ### Settled
 - **The player chooses**: word length, number of tries, category, difficulty, and whether Polish
@@ -181,13 +182,10 @@ player should feel they changed game, not app.
   boxes only draw what that field contains.
 
 ### Still open
-- [ ] **What "difficulty" means in this mode.** The main mode's score is rarity + *meaning
-      isolation* — how far a word sits from its neighbours in meaning, which is what makes it hard to
-      find by meaning. In Letters, meaning is never used, so isolation says nothing about how hard a
-      word is to guess by its letters. Proposal: in Letters, difficulty = **how well-known the word is**
-      (its place in the frequency list) + **how unusual its letters are** (rare letters like `ź`, `q`,
-      `x`, and repeated letters, are harder). It can be worked out in the app from what is already
-      shipped — no data rebuild — and it leaves the main mode's difficulty exactly as tuned.
+- [x] **What "difficulty" means in this mode** — decided 2026-09-24: **how well-known the word is**
+      (its place in the frequency list) + **how unusual its letters are** (rare letters, and repeated
+      letters, are harder). The main mode's measure is about *meaning*, which this game never uses.
+      Worked out in the app from what is shipped; the main mode's difficulty is untouched.
 - [ ] **"Zero tries"** was mentioned; the smallest meaningful number is 1. Assumed: 1 to unlimited.
 
 ### Consequences worth knowing before building
@@ -215,7 +213,21 @@ player should feel they changed game, not app.
 ### To build
 - [x] **The rules** — `feedback()` (with the repeated-letter rule) and `score()` in
       `app/js/letters.js`, 16 tests in `tools/test-letters.mjs`. Done 2026-09-24, 0.15.2.
-- [ ] The word pool — waits on the open difficulty question above.
+- [x] **The word pool** — `pool()`, `pick()`, `difficulty()` in `app/js/letters.js`. Any noun,
+      adjective, verb or adverb among the 20 000 commonest, base forms only, stoplist applied. Every
+      length 3–13 × every difficulty has at least 20 words in both languages. Done 2026-09-24, 0.15.3.
+- [x] **The stoplist reaches this mode** — crude adjectives added (`shitty`, `horny`, `goddamn`,
+      `zajebisty`…), and `NEVER_SECRET` shipped in `vocab.json` as `blocked`.
+- [x] **Inflected forms posing as words are marked by the pipeline** — `formOf` in `vocab.json`
+      (2 396 Polish, 1 141 English): `ptaki`, `stara`, `kota`, `nowe`, `polskie`, `loved`. Participles
+      and gerunds stay (`życie`, `spotkanie`, `znany`), and so do dictionary-shaped adjectives that
+      coincide with a form (`stary` is also a plural of *star*, `długi` of *dług*).
+- [ ] **Known leak, roughly one game in 300:** a few common verb forms and plurals still get through —
+      `staje`, `dzieje`, `emocje`, `dziękuję`. They escape because their base is over 10× rarer than
+      they are, and the 10× guard that lets them through also protects 111 real base words (`cel`,
+      `las`, `kraj`, `klucz`, `obraz`, `morze`) that happen to spell a form of some rare word. A
+      proper fix compares how alive each word's own paradigm is, like `ambiguousSpellings()` does —
+      but that function also excludes `las`, so it cannot simply be reused.
 - [ ] Reuse the vocabulary and the validator: `resolve()` for "is this a word?", `ac.txt` for "is
       this the base form?".
 - [ ] **Hard mode** — a revealed letter must be reused. Standard, cheap, and wanted by the people who

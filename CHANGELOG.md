@@ -6,6 +6,41 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.15.3 — 2026-09-24 23:40: Letters mode — which words can be hidden, and how hard they are
+*(not packaged — nothing a player can see yet; the word data was rebuilt)*
+
+**Difficulty means something different here.** The main mode's score is rarity + *meaning
+isolation*, and meaning plays no part in this game. So Letters rates a word by **how well-known it
+is** plus **how unusual its letters are** — rare letters, and repeated ones, make it harder. It is
+worked out in the app from data already shipped, so the main mode's tuned difficulty is untouched.
+It reads right: Hard 5-letter words come out as *khaki, quell, snuff, kiosk, glyph* and *dzicz,
+brnąć, fiord*; Relaxed as *knife, habit, fruit* and *hotel, deser, cisza*.
+
+**The pool** (`pool()`, `pick()`): any noun, adjective, verb or adverb among the 20 000 commonest,
+in base form, never on the stoplist, with the Polish-letters switch, categories, and the same 20-word
+floor as the main mode. Every length 3–13 at every difficulty has at least 20 words in both
+languages. The first build per language takes 75 ms — it took a full second until the letter score
+stopped being recalculated inside the sort.
+
+**Two things had to be added to the word data**, found by looking before building:
+- **The stoplist did not cover adjectives.** Nothing needed it to until now — then `shitty`, `horny`,
+  `goddamn` and Polish `zajebisty` turned out to be valid hidden words. They are on it now, and the
+  whole list ships in `vocab.json` as `blocked`.
+- **Inflected forms posing as words.** `ptaki`, `stara`, `kota`, `nowe`, `loved` sit in the list as
+  if they were base words. The app cannot tell — once a form is a word, the autocomplete list stops
+  recording whose form it is — so the pipeline marks them as `formOf` while it still knows every
+  word's forms: 2 396 Polish, 1 141 English. Each guard in that rule came from a word it first got
+  wrong: participles and gerunds are kept (the first version threw out `życie`, *life*);
+  dictionary-shaped adjectives are kept (`stary` is also a plural of the noun *star*); a base more
+  than 10× rarer does not count (`głupi` is technically a form of the junk noun *głup*).
+
+A few common verb forms still get through — `staje`, `dzieje`, `emocje` — roughly one game in 300.
+Written up in PLAN.md with why the obvious fixes do more harm.
+
+207 tests, all passing: the 16 rules tests, and every length × difficulty × language checked for
+length, stoplist, forms, category membership and the Polish-letters switch. The main mode's word
+counts are unchanged (6 214 Polish, 6 370 English secrets).
+
 ## 0.15.2 — 2026-09-24 22:11: Letters mode — the rules, before the screens
 *(not packaged — nothing a player can see yet)*
 

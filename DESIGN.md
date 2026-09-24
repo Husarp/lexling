@@ -127,6 +127,22 @@ A category with too few words in a band falls back to the **20 easiest it has** 
 Tools Relaxed is *butelka, szczotka, łańcuch* — and the new-game readout always shows the real count,
 so the choice is informed: *"3–9 letters · 23 words this game can hide"*.
 
+### Letters mode: a different difficulty, and base forms only
+The second mode (a Wordle, PLAN.md M12) cannot reuse the difficulty above. That one is rarity +
+*meaning isolation*, and this game never uses meaning. A Letters word is rated by **how well-known it
+is** (its place in the frequency list) and **how unusual its letters are** (the average rarity of
+its letters, plus a step for each repeated letter). Each becomes a percentile among the words this
+mode can hide, and the two are averaged — the same shape as the main score, so the four bands mean
+something alike. It is computed in the app (`app/js/letters.js`), so the main mode's numbers do not
+move.
+
+The mode promises base forms, but the list holds inflected forms that live as words of their own
+(`ptaki`, `stara`, `kota`). The pipeline marks them as `formOf` in `vocab.json`, since only it still
+knows each word's forms. What counts: a direct inflection (not a participle or gerund — `życie`
+stays), of a base no more than 10× rarer, where the word is not itself in dictionary shape (a Polish
+adjective in -y/-i or verb in -ć: `stary` stays although it also spells a plural of *star*). In a
+mutual pair (`kot`/`kota`) the shorter word is the base.
+
 ### Hints
 Contexto's rule, which is a good one: a hint is a word at **half the rank of your best guess**. Early
 on that is still far away and only points a direction; as you close in, hints close in with you. No

@@ -185,6 +185,54 @@ function dropDerived(members, words) {
   return kept;
 }
 
+// Words in the list that are really an inflected form of another word in it: `ptaki` (ptak), `stara`
+// (stary), `staje` (stawać), `kota` (kot), `loved` (love). foldListedForms() leaves them as words of
+// their own on purpose - each has a paradigm of its own on the web - but a mode that promises to hide
+// only base forms needs to know. The app cannot work this out: once a form is a word, the
+// autocomplete list stops recording whose form it also is. So it is listed here, while every word's
+// forms are still known.
+//
+// Guards, each from a real case:
+//  - only a DIRECT inflection counts. Participles and gerunds are flagged "derived" by the lexicon, and
+//    they are everyday words in their own right: without this, `życie` (life), `spotkanie` and
+//    `znany` were thrown out as mere forms of verbs;
+//  - a Polish adjective ending in -y/-i or a verb ending in -ć is already in dictionary shape, so it
+//    is a base whatever else it happens to spell: `stary` is also a plural of the noun `star`,
+//    `długi` of `dług`, and both are plainly base words;
+//  - a base far rarer than the word is a dictionary artefact, not a base: `głupi` is technically a
+//    form of the junk noun `głup` (#50 904), so a base more than 10× rarer does not count;
+//  - two words can each be a form of the other - `kota` is a form of `kot`, and `kot` is the
+//    genitive plural of `kota`. The shorter one is the real base, so it stays.
+const FORM_BASE_RARER = 10;
+const DICTIONARY_SHAPE = { pl: { adj: /[yi]$/, verb: /ć$/ }, en: {} };
+function inflectedWords(lex, words, index, lang) {
+  const bases = new Map();                                   // word index -> [base index, derived?][]
+  for (const [lemma, e] of lex) {
+    const li = index.get(lemma);
+    if (li === undefined) continue;
+    for (const [form, derived] of e.forms) {
+      const fi = index.get(form);
+      if (fi !== undefined && fi !== li) (bases.get(fi) ?? bases.set(fi, []).get(fi)).push([li, derived]);
+    }
+  }
+  const shape = DICTIONARY_SHAPE[lang] || {};
+  const out = [];
+  for (const [fi, list] of bases) {
+    const word = words[fi], len = [...word].length;
+    const own = shape[POS[lex.get(word).pos]];
+    if (own && own.test(word)) continue;
+    const isForm = list.some(([li, derived]) => {
+      if (derived || li > fi * FORM_BASE_RARER) return false;
+      const base = words[li], baseLen = [...base].length;
+      const mutual = lex.get(word).forms.has(base);
+      if (mutual && (len < baseLen || (len === baseLen && fi < li))) return false;
+      return true;
+    });
+    if (isForm) out.push(fi);
+  }
+  return out.sort((a, b) => a - b);
+}
+
 // Two rounds: the hand-picked seeds tag the clear cases, then those confident members serve as extra
 // examples, which reaches the corners a short seed list cannot describe (dog breeds, kitchen tools…).
 function categorize(x, pool, index, seeds) {
@@ -283,6 +331,11 @@ async function build(lang) {
     cats: Object.fromEntries(cats.map(c => [c.name, c.members.map(m => m.w)])),
     hard: { idx: hardness.idx, score: hardness.score },
     hub: Array.from(mean, v => +v.toFixed(4)), spread: Array.from(sd, v => +v.toFixed(4)),
+    // The hand-kept stoplist, so any mode that picks its own words can keep them out. `secret` and
+    // the categories already exclude these, but Letters draws adjectives and adverbs too, which
+    // nothing else filters.
+    blocked: NEVER_SECRET[lang].split(' ').map(w => index.get(w)).filter(i => i !== undefined).sort((a, b) => a - b),
+    formOf: inflectedWords(lex, words, index, lang),
   }));
 
   // report
