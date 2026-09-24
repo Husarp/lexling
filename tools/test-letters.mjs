@@ -18,6 +18,12 @@ check('one e in the answer: only the green e counts', feedback('eerie', 'crane')
 check('two a guessed, one in the answer: first yellow, second grey', feedback('aaxxx', 'plant'), [Y, _, _, _, _]);
 check('greens use their letter up before yellows are handed out', feedback('lllll', 'hello'), [_, _, G, G, _]);
 check('a leftover letter makes one yellow each', feedback('babes', 'abbey'), [Y, Y, G, G, _]);
+// the owner's case (2026-09-25): with `ananas`, an `a` standing where the answer has an `a` is green -
+// it is never turned yellow on the theory that it belongs to one of the other `a`s
+check('ananas: every letter in its own place is green', feedback('granat', 'ananas'), [_, _, G, G, G, _]);
+check('ananas: one a in place, the other a still yellow', feedback('atlasy', 'ananas'), [G, _, _, Y, Y, _]);
+check('ananas: six a against three - the three in place green, the rest grey', feedback('aaaaaa', 'ananas'), [G, _, G, _, G, _]);
+check('ananas: three a all out of place - all three yellow', feedback('panama', 'ananas'), [_, Y, Y, Y, _, Y]);
 
 // Polish letters are separate letters
 check('ó is not o, ż is not z', feedback('zolw', 'żółw'), [_, _, _, G]);
@@ -58,6 +64,15 @@ for (const lang of ['pl', 'en']) {
   const avg = p => p.reduce((s, i) => s + difficulty(m, i), 0) / p.length;
   check(`${lang}: Hard is harder than Relaxed`, avg(pool(m, { len: 5, diff: 'hard' })) > avg(pool(m, { len: 5, diff: 'relaxed' })), true);
 
+  // any length: one pool over 3-13, drawn like real words - lengths come up as often as words of them
+  // exist. (Hard words run longer, so the 5-9 share is checked where the words are everyday ones.)
+  for (const diff of ['relaxed', 'normal', 'hard']) {
+    const any = pool(m, { diff });
+    const lens = any.map(i => [...m.words[i]].length);
+    check(`${lang} any length ${diff}: 3 to 13 letters only`, lens.every(n => n >= 3 && n <= 13), true);
+    check(`${lang} any length ${diff}: a real pool`, any.length >= 500, true);
+    if (diff !== 'hard') check(`${lang} any length ${diff}: mostly 5-9 letters, like the words themselves`, lens.filter(n => n >= 5 && n <= 9).length / lens.length > 0.6, true);
+  }
   const animals = new Set(m.cats.animals);
   check(`${lang}: a category game hides only that category`, pool(m, { len: 5, cat: 'animals' }).every(i => animals.has(i)), true);
 }

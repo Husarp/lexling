@@ -54,13 +54,17 @@ function prepare(m) {
 // would never hide.
 export const difficulty = (m, i) => prepare(m).hard.get(i);
 
+export const LEN_MIN = 3, LEN_MAX = 13;         // measured in PLAN.md M12: ~100+ common words at each
+
 // The words a game with these settings can hide. `marks` false guarantees none of ąćęłńóśźż.
 // Difficulty is an absolute band, as in the main mode; when the other choices leave fewer than 20
-// words inside it, the 20 closest to it are offered rather than nothing.
+// words inside it, the 20 closest to it are offered rather than nothing. No `len` = any length:
+// every word 3-13 letters long in one pool, so a length turns up as often as words of it exist.
 export function pool(m, { len, cat = 'all', diff = 'normal', marks = true }) {
   const { words, hard } = prepare(m);
   const inCat = cat === 'all' ? null : new Set(m.cats[cat] || []);
-  const fits = words.filter(i => [...m.words[i]].length === len && (!inCat || inCat.has(i)) && (marks || !MARKED.test(m.words[i])));
+  const size = n => len ? n === len : n >= LEN_MIN && n <= LEN_MAX;
+  const fits = words.filter(i => size([...m.words[i]].length) && (!inCat || inCat.has(i)) && (marks || !MARKED.test(m.words[i])));
   const cap = DIFFS[diff] ?? DIFFS.normal;
   const within = fits.filter(i => diff === 'hard' ? hard.get(i) > DIFFS.normal : hard.get(i) <= cap);
   if (within.length >= MIN_POOL) return within;

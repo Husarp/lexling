@@ -3,7 +3,7 @@
 import { t, plural, esc, num, decimal, clock, ago, dateTime, setLang, getLang, LANG_NAMES } from './i18n.js';
 import { settings, saveSettings, stats, saveStats, listSaves, getSave, putSave, deleteSave, newGame, gameName } from './store.js';
 import { load, loadWords, preload, resolve, pickSecret, lengthStats } from './engine.js';
-import { feedback, pool, pick } from './letters.js';
+import { feedback, pool, pick, LEN_MIN, LEN_MAX } from './letters.js';
 import { BADGES, LT_BADGES, TIERS, progress } from './badges.js';
 import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYPH, modeTag, TILE, squares } from './ui.js';
 import { fitAll } from './fit.js';
@@ -24,6 +24,7 @@ const CUE = {
   letters: { en: 'words', pl: 'słowo' },
 };
 const NEW_OF = { guess: '#/new', letters: '#/new/letters' };
+const LIST_OF = { guess: '#/games/guess', letters: '#/games/letters' };
 
 export function menu(root, _, refresh) {
   const saves = listSaves();
@@ -35,7 +36,7 @@ export function menu(root, _, refresh) {
   // One card per mode, the same weight each: the grid takes a third mode without a redesign.
   const mode = key => {
     const going = saves.filter(g => g.mode === key).length;
-    return `<a class="mode" href="${NEW_OF[key]}">
+    return `<a class="mode" href="${LIST_OF[key]}">
           <span class="mode-head"><span class="mode-name">${t('mode.' + key)}</span><span class="arrow" aria-hidden="true">→</span></span>
           <span class="help">${t(`mode.${key}.d`)}</span>
           <span class="cue" aria-hidden="true">${cue[key]}</span>
@@ -53,7 +54,6 @@ export function menu(root, _, refresh) {
       <p class="tagline">${t('menu.tagline')}</p>
       <nav class="modes" aria-label="${t('menu.modesAria')}">${mode('guess')}${mode('letters')}</nav>
       <nav class="menu" aria-label="${t('menu.nav')}">
-        <a class="btn btn-outline btn-lg" href="#/games">${t('menu.games')} ${saves.length ? `<span class="count">${saves.length}</span>` : ''}<span class="arrow">→</span></a>
         <a class="btn btn-outline btn-lg" href="#/stats">${t('menu.stats')} <span class="arrow">→</span></a>
         <a class="btn btn-outline btn-lg" href="#/settings">${t('menu.settings')} <span class="arrow">→</span></a>
       </nav>
@@ -94,20 +94,13 @@ function lettersMeta(g) {
     ago(g.updated)].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
 }
 
-// "New game" asks which game first: a small menu under the button (design: handoff-letters/game-picker.html).
-const newMenu = (big = false) => `<div class="new"><button class="btn btn-primary${big ? ' btn-lg' : ''}" type="button" aria-haspopup="menu" aria-expanded="false">${t('games.new')} <span class="arrow">→</span></button>
-      <div class="pop" role="menu" hidden>
-        <a role="menuitem" href="${NEW_OF.guess}"><strong>${t('mode.guess')}</strong><span class="arrow">→</span><span class="help">${t('games.guessD')}</span></a>
-        <a role="menuitem" href="${NEW_OF.letters}"><strong>${t('mode.letters')}</strong><span class="arrow">→</span><span class="help">${t('games.lettersD')}</span></a>
-      </div></div>`;
-
-let filter = 'all';   // the list's mode filter, kept while the app is open
-
-export function games(root, _, refresh) {
-  const all = listSaves();
-  const saves = filter === 'all' ? all : all.filter(g => g.mode === filter);
+// Each mode has its own list of games in progress, reached from its card on the menu - never one
+// mixed list (owner, 2026-09-25). New game on it starts that mode's game.
+export function games(root, mode, refresh) {
+  if (mode !== 'letters') mode = 'guess';
+  const saves = listSaves().filter(g => g.mode === mode);
   // most likely the game about to be resumed
-  if (saves.length) (saves[0].mode === 'letters' ? loadWords(saves[0].lang).catch(() => {}) : preload(saves[0].lang));
+  if (saves.length) (mode === 'letters' ? loadWords(saves[0].lang).catch(() => {}) : preload(saves[0].lang));
   const actions = g => `<div class="save-actions">
     <a class="btn btn-primary" href="#/game/${g.id}">${t('games.resume')}</a>
     <button class="btn btn-ghost" type="button" data-act="rename">${t('games.rename')}</button>
@@ -117,7 +110,6 @@ export function games(root, _, refresh) {
     const best = g.guesses.reduce((b, x) => !b || x.rank < b.rank ? x : b, null);
     return `<article class="card save" data-id="${g.id}">
   <div>
-    <div class="save-top">${modeTag('guess')}</div>
     <h2 class="save-name">${esc(gameName(g))}</h2>
     <div class="save-meta">${saveMeta(g)}</div>
   </div>
@@ -131,7 +123,6 @@ export function games(root, _, refresh) {
     const used = g.guesses.length, last = g.guesses.at(-1);
     return `<article class="card save" data-id="${g.id}">
   <div>
-    <div class="save-top">${modeTag('letters')}</div>
     <h2 class="save-name">${esc(gameName(g))}</h2>
     <div class="save-meta">${lettersMeta(g)}</div>
   </div>
@@ -142,16 +133,15 @@ export function games(root, _, refresh) {
     : `<span><span>${t('games.notStarted')}</span></span>`}</div>
 </article>`;
   };
+  const start = big => `<a class="btn btn-primary${big ? ' btn-lg' : ''}" href="${NEW_OF[mode]}">${t('games.new')} <span class="arrow">→</span></a>`;
   root.innerHTML = `<div class="app" data-screen="games">
-  ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
+  ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>`, right: modeTag(mode) })}
   <main class="main">
-    <div class="head"><h1 class="title">${t('games.title')}</h1>${all.length ? newMenu() : ''}</div>
-    ${all.length ? `<div class="seg filter" role="tablist">${['all', 'guess', 'letters'].map(f =>
-      `<button type="button" role="tab" data-filter="${f}" class="${on(filter === f)}" aria-selected="${filter === f}">${t(f === 'all' ? 'games.filterAll' : 'mode.' + f)}</button>`).join('')}</div>` : ''}
-    ${saves.length ? `<div class="saves">${saves.map(g => g.mode === 'letters' ? lettersCard(g) : guessCard(g)).join('')}</div>` : `<div class="card empty">
+    <div class="head"><h1 class="title">${t('games.title')}</h1>${saves.length ? start() : ''}</div>
+    ${saves.length ? `<div class="saves">${saves.map(mode === 'letters' ? lettersCard : guessCard).join('')}</div>` : `<div class="card empty">
       <p class="display">${t('games.emptyTitle')}</p>
       <p class="help" style="max-width:36ch">${t('games.emptyText')}</p>
-      ${newMenu(true)}
+      ${start(true)}
     </div>`}
   </main>
 </div>`;
@@ -159,20 +149,6 @@ export function games(root, _, refresh) {
     const id = el.dataset.id;
     confirmClick(el.querySelector('[data-act=delete]'), () => { deleteSave(id); refresh(); }, () => fitAll(el));
     el.querySelector('[data-act=rename]').addEventListener('click', () => rename(el, getSave(id), refresh));
-  });
-  root.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', () => { filter = b.dataset.filter; refresh(); }));
-  root.querySelectorAll('.new').forEach(box => {
-    const button = box.querySelector('button'), pop = box.querySelector('.pop');
-    const show = open => {
-      pop.hidden = !open;
-      button.setAttribute('aria-expanded', open);
-      button.querySelector('.arrow').textContent = open ? '↓' : '→';
-    };
-    button.addEventListener('click', () => show(pop.hidden));
-    // a click anywhere else closes it, and Esc closes it before it leaves the screen. (On the screen's
-    // own element, not `root`: root outlives the screen and would collect a listener per visit.)
-    root.firstElementChild.addEventListener('click', e => { if (!box.contains(e.target)) show(false); });
-    box.addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) { show(false); button.focus(); e.stopPropagation(); } });
   });
 }
 
@@ -208,7 +184,7 @@ export function newGameScreen(root, _, refresh) {
   const o = pending ?? { ...NEW_GAME, lang: settings.newGame.lang || settings.lang };
   pending = null;
   root.innerHTML = `<div class="app" data-screen="new">
-  ${topbar({ left: `<a class="btn btn-ghost" href="#/games">${t('back.games')}</a>`, right: modeTag('guess') })}
+  ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.guess}">${t('back.games')}</a>`, right: modeTag('guess') })}
   <main class="main">
     <h1 class="title">${t('new.title')}</h1>
     <form class="form" novalidate>
@@ -321,17 +297,17 @@ export function newGameScreen(root, _, refresh) {
 
 // ── Letters: new game (design: handoff-letters/new-game-letters.html) ─────────────────────────────
 // Same footing rule as above: every game starts from these, only the language carries over.
-const LT_NEW = { cat: 'all', len: 5, tries: 6, unlimited: false, diff: 'normal', marks: false };
-const LEN_FROM = 3, LEN_TO = 13, TRIES_MAX = 20;
+const LT_NEW = { cat: 'all', len: 5, anyLen: false, tries: 6, unlimited: false, diff: 'normal', marks: false };
+const TRIES_MAX = 20;
 let ltPending = null;
 
 export function lettersNewScreen(root, _, refresh) {
   const o = ltPending ?? { ...LT_NEW, lang: settings.newGame.lang || settings.lang };
   ltPending = null;
-  const lengths = Array.from({ length: LEN_TO - LEN_FROM + 1 }, (_, i) => LEN_FROM + i);
+  const lengths = Array.from({ length: LEN_MAX - LEN_MIN + 1 }, (_, i) => LEN_MIN + i);
   const stepper = (id, less, more) => `<div class="stepper" id="${id}"><button type="button" data-step="-1" aria-label="${less}">−</button><output></output><button type="button" data-step="1" aria-label="${more}">+</button></div>`;
   root.innerHTML = `<div class="app" data-screen="new">
-  ${topbar({ left: `<a class="btn btn-ghost" href="#/games">${t('back.games')}</a>`, right: modeTag('letters') })}
+  ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.letters}">${t('back.games')}</a>`, right: modeTag('letters') })}
   <main class="main">
     <h1 class="title">${t('new.title')}</h1>
     <form class="form" novalidate>
@@ -346,7 +322,10 @@ export function lettersNewScreen(root, _, refresh) {
       </div>
       <div class="field" style="gap:var(--space-4)">
         <span class="eyebrow">${t('lt.len')}</span>
-        ${stepper('len', t('lt.shorter'), t('lt.longer'))}
+        <div class="tries">
+          ${stepper('len', t('lt.shorter'), t('lt.longer'))}
+          <button type="button" class="chip" role="switch" id="any-len"><span class="num">?</span>${t('lt.anyLen')}</button>
+        </div>
         <div class="hist" role="group" aria-label="${t('lt.len')}" id="hist">${lengths.map(len =>
     `<button type="button" data-len="${len}" aria-label="${len}"><b style="height:3px"></b><em>${len}</em></button>`).join('')}</div>
         <div class="readout" id="readout"></div>
@@ -379,7 +358,7 @@ export function lettersNewScreen(root, _, refresh) {
   </main>
 </div>`;
   const $ = sel => root.querySelector(sel);
-  const form = $('form'), err = $('#new-err'), start = $('[type=submit]'), toggle = $('#polish .toggle'), unlimited = $('#unlimited');
+  const form = $('form'), err = $('#new-err'), start = $('[type=submit]'), toggle = $('#polish .toggle'), unlimited = $('#unlimited'), anyLen = $('#any-len');
   // Polish letters are a Polish-only choice; an English word never has them to begin with
   const marks = () => o.lang === 'pl' && o.marks;
   const choice = () => ({ cat: o.cat, diff: o.diff, marks: o.lang !== 'pl' || o.marks });
@@ -389,9 +368,14 @@ export function lettersNewScreen(root, _, refresh) {
     // a category means a noun (except Verbs) - said here rather than discovered in the game
     $('#cat-about').textContent = t('about.' + o.cat) + (o.cat === 'all' || o.cat === 'verbs' ? '' : ' ' + t('lt.catNouns'));
     const [shorter, longer] = $('#len').querySelectorAll('button');
-    $('#len output').innerHTML = `<span class="num">${o.len}</span><span class="help">${plural(o.len, 'lt.letters')}</span>`;
-    shorter.disabled = o.len <= LEN_FROM;
-    longer.disabled = o.len >= LEN_TO;
+    // "any" = the game picks: a random word of any length, so lengths come up as often as words of them do
+    $('#len').classList.toggle('off', o.anyLen);
+    $('#len output').innerHTML = o.anyLen ? `<span class="num">${LEN_MIN}–${LEN_MAX}</span><span class="help">${plural(LEN_MAX, 'lt.letters')}</span>`
+      : `<span class="num">${o.len}</span><span class="help">${plural(o.len, 'lt.letters')}</span>`;
+    shorter.disabled = o.anyLen || o.len <= LEN_MIN;
+    longer.disabled = o.anyLen || o.len >= LEN_MAX;
+    anyLen.classList.toggle('on', o.anyLen);
+    anyLen.setAttribute('aria-checked', o.anyLen);
     const [fewer, more] = $('#tries').querySelectorAll('button');
     $('#tries').classList.toggle('off', o.unlimited);
     $('#tries output').innerHTML = o.unlimited ? '<span class="num">∞</span><span class="help"></span>'
@@ -404,7 +388,7 @@ export function lettersNewScreen(root, _, refresh) {
     toggle.classList.toggle('on', o.marks);
     toggle.setAttribute('aria-checked', o.marks);
     $('#polish-help').innerHTML = t(o.marks ? 'lt.polishOn' : 'lt.polishOff');
-    $('.summary').innerHTML = [LANG_NAMES[o.lang], t('cat.' + o.cat), `${o.len} ${plural(o.len, 'lt.letters')}`,
+    $('.summary').innerHTML = [LANG_NAMES[o.lang], t('cat.' + o.cat), o.anyLen ? t('lt.anyLenLong') : `${o.len} ${plural(o.len, 'lt.letters')}`,
       o.unlimited ? `∞ ${plural(0, 'lt.triesUnit')}` : `${o.tries} ${plural(o.tries, 'lt.triesUnit')}`,
       t('diff.' + o.diff), marks() && t('lt.marksShort')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
     counts();
@@ -418,7 +402,7 @@ export function lettersNewScreen(root, _, refresh) {
     const m = ready[o.lang];
     const bars = [...$('#hist').children];
     if (!m) {
-      bars.forEach(bar => { bar.className = +bar.dataset.len === o.len ? 'on' : ''; });
+      bars.forEach(bar => { bar.className = o.anyLen || +bar.dataset.len === o.len ? 'on' : ''; });
       $('#readout').innerHTML = '';
       loadWords(o.lang).then(data => { ready[o.lang] = data; if (form.isConnected) counts(); }).catch(() => {});
       return;
@@ -427,10 +411,10 @@ export function lettersNewScreen(root, _, refresh) {
     const tallest = Math.max(...n.values(), 1);
     bars.forEach(bar => {
       const len = +bar.dataset.len, c = n.get(len);
-      bar.className = [len === o.len && 'on', !c && 'none'].filter(Boolean).join(' ');
+      bar.className = [(o.anyLen || len === o.len) && 'on', !c && 'none'].filter(Boolean).join(' ');
       bar.firstElementChild.style.height = (c ? Math.round(c / tallest * 52) + 4 : 3) + 'px';
     });
-    const here = n.get(o.len);
+    const here = o.anyLen ? pool(m, choice()).length : n.get(o.len);
     $('#readout').className = 'readout' + (here ? '' : ' none');
     $('#readout').innerHTML = `<span class="num">${num(here)}</span><span class="help">${t(here ? 'lt.canHide' : 'lt.none')}</span>`;
     err.textContent = t('lt.errNoWords');
@@ -452,27 +436,28 @@ export function lettersNewScreen(root, _, refresh) {
   }));
   $('#len').addEventListener('click', e => {
     const step = +e.target.closest('[data-step]')?.dataset.step;
-    if (step) { o.len = Math.min(LEN_TO, Math.max(LEN_FROM, o.len + step)); sync(); }
+    if (step) { o.len = Math.min(LEN_MAX, Math.max(LEN_MIN, o.len + step)); sync(); }
   });
   $('#hist').addEventListener('click', e => {
     const bar = e.target.closest('[data-len]');
-    if (bar) { o.len = +bar.dataset.len; sync(); }
+    if (bar) { o.len = +bar.dataset.len; o.anyLen = false; sync(); }
   });
   $('#tries').addEventListener('click', e => {
     const step = +e.target.closest('[data-step]')?.dataset.step;
     if (step) { o.tries = Math.min(TRIES_MAX, Math.max(1, o.tries + step)); sync(); }
   });
   unlimited.addEventListener('click', () => { o.unlimited = !o.unlimited; sync(); });
+  anyLen.addEventListener('click', () => { o.anyLen = !o.anyLen; sync(); });
   toggle.addEventListener('click', () => { o.marks = !o.marks; sync(); });
 
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const m = await loadWords(o.lang);
-    const idx = pick(m, { len: o.len, ...choice() });
+    const idx = pick(m, { len: o.anyLen ? null : o.len, ...choice() });
     if (idx < 0) { err.hidden = false; return; }
     settings.newGame = { lang: o.lang };
     saveSettings();
-    const game = newGame({ mode: 'letters', lang: o.lang, cat: o.cat, len: o.len, tries: o.unlimited ? 0 : o.tries,
+    const game = newGame({ mode: 'letters', lang: o.lang, cat: o.cat, len: [...m.words[idx]].length, tries: o.unlimited ? 0 : o.tries,
       diff: o.diff, marks: marks(), secret: m.words[idx] });
     location.replace('#/game/' + game.id);   // Back from the game goes to the picker, not to this form
   });

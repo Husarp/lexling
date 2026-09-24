@@ -15,7 +15,7 @@ const ROUTES = { '': menu, games, stats: statsScreen, settings: settingsScreen,
 const root = document.getElementById('root');
 let cleanup, shown, latest = 0;
 
-// Hash routes (#/games, #/game/<id>) so the Android back button and Alt+← walk the screens.
+// Hash routes (#/games/letters, #/game/<id>) so the Android back button and Alt+← walk the screens.
 async function render(navigated = true) {
   const [name, param] = location.hash.replace(/^#\/?/, '').split('/');
   const mine = ++latest;
@@ -55,10 +55,15 @@ window.visualViewport?.addEventListener('resize', keyboardCheck);
 
 // Esc goes one screen up, like the back button in the top bar. It listens on the document, so anything
 // that consumes Esc first (the autocomplete, renaming a game) stops it with stopPropagation().
-const PARENT = { games: '#/', new: '#/games', game: '#/games', stats: '#/', settings: '#/' };
+// Each mode has its own games list, so "up" from a new game or a game is that mode's list. A game
+// that has just ended is no longer saved, so its mode is read off the screen instead.
+const PARENT = { games: () => '#/', stats: () => '#/', settings: () => '#/',
+  new: mode => mode === 'letters' ? '#/games/letters' : '#/games/guess',
+  game: () => document.querySelector('[data-screen=letters]') ? '#/games/letters' : '#/games/guess' };
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape' || e.defaultPrevented) return;
-  const up = PARENT[location.hash.replace(/^#\/?/, '').split('/')[0]];
+  const [name, param] = location.hash.replace(/^#\/?/, '').split('/');
+  const up = PARENT[name]?.(param);
   if (up) location.hash = up;
 });
 // First paint happens only when the bundled fonts are ready: no fallback-font frame, no layout shift.

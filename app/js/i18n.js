@@ -6,7 +6,7 @@ const STR = {
     'menu.eyebrow': 'Word games', 'menu.offline': 'offline',
     'menu.h1': 'Guess the<br>hidden <span style="color:var(--accent)">word</span>',
     'menu.tagline': 'Two ways to find it: by what it means, or letter by letter. A new word every game, as many games as you like.',
-    'menu.modesAria': 'Choose a game', 'menu.games': 'Your games',
+    'menu.modesAria': 'Choose a game',
     'menu.stats': 'Achievements &amp; stats', 'menu.settings': 'Settings', 'menu.nav': 'Main menu',
     'mode.guess': 'Guess', 'mode.letters': 'Letters',
     'mode.guess.d': 'Find the word by meaning. Every guess gets a rank — 1 is the nearest neighbour.',
@@ -75,7 +75,7 @@ const STR = {
     'game.emptyText': 'The number you get back is a <strong style="color:var(--text)">rank</strong> — how many words are closer in meaning to the secret. <strong style="color:var(--text)">1</strong> means nothing is closer. Thousands means change direction.',
     'game.far': 'far', 'game.close': 'close', 'game.formsHint': 'Typed <em>{a}</em>? It counts as <em>{b}</em> — forms collapse to the base word.',
     'game.latest': 'latest', 'game.secret': 'secret', 'game.all': 'All guesses', 'game.topAria': 'Top 5 closest guesses', 'game.latestAria': 'Latest guess',
-    'game.won': 'You got it', 'game.gaveUp': 'The word was', 'game.inGame': 'in game', 'game.bestWin': 'best win',
+    'game.won': 'You got it', 'game.gaveUp': 'The word was', 'game.inGame': 'in game', 'game.endCat': 'category', 'game.bestWin': 'best win',
     'game.unknown': 'I don\'t know the word “{w}”.', 'game.already': '“{w}” was already guessed — rank {r}.',
     'pos.noun': 'noun', 'pos.adj': 'adjective', 'pos.verb': 'verb', 'pos.adv': 'adverb', 'pos.other': '',
 
@@ -111,6 +111,7 @@ const STR = {
 
     // Letters mode
     'lt.len': 'Word length', 'lt.letters': ['letter', 'letters'], 'lt.shorter': 'Shorter', 'lt.longer': 'Longer',
+    'lt.anyLen': 'Any', 'lt.anyLenLong': 'any length',
     'lt.canHide': 'words this game can hide', 'lt.none': 'no word fits these settings',
     'lt.tries': 'Tries', 'lt.triesHint': 'the score only counts the ones you use', 'lt.triesUnit': ['try', 'tries'],
     'lt.unlimited': 'Unlimited', 'lt.fewer': 'Fewer', 'lt.more': 'More', 'lt.noLimit': 'unlimited tries',
@@ -131,7 +132,6 @@ const STR = {
     'lt.score': 'score', 'lt.best': 'best', 'lt.again': 'Play again', 'lt.copy': 'Copy result', 'lt.copied': 'Copied ✓',
     'lt.calc': '{p} letters{double} ÷ {g} {guesses} × 100 × {m} {diff}', 'lt.double': ['({l} counts ×2)', '({l} count ×2)'],
     'lt.share': 'WordGuess · Letters · {LANG}\n{n} {letters} · {g}/{t} · {diff} · {score}',
-    'games.filterAll': 'All', 'games.guessD': 'by meaning, ranked', 'games.lettersD': 'letter by letter',
     'games.triesOf': '{g} / {t} tries', 'games.notStarted': 'no guesses yet',
     'stats.streak': 'Win streak', 'stats.streakBest': 'best {n}', 'stats.bestScore': 'Best score', 'stats.perWonLt': 'tries per won game',
     'stats.shared': 'Across all games', 'stats.lettersTyped': 'letters typed',
@@ -146,7 +146,7 @@ const STR = {
     'menu.eyebrow': 'Gry słowne', 'menu.offline': 'offline',
     'menu.h1': 'Odgadnij<br>ukryte <span style="color:var(--accent)">słowo</span>',
     'menu.tagline': 'Dwa sposoby, żeby je znaleźć: po znaczeniu albo litera po literze. Nowe słowo w każdej grze, gier ile chcesz.',
-    'menu.modesAria': 'Wybierz grę', 'menu.games': 'Twoje gry',
+    'menu.modesAria': 'Wybierz grę',
     'menu.stats': 'Osiągnięcia i statystyki', 'menu.settings': 'Ustawienia', 'menu.nav': 'Menu główne',
     'mode.guess': 'Znaczenie', 'mode.letters': 'Litery',
     'mode.guess.d': 'Szukaj słowa po znaczeniu. Każda próba dostaje pozycję — 1 to najbliższy sąsiad.',
@@ -213,7 +213,7 @@ const STR = {
     'game.emptyText': 'Liczba, którą dostajesz, to <strong style="color:var(--text)">pozycja</strong> — ile słów jest bliżej znaczeniowo sekretu. <strong style="color:var(--text)">1</strong> oznacza, że nic nie jest bliżej. Tysiące — zmień kierunek.',
     'game.far': 'daleko', 'game.close': 'blisko', 'game.formsHint': 'Wpisujesz <em>{a}</em>? Liczy się jako <em>{b}</em> — formy sprowadzamy do słowa podstawowego.',
     'game.latest': 'ostatnia', 'game.secret': 'sekret', 'game.all': 'Wszystkie próby', 'game.topAria': '5 najbliższych prób', 'game.latestAria': 'Ostatnia próba',
-    'game.won': 'Udało się', 'game.gaveUp': 'Szukane słowo to', 'game.inGame': 'w grze', 'game.bestWin': 'najlepsza wygrana',
+    'game.won': 'Udało się', 'game.gaveUp': 'Szukane słowo to', 'game.inGame': 'w grze', 'game.endCat': 'kategoria', 'game.bestWin': 'najlepsza wygrana',
     'game.unknown': 'Nie znam słowa „{w}”.', 'game.already': 'Słowo „{w}” już było — pozycja {r}.',
     'pos.noun': 'rzeczownik', 'pos.adj': 'przymiotnik', 'pos.verb': 'czasownik', 'pos.adv': 'przysłówek', 'pos.other': '',
 
@@ -249,6 +249,7 @@ const STR = {
 
     // Letters mode
     'lt.len': 'Długość słowa', 'lt.letters': ['litera', 'litery', 'liter'], 'lt.shorter': 'Krótsze', 'lt.longer': 'Dłuższe',
+    'lt.anyLen': 'Dowolna', 'lt.anyLenLong': 'dowolna długość',
     'lt.canHide': 'słów do ukrycia w tej grze', 'lt.none': 'żadne słowo nie pasuje do tych ustawień',
     'lt.tries': 'Próby', 'lt.triesHint': 'wynik liczy tylko te, których użyjesz', 'lt.triesUnit': ['próba', 'próby', 'prób'],
     'lt.unlimited': 'Bez limitu', 'lt.fewer': 'Mniej', 'lt.more': 'Więcej', 'lt.noLimit': 'bez limitu prób',
@@ -270,7 +271,6 @@ const STR = {
     'lt.calc': '{p} pkt za litery{double} ÷ {g} {guesses} × 100 × {m} {diff}',
     'lt.double': ['({l} liczy się ×2)', '({l} liczą się ×2)', '({l} liczą się ×2)'],
     'lt.share': 'WordGuess · Litery · {LANG}\n{n} {letters} · {g}/{t} · {diff} · {score} pkt',
-    'games.filterAll': 'Wszystkie', 'games.guessD': 'po znaczeniu, z pozycją', 'games.lettersD': 'litera po literze',
     'games.triesOf': '{g} / {t} prób', 'games.notStarted': 'jeszcze bez prób',
     'stats.streak': 'Seria wygranych', 'stats.streakBest': 'najlepsza {n}', 'stats.bestScore': 'Najlepszy wynik', 'stats.perWonLt': 'prób na wygraną grę',
     'stats.shared': 'We wszystkich grach', 'stats.lettersTyped': 'wpisanych liter',

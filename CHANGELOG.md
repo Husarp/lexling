@@ -6,6 +6,29 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.17.0 — 2026-09-25 00:34: A games list per mode, any word length, framed buttons
+*(not packaged — the phone has the 0.16.0 debug APK)*
+
+From playing 0.16.0 on the phone:
+- **Each game has its own list of games in progress.** The menu cards used to jump straight into New
+  game; now Znaczenie opens Znaczenie's games and Litery opens Letters' games, each with its own New
+  game button. The shared list, its All / Znaczenie / Litery tabs, the "which game?" menu and the
+  separate "Twoje gry" button on the menu are gone. Back buttons, Save & exit and Esc all return to
+  the list of the game you came from.
+- **Any word length in Letters.** A "Dowolna / Any" switch next to the length: the game picks a
+  random word of any length from 3 to 13, drawn like real words, so lengths come up as often as
+  words of them exist — at Normal, 5–9 letters are about three words in four; 3 and 13 are rare.
+- **The end screen names the category** the game was played in, win or loss, in both games
+  ("kategoria **Zwierzęta** · 2 / 6 prób · wynik 313"). Friend-mode Guess games have none, so none
+  is shown.
+- **Every text-only button has a frame now**, app-wide: Save & exit, Give up, Rename, Delete, Hint,
+  the back buttons in the top bar, Menu on the end cards.
+- **Repeated letters checked, not changed.** Asked whether a letter in its right place could be
+  shown yellow because the word has the same letter elsewhere (`ananas`): it cannot — right places
+  are settled first. Four tests on `ananas` now prove it (`granat` → the three in place green).
+
+228 tests pass (20 new).
+
 ## 0.16.0 — 2026-09-24 23:56: Letters mode is playable — the second game in the app
 *(debug APK built 2026-09-25 00:14 for testing on a phone — not released)*
 

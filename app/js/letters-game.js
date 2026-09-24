@@ -13,7 +13,7 @@ const SHARE = { hit: '🟩', near: '🟨', miss: '⬛' };
 export async function lettersGameScreen(root, id) {
   const game = getSave(id);
   const m = game && await loadWords(game.lang);
-  if (!m) { location.replace('#/games'); return; }
+  if (!m) { location.replace('#/games/letters'); return; }
   const n = game.len;
   const tries = game.tries || '∞';           // 0 = unlimited
   const playing = () => game.status === 'playing';
@@ -82,7 +82,7 @@ export async function lettersGameScreen(root, id) {
       + stat(t('lt.length'), n, false)
       + stat(t('game.category'), t('cat.' + game.cat))
       + stat(t('game.language'), game.lang.toUpperCase())
-      + `<div class="status-actions"><a class="btn btn-ghost" href="#/games">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button></div>`;
+      + `<div class="status-actions"><a class="btn btn-ghost" href="#/games/letters">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button></div>`;
     confirmClick($('#give-up'), () => playing() && finish('gaveup'), refit);
   }
 
@@ -193,7 +193,8 @@ export async function lettersGameScreen(root, id) {
   function paintEnd(pts) {
     const won = game.status === 'won', g = game.guesses.length;
     const actions = `<div class="win-actions"><a class="btn btn-primary" href="#/new/letters">${t('lt.again')} <span class="arrow">→</span></a><button class="btn btn-outline" type="button" id="copy">${t('lt.copy')}</button><a class="btn btn-ghost" href="#/">${t('menu')}</a></div>`;
-    const tally = `<span><b>${g}</b> / ${tries} ${plural(g, 'n.guesses')}</span>`;
+    // the category the game was played in, next to the word it hid; each card keeps its own dot
+    const tally = dot => `<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span>${dot}<span><b>${g}</b> / ${tries} ${plural(g, 'n.guesses')}</span>`;
     let card;
     if (won) {
       // the sum written out, so the score is never a mystery: 7 letters (ż ó ł count ×2) ÷ 3 guesses × 100 × 1.25
@@ -205,7 +206,7 @@ export async function lettersGameScreen(root, id) {
       card = `<div class="win">
       <span class="eyebrow">${t('lt.won')}</span>
       <p class="display">${esc(game.secret)}</p>
-      <div class="win-stats">${tally}<span>·</span><span>${t('lt.score')} <b>${num(pts)}</b></span>${
+      <div class="win-stats">${tally('<span>·</span>')}<span>·</span><span>${t('lt.score')} <b>${num(pts)}</b></span>${
         best > pts ? `<span>·</span><span>${t('lt.best')} <b>${num(best)}</b></span>` : ''}</div>
       <p class="calc">${calc}</p>
       ${actions}
@@ -214,7 +215,7 @@ export async function lettersGameScreen(root, id) {
       card = `<div class="lose">
       <span class="eyebrow">${t(game.status === 'lost' ? 'lt.lost' : 'lt.gaveUp')}</span>
       <p class="display">${esc(game.secret)}</p>
-      <div class="win-stats muted">${tally}<span class="dot">·</span><span>${t('lt.score')} <b>0</b></span></div>
+      <div class="win-stats muted">${tally('<span class="dot">·</span>')}<span class="dot">·</span><span>${t('lt.score')} <b>0</b></span></div>
       ${actions}
     </div>`;
     }

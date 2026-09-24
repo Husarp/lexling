@@ -9,8 +9,9 @@ answer. Win by typing the exact word (any inflected form counts).
 
 A second game, **Letters**, sits next to it in the same app: find a hidden word letter by letter,
 with green / yellow / grey feedback — like Wordle, but a new random word every game, as many games
-as you like, with the word length (3–13), the number of tries (or unlimited), category, difficulty
-and Polish letters chosen by the player. A third mode (a Scrabble-like game) is planned.
+as you like, with the word length (3–13, or any), the number of tries (or unlimited), category,
+difficulty and Polish letters chosen by the player. Each game has its own card on the menu and its
+own list of games in progress. A third mode (a Scrabble-like game) is planned.
 
 Playable in **Polish and English** (both the UI and the word libraries).
 
@@ -50,7 +51,7 @@ node tools/serve.mjs
 then open http://127.0.0.1:5173. (A server is required — ES modules and `fetch()` don't work
 from `file://`.)
 
-> **Current state (v0.16.0):** both games — Guess and Letters — fully playable in English and Polish
+> **Current state (v0.17.0):** both games — Guess and Letters — fully playable in English and Polish
 > on the real word data (60 000 Polish + 41 158 English words), with a **Windows installer** and an
 > **Android APK**. What is still open is in [PLAN.md](PLAN.md).
 

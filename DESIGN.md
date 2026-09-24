@@ -300,10 +300,12 @@ with its result even when it's not top-5. **Full guess history** is accessible b
 boxes (collapsed "all guesses" expander).
 
 **Since 0.16.0 the app holds two games**, and every place that assumed one now holds several (so a
-third mode slots in): the menu has **one card per mode** instead of Play, each going to that mode's
-New game; "Your games" is one list for both modes with a mode tag on every card and a filter; its
-New game asks which game; the stats screen has a **tab per mode**. Routes: `#/new` Guess,
-`#/new/letters` Letters, `#/game/<id>` takes the mode from the save.
+third mode slots in): the menu has **one card per mode** instead of Play; since 0.17.0 each card opens
+**that mode's own list of games in progress** (owner: never one mixed list), with its own New game;
+the stats screen has a **tab per mode**. Routes: `#/games/guess`, `#/games/letters`, `#/new` Guess,
+`#/new/letters` Letters, `#/game/<id>` takes the mode from the save. The end screen of both games
+names the category the game was played in. **Every button has a frame** — the design's text-only
+"ghost" buttons read as plain text, so they got one (0.17.0).
 
 ### Letters screens (design: `design/letters/handoff/`)
 - **Feedback is filled, the theme colour only outlines.** Green = `--fill-hot`, yellow =
@@ -318,6 +320,8 @@ New game asks which game; the stats screen has a **tab per mode**. Routes: `#/ne
 - **Keyboard open**: the screen becomes exactly the visible height (`--vvh`), top bar and status
   step aside, the grid scrolls in the middle, Guess sits right above the keyboard, empty rows hide.
 - **Unlimited tries** draws no empty rows; the grid grows by one per guess.
+- **Any length** (0.17.0) draws the word from all lengths 3–13 in one pool, so each length comes up
+  as often as words of it exist — not every length equally (owner's choice).
 - **The copied result** is plain text — a header line and 🟩🟨⬛ rows — and never contains the word.
 
 ## 4a. Rendering quality & responsiveness (hard requirements)

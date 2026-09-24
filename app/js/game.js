@@ -12,11 +12,11 @@ export async function gameScreen(root, id) {
   const game = getSave(id);
   const m = game && await load(game.lang);
   const secretIdx = m ? m.words.indexOf(game.secret) : -1;
-  if (secretIdx < 0) { location.replace('#/games'); return; }
+  if (secretIdx < 0) { location.replace('#/games/guess'); return; }
   const rank = rankAll(m, secretIdx);
 
   root.innerHTML = `<div class="app" data-screen="game">
-  ${topbar({ left: `<a class="btn btn-ghost" href="#/games">${t('back.games')}</a>`, right: `<span class="eyebrow">${esc(gameName(game))}</span>` })}
+  ${topbar({ left: `<a class="btn btn-ghost" href="#/games/guess">${t('back.games')}</a>`, right: `<span class="eyebrow">${esc(gameName(game))}</span>` })}
   <main class="main">
     <div class="status"></div>
     <div id="entry"></div>
@@ -35,7 +35,7 @@ export async function gameScreen(root, id) {
       + stat(t('game.category'), game.friend ? '—' : t('cat.' + game.cat))
       + stat(t('game.language'), game.lang.toUpperCase())
       + (playing()
-        ? `<div class="status-actions"><a class="btn btn-ghost" href="#/games">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button></div>`
+        ? `<div class="status-actions"><a class="btn btn-ghost" href="#/games/guess">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button></div>`
         : stat(t('game.time'), clock(game.timeMs), false));
     if (playing()) confirmClick($('#give-up'), () => finish(false), refit);
   }
@@ -46,7 +46,7 @@ export async function gameScreen(root, id) {
       $('#entry').outerHTML = `<div class="win" id="entry">
       <span class="eyebrow">${t(won ? 'game.won' : 'game.gaveUp')}</span>
       <p class="display">${esc(game.secret)}</p>
-      <div class="win-stats"><span><b>${num(realGuesses())}</b> ${plural(realGuesses(), 'n.guesses')}</span><span>·</span><span><b>${clock(game.timeMs)}</b> ${t('game.inGame')}</span></div>
+      <div class="win-stats">${game.friend ? '' : `<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span><span>·</span>`}<span><b>${num(realGuesses())}</b> ${plural(realGuesses(), 'n.guesses')}</span><span>·</span><span><b>${clock(game.timeMs)}</b> ${t('game.inGame')}</span></div>
       <div class="win-actions"><a class="btn btn-primary" href="#/new">${t('games.new')} <span class="arrow">→</span></a><a class="btn btn-outline" href="#/">${t('menu')}</a></div>
     </div>`;
       return;

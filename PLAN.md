@@ -117,6 +117,27 @@ Design handoff requested 2026-09-24 (prompt in `notes/letters-design-prompt.md`)
 same night: six screens, `NOTES.md`, `strings.json`, kept in `design/letters/handoff/` (git-ignored).
 Ported 1:1 in 0.16.0.
 
+### From playing 0.16.0 on the phone — 2026-09-25
+- [x] **A games list per mode**: the menu card opens that mode's games in progress (with its New
+      game), not New game directly; no mixed list, no All / Znaczenie / Litery tabs, and the separate
+      "Twoje gry" menu button removed (owner's choice). 0.17.0.
+- [x] **Any word length**: a switch next to the length; the word is drawn from all lengths together,
+      like real words (owner's choice over "every length equally"). 0.17.0.
+- [x] **Show the category on the end screen**, win or loss, both games — the category the game was
+      played in (owner's choice over the word's own category). 0.17.0.
+- [x] **Frames on every text-only button**, app-wide. 0.17.0.
+- [x] **Repeated letters**: confirmed right (right places settled first), 4 tests on `ananas`. 0.17.0.
+- [ ] **Polish word forms as guesses — waiting on the owner.** Guesses already accept inflected forms
+      (444 327 Polish forms: *byłem, zrobiłem, kotem*), but two kinds are missing:
+      - **~50 000 irregular forms** the dictionary lists on their own, with no link to their base word —
+        *pasę, pasą, poszedłem, szedłem, poszliśmy*. The pipeline drops them because Guess needs the
+        base word to score a guess; Letters does not. Proposed: ship them as "valid guesses only"
+        (+0.6 MB), no effect on Guess. Needs a data rebuild (~8 min).
+      - **Forms the dictionary does not have at all** — *pasłem*: it knows *paść* mostly as "to fall"
+        (*padłem*) and only a few "to graze" forms. Needs a bigger word list — sjp.pl's list for word
+        games, the one Polish Scrabble uses — which M13 will need anyway. Bigger download, licence to
+        check first.
+
 ### Left to do after 0.16.0
 - [ ] **Play it on a real phone.** Tested here in a browser at 320 px, with the keyboard simulated;
       what only a phone can show: that the phone keyboard opens on a tap, that long-press ż ó ł go
