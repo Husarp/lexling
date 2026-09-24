@@ -148,23 +148,47 @@ player should feel they changed game, not app.
 - [ ] Proposed: each letter tile is drawn like a WordGuess guess box (same border, radius, fill
       animation), just square and in a row.
 
-### Still open
-- [ ] **The difficulty multiplier.** Suggested Relaxed ×0.75, Easy ×1, Normal ×1.25, Hard ×1.5.
-- [ ] **The letter strip** (below) — confirm or drop.
-- [ ] **What a loss scores.** Running out of tries presumably scores nothing, but say so.
-- [ ] **The ranges**: which word lengths and how many tries may be chosen. Wordle is 5 and 6.
-- [ ] **Who designs the screens.** WordGuess was built exactly to a design agent's handoff. Either
-      the design agent delivers Letters screens the same way, or they are composed from the existing
-      components with no handoff. The second is faster; the first is how the rest of the app was made.
-- [ ] **Which badges.** Proposal: games won, best score, win streak, and wins at each word length.
+### Settled 2026-09-24
+- **Word length 3–13**, in both languages. Measured over base-form words among the 12 000 commonest
+  (the ones people actually use): Polish has 247 at 13 letters, English 198, and English falls to 69
+  at 14 — so 13 is where the owner's "at least ~100 real words" rule stops for both. Even the rarest
+  kept at that length are ordinary: *teraźniejszy, patriotyczny, podyskutować; uncomplicated,
+  intelligently*.
 
-### The letter strip — what the keyboard decision costs
-Using the system keyboard means **its keys cannot be coloured**, and in Wordle knowing which letters
-are already dead is half the game; without it you hold that in your head.
-- [ ] Suggested instead: a **read-only letter strip**, one row above the guesses showing the
-      alphabet with each letter grey / yellow / green. Nothing is typed on it, so the phone's
-      keyboard is untouched, the information is still on screen, and the 32-key layout problem never
-      arises.
+  | length | 3 | 5 | 8 | 10 | 12 | 13 | 14 |
+  |---|---|---|---|---|---|---|---|
+  | Polish, top 12 000 | 271 | 1158 | 1621 | 1057 | 429 | 247 | 114 |
+  | English, top 12 000 | 384 | 1394 | 1558 | 968 | 334 | 198 | 69 |
+
+- **Tries: default 6** (the normal Wordle), freely changeable by the player — **including unlimited**.
+  The score still works with unlimited tries, because it divides by guesses actually used.
+- **A loss scores 0.**
+- **Difficulty multiplier as proposed**: Relaxed ×0.75, Easy ×1, Normal ×1.25, Hard ×1.5.
+- **No letter strip.** Every earlier guess stays on screen, coloured, so which letters are dead can be
+  read straight off it.
+- **Badges**: games won, best score, win streak, and wins at each word length.
+- **Screens come from the design agent**, the same way the rest of WordGuess was made. The prompt for
+  it is in `notes/letters-design-prompt.md` (ignored by git — a working document).
+
+### Typing a guess — settled 2026-09-24
+- One **box per letter**. Typing fills the boxes left to right, one letter each; Backspace empties the
+  last filled box.
+- **A guess is never sent automatically**, not even when every box is full. It goes only when the
+  player confirms: **Enter** on a computer keyboard, the **Enter / Next / Go** key on a phone keyboard,
+  or a **Submit** button on screen.
+- The phone's own keyboard is used. Under the boxes sits a hidden text field that actually holds the
+  focus, so the system keyboard opens and Polish letters work by long press exactly as usual; the
+  boxes only draw what that field contains.
+
+### Still open
+- [ ] **What "difficulty" means in this mode.** The main mode's score is rarity + *meaning
+      isolation* — how far a word sits from its neighbours in meaning, which is what makes it hard to
+      find by meaning. In Letters, meaning is never used, so isolation says nothing about how hard a
+      word is to guess by its letters. Proposal: in Letters, difficulty = **how well-known the word is**
+      (its place in the frequency list) + **how unusual its letters are** (rare letters like `ź`, `q`,
+      `x`, and repeated letters, are harder). It can be worked out in the app from what is already
+      shipped — no data rebuild — and it leaves the main mode's difficulty exactly as tuned.
+- [ ] **"Zero tries"** was mentioned; the smallest meaningful number is 1. Assumed: 1 to unlimited.
 
 ### Consequences worth knowing before building
 - [ ] **The word pool is not the one the main mode uses.** `m.secret` is vetted **nouns**; this mode
@@ -177,14 +201,21 @@ are already dead is half the game; without it you hold that in your head.
       saying how many words a game can hide; do the same here rather than inventing something new.
 - [ ] **Adjectives and adverbs have no difficulty score.** Measured 2026-09-24 over the 20 000
       commonest words: verbs are all rated, nouns about 60 %, adjectives and adverbs **0 %** — the
-      score was only ever computed for words the main mode can hide. Choosing a difficulty over "any
-      word" therefore needs the pipeline to rate the rest. One change to `difficulty()` in
-      `tools/build-data.mjs` and a rebuild; no new idea needed.
+      score was only ever computed for words the main mode can hide. **Moot if the Letters-specific
+      difficulty above is accepted**, since that one is computed in the app for every word. If not,
+      it needs `difficulty()` in `tools/build-data.mjs` widened and a rebuild — and widening it
+      shifts the main mode's percentiles, so its bands would need re-checking.
+- [ ] **A few inflected forms sit in the word list as if they were base words** — `uroczystości`
+      (a plural) turned up among the 12-letter words, the same leak as `kota`. "Base form only" means
+      the pool must reject them, not just trust the list.
 - [ ] **The stoplist has to reach this mode.** `NEVER_SECRET` (the vulgar and grim words) is applied
       to nouns and verbs only. With adjectives in the pool it must cover them too, or a crude
       adjective could be the hidden word.
 
 ### To build
+- [x] **The rules** — `feedback()` (with the repeated-letter rule) and `score()` in
+      `app/js/letters.js`, 16 tests in `tools/test-letters.mjs`. Done 2026-09-24, 0.15.1.
+- [ ] The word pool — waits on the open difficulty question above.
 - [ ] Reuse the vocabulary and the validator: `resolve()` for "is this a word?", `ac.txt` for "is
       this the base form?".
 - [ ] **Hard mode** — a revealed letter must be reused. Standard, cheap, and wanted by the people who

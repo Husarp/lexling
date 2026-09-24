@@ -19,6 +19,26 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 - **In the game:** the Settings footer reads *WordGuess v0.15.1 · © 2026 Husarp · All rights
   reserved* (*Wszelkie prawa zastrzeżone* in Polish).
 
+## 0.15.1 — 2026-09-24: Letters mode — the rules, before the screens
+*(not packaged — nothing a player can see yet)*
+
+The second game mode, a Wordle (PLAN.md M12), is fully specified and waiting on its screens from the
+design agent. What does not depend on the design is built now, in `app/js/letters.js`:
+
+- **`feedback(guess, answer)`** — green / yellow / grey per letter, with Wordle's exact
+  repeated-letter rule: greens are settled first and use up their letter, and each leftover letter
+  can turn one guessed letter yellow. Against `crane`, `eerie` gets its last `e` green and the other
+  two grey. Polish letters with marks are separate letters: `zolw` is simply wrong for `żółw`.
+- **`score(answer, guessesUsed, won, difficulty)`** — letters ÷ guesses used × 100 × difficulty,
+  a marked Polish letter counting as two, a loss scoring 0.
+
+`tools/test-letters.mjs` holds 16 tests, including the worked example from the plan (`żółw` on the
+third guess at Normal = 292). Checked that the repeated-letter tests really discriminate: three of
+the four fail the naive "yellow if the letter is anywhere in the word" version most clones start with.
+
+Also measured for the plan: word lengths **3–13** hold in both languages — at 13 letters Polish still
+has 247 words among its 12 000 commonest and English 198; English falls to 69 at 14.
+
 ## 0.15.0 — 2026-09-22 17:05: A way to actually get the update, Body and School, and `kiwi`
 *(not packaged yet)*
 
