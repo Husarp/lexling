@@ -6,20 +6,7 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
-## 0.15.1 — 2026-09-24 05:52: All rights reserved
-*(not packaged yet)*
-
-- **A licence, finally: all rights reserved.** The repository is public, and without a licence the
-  rules were only implied. `LICENSE` now says it plainly: anyone may look at the code and download and
-  play the releases, but copying, changing, sharing, selling or building on the game needs written
-  permission.
-- **What it cannot cover is named as such.** The word data derived from fastText stays under CC
-  BY-SA 3.0 — share-alike, so it cannot be made "all rights reserved" — and the fonts under the SIL
-  OFL. The LICENSE lists them, and README gained a *Licence* section.
-- **In the game:** the Settings footer reads *WordGuess v0.15.1 · © 2026 Husarp · All rights
-  reserved* (*Wszelkie prawa zastrzeżone* in Polish).
-
-## 0.15.1 — 2026-09-24: Letters mode — the rules, before the screens
+## 0.15.2 — 2026-09-24 22:11: Letters mode — the rules, before the screens
 *(not packaged — nothing a player can see yet)*
 
 The second game mode, a Wordle (PLAN.md M12), is fully specified and waiting on its screens from the
@@ -38,6 +25,19 @@ the four fail the naive "yellow if the letter is anywhere in the word" version m
 
 Also measured for the plan: word lengths **3–13** hold in both languages — at 13 letters Polish still
 has 247 words among its 12 000 commonest and English 198; English falls to 69 at 14.
+
+## 0.15.1 — 2026-09-24 05:52: All rights reserved
+*(not packaged yet)*
+
+- **A licence, finally: all rights reserved.** The repository is public, and without a licence the
+  rules were only implied. `LICENSE` now says it plainly: anyone may look at the code and download and
+  play the releases, but copying, changing, sharing, selling or building on the game needs written
+  permission.
+- **What it cannot cover is named as such.** The word data derived from fastText stays under CC
+  BY-SA 3.0 — share-alike, so it cannot be made "all rights reserved" — and the fonts under the SIL
+  OFL. The LICENSE lists them, and README gained a *Licence* section.
+- **In the game:** the Settings footer reads *WordGuess v0.15.1 · © 2026 Husarp · All rights
+  reserved* (*Wszelkie prawa zastrzeżone* in Polish).
 
 ## 0.15.0 — 2026-09-22 17:05: A way to actually get the update, Body and School, and `kiwi`
 *(not packaged yet)*

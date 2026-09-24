@@ -214,7 +214,7 @@ player should feel they changed game, not app.
 
 ### To build
 - [x] **The rules** — `feedback()` (with the repeated-letter rule) and `score()` in
-      `app/js/letters.js`, 16 tests in `tools/test-letters.mjs`. Done 2026-09-24, 0.15.1.
+      `app/js/letters.js`, 16 tests in `tools/test-letters.mjs`. Done 2026-09-24, 0.15.2.
 - [ ] The word pool — waits on the open difficulty question above.
 - [ ] Reuse the vocabulary and the validator: `resolve()` for "is this a word?", `ac.txt` for "is
       this the base form?".
