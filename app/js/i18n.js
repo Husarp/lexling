@@ -7,7 +7,7 @@ const STR = {
     'menu.h1': 'Guess the<br>hidden <span style="color:var(--accent)">word</span>',
     'menu.tagline': 'Every guess tells you how close in meaning you are. Rank 1 is the answer\'s nearest neighbour — thousands means you\'re far away.',
     'menu.play': 'Play', 'menu.stats': 'Achievements &amp; stats', 'menu.settings': 'Settings', 'menu.nav': 'Main menu',
-    'foot.vocab': 'Polish + English vocab bundled', 'foot.offline': 'No account, no network',
+    'foot.vocab': 'Polish + English vocab bundled', 'foot.offline': 'No account, no network', 'foot.rights': 'All rights reserved',
 
     'games.title': 'Your games', 'games.new': 'New game', 'games.resume': 'Resume', 'games.rename': 'Rename', 'games.delete': 'Delete',
     'games.emptyTitle': 'No saved games',
@@ -110,7 +110,7 @@ const STR = {
     'menu.h1': 'Odgadnij<br>ukryte <span style="color:var(--accent)">słowo</span>',
     'menu.tagline': 'Każda próba mówi, jak blisko znaczeniowo jesteś. Pozycja 1 to najbliższy sąsiad odpowiedzi — tysiące oznaczają, że jesteś daleko.',
     'menu.play': 'Zagraj', 'menu.stats': 'Osiągnięcia i statystyki', 'menu.settings': 'Ustawienia', 'menu.nav': 'Menu główne',
-    'foot.vocab': 'Słowniki polski + angielski w zestawie', 'foot.offline': 'Bez konta, bez sieci',
+    'foot.vocab': 'Słowniki polski + angielski w zestawie', 'foot.offline': 'Bez konta, bez sieci', 'foot.rights': 'Wszelkie prawa zastrzeżone',
 
     'games.title': 'Twoje gry', 'games.new': 'Nowa gra', 'games.resume': 'Wznów', 'games.rename': 'Zmień nazwę', 'games.delete': 'Usuń',
     'games.emptyTitle': 'Brak zapisanych gier',

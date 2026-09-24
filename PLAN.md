@@ -101,6 +101,12 @@ diminutives and things that are not animals.
 - [ ] Still open: whether group words (`ptak`, `ryba`, `owad`) should be answers in Animals. Kept for
       now — the owner said kinds of animals are fair.
 
+## Licence — DONE 2026-09-24
+
+- [x] All rights reserved (asked 2026-09-24): `LICENSE`, a README section, and "© 2026 Husarp · All
+      rights reserved" in the Settings footer, both languages — 0.15.1. Third-party data and fonts
+      keep their own licences, listed in the LICENSE.
+
 ## M12 — Letters mode (a Wordle inside WordGuess) — PLANNED, not started
 Asked for 2026-09-23, settled the same day. Guess a hidden word letter by letter with the usual
 green / yellow / grey feedback. What makes it ours rather than a Wordle clone: **not one word a day**

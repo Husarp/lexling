@@ -111,6 +111,14 @@ when it is distributed (to-do in PLAN.md M5). Not legal advice; check the terms 
 | WordNet-based LibreOffice thesaurus | English parts of speech | WordNet licence (permissive, attribution) |
 | Barlow Condensed, Inter | fonts | SIL OFL (licence files in `app/fonts/`) |
 
+## Licence
+
+**All rights reserved** — © 2026 Husarp. The code is public to read, and the releases are free to
+download and play, but the game may not be copied, changed, shared, sold or built upon without
+written permission. The exceptions are the third-party parts above, which keep their own licences:
+the word data derived from fastText stays under CC BY-SA 3.0, and the fonts under the SIL OFL. Full
+terms in [LICENSE](LICENSE).
+
 ## Project layout
 
 ```

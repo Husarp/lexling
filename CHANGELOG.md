@@ -6,6 +6,19 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.15.1 — 2026-09-24 05:52: All rights reserved
+*(not packaged yet)*
+
+- **A licence, finally: all rights reserved.** The repository is public, and without a licence the
+  rules were only implied. `LICENSE` now says it plainly: anyone may look at the code and download and
+  play the releases, but copying, changing, sharing, selling or building on the game needs written
+  permission.
+- **What it cannot cover is named as such.** The word data derived from fastText stays under CC
+  BY-SA 3.0 — share-alike, so it cannot be made "all rights reserved" — and the fonts under the SIL
+  OFL. The LICENSE lists them, and README gained a *Licence* section.
+- **In the game:** the Settings footer reads *WordGuess v0.15.1 · © 2026 Husarp · All rights
+  reserved* (*Wszelkie prawa zastrzeżone* in Polish).
+
 ## 0.15.0 — 2026-09-22 17:05: A way to actually get the update, Body and School, and `kiwi`
 *(not packaged yet)*
 

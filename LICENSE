@@ -1,0 +1,24 @@
+WordGuess
+Copyright (c) 2026 Husarp. All rights reserved.
+
+This repository is public so the game can be seen and played - that is not permission to use it.
+No licence is granted to copy, modify, merge, publish, distribute, sublicense or sell this game or
+any part of it - its source code, graphics, sounds, text, design or data - or to make works based
+on it, without prior written permission from the copyright holder.
+
+You may:
+  - view the files here on GitHub (forking on GitHub, which GitHub's terms allow, grants no
+    further rights);
+  - download the official releases and play the game for your own personal use.
+
+Not covered by the above - third-party material keeps its own licence:
+  - the word data in app/data/ is derived from the sources listed in README.md under "Data sources
+    & licences", and is available under their terms - the word vectors, derived from fastText by
+    Facebook AI Research, under CC BY-SA 3.0 (attribution + share-alike);
+  - the fonts in app/fonts/, Barlow Condensed and Inter, under the SIL Open Font License 1.1 (the
+    licence files are next to them).
+
+To ask for permission, open an issue at https://github.com/Husarp/wordguess/issues
+
+THE GAME IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE GAME OR ITS USE.

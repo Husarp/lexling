@@ -346,7 +346,7 @@ export async function settingsScreen(root, _, refresh) {
       </div>
     </section>
   </main>
-  <footer class="footer"><span>WordGuess v${VERSION}</span>${DOT}<span>© 2026</span></footer>
+  <footer class="footer"><span>WordGuess v${VERSION}</span>${DOT}<span>© 2026 Husarp</span>${DOT}<span>${t('foot.rights')}</span></footer>
 </div>`;
   root.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.k === 'lang') return switchLang(b.dataset.v, refresh);
