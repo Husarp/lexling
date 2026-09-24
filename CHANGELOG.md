@@ -7,6 +7,7 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 ---
 
 ## 0.17.1 — 2026-09-25 00:53: More Polish words count as guesses in Letters; status bar rearranged
+*(debug APK built and installed on the phone 2026-09-25 00:54 — not released)*
 
 - **50 162 more Polish words are valid Letters guesses** — *pasę, pasą, poszedłem, szedłem,
   poszliśmy*. The dictionary lists these on their own, with nothing linking them to a base word, and
