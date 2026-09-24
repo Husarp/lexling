@@ -6,6 +6,17 @@ import { t } from './i18n.js';
 export const topbar = ({ left = '', right = '' } = {}) =>
   `<header class="topbar"><span class="side">${left}</span><a class="brand" href="#/">Word<b>/</b>Guess</a><span class="side end">${right}</span></header>`;
 
+// Which game a screen or a save belongs to: the mode's small glyph and its name.
+export const GLYPH = { guess: '<span class="glyph guess" aria-hidden="true"></span>',
+  letters: '<span class="glyph letters" aria-hidden="true"><i></i><i></i><i></i></span>' };
+export const modeTag = mode => `<span class="mode-tag">${GLYPH[mode]}${t('mode.' + mode)}</span>`;
+
+// Letters feedback (letters.js) -> the tile classes: hit = right place, near = elsewhere, miss = not in it.
+export const TILE = { green: 'hit', yellow: 'near', grey: 'miss' };
+// A row of mini squares, blank or lettered: the saved-game card, the menu cue, the how-to legend.
+export const squares = (marks, size, letters = []) => `<span class="mt-row" aria-hidden="true">${marks.map((mark, i) =>
+  `<i class="mt ${mark}"${size ? ` style="--s:${size}px"` : ''}>${letters[i] ?? ''}</i>`).join('')}</span>`;
+
 // Accent colour ("theme colour"): the design's orange, or one of these. --accent-hover is the same
 // colour darkened, --accent-soft the same colour at 16 %, so one pick restyles every accented thing.
 export const ACCENTS = { orange: '#DB5126', red: '#E03131', amber: '#E8A317', green: '#2BA84A',

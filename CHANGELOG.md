@@ -6,6 +6,47 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.16.0 — 2026-09-24 23:56: Letters mode is playable — the second game in the app
+*(not packaged yet)*
+
+Built from the design agent's handoff (`design/letters/handoff/`, six screens), ported 1:1 like the
+rest of the app, in both languages.
+
+- **Main menu** — the Play button is now **one card per mode**, Guess and Letters, each with a small
+  picture of its feedback and how many of its games are in progress. The grid takes a third mode
+  without a redesign. "Your games" shows how many saves there are.
+- **New game · Letters** — word length 3–13 (a stepper, plus a bar per length you can tap, showing
+  how many words each length can hide right now), tries 1–20 or **unlimited**, category, difficulty,
+  and for Polish the **Polish letters** switch. Settings that leave no word say so and disable Start.
+  A category tells you it means a noun.
+- **The game** — one box per letter; the phone's own keyboard types into a hidden field, so ż ó ł
+  work by long press as usual. Nothing is sent until **Enter / Go / Guess**. A short row is refused
+  ("Needs 5 letters — you typed 3") and outlined red; a non-word and a repeat are refused too. Boxes
+  colour in one after another. With the keyboard open the screen shrinks to what is visible: message
+  on top, the grid scrolling in the middle, Guess right above the keyboard. 13 letters fit a 320 px
+  phone at 19.9 px a box.
+- **Win / loss** — the word, tries used, the score with its sum written out (*7 letters (ż ó ł count
+  ×2) ÷ 3 guesses × 100 × 1.25 Normal = 292*), your best if it is higher, and **Copy result**: plain
+  text with 🟩🟨⬛ rows, never the word.
+- **Your games** — one list for both modes, each card tagged with its mode; Letters cards show tries
+  used and the last guess as bare squares. A filter (All / Guess / Letters), and **New game asks
+  which game**.
+- **Statistics** — Guess / Letters tabs. Letters has its own played, won, win streak, best score and
+  average win, and **four badges**: Champion, High score, On a roll, Full range (with a strip of the
+  lengths you have won at). Letters typed and time in game stay shared. Badge thresholds are the
+  design's proposals.
+- **Under the hood** — saves carry a `mode` (old saves read as Guess); Letters loads only the words,
+  not the meaning vectors — 9 MB for Polish instead of 27; Guess's play-time clock is shared rather
+  than copied.
+
+Found while testing, fixed:
+- **The design's hidden field was 1×1 px, and at that size the text cursor has no room** — Chrome
+  kept it at the start, so Backspace deleted nothing and new letters went in front. Measured with a
+  plain field: broken at 1 px, fine at 4em. It is 4em now, still invisible.
+- **"LETTERS" in the top bar ran into the logo** on phones narrower than ~375 px (96 px of text in an
+  84 px slot). It now tightens to fit, like every other label.
+- A tap anywhere on the game (not only on the boxes) brings the keyboard back.
+
 ## 0.15.3 — 2026-09-24 23:40: Letters mode — which words can be hidden, and how hard they are
 *(not packaged — nothing a player can see yet; the word data was rebuilt)*
 

@@ -1,7 +1,7 @@
 // Tests for the Letters mode rules in app/js/letters.js. Run: node tools/test-letters.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { feedback, score } from '../app/js/letters.js';
+import { feedback, score, points } from '../app/js/letters.js';
 
 const G = 'green', Y = 'yellow', _ = 'grey';
 let passed = 0;
@@ -29,6 +29,7 @@ check('first-guess 5 letters on Easy', score('kotek', 1, true, 'easy'), 500);
 check('a loss scores nothing', score('kotek', 6, false, 'easy'), 0);
 check('Relaxed pays less', score('kotek', 2, true, 'relaxed'), 188);
 check('Hard pays more', score('kotek', 2, true, 'hard'), 375);
+check('a marked letter counts as two', points('żółw'), 7);
 check('fewer guesses, higher score', score('kotek', 2, true, 'easy') > score('kotek', 4, true, 'easy'), true);
 
 // ── which words can be hidden — against the real word data ──────────────────────────────────────
@@ -36,7 +37,7 @@ const ROOT = new URL('../app/', import.meta.url);
 globalThis.fetch = async url => { const b = readFileSync(new URL(url, ROOT));
   return { json: async () => JSON.parse(b.toString('utf8')), text: async () => b.toString('utf8'),
     arrayBuffer: async () => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) }; };
-const { load } = await import('../app/js/engine.js');
+const { loadWords: load } = await import('../app/js/engine.js');   // what Letters loads: no vectors
 const { pool, difficulty } = await import('../app/js/letters.js');
 const has = (m, p, w) => p.some(i => m.words[i] === w);
 

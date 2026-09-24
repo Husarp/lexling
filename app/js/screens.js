@@ -1,10 +1,11 @@
 // Menu, game picker, new game, achievements & stats, settings. Markup is the design handoff's
 // (design/handoff/*.html), with the dummy text replaced by t(...) and live data.
-import { t, plural, esc, num, clock, ago, dateTime, setLang, getLang, LANG_NAMES } from './i18n.js';
+import { t, plural, esc, num, decimal, clock, ago, dateTime, setLang, getLang, LANG_NAMES } from './i18n.js';
 import { settings, saveSettings, stats, saveStats, listSaves, getSave, putSave, deleteSave, newGame, gameName } from './store.js';
-import { load, preload, resolve, pickSecret, lengthStats } from './engine.js';
-import { BADGES, TIERS, progress } from './badges.js';
-import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS } from './ui.js';
+import { load, loadWords, preload, resolve, pickSecret, lengthStats } from './engine.js';
+import { feedback, pool, pick } from './letters.js';
+import { BADGES, LT_BADGES, TIERS, progress } from './badges.js';
+import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYPH, modeTag, TILE, squares } from './ui.js';
 import { fitAll } from './fit.js';
 import { click } from './sound.js';
 import { VERSION, REPO } from './version.js';
@@ -17,7 +18,30 @@ const BANDS = ['short', 'medium', 'long', 'any'];
 const DOT = '<span class="dot">·</span>';
 const on = cond => cond ? 'on' : '';
 
+// What each mode's feedback looks like, drawn small on its menu card (design: handoff-letters/main-menu.html).
+const CUE = {
+  guess: { en: ['mouse', 5], pl: ['mysz', 5] },
+  letters: { en: 'words', pl: 'słowo' },
+};
+const NEW_OF = { guess: '#/new', letters: '#/new/letters' };
+
 export function menu(root, _, refresh) {
+  const saves = listSaves();
+  const [word, rank] = CUE.guess[getLang()];
+  const cue = {
+    guess: `<span class="cue-guess"><i></i><span>${word}</span><span>${rank}</span></span>`,
+    letters: squares(['hit', 'near', 'miss', 'hit', 'hit'], 24, [...CUE.letters[getLang()]]),
+  };
+  // One card per mode, the same weight each: the grid takes a third mode without a redesign.
+  const mode = key => {
+    const going = saves.filter(g => g.mode === key).length;
+    return `<a class="mode" href="${NEW_OF[key]}">
+          <span class="mode-head"><span class="mode-name">${t('mode.' + key)}</span><span class="arrow" aria-hidden="true">→</span></span>
+          <span class="help">${t(`mode.${key}.d`)}</span>
+          <span class="cue" aria-hidden="true">${cue[key]}</span>
+          ${going ? `<span class="meta">${t('mode.inProgress', { n: `<b>${going}</b>` })}</span>` : ''}
+        </a>`;
+  };
   root.innerHTML = `<div class="app" data-screen="menu">
   ${topbar({ right: `<span class="eyebrow lang-switch">${
     ['pl', 'en'].map(l => `<button type="button" data-lang="${l}" class="${on(getLang() === l)}" aria-label="${LANG_NAMES[l]}">${l.toUpperCase()}</button>`).join(DOT)}</span>` })}
@@ -27,8 +51,9 @@ export function menu(root, _, refresh) {
       <p class="eyebrow">${t('menu.eyebrow')} ${DOT} ${t('menu.offline')}</p>
       <h1 class="display">${t('menu.h1')}</h1>
       <p class="tagline">${t('menu.tagline')}</p>
+      <nav class="modes" aria-label="${t('menu.modesAria')}">${mode('guess')}${mode('letters')}</nav>
       <nav class="menu" aria-label="${t('menu.nav')}">
-        <a class="btn btn-primary btn-lg" href="#/games">${t('menu.play')} <span class="arrow">→</span></a>
+        <a class="btn btn-outline btn-lg" href="#/games">${t('menu.games')} ${saves.length ? `<span class="count">${saves.length}</span>` : ''}<span class="arrow">→</span></a>
         <a class="btn btn-outline btn-lg" href="#/stats">${t('menu.stats')} <span class="arrow">→</span></a>
         <a class="btn btn-outline btn-lg" href="#/settings">${t('menu.settings')} <span class="arrow">→</span></a>
       </nav>
@@ -60,33 +85,73 @@ function saveMeta(g) {
     ago(g.updated)].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
 }
 
+function lettersMeta(g) {
+  return [LANG_NAMES[g.lang], t(g.cat === 'all' ? 'cat.allLong' : 'cat.' + g.cat),
+    `${g.len} ${plural(g.len, 'lt.letters')}`,
+    g.tries ? `${g.tries} ${plural(g.tries, 'lt.triesUnit')}` : t('lt.noLimit'),
+    t('diff.' + g.diff),
+    g.marks && t('lt.marksShort'),
+    ago(g.updated)].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
+}
+
+// "New game" asks which game first: a small menu under the button (design: handoff-letters/game-picker.html).
+const newMenu = (big = false) => `<div class="new"><button class="btn btn-primary${big ? ' btn-lg' : ''}" type="button" aria-haspopup="menu" aria-expanded="false">${t('games.new')} <span class="arrow">→</span></button>
+      <div class="pop" role="menu" hidden>
+        <a role="menuitem" href="${NEW_OF.guess}"><strong>${t('mode.guess')}</strong><span class="arrow">→</span><span class="help">${t('games.guessD')}</span></a>
+        <a role="menuitem" href="${NEW_OF.letters}"><strong>${t('mode.letters')}</strong><span class="arrow">→</span><span class="help">${t('games.lettersD')}</span></a>
+      </div></div>`;
+
+let filter = 'all';   // the list's mode filter, kept while the app is open
+
 export function games(root, _, refresh) {
-  const saves = listSaves();
-  if (saves.length) preload(saves[0].lang);   // most likely the game about to be resumed
-  const card = g => {
-    const best = g.guesses.reduce((b, x) => !b || x.rank < b.rank ? x : b, null);
-    return `<article class="card save" data-id="${g.id}">
-  <div>
-    <h2 class="save-name">${esc(gameName(g))}</h2>
-    <div class="save-meta">${saveMeta(g)}</div>
-  </div>
-  <div class="save-actions">
+  const all = listSaves();
+  const saves = filter === 'all' ? all : all.filter(g => g.mode === filter);
+  // most likely the game about to be resumed
+  if (saves.length) (saves[0].mode === 'letters' ? loadWords(saves[0].lang).catch(() => {}) : preload(saves[0].lang));
+  const actions = g => `<div class="save-actions">
     <a class="btn btn-primary" href="#/game/${g.id}">${t('games.resume')}</a>
     <button class="btn btn-ghost" type="button" data-act="rename">${t('games.rename')}</button>
     <button class="btn btn-ghost btn-danger" type="button" data-act="delete">${t('games.delete')}</button>
+  </div>`;
+  const guessCard = g => {
+    const best = g.guesses.reduce((b, x) => !b || x.rank < b.rank ? x : b, null);
+    return `<article class="card save" data-id="${g.id}">
+  <div>
+    <div class="save-top">${modeTag('guess')}</div>
+    <h2 class="save-name">${esc(gameName(g))}</h2>
+    <div class="save-meta">${saveMeta(g)}</div>
   </div>
+  ${actions(g)}
   <div class="save-best"><span>${g.guesses.length} ${plural(g.guesses.length, 'n.guesses')}</span><div class="bar"><i style="--pct:${best ? best.pct : 0}%;--fill:${fillColor(best ? best.pct : 0)}"></i></div><span>${t('games.best')} ${
     best ? `<b style="color:var(--text)">${esc(best.w)}</b> ${DOT} <b class="num" style="color:var(--text)">${num(best.rank)}</b>` : '—'}</span></div>
+</article>`;
+  };
+  // A Letters card shows tries used and the last guess as bare squares - the colours, never the letters.
+  const lettersCard = g => {
+    const used = g.guesses.length, last = g.guesses.at(-1);
+    return `<article class="card save" data-id="${g.id}">
+  <div>
+    <div class="save-top">${modeTag('letters')}</div>
+    <h2 class="save-name">${esc(gameName(g))}</h2>
+    <div class="save-meta">${lettersMeta(g)}</div>
+  </div>
+  ${actions(g)}
+  <div class="save-last">${last
+    ? `<span><span>${g.tries ? t('games.triesOf', { g: `<b class="num">${used}</b>`, t: g.tries }) : `<b class="num">${used}</b> ${plural(used, 'lt.triesUnit')}`}</span></span>${
+      squares(feedback(last, g.secret).map(f => TILE[f]))}`
+    : `<span><span>${t('games.notStarted')}</span></span>`}</div>
 </article>`;
   };
   root.innerHTML = `<div class="app" data-screen="games">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
   <main class="main">
-    <div class="head"><h1 class="title">${t('games.title')}</h1>${saves.length ? `<a class="btn btn-primary" href="#/new">${t('games.new')} <span class="arrow">→</span></a>` : ''}</div>
-    ${saves.length ? `<div class="saves">${saves.map(card).join('')}</div>` : `<div class="card empty">
+    <div class="head"><h1 class="title">${t('games.title')}</h1>${all.length ? newMenu() : ''}</div>
+    ${all.length ? `<div class="seg filter" role="tablist">${['all', 'guess', 'letters'].map(f =>
+      `<button type="button" role="tab" data-filter="${f}" class="${on(filter === f)}" aria-selected="${filter === f}">${t(f === 'all' ? 'games.filterAll' : 'mode.' + f)}</button>`).join('')}</div>` : ''}
+    ${saves.length ? `<div class="saves">${saves.map(g => g.mode === 'letters' ? lettersCard(g) : guessCard(g)).join('')}</div>` : `<div class="card empty">
       <p class="display">${t('games.emptyTitle')}</p>
       <p class="help" style="max-width:36ch">${t('games.emptyText')}</p>
-      <a class="btn btn-primary btn-lg" href="#/new">${t('games.new')} <span class="arrow">→</span></a>
+      ${newMenu(true)}
     </div>`}
   </main>
 </div>`;
@@ -94,6 +159,20 @@ export function games(root, _, refresh) {
     const id = el.dataset.id;
     confirmClick(el.querySelector('[data-act=delete]'), () => { deleteSave(id); refresh(); }, () => fitAll(el));
     el.querySelector('[data-act=rename]').addEventListener('click', () => rename(el, getSave(id), refresh));
+  });
+  root.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', () => { filter = b.dataset.filter; refresh(); }));
+  root.querySelectorAll('.new').forEach(box => {
+    const button = box.querySelector('button'), pop = box.querySelector('.pop');
+    const show = open => {
+      pop.hidden = !open;
+      button.setAttribute('aria-expanded', open);
+      button.querySelector('.arrow').textContent = open ? '↓' : '→';
+    };
+    button.addEventListener('click', () => show(pop.hidden));
+    // a click anywhere else closes it, and Esc closes it before it leaves the screen. (On the screen's
+    // own element, not `root`: root outlives the screen and would collect a listener per visit.)
+    root.firstElementChild.addEventListener('click', e => { if (!box.contains(e.target)) show(false); });
+    box.addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) { show(false); button.focus(); e.stopPropagation(); } });
   });
 }
 
@@ -129,7 +208,7 @@ export function newGameScreen(root, _, refresh) {
   const o = pending ?? { ...NEW_GAME, lang: settings.newGame.lang || settings.lang };
   pending = null;
   root.innerHTML = `<div class="app" data-screen="new">
-  ${topbar({ left: `<a class="btn btn-ghost" href="#/games">${t('back.games')}</a>` })}
+  ${topbar({ left: `<a class="btn btn-ghost" href="#/games">${t('back.games')}</a>`, right: modeTag('guess') })}
   <main class="main">
     <h1 class="title">${t('new.title')}</h1>
     <form class="form" novalidate>
@@ -240,7 +319,168 @@ export function newGameScreen(root, _, refresh) {
   });
 }
 
-export function statsScreen(root) {
+// ── Letters: new game (design: handoff-letters/new-game-letters.html) ─────────────────────────────
+// Same footing rule as above: every game starts from these, only the language carries over.
+const LT_NEW = { cat: 'all', len: 5, tries: 6, unlimited: false, diff: 'normal', marks: false };
+const LEN_FROM = 3, LEN_TO = 13, TRIES_MAX = 20;
+let ltPending = null;
+
+export function lettersNewScreen(root, _, refresh) {
+  const o = ltPending ?? { ...LT_NEW, lang: settings.newGame.lang || settings.lang };
+  ltPending = null;
+  const lengths = Array.from({ length: LEN_TO - LEN_FROM + 1 }, (_, i) => LEN_FROM + i);
+  const stepper = (id, less, more) => `<div class="stepper" id="${id}"><button type="button" data-step="-1" aria-label="${less}">−</button><output></output><button type="button" data-step="1" aria-label="${more}">+</button></div>`;
+  root.innerHTML = `<div class="app" data-screen="new">
+  ${topbar({ left: `<a class="btn btn-ghost" href="#/games">${t('back.games')}</a>`, right: modeTag('letters') })}
+  <main class="main">
+    <h1 class="title">${t('new.title')}</h1>
+    <form class="form" novalidate>
+      <div class="field">
+        <span class="eyebrow">${t('new.lang')}</span>
+        <div class="seg" role="radiogroup">${['pl', 'en'].map(l => `<button type="button" data-k="lang" data-v="${l}">${LANG_NAMES[l]}</button>`).join('')}</div>
+      </div>
+      <div class="field">
+        <div class="field-head"><span class="eyebrow">${t('new.cat')}</span><span class="help">${t('new.catHint')}</span></div>
+        <div class="chips">${CATS.map(c => `<button type="button" class="chip" data-k="cat" data-v="${c}">${t('cat.' + c)}</button>`).join('')}</div>
+        <p class="help cat-about" id="cat-about"></p>
+      </div>
+      <div class="field" style="gap:var(--space-4)">
+        <span class="eyebrow">${t('lt.len')}</span>
+        ${stepper('len', t('lt.shorter'), t('lt.longer'))}
+        <div class="hist" role="group" aria-label="${t('lt.len')}" id="hist">${lengths.map(len =>
+    `<button type="button" data-len="${len}" aria-label="${len}"><b style="height:3px"></b><em>${len}</em></button>`).join('')}</div>
+        <div class="readout" id="readout"></div>
+      </div>
+      <div class="field">
+        <div class="field-head"><span class="eyebrow">${t('lt.tries')}</span><span class="help">${t('lt.triesHint')}</span></div>
+        <div class="tries">
+          ${stepper('tries', t('lt.fewer'), t('lt.more'))}
+          <button type="button" class="chip" role="switch" id="unlimited"><span class="num">∞</span>${t('lt.unlimited')}</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="eyebrow">${t('new.diff')}</span>
+        <div class="seg" role="radiogroup">${DIFFS.map(d => `<button type="button" data-k="diff" data-v="${d}">${t('diff.' + d)}</button>`).join('')}</div>
+        <p class="help"><span class="arrow">→</span> ${t('lt.diffHelp')}</p>
+      </div>
+      <div class="card polish" id="polish">
+        <div class="row">
+          <div class="row-text"><strong>${t('lt.polish')}</strong><span class="marks">ą ć ę ł ń ó ś ź ż</span></div>
+          <button type="button" class="toggle" role="switch" aria-label="${t('lt.polish')}"></button>
+        </div>
+        <p class="help"><span class="arrow">→</span> <span id="polish-help"></span></p>
+      </div>
+      <div class="cta">
+        <p class="summary"></p>
+        <p class="help err" id="new-err" role="alert" hidden></p>
+        <button class="btn btn-primary btn-lg btn-block" type="submit">${t('new.start')} <span class="arrow">→</span></button>
+      </div>
+    </form>
+  </main>
+</div>`;
+  const $ = sel => root.querySelector(sel);
+  const form = $('form'), err = $('#new-err'), start = $('[type=submit]'), toggle = $('#polish .toggle'), unlimited = $('#unlimited');
+  // Polish letters are a Polish-only choice; an English word never has them to begin with
+  const marks = () => o.lang === 'pl' && o.marks;
+  const choice = () => ({ cat: o.cat, diff: o.diff, marks: o.lang !== 'pl' || o.marks });
+
+  const sync = () => {
+    root.querySelectorAll('[data-k]').forEach(b => b.classList.toggle('on', String(o[b.dataset.k]) === b.dataset.v));
+    // a category means a noun (except Verbs) - said here rather than discovered in the game
+    $('#cat-about').textContent = t('about.' + o.cat) + (o.cat === 'all' || o.cat === 'verbs' ? '' : ' ' + t('lt.catNouns'));
+    const [shorter, longer] = $('#len').querySelectorAll('button');
+    $('#len output').innerHTML = `<span class="num">${o.len}</span><span class="help">${plural(o.len, 'lt.letters')}</span>`;
+    shorter.disabled = o.len <= LEN_FROM;
+    longer.disabled = o.len >= LEN_TO;
+    const [fewer, more] = $('#tries').querySelectorAll('button');
+    $('#tries').classList.toggle('off', o.unlimited);
+    $('#tries output').innerHTML = o.unlimited ? '<span class="num">∞</span><span class="help"></span>'
+      : `<span class="num">${o.tries}</span><span class="help">${plural(o.tries, 'lt.triesUnit')}</span>`;
+    fewer.disabled = o.unlimited || o.tries <= 1;
+    more.disabled = o.unlimited || o.tries >= TRIES_MAX;
+    unlimited.classList.toggle('on', o.unlimited);
+    unlimited.setAttribute('aria-checked', o.unlimited);
+    $('#polish').hidden = o.lang !== 'pl';
+    toggle.classList.toggle('on', o.marks);
+    toggle.setAttribute('aria-checked', o.marks);
+    $('#polish-help').innerHTML = t(o.marks ? 'lt.polishOn' : 'lt.polishOff');
+    $('.summary').innerHTML = [LANG_NAMES[o.lang], t('cat.' + o.cat), `${o.len} ${plural(o.len, 'lt.letters')}`,
+      o.unlimited ? `∞ ${plural(0, 'lt.triesUnit')}` : `${o.tries} ${plural(o.tries, 'lt.triesUnit')}`,
+      t('diff.' + o.diff), marks() && t('lt.marksShort')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
+    counts();
+    fitAll(root);
+  };
+
+  // The bars are how many words each length can hide with the other choices as they are, so they need
+  // the word data (~9 MB for Polish). Until it is here they stay flat, and the readout empty.
+  const ready = {};
+  function counts() {
+    const m = ready[o.lang];
+    const bars = [...$('#hist').children];
+    if (!m) {
+      bars.forEach(bar => { bar.className = +bar.dataset.len === o.len ? 'on' : ''; });
+      $('#readout').innerHTML = '';
+      loadWords(o.lang).then(data => { ready[o.lang] = data; if (form.isConnected) counts(); }).catch(() => {});
+      return;
+    }
+    const n = new Map(lengths.map(len => [len, pool(m, { len, ...choice() }).length]));
+    const tallest = Math.max(...n.values(), 1);
+    bars.forEach(bar => {
+      const len = +bar.dataset.len, c = n.get(len);
+      bar.className = [len === o.len && 'on', !c && 'none'].filter(Boolean).join(' ');
+      bar.firstElementChild.style.height = (c ? Math.round(c / tallest * 52) + 4 : 3) + 'px';
+    });
+    const here = n.get(o.len);
+    $('#readout').className = 'readout' + (here ? '' : ' none');
+    $('#readout').innerHTML = `<span class="num">${num(here)}</span><span class="help">${t(here ? 'lt.canHide' : 'lt.none')}</span>`;
+    err.textContent = t('lt.errNoWords');
+    err.hidden = !!here;
+    start.disabled = !here;
+  }
+
+  sync();
+  root.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => {
+    o[b.dataset.k] = b.dataset.v;
+    if (b.dataset.k === 'lang') {          // the interface follows, unless the player has chosen one
+      settings.newGame = { lang: o.lang };
+      saveSettings();
+      ltPending = o;                       // this re-render is ours: keep what is already filled in
+      if (switchLang(b.dataset.v, refresh, false)) return;
+      ltPending = null;                    // …no re-render happened after all
+    }
+    sync();
+  }));
+  $('#len').addEventListener('click', e => {
+    const step = +e.target.closest('[data-step]')?.dataset.step;
+    if (step) { o.len = Math.min(LEN_TO, Math.max(LEN_FROM, o.len + step)); sync(); }
+  });
+  $('#hist').addEventListener('click', e => {
+    const bar = e.target.closest('[data-len]');
+    if (bar) { o.len = +bar.dataset.len; sync(); }
+  });
+  $('#tries').addEventListener('click', e => {
+    const step = +e.target.closest('[data-step]')?.dataset.step;
+    if (step) { o.tries = Math.min(TRIES_MAX, Math.max(1, o.tries + step)); sync(); }
+  });
+  unlimited.addEventListener('click', () => { o.unlimited = !o.unlimited; sync(); });
+  toggle.addEventListener('click', () => { o.marks = !o.marks; sync(); });
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const m = await loadWords(o.lang);
+    const idx = pick(m, { len: o.len, ...choice() });
+    if (idx < 0) { err.hidden = false; return; }
+    settings.newGame = { lang: o.lang };
+    saveSettings();
+    const game = newGame({ mode: 'letters', lang: o.lang, cat: o.cat, len: o.len, tries: o.unlimited ? 0 : o.tries,
+      diff: o.diff, marks: marks(), secret: m.words[idx] });
+    location.replace('#/game/' + game.id);   // Back from the game goes to the picker, not to this form
+  });
+}
+
+let statsTab = 'guess';   // which mode the stats screen shows, kept while the app is open
+
+export function statsScreen(root, _, refresh) {
   const s = stats;
   const card = (label, value, sub = '') => `<div class="card stat-card"><span class="eyebrow">${label}</span><span class="num">${value}</span>${sub && `<span class="sub">${sub}</span>`}</div>`;
   // Design "1b Tier ladder": the whole climb in one card - five keys, earned ones in their tier colour,
@@ -248,7 +488,7 @@ export function statsScreen(root) {
   // "States, whichever direction wins" block. Only a tier unlocked since the last visit wears the
   // brand accent, which is what gives the unlock moment somewhere to go.
   const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
-  const badge = b => {
+  const badge = (b, extra = '') => {
     const p = progress(b, s);
     const seen = s.seenTiers?.[b.id] ?? p.unlocked;
     const freshAt = p.unlocked > seen ? p.unlocked - 1 : -1;
@@ -271,13 +511,33 @@ export function statsScreen(root) {
         <div class="track">
           <div class="track-head">${head}<span class="note"${p.next === null ? '' : ` style="color:var(--tier-${TIERS[p.unlocked]})"`}>${note}</span></div>
           <span class="bar"><i style="--pct:${p.pct}%;background:linear-gradient(90deg,${from},${to})"></i></span>
-        </div>
+        </div>${extra}
       </article>`;
   };
+  const lt = s.lt;
+  // Full range carries a strip of the lengths themselves, so the player sees which ones are missing
+  const lengthsStrip = `<div class="lengths" aria-label="${t('badge.range.strip')}">${Array.from({ length: 11 }, (_, i) => i + 3).map(len =>
+    `<span class="${lt.wonLen[len] ? 'won' : ''}"><b>${lt.wonLen[len] ? num(lt.wonLen[len]) : '·'}</b><em>${len}</em></span>`).join('')}</div>`;
+  const shown = statsTab === 'letters' ? LT_BADGES : BADGES;
+  const lettersPanel = () => `<section class="section" role="tabpanel">
+      <div class="stats">
+        ${card(t('stats.played'), num(lt.played))}
+        ${card(t('stats.won'), num(lt.won), lt.played ? Math.round(lt.won / lt.played * 100) + ' %' : '')}
+        ${card(t('stats.streak'), num(lt.streak), t('stats.streakBest', { n: num(lt.bestStreak) }))}
+        ${card(t('stats.bestScore'), lt.bestScore ? num(lt.bestScore) : '—')}
+        ${card(t('stats.avgWin'), lt.won ? decimal((lt.wonTries / lt.won).toFixed(1)) : '—', t('stats.perWonLt'))}
+      </div>
+      <h2 class="title">${t('badges.letters')}</h2>
+      <div class="badges">${LT_BADGES.map(b => badge(b, b.id === 'range' ? lengthsStrip : '')).join('')}</div>
+    </section>
+    <div class="shared"><span class="eyebrow" style="width:100%">${t('stats.shared')}</span><span><b>${num(s.letters)}</b> ${t('stats.lettersTyped')}</span>${DOT}<span><b>${clock(s.timeMs, true)} h</b> ${t('game.inGame')}</span></div>`;
   root.innerHTML = `<div class="app" data-screen="stats">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
   <main class="main">
     <h1 class="title">${t('stats.title')}</h1>
+    <div class="seg tabs" role="tablist">${['guess', 'letters'].map(m =>
+    `<button type="button" role="tab" data-tab="${m}" class="${on(statsTab === m)}" aria-selected="${statsTab === m}">${GLYPH[m]}${t('mode.' + m)}</button>`).join('')}</div>
+    ${statsTab === 'letters' ? lettersPanel() : `<section class="section" role="tabpanel">
     <div class="stats">
       ${card(t('stats.played'), num(s.played))}
       ${card(t('stats.won'), num(s.won), s.played ? Math.round(s.won / s.played * 100) + ' %' : '')}
@@ -293,11 +553,13 @@ export function statsScreen(root) {
 
     <h2 class="title">${t('badges.title')}</h2>
     <p class="help">${t('badges.noCat')}</p>
-    <div class="badges">${BADGES.map(badge).join('')}</div>
+    <div class="badges">${BADGES.map(b => badge(b)).join('')}</div>
+    </section>`}
   </main>
-  <!-- an unlock is "fresh" until the player has seen it here once -->${
-    (() => { stats.seenTiers = Object.fromEntries(BADGES.map(b => [b.id, progress(b, s).unlocked])); saveStats(); return ''; })()}
+  <!-- an unlock is "fresh" until the player has seen it here once - on the tab it is shown on -->${
+    (() => { for (const b of shown) stats.seenTiers[b.id] = progress(b, s).unlocked; saveStats(); return ''; })()}
 </div>`;
+  root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { statsTab = b.dataset.tab; refresh(); }));
 }
 
 let dataIndex;

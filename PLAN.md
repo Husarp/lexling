@@ -107,14 +107,29 @@ diminutives and things that are not animals.
       rights reserved" in the Settings footer, both languages — 0.15.1. Third-party data and fonts
       keep their own licences, listed in the LICENSE.
 
-## M12 — Letters mode (a Wordle inside WordGuess) — PLANNED, not started
+## M12 — Letters mode (a Wordle inside WordGuess) — PLAYABLE 2026-09-24 (0.16.0), not packaged yet
 Asked for 2026-09-23, settled the same day. Guess a hidden word letter by letter with the usual
 green / yellow / grey feedback. What makes it ours rather than a Wordle clone: **not one word a day**
 — a random word from the dictionary the game already ships, played as often as you like, offline,
 with no clock and no sync, and with the shape of the game chosen by the player.
 
-Design handoff requested 2026-09-24 (prompt in `notes/letters-design-prompt.md`); the index page
-arrived, the six screens it points to have not yet.
+Design handoff requested 2026-09-24 (prompt in `notes/letters-design-prompt.md`) and delivered the
+same night: six screens, `NOTES.md`, `strings.json`, kept in `design/letters/handoff/` (git-ignored).
+Ported 1:1 in 0.16.0.
+
+### Left to do after 0.16.0
+- [ ] **Play it on a real phone.** Tested here in a browser at 320 px, with the keyboard simulated;
+      what only a phone can show: that the phone keyboard opens on a tap, that long-press ż ó ł go
+      into the boxes, that the keyboard's Go key sends the guess, and that the keyboard-open layout
+      keeps Guess above the keyboard.
+- [ ] **Badge thresholds** are the design's proposals (Champion 10/50/150/500/1500, High score
+      150/250/400/600/1000, On a roll 3/5/10/20/50, Full range 3/5/7/9/11) — tune against real scores.
+- [ ] **Not built from the design, on purpose:** the "what Copy result puts on the clipboard" card
+      under the end screen. It reads as the designer's explanation (none of its text is in
+      `strings.json`), so it was left out. Say if it should be in the game.
+- [ ] Polish text written for things the design left blank: the difficulty help on the new-game
+      screen (it showed "undefined"), "best {n}" under the streak, "(ż ó ł count ×2)" in the score
+      line, and "already tried" for a repeated guess. Worth a read.
 
 ### Settled
 - **The player chooses**: word length, number of tries, category, difficulty, and whether Polish
@@ -144,10 +159,11 @@ arrived, the six screens it points to have not yet.
 Not a new style: the same design system the main mode already uses — the colours, the two fonts,
 the boxes, the top bar with the brand in the middle, dark/light and the theme-colour setting. A
 player should feel they changed game, not app.
-- [ ] Proposed: the three feedback colours come from WordGuess's own guess-box ramp rather than
-      Wordle's — **green** = `--fill-hot`, **yellow** = `--fill-mid`, **grey** = `--line`.
-- [ ] Proposed: each letter tile is drawn like a WordGuess guess box (same border, radius, fill
-      animation), just square and in a row.
+- [x] The three feedback colours come from WordGuess's own guess-box ramp rather than Wordle's —
+      **green** = `--fill-hot`, **yellow** = `--fill-mid`, **grey** = `--line`. The design made them
+      solid, and grey is `#4A4A4A` in both themes (light `--line` is the empty-box border).
+- [x] Each letter tile is drawn like a WordGuess guess box, square and in a row; the theme colour
+      only ever outlines (the caret box), so it can never be mistaken for a result.
 
 ### Settled 2026-09-24
 - **Word length 3–13**, in both languages. Measured over base-form words among the 12 000 commonest
@@ -186,27 +202,26 @@ player should feel they changed game, not app.
       (its place in the frequency list) + **how unusual its letters are** (rare letters, and repeated
       letters, are harder). The main mode's measure is about *meaning*, which this game never uses.
       Worked out in the app from what is shipped; the main mode's difficulty is untouched.
-- [ ] **"Zero tries"** was mentioned; the smallest meaningful number is 1. Assumed: 1 to unlimited.
+- [x] **"Zero tries"** was mentioned; the smallest meaningful number is 1. Built as 1–20 or
+      unlimited (0.16.0).
 
 ### Consequences worth knowing before building
-- [ ] **The word pool is not the one the main mode uses.** `m.secret` is vetted **nouns**; this mode
-      wants any part of speech. Either a second list from the pipeline or a runtime filter over
-      `words` — decide which, because it changes `vocab.json`.
-- [ ] **Categories are built from nouns only.** So choosing a category quietly restricts this mode to
-      nouns. That is fine, but it should be said on screen rather than discovered.
-- [ ] **The choices can combine into an empty pool** — a 9-letter Relaxed animal with no Polish
-      letters may not exist. The main mode already solves this with a 20-word floor and a readout
-      saying how many words a game can hide; do the same here rather than inventing something new.
-- [ ] **Adjectives and adverbs have no difficulty score.** Measured 2026-09-24 over the 20 000
+- [x] **The word pool is not the one the main mode uses.** `m.secret` is vetted **nouns**; this mode
+      wants any part of speech. Decided: a runtime filter over `words` (0.15.3).
+- [x] **Categories are built from nouns only.** Said on the new-game screen under the category
+      (except Verbs, which holds verbs) — 0.16.0.
+- [x] **The choices can combine into an empty pool** — a 13-letter Relaxed animal does not exist. The
+      new-game screen shows the count per length, says "no word fits" and disables Start (0.16.0).
+- [x] **Adjectives and adverbs have no difficulty score.** Moot: Letters has its own (0.15.3). Measured 2026-09-24 over the 20 000
       commonest words: verbs are all rated, nouns about 60 %, adjectives and adverbs **0 %** — the
       score was only ever computed for words the main mode can hide. **Moot if the Letters-specific
       difficulty above is accepted**, since that one is computed in the app for every word. If not,
       it needs `difficulty()` in `tools/build-data.mjs` widened and a rebuild — and widening it
       shifts the main mode's percentiles, so its bands would need re-checking.
-- [ ] **A few inflected forms sit in the word list as if they were base words** — `uroczystości`
-      (a plural) turned up among the 12-letter words, the same leak as `kota`. "Base form only" means
-      the pool must reject them, not just trust the list.
-- [ ] **The stoplist has to reach this mode.** `NEVER_SECRET` (the vulgar and grim words) is applied
+- [x] **A few inflected forms sit in the word list as if they were base words** — `uroczystości`
+      (a plural) turned up among the 12-letter words, the same leak as `kota`. Handled by `formOf`
+      (0.15.3); the few that still slip through are the known leak below.
+- [x] **The stoplist has to reach this mode.** `NEVER_SECRET` (the vulgar and grim words) is applied
       to nouns and verbs only. With adjectives in the pool it must cover them too, or a crude
       adjective could be the hidden word.
 
@@ -228,28 +243,28 @@ player should feel they changed game, not app.
       `las`, `kraj`, `klucz`, `obraz`, `morze`) that happen to spell a form of some rare word. A
       proper fix compares how alive each word's own paradigm is, like `ambiguousSpellings()` does —
       but that function also excludes `las`, so it cannot simply be reused.
-- [ ] Reuse the vocabulary and the validator: `resolve()` for "is this a word?", `ac.txt` for "is
-      this the base form?".
+- [x] Reuse the vocabulary and the validator: `resolve()` for "is this a word?" — any form in
+      `ac.txt` of the right length is a valid guess (`parki`, `bunty`). 0.16.0.
 - [ ] **Hard mode** — a revealed letter must be reused. Standard, cheap, and wanted by the people who
-      want it at all.
-- [ ] **A result grid to copy** — the coloured squares. Pure clipboard, works offline, and the thing
-      that makes a score worth having.
-- [ ] **Save and resume**, like the main mode.
+      want it at all. Not in the design; not built.
+- [x] **A result grid to copy** — the coloured squares as 🟩🟨⬛ text, never the word. 0.16.0.
+- [x] **Save and resume**, like the main mode. 0.16.0.
+- [x] **The screens** — menu mode cards, new game, game, win / loss, one games list for both modes,
+      stats with a tab per mode and four Letters badges. 0.16.0.
 
 ### Build it as the second of three modes, not a bolt-on
 Decided 2026-09-24 that the app will hold all three games (see M13). That changes how Letters should
 be built: every place that today assumes "there is one game" gets made to hold several *now*, so the
 third mode slots in instead of forcing a second rework.
-- [ ] **Saves carry a mode.** Every saved game gets a `mode` field; old saves read as `guess`, so
-      nothing already saved is lost.
-- [ ] **Statistics and badges are kept per mode**, and the badges screen shows one section per mode.
-      Mode-free counters (letters typed, time in game) can stay shared.
-- [ ] **The menu offers a choice of modes** that works for two and still works for three. Two split
-      buttons is right for now; the layout should not have to be redesigned for the third.
-- [ ] **Routes name the mode** — `#/new/letters`, `#/game/<id>` reads the mode from the save.
-- [ ] **Only Guess loads the vectors.** They are 17 MB of the Polish data and Letters never uses
-      them; today `load()` fetches everything at once. Splitting it makes Letters (and later
-      Scrabble) start instantly.
+- [x] **Saves carry a mode.** Every saved game gets a `mode` field; old saves read as `guess`, so
+      nothing already saved is lost. 0.16.0.
+- [x] **Statistics and badges are kept per mode** (`stats.lt` for Letters), and the stats screen has
+      a tab per mode. Letters typed and time in game stay shared. 0.16.0.
+- [x] **The menu offers a choice of modes** — one card per mode on an `auto-fit` grid, which the
+      design showed taking a third card unchanged. 0.16.0.
+- [x] **Routes name the mode** — `#/new/letters`, `#/game/<id>` reads the mode from the save. 0.16.0.
+- [x] **Only Guess loads the vectors.** `loadWords()` is the words alone (9 MB for Polish);
+      `load()` adds the vectors on top for Guess. 0.16.0.
 
 ## M13 — The third mode: Scrabble — DECIDED 2026-09-24: all three games in one app
 The owner wants WordGuess to end up holding all three word games — Guess, Letters, Scrabble. The
@@ -271,7 +286,8 @@ move generation across a 15×15 board — a DAWG or GADDAG over the whole dictio
 largest single piece of work discussed for this project, larger than the semantic engine was.
 Starting it before the letters mode exists is how a project ends up with three half-games.
 
-- [ ] Finish the letters mode — built as the second of three modes (M12) — and ship it first.
+- [~] Finish the letters mode — built as the second of three modes (M12) — and ship it first.
+      Playable in 0.16.0; not packaged or released yet.
 - [ ] WordGuess stops being one game and becomes the name of a collection of three. Decide whether
       the app keeps that name or gets one that fits all three.
 - [ ] **Polish Scrabble accepts every inflected form**, and `ac.txt` already holds 384 000 of them —

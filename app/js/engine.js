@@ -1,5 +1,5 @@
 // Word data + scoring. The data files are described in DESIGN.md §2 and produced by tools/build-data.mjs.
-const models = {};
+const models = {}, lexicons = {};
 
 // ż→z, ł→l … so that typing "zolw" finds "żółw". One char maps to one char, so prefix lengths line up.
 // tools/build-data.mjs sorts the autocomplete list with this same function - keep them in step.
@@ -8,27 +8,23 @@ export const fold = s => s.toLowerCase().replace(/[ąćęłńóśźż]/g, c => P
 
 // Returns the same promise to every caller, so screens can start the load early (the Polish data is
 // ~27 MB) and the game screen simply awaits what is already under way.
-export const load = lang => models[lang] ??= read(lang).catch(e => { delete models[lang]; throw e; });
+// load() is everything Guess needs. loadWords() is the words alone - the vocabulary and every
+// inflected form, ~9 MB for Polish - which is all Letters needs: it never measures meaning, so the
+// vectors (18 MB of the 27) would only make it start slower.
+export const load = lang => models[lang] ??= readVectors(lang).catch(e => { delete models[lang]; throw e; });
+export const loadWords = lang => lexicons[lang] ??= readWords(lang).catch(e => { delete lexicons[lang]; throw e; });
 export const preload = lang => { load(lang).catch(() => {}); };
 
-async function read(lang) {
+async function readWords(lang) {
   const base = `data/${lang}/`;
-  const [vocab, acText, acBuf, vecBuf] = await Promise.all([
+  const [vocab, acText, acBuf] = await Promise.all([
     fetch(base + 'vocab.json').then(r => r.json()),
     fetch(base + 'ac.txt').then(r => r.text()),
     fetch(base + 'ac.bin').then(r => r.arrayBuffer()),
-    fetch(base + 'vectors.bin').then(r => r.arrayBuffer()),
   ]);
-  const { words, dims } = vocab;
-  const vec = new Int8Array(vecBuf);
-  const norms = new Float32Array(words.length);
-  for (let i = 0; i < words.length; i++) {
-    let s = 0;
-    for (let d = i * dims, e = d + dims; d < e; d++) s += vec[d] * vec[d];
-    norms[i] = Math.sqrt(s);
-  }
+  const { words } = vocab;
   return {
-    ...vocab, vec, norms,
+    ...vocab,
     hardOf: new Map(vocab.hard.idx.map((w, i) => [w, vocab.hard.score[i]])),   // 0-100, see DESIGN.md §2
     count: words.length,
     folded: words.map(fold),              // words[] is most-frequent-first: scanning it finds the common words first
@@ -36,6 +32,19 @@ async function read(lang) {
     acIdx: new Uint32Array(acBuf),
     secretSet: new Set(vocab.secret),     // for reading(): a word the engine can hide wins an ambiguity
   };
+}
+
+async function readVectors(lang) {
+  const [lex, vecBuf] = await Promise.all([loadWords(lang), fetch(`data/${lang}/vectors.bin`).then(r => r.arrayBuffer())]);
+  const { count, dims } = lex;
+  const vec = new Int8Array(vecBuf);
+  const norms = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    let s = 0;
+    for (let d = i * dims, e = d + dims; d < e; d++) s += vec[d] * vec[d];
+    norms[i] = Math.sqrt(s);
+  }
+  return { ...lex, vec, norms };
 }
 
 // first position in the sorted list whose folded spelling is >= key

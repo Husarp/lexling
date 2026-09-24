@@ -310,3 +310,181 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 
 /* what the chosen category covers - sits under the chips on the new-game screen */
 [data-screen=new] .cat-about{margin:0;padding-top:var(--space-2);line-height:1.45}
+
+/* ═══ LETTERS MODE — ported verbatim from handoff-letters/*.html. Left out: the demo frames, the
+   third-mode glyph (.glyph.tiles, no third mode yet) and the clipboard preview card (.share). ═══ */
+/* ── Letters tiles (identical in every file that draws them) ──
+   Feedback colours come from the guess-box ramp: hit = --fill-hot, near = --fill-mid, miss = --line.
+   Fills are solid, not --fill-alpha: in Letters the colour IS the answer, so it must not be tinted grey.
+   Ink on hit/near is black (white on #2BD96B / #FFC531 is ~2:1); ink on miss is white.
+   Light theme: --line there is the empty-box border (#E0E0E0) and cannot carry white ink, so a miss
+   uses --text-muted (#4A4A4A) — the same grey the dark theme gets from --line. */
+.lt-board{display:grid;gap:clamp(3px,1.2vw,6px);container-type:inline-size}
+.lt-row{--gap:min(6px,1cqi);--box:min(var(--max,60px),calc((100cqi - (var(--n) - 1) * var(--gap)) / var(--n)));display:grid;grid-template-columns:repeat(var(--n),var(--box));gap:var(--gap);justify-content:center}
+.lt{height:var(--box);min-width:0;display:grid;place-items:center;border:1.5px solid var(--line-soft);border-radius:min(var(--radius-md),calc(var(--box) * .2));font:800 calc(var(--box) * .62)/1 var(--font-display);text-transform:uppercase;color:var(--text);background:transparent;transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),color var(--dur) var(--ease)}
+.lt-row.now .lt{border-color:var(--line)}
+.lt.typed{border-color:var(--text-muted)}
+.lt.caret{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.lt.hit{background:var(--fill-hot);border-color:var(--fill-hot);color:#000}
+.lt.near{background:var(--fill-mid);border-color:var(--fill-mid);color:#000}
+.lt.miss{background:var(--line);border-color:var(--line);color:#fff}
+.lt-row.future .lt{border-style:dashed}
+.lt-row.bad .lt{border-color:var(--error)}
+[data-theme=light] .lt{border-color:var(--line)}
+[data-theme=light] .lt-row.now .lt{border-color:var(--text-dim)}
+[data-theme=light] .lt.typed{border-color:var(--text-muted)}
+[data-theme=light] .lt.caret{border-color:var(--accent)}
+[data-theme=light] .lt.miss{background:var(--text-muted);border-color:var(--text-muted)}
+[data-theme=light] .lt.hit{border-color:var(--fill-hot)}[data-theme=light] .lt.near{border-color:var(--fill-mid)}
+[data-theme=light] .lt-row.bad .lt{border-color:var(--error)}
+/* reveal: each box takes its colour in turn with a 4px lift — the brand's fade + small translate, no flip.
+   Stagger shrinks with length so a 13-letter row still lands in under a second and a half. */
+@keyframes lt-reveal{0%{background:transparent;border-color:var(--text-muted);color:var(--text);transform:none}40%{transform:translateY(-4px)}100%{transform:none}}
+.lt-row.reveal .lt{animation:lt-reveal 360ms var(--ease) backwards;animation-delay:calc(var(--i) * min(120ms, 1000ms / var(--n)))}
+/* mini squares: legend, saved-game card, menu cue, share preview */
+.mt-row{display:flex;gap:3px}
+.mt{flex:none;width:var(--s,18px);height:var(--s,18px);border-radius:4px;display:grid;place-items:center;font:800 calc(var(--s,18px) * .64)/1 var(--font-display);text-transform:uppercase;border:1.5px solid var(--line-soft)}
+.mt.hit{background:var(--fill-hot);border-color:var(--fill-hot);color:#000}
+.mt.near{background:var(--fill-mid);border-color:var(--fill-mid);color:#000}
+.mt.miss{background:var(--line);border-color:var(--line);color:#fff}
+[data-theme=light] .mt{border-color:var(--line)}
+[data-theme=light] .mt.miss{background:var(--text-muted);border-color:var(--text-muted)}
+[data-theme=light] .mt.hit{border-color:var(--fill-hot)}[data-theme=light] .mt.near{border-color:var(--fill-mid)}
+/* mode tag: which game a screen or a save belongs to */
+.mode-tag{display:inline-flex;align-items:center;gap:var(--space-2);font:600 12px/1.2 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);white-space:nowrap}
+.glyph{flex:none;display:inline-flex;gap:2px}
+.glyph.letters i{width:7px;height:7px;border-radius:2px}
+.glyph.letters i:nth-child(1){background:var(--fill-hot)}.glyph.letters i:nth-child(2){background:var(--fill-mid)}.glyph.letters i:nth-child(3){background:var(--line)}
+.glyph.guess{width:22px;height:7px;border-radius:2px;background:linear-gradient(90deg,var(--fill-cold),var(--fill-warm),var(--fill-mid),var(--fill-hot))}
+[data-theme=light] .glyph.letters i:nth-child(3){background:var(--text-muted)}
+/* modes: one card per game, equal weight. auto-fit takes a third card without a redesign:
+   stacked below ~500px, side by side above, three across at the 720px column. */
+[data-screen=menu] .modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:var(--space-3)}
+[data-screen=menu] .mode{display:grid;gap:var(--space-3);align-content:start;padding:var(--space-4) var(--space-5) var(--space-5);background:var(--surface);border:1px solid var(--line-soft);border-top:3px solid var(--accent);border-radius:var(--radius-lg);color:var(--text);transition:transform var(--dur) var(--ease),border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
+[data-screen=menu] .mode:hover{color:var(--text);transform:translateY(-3px);border-color:var(--line);border-top-color:var(--accent);box-shadow:var(--shadow-md)}
+[data-screen=menu] .mode-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);min-height:44px}
+[data-screen=menu] .mode-name{font:800 clamp(30px,6vw,38px)/1 var(--font-display);letter-spacing:-.02em;text-transform:uppercase;overflow-wrap:anywhere;min-width:0}
+[data-screen=menu] .mode-head .arrow{flex:none;font:600 26px/1 var(--font-body);transition:transform var(--dur) var(--ease)}
+[data-screen=menu] .mode:hover .mode-head .arrow{transform:translateX(4px)}
+[data-screen=menu] .mode .help{max-width:34ch}
+[data-screen=menu] .cue{display:flex;align-items:center;gap:var(--space-3);min-height:26px}
+[data-screen=menu] .cue-guess{position:relative;overflow:hidden;flex:1;max-width:200px;height:26px;border-radius:6px;background:var(--surface-2);display:flex;align-items:center;justify-content:space-between;padding:0 8px;font:700 14px/1 var(--font-display)}
+[data-screen=menu] .cue-guess i{position:absolute;left:0;top:0;bottom:0;width:78%;background:var(--fill-hot);opacity:var(--fill-alpha)}
+[data-screen=menu] .cue-guess span{position:relative}
+[data-screen=menu] .mode .meta{font-size:12px;color:var(--text-muted)}
+[data-screen=menu] .mode .meta b{color:var(--text);font:800 14px/1 var(--font-display)}
+[data-screen=menu] .menu .btn .count{margin-left:auto;margin-right:var(--space-3);font:800 18px/1 var(--font-display);letter-spacing:0;color:var(--accent)}
+[data-screen=menu] .menu .btn:hover .count{color:inherit}
+/* new-game-letters.html */
+/* the length histogram is also a picker: every bar is a button (tap = jump to that length) */
+[data-screen=new] .hist>button{flex:1 1 0;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;gap:7px;height:100%;padding:0}
+[data-screen=new] .hist>button b{min-height:3px}
+[data-screen=new] .hist>button:hover b{background:var(--line)}
+[data-screen=new] .hist>button.on:hover b{background:var(--accent)}
+[data-screen=new] .hist>button.none b{background:transparent;border:1px dashed var(--line-soft)}
+/* stepper: same box as .seg, for numbers with a wide range (length 3–13, tries 1–20) */
+.stepper{display:flex;align-items:center;gap:4px;padding:4px;background:var(--surface);border:1px solid var(--line-soft);border-radius:14px;min-width:0}
+.stepper button{flex:none;width:48px;height:44px;border-radius:10px;font:500 24px/1 var(--font-body);color:var(--text);transition:background var(--dur) var(--ease)}
+.stepper button:hover{background:var(--surface-2)}
+.stepper button[disabled]{opacity:.3;pointer-events:none}
+.stepper output{flex:1;min-width:0;display:flex;align-items:baseline;justify-content:center;gap:6px}
+.stepper output .num{font-size:30px}
+.stepper output .help{white-space:nowrap}
+.stepper.off output .num{color:var(--text-dim)}
+.tries{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.tries .stepper{flex:1 1 200px}
+.tries .chip{min-height:54px;padding:0 var(--space-5);display:inline-flex;align-items:center;gap:var(--space-2)}
+.tries .chip .num{font-size:22px}
+.polish{display:grid;gap:var(--space-3);padding:var(--space-5);border-left:3px solid var(--accent);border-radius:var(--radius-lg)}
+.polish .row{padding:0;border:0}
+.polish .marks{display:block;margin-top:2px;font:700 20px/1.2 var(--font-display);letter-spacing:.08em;color:var(--text)}
+[data-screen=new] .readout.none .num{color:var(--error)}
+/* game-letters.html */
+[data-screen=letters] .status{display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--space-3) var(--space-5);padding-bottom:var(--space-4);border-bottom:1px solid var(--line-soft)}
+[data-screen=letters] .stat{display:grid;gap:2px}
+[data-screen=letters] .stat .num{font-size:clamp(24px,5vw,32px)}
+[data-screen=letters] .status-actions{margin-left:auto;display:flex;gap:var(--space-1);flex-wrap:wrap}
+@media (max-width:400px){[data-screen=letters] .status-actions{margin-left:0;width:100%}}
+[data-kb] [data-screen=letters] .status{display:none}
+[data-screen=letters] .msg{margin:0;min-height:1.6em}               /* reserved: a message never pushes the grid down */
+[data-screen=letters] .play{display:grid;gap:var(--space-3)}
+[data-screen=letters] .entry{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap}
+[data-screen=letters] .entry .count{font-size:14px;color:var(--text-muted)}
+[data-screen=letters] .entry .count .num{font-size:20px;color:var(--text)}
+[data-screen=letters] .entry .submit{flex:0 1 220px;min-width:140px}
+/* the real text field: holds focus so the system keyboard (and long-press ż ó ł…) works; the boxes only draw it */
+[data-screen=letters] .sink{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+[data-screen=letters] .how{display:grid;gap:var(--space-4);padding:var(--space-6) var(--space-5);border-left:3px solid var(--accent)}
+[data-screen=letters] .how h2{font:700 clamp(22px,5vw,28px)/1.05 var(--font-display);text-transform:uppercase;letter-spacing:-.02em}
+[data-screen=letters] .key3{display:grid;gap:var(--space-2)}
+[data-screen=letters] .key3 li{display:flex;align-items:center;gap:var(--space-3);font-size:14px;list-style:none}
+[data-screen=letters] .key3{padding:0}
+/* ── Phone keyboard open ([data-kb], set by js/main.js as in Guess) ──────────────────────────────
+   Same move as the Guess screen: the brand bar and the status row step aside, spacing tightens.
+   The screen becomes exactly the visible height (--vvh = visualViewport.height); the message line
+   stays on top, the grid scrolls in the middle (kept scrolled to the current row), and the entry bar
+   with Guess sits at the bottom — directly above the keyboard, next to the keyboard's own Enter.
+   Empty future rows are dropped: they are the one thing that would push the current row out of view. */
+[data-kb] [data-screen=letters].app{height:var(--vvh,100dvh);min-height:0}
+[data-kb] [data-screen=letters] .topbar,[data-kb] [data-screen=letters] .status,[data-kb] [data-screen=letters] .how{display:none}
+[data-kb] [data-screen=letters] .main{min-height:0;padding-top:var(--space-2);padding-bottom:var(--space-2);gap:var(--space-2)}
+[data-kb] [data-screen=letters] .play{flex:1;min-height:0;grid-template-rows:auto minmax(0,1fr) auto;gap:var(--space-2)}
+[data-kb] [data-screen=letters] .lt-board{overflow-y:auto;align-content:start;overscroll-behavior:contain}
+[data-kb] [data-screen=letters] .lt-row{--max:48px}
+[data-kb] [data-screen=letters] .lt-row.future{display:none}
+[data-kb] [data-screen=letters] .entry .btn{min-height:44px}
+/* game-letters-end.html */
+[data-screen=letters] .win{display:grid;gap:var(--space-4);padding:var(--space-6) var(--space-5);background:var(--accent);color:#fff;border-radius:var(--radius-md)}
+[data-screen=letters] .win .eyebrow{color:rgba(255,255,255,.8)}
+[data-screen=letters] .win .display{font-size:clamp(44px,12vw,80px)}
+[data-screen=letters] .win-stats{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-4);font-size:15px}
+[data-screen=letters] .win-stats b{font:800 1.2em/1 var(--font-display)}
+[data-screen=letters] .win-actions{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+[data-screen=letters] .win .btn-outline{border-color:#fff;color:#fff}[data-screen=letters] .win .btn-outline:hover{background:#fff;color:var(--accent)}
+[data-screen=letters] .win .btn-primary{background:#000;border-color:#000}[data-screen=letters] .win .btn-primary:hover{background:#1A1A1A;border-color:#1A1A1A}
+[data-screen=letters] .win .btn-ghost{color:#fff}[data-screen=letters] .win .btn-ghost:hover{background:rgba(255,255,255,.16);color:#fff}
+[data-screen=letters] .win .calc{font-size:13px;opacity:.85}
+[data-screen=letters] .win .copied{background:#fff;border-color:#fff;color:#000}
+[data-screen=letters] .lose{display:grid;gap:var(--space-4);padding:var(--space-6) var(--space-5);background:var(--surface);border:1px solid var(--line-soft);border-left:3px solid var(--accent);border-radius:var(--radius-md)}
+[data-screen=letters] .lose .display{font-size:clamp(44px,12vw,80px)}
+[data-screen=letters] .lose .win-stats b{color:var(--text)}
+[data-screen=letters] .lose .copied{border-color:var(--success);color:var(--success)}
+/* game-picker.html */
+[data-screen=games] .save-top{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-1) var(--space-3);margin-bottom:var(--space-1)}
+[data-screen=games] .save-last{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-2) var(--space-3);font-size:13px;color:var(--text-muted)}
+[data-screen=games] .save-last .num{color:var(--text);font-size:15px}
+[data-screen=games] .filter{max-width:420px}
+/* New game → which mode: a small menu under the button, one row per mode (takes a third) */
+[data-screen=games] .new{position:relative}
+[data-screen=games] .pop{position:absolute;right:0;top:calc(100% + 6px);z-index:4;width:min(300px,calc(100vw - 2 * var(--gutter)));display:grid;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:var(--shadow-md)}
+[data-screen=games] .pop a{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px var(--space-3);min-height:56px;padding:var(--space-2) var(--space-3);border-radius:var(--radius-sm)}
+[data-screen=games] .pop a:hover{background:var(--surface-2);color:var(--text)}
+[data-screen=games] .pop strong{font:700 20px/1 var(--font-display);text-transform:uppercase;letter-spacing:-.01em}
+[data-screen=games] .pop .help{grid-column:1;font-size:12px}
+[data-screen=games] .pop .arrow{grid-row:1/3;grid-column:2}
+/* achievements.html */
+[data-screen=stats] .tabs{position:sticky;top:0;z-index:4}
+[data-screen=stats] .tabs button{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2)}
+[data-screen=stats] .tabs button.on .glyph i,[data-screen=stats] .tabs button.on .glyph{outline:1px solid rgba(255,255,255,.5)}
+[data-screen=stats] .section{display:grid;gap:var(--space-6)}
+/* wins at each length: one cell per length 3–13 under the Full range badge */
+[data-screen=stats] .lengths{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:4px}
+[data-screen=stats] .lengths span{display:grid;gap:4px;justify-items:center;min-width:0}
+[data-screen=stats] .lengths b{width:100%;height:30px;display:grid;place-items:center;border-radius:8px;font:800 15px/1 var(--font-display);border:1.5px dashed var(--line-soft);color:var(--text-dim)}
+[data-screen=stats] .lengths .won b{border:1.5px solid var(--fill-hot);background:color-mix(in srgb,var(--fill-hot) 16%,transparent);color:var(--text)}
+[data-screen=stats] .lengths em{font:600 10px/1 var(--font-body);font-style:normal;color:var(--text-dim)}
+[data-screen=stats] .shared{display:flex;flex-wrap:wrap;gap:var(--space-1) var(--space-4);padding-top:var(--space-4);border-top:1px solid var(--line-soft);font-size:14px;color:var(--text-muted)}
+[data-screen=stats] .shared b{font:800 18px/1 var(--font-display);color:var(--text)}
+
+/* ═══ LETTERS — APP ADDITIONS ═══ */
+/* keyboard open: the top bar is gone, so the message line itself has to clear the status bar / notch */
+[data-kb] [data-screen=letters] .main{padding-top:calc(var(--space-2) + var(--safe-t))}
+/* The design's 1×1 px field leaves no room for a text cursor: Chrome then keeps it at the start, so
+   Backspace deletes nothing and new letters go in front (measured, both hold at 1px, neither at 4em).
+   A real size, still invisible, fixes it. It sits at the top of the play area so that focusing it
+   never scrolls the page away; 16px stops a phone from zooming in on focus. */
+[data-screen=letters] .play{position:relative}
+[data-screen=letters] .sink{left:0;top:0;width:4em;height:2em;font-size:16px}
+/* the mode tag in the top bar is 96px of "LETTERS" in an 84px slot on a 320px phone: bounded here so
+   fit.js can see that and tighten it, instead of it running into the brand */
+.topbar .mode-tag{max-width:100%;min-width:0;overflow:hidden}

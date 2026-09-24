@@ -3,7 +3,7 @@ import { DIFFS } from './engine.js';
 
 // Polish letters with marks are separate letters here: ó is not o, so `zolw` is simply wrong for
 // `żółw`. When the player allows them they are worth two in the score.
-const MARKED = /[ąćęłńóśźż]/;
+export const MARKED = /[ąćęłńóśźż]/;
 
 // ── Which words can be hidden ────────────────────────────────────────────────────────────────────
 // Any common word, whatever its part of speech, but always in its base form and never on the stoplist.
@@ -103,6 +103,8 @@ export const MULTIPLIER = { relaxed: 0.75, easy: 1, normal: 1.25, hard: 1.5 };
 // score still means something when tries are unlimited. A loss scores nothing.
 export function score(answer, guessesUsed, won, diff) {
   if (!won || guessesUsed < 1) return 0;
-  const letters = [...answer.toLowerCase()].reduce((n, ch) => n + (MARKED.test(ch) ? 2 : 1), 0);
-  return Math.round(letters / guessesUsed * 100 * (MULTIPLIER[diff] ?? 1));
+  return Math.round(points(answer) / guessesUsed * 100 * (MULTIPLIER[diff] ?? 1));
 }
+
+// the "letters" of the score: żółw is 2+2+2+1 = 7
+export const points = answer => [...answer.toLowerCase()].reduce((n, ch) => n + (MARKED.test(ch) ? 2 : 1), 0);

@@ -24,6 +24,9 @@ export const stats = read('wg.stats', {
   wonLang: {},      // language -> wins, for the polyglot badge
   seenTiers: {},    // badge id -> tiers the player had when they last opened the stats screen
   unique: [], gameNo: 0,
+  // Letters keeps its own numbers: everything above except letters, timeMs, seenTiers and gameNo is
+  // the Guess mode's. wonLen = word length -> wins, for the Full range badge.
+  lt: { played: 0, won: 0, lost: 0, givenUp: 0, streak: 0, bestStreak: 0, bestScore: 0, wonTries: 0, wonLen: {} },
 });
 const unique = new Set(stats.unique);
 export const saveStats = () => { stats.unique = [...unique]; write('wg.stats', stats); };
@@ -35,6 +38,7 @@ try { saves = JSON.parse(localStorage.getItem('wg.saves')) || []; } catch { save
 for (const g of saves) {
   const auto = g.name && /^(Game|Gra)\s+(\d+)$/.exec(g.name);
   if (auto) { g.auto = +auto[2]; g.name = ''; }
+  g.mode ||= 'guess';   // every save from before Letters existed is a Guess game
 }
 const persistSaves = () => write('wg.saves', saves);
 
@@ -54,11 +58,14 @@ export function deleteSave(id) {
 // the interface is in right now. A name the player typed is theirs and is left alone.
 export const gameName = g => g.name || t('games.defaultName', { n: g.auto ?? 1 });
 
-export function newGame({ lang, cat, band, diff, friend, secret }) {
-  stats.played++; stats.gameNo++;
+// `fields` is the game's own settings: Guess { lang, cat, band, diff, friend, secret },
+// Letters { mode: 'letters', lang, cat, len, tries (0 = unlimited), diff, marks, secret }.
+export function newGame(fields) {
+  if (fields.mode === 'letters') stats.lt.played++; else stats.played++;
+  stats.gameNo++;
   saveStats();
   const game = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), auto: stats.gameNo, name: '',
-    lang, cat, band, diff, friend, secret, guesses: [], status: 'playing', timeMs: 0, created: Date.now(), updated: Date.now() };
+    mode: 'guess', ...fields, guesses: [], status: 'playing', timeMs: 0, created: Date.now(), updated: Date.now() };
   putSave(game);
   return game;
 }
@@ -98,4 +105,52 @@ export function recordEnd(game, won, difficulty = -1, hinted = false) {
   }
   saveStats();
   deleteSave(game.id);   // finished games leave the picker; their numbers live on in the stats
+}
+
+// A Letters game ends won, lost (out of tries) or given up. Only a win keeps the streak going.
+export function recordLettersEnd(game, points) {
+  const s = stats.lt;
+  if (game.status === 'won') {
+    s.won++;
+    s.bestStreak = Math.max(s.bestStreak, ++s.streak);
+    s.bestScore = Math.max(s.bestScore, points);
+    s.wonTries += game.guesses.length;
+    s.wonLen[game.len] = (s.wonLen[game.len] || 0) + 1;
+  } else {
+    if (game.status === 'lost') s.lost++; else s.givenUp++;
+    s.streak = 0;
+  }
+  saveStats();
+  deleteSave(game.id);
+}
+
+// Time in game counts only while the player is actually playing: the game's screen open, the window
+// visible, and something typed within the last IDLE_MS. A game left open on the desk adds nothing.
+// Returns the screen's cleanup.
+const IDLE_MS = 60000;
+export function playClock(root, game, onScreen) {
+  const playing = () => game.status === 'playing';
+  let ticks = 0, lastActive = Date.now();
+  const touch = () => { lastActive = Date.now(); };
+  root.addEventListener('keydown', touch);
+  root.addEventListener('pointerdown', touch);
+  const persist = () => {
+    if (playing()) putSave(game);
+    saveStats();
+  };
+  const timer = setInterval(() => {
+    if (!onScreen()) return clearInterval(timer);   // this screen has been replaced
+    if (!playing() || document.visibilityState !== 'visible' || Date.now() - lastActive > IDLE_MS) return;
+    game.timeMs += 1000;
+    stats.timeMs += 1000;
+    if (++ticks % 10 === 0) persist();
+  }, 1000);
+  window.addEventListener('pagehide', persist);
+  return () => {
+    clearInterval(timer);
+    window.removeEventListener('pagehide', persist);
+    root.removeEventListener('keydown', touch);      // `root` outlives the screen, so these must go
+    root.removeEventListener('pointerdown', touch);
+    persist();
+  };
 }

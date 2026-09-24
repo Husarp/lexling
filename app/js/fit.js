@@ -1,7 +1,7 @@
 // Text-fit guarantee: a label that is longer in one language must never overflow or clip its box.
 // Single-line controls first shrink their font (down to 72 %), then drop letter-spacing, and only
 // as a last resort wrap onto two lines.
-const SELECTOR = '.btn, .seg button, .chip, .brand, .lang-switch button';
+const SELECTOR = '.btn, .seg button, .chip, .brand, .lang-switch button, .topbar .mode-tag';
 // scrollWidth only grows once text passes the padding too, so the content is measured against the
 // content box: a label may not even eat into its button's padding.
 const range = document.createRange();

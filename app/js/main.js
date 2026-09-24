@@ -1,12 +1,17 @@
-import { settings } from './store.js';
+import { settings, getSave } from './store.js';
 import { setLang } from './i18n.js';
 import { applyTheme, applyAccent } from './ui.js';
 import { fitAll, watchResize } from './fit.js';
-import { menu, games, newGameScreen, statsScreen, settingsScreen } from './screens.js';
+import { menu, games, newGameScreen, lettersNewScreen, statsScreen, settingsScreen } from './screens.js';
 import { gameScreen } from './game.js';
+import { lettersGameScreen } from './letters-game.js';
 import { VERSION } from './version.js';
 
-const ROUTES = { '': menu, games, new: newGameScreen, stats: statsScreen, settings: settingsScreen, game: gameScreen };
+// Routes name the mode where it matters: #/new is Guess, #/new/letters is Letters, and #/game/<id>
+// takes the mode from the save itself.
+const ROUTES = { '': menu, games, stats: statsScreen, settings: settingsScreen,
+  new: (root, mode, refresh) => (mode === 'letters' ? lettersNewScreen : newGameScreen)(root, mode, refresh),
+  game: (root, id, refresh) => (getSave(id)?.mode === 'letters' ? lettersGameScreen : gameScreen)(root, id, refresh) };
 const root = document.getElementById('root');
 let cleanup, shown, latest = 0;
 
@@ -42,6 +47,8 @@ function keyboardCheck() {
   const height = window.visualViewport?.height ?? window.innerHeight;
   const typing = document.activeElement?.matches?.('input, textarea') ?? false;
   document.documentElement.toggleAttribute('data-kb', typing && height < KEYBOARD_BELOW);
+  // the visible height, for the Letters screen: with the keyboard open it becomes exactly this tall
+  document.documentElement.style.setProperty('--vvh', height + 'px');
 }
 for (const event of ['focusin', 'focusout', 'resize', 'orientationchange']) window.addEventListener(event, keyboardCheck);
 window.visualViewport?.addEventListener('resize', keyboardCheck);

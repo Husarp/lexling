@@ -7,6 +7,11 @@ closest word there is, 6547 means there are 6546 closer ones. Your top guesses a
 boxes with color-fill progress bars (red = cold, green = hot), so you can steer toward the
 answer. Win by typing the exact word (any inflected form counts).
 
+A second game, **Letters**, sits next to it in the same app: find a hidden word letter by letter,
+with green / yellow / grey feedback — like Wordle, but a new random word every game, as many games
+as you like, with the word length (3–13), the number of tries (or unlimited), category, difficulty
+and Polish letters chosen by the player. A third mode (a Scrabble-like game) is planned.
+
 Playable in **Polish and English** (both the UI and the word libraries).
 
 ## How it works (short version)
@@ -30,6 +35,9 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - Multiple games at once: save, resume, rename, give up (reveals the word).
 - Achievements / badges.
 - Polish + English, switchable.
+- **Letters mode**: one box per letter, the phone's own keyboard, a score of letters ÷ guesses used
+  × 100 × difficulty (a Polish letter counts double), a result to copy as 🟩🟨⬛ rows, and its own
+  statistics and badges.
 
 ## Run it (development)
 
@@ -42,9 +50,11 @@ node tools/serve.mjs
 then open http://127.0.0.1:5173. (A server is required — ES modules and `fetch()` don't work
 from `file://`.)
 
-> **Current state (v0.11.0):** fully playable in English and Polish on the real word data (60 000
-> Polish + 41 158 English words), with a **Windows installer** and a first **Android APK**. What is
-> still open is in [PLAN.md](PLAN.md) — chiefly running the APK on a real phone.
+> **Current state (v0.16.0):** both games — Guess and Letters — fully playable in English and Polish
+> on the real word data (60 000 Polish + 41 158 English words), with a **Windows installer** and an
+> **Android APK**. What is still open is in [PLAN.md](PLAN.md).
+
+The Letters rules and word pool have tests against the real data: `node tools/test-letters.mjs`.
 
 **Size:** Windows installer 52 MB, 65 MB installed; Android APK 34.5 MB (40 MB of it is the
 game, 39 MB word data).
@@ -126,8 +136,10 @@ app/                the game itself — single-page app, no build step, no depen
   index.html        shell: no-flash boot (page colour + theme before first paint, fonts preloaded)
   css/app.css       design tokens + shared styles (verbatim from the design) + per-screen styles
   js/main.js        boot + hash router (#/games, #/game/<id> … so Back works on Android)
-  js/screens.js     menu, game picker, new game, achievements & stats, settings
-  js/game.js        the game screen (input, autocomplete, guess boxes, history, win / give-up)
+  js/screens.js     menu, game picker, new game (both modes), achievements & stats, settings
+  js/game.js        the Guess game screen (input, autocomplete, guess boxes, history, win / give-up)
+  js/letters-game.js  the Letters game screen (letter boxes, hidden input, reveal, win / loss, copy result)
+  js/letters.js     Letters rules: feedback, score, which words can be hidden and how hard they are
   js/engine.js      word data loading, rank scoring, form→lemma, autocomplete, secret picking
   js/store.js       settings, saved games, lifetime stats (localStorage)
   js/i18n.js        every UI string in EN + PL, plural rules, number/time formatting
@@ -136,6 +148,7 @@ app/                the game itself — single-page app, no build step, no depen
   fonts/            Barlow Condensed + Inter (bundled, OFL licences alongside)
   data/             generated word data (build output, not hand-edited)
 design/v2/handoff/  the design agent's six screens — the visual source of truth (v1 kept in design/v1/)
+design/letters/     the Letters mode handoff (six more screens, NOTES.md, strings.json). design/ is git-ignored
 tools/              serve.mjs (dev server) and the word-data pipeline:
   build-data.mjs    the pipeline itself — every tuning number lives at its top
   lexicon.mjs       base words, parts of speech, inflected forms (Polish + English rules)

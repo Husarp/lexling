@@ -299,6 +299,27 @@ re-ordering **animate smoothly** when a new guess lands. The newest guess is alw
 with its result even when it's not top-5. **Full guess history** is accessible below the top
 boxes (collapsed "all guesses" expander).
 
+**Since 0.16.0 the app holds two games**, and every place that assumed one now holds several (so a
+third mode slots in): the menu has **one card per mode** instead of Play, each going to that mode's
+New game; "Your games" is one list for both modes with a mode tag on every card and a filter; its
+New game asks which game; the stats screen has a **tab per mode**. Routes: `#/new` Guess,
+`#/new/letters` Letters, `#/game/<id>` takes the mode from the save.
+
+### Letters screens (design: `design/letters/handoff/`)
+- **Feedback is filled, the theme colour only outlines.** Green = `--fill-hot`, yellow =
+  `--fill-mid`, grey `#4A4A4A` in both themes, all solid. The accent marks only the caret box, so a
+  green or amber theme colour can never be read as a result.
+- **Box size comes from the column**: `min(60px, (100cqi − gaps) / n)` — 13 letters are 19.9 px on a
+  320 px phone, 3–5 letters cap at 60 px and centre.
+- **Typing goes into one hidden text field**; the boxes only draw it. That is what lets the phone's
+  own keyboard (and its long-press ż ó ł) work. It must have a real size — at the design's 1×1 px the
+  browser has no room for a cursor, keeps it at the start, and Backspace stops working. A tap
+  anywhere on the game focuses it. Nothing is sent until Enter / Go / Guess.
+- **Keyboard open**: the screen becomes exactly the visible height (`--vvh`), top bar and status
+  step aside, the grid scrolls in the middle, Guess sits right above the keyboard, empty rows hide.
+- **Unlimited tries** draws no empty rows; the grid grows by one per guess.
+- **The copied result** is plain text — a header line and 🟩🟨⬛ rows — and never contains the word.
+
 ## 4a. Rendering quality & responsiveness (hard requirements)
 
 Lockdown's loading glitches are the anti-goal. Rules from day one:
@@ -372,6 +393,18 @@ the design's "1b Tier ladder" card. Eight of them:
 Giant Slayer's tiers come from the data: an uncategorised secret tops out at difficulty 82 (PL) / 85
 (EN) and 79 is the 99th percentile in both, so 79 is a real summit rather than an impossible one.
 The rest are placeholders to tune once there is real play data.
+
+**Letters (0.16.0) has its own tab**: games played, won, win streak (current, best under it), best
+score, average tries per win — and four badges of its own, thresholds from the design, to tune:
+
+| Badge | Counts | Tiers |
+|---|---|---|
+| Champion | Letters games won | 10 / 50 / 150 / 500 / 1 500 |
+| High score | best single-game score | 150 / 250 / 400 / 600 / 1 000 |
+| On a roll | longest run of wins in a row | 3 / 5 / 10 / 20 / 50 |
+| Full range | word lengths won at (of the 11, 3–13), with a per-length strip | 3 / 5 / 7 / 9 / 11 |
+
+Letters typed and time in game are shared by both modes; everything else on the Guess tab is Guess's.
 
 More badge ideas may come later. Engine keeps a lifetime stats record + per-game event log
 (guesses, scores, wins, give-ups) so new badges can be added without losing history.

@@ -25,6 +25,15 @@ export const BADGES = [
   { id: 'polyglot', th: [1, 3, 10, 25, 50], value: s => Math.min(s.wonLang?.pl ?? 0, s.wonLang?.en ?? 0) },
 ];
 
+// Letters has its own ladder, read from stats.lt. The thresholds are the design's proposals (the
+// handoff says to tune them against real scores). Full range counts word lengths won at, of 11.
+export const LT_BADGES = [
+  { id: 'champion', th: [10, 50, 150, 500, 1500], value: s => s.lt.won },
+  { id: 'highscore', th: [150, 250, 400, 600, 1000], value: s => s.lt.bestScore },
+  { id: 'streak', th: [3, 5, 10, 20, 50], value: s => s.lt.bestStreak },
+  { id: 'range', th: [3, 5, 7, 9, 11], value: s => Object.keys(s.lt.wonLen).length },
+];
+
 export function progress(badge, stats) {
   const value = badge.value(stats);
   const unlocked = badge.lower ? (value ? badge.th.filter(t => value < t).length : 0) : badge.th.filter(t => value >= t).length;

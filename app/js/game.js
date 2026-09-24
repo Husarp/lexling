@@ -1,6 +1,6 @@
 // The game screen - markup from design/handoff/game.html (states: 0 guesses / mid-game / won).
 import { t, plural, esc, num, clock } from './i18n.js';
-import { settings, stats, saveStats, getSave, putSave, recordGuess, recordEnd, gameName } from './store.js';
+import { settings, getSave, putSave, recordGuess, recordEnd, gameName, playClock } from './store.js';
 import { load, resolve, suggest, rankAll, pct, hint, HINT_FLOOR } from './engine.js';
 import { topbar, fillColor, confirmClick } from './ui.js';
 import { fitAll } from './fit.js';
@@ -236,31 +236,5 @@ export async function gameScreen(root, id) {
   paintStatus();
   paintEntry();
   paintBoard();
-
-  // Time in game counts only while the player is actually playing: this screen open, the window
-  // visible, and something typed within the last IDLE_MS. A game left open on the desk adds nothing.
-  const IDLE_MS = 60000;
-  let ticks = 0, lastActive = Date.now();
-  const touch = () => { lastActive = Date.now(); };
-  root.addEventListener('keydown', touch);
-  root.addEventListener('pointerdown', touch);
-  const timer = setInterval(() => {
-    if (!board.isConnected) return clearInterval(timer);   // this screen has been replaced
-    if (!playing() || document.visibilityState !== 'visible' || Date.now() - lastActive > IDLE_MS) return;
-    game.timeMs += 1000;
-    stats.timeMs += 1000;
-    if (++ticks % 10 === 0) persist();
-  }, 1000);
-  function persist() {
-    if (playing()) putSave(game);
-    saveStats();
-  }
-  window.addEventListener('pagehide', persist);
-  return () => {
-    clearInterval(timer);
-    window.removeEventListener('pagehide', persist);
-    root.removeEventListener('keydown', touch);      // `root` outlives the screen, so these must go
-    root.removeEventListener('pointerdown', touch);
-    persist();
-  };
+  return playClock(root, game, () => board.isConnected);
 }
