@@ -7,7 +7,7 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 ---
 
 ## 0.17.2 — 2026-09-25 01:04: Copy result removed
-*(debug APK built and installed on the phone 2026-09-25 01:51 — not released)*
+*(released 2026-09-25 as v0.17.2 — Windows installer + Android APK; the first release since v0.15.0, so it carries 0.15.1–0.17.1 too)*
 
 - **The Letters end screen no longer has "Copy result".** It copied a 🟩🟨⬛ summary of the game for
   sharing in a chat, Wordle-style; the owner asked what it was for, found it looked bad, and asked
