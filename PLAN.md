@@ -317,13 +317,52 @@ Starting it before the letters mode exists is how a project ends up with three h
       so the word list is solved, not just started.
 - [ ] Worth knowing early: **"Scrabble" is a trademark.** A shipped game needs its own name.
 
+## M14 — The fourth mode: find the words in a circle of letters — IDEA, added 2026-09-25
+The owner's description: you get a few letters **arranged in a circle**. You draw a word by dragging
+through the letters with a finger (or the mouse held down) — a line follows the path — and **letting
+go checks the word**: a real word is accepted, a wrong one makes the letters **shake**. A **Shuffle**
+button rearranges the same letters in the circle, so the player stops seeing the same few words and
+spots new ones. **Settings** as in the other modes: how many letters you get, and more; a **score**
+for how many words you find.
+
+The mechanic is a common one (Wordscapes, Word Connect, Words of Wonders) — the mechanic is free to
+use, their names are not, and ours needs its own name like the rest of the app.
+
+**Measured the same day, with the word lists the app already ships** (letter sets taken from real
+5–7 letter words, Easy):
+
+| letters | Polish, common base words | Polish, every form | English, common base words | English, every form |
+|---|---|---|---|---|
+| 5 | 5 (min 2) | 16 | 8 (min 1) | 11 |
+| 6 | 11 (min 2) | 35 | 14 (min 6) | 23 |
+| 7 | 18 (min 4) | 69 | 30 (min 13) | 39 |
+
+- Finding every word for a set of letters takes ~23 ms in Polish and ~4 ms in English, in the app —
+  no new data and no pipeline change needed.
+- Counting every Polish form triples the words (18 → 69 at seven letters), so which words count is
+  the biggest design choice here.
+- The raw list needs the same filtering as Letters' pool: common words include junk such as *itp*
+  (an abbreviation). Letters already keeps to nouns, adjectives, verbs and adverbs, minus the
+  stoplist — reuse that.
+- Fewer letters leave very few words (5 Polish letters: median 5, some sets only 2): the letter set
+  should be chosen for having enough words, not just drawn at random.
+
+### Open — to decide before building
+- [ ] **What is the goal?** Find a fixed set of target words (Wordscapes shows them as blank slots
+      you fill in), or find as many as you can, open-ended, until you stop?
+- [ ] **Which words count** — base forms only, or every form (Polish 3× more words)?
+- [ ] **Scoring** — per word found; longer words worth more? A bonus for a word using every letter?
+- [ ] Shortest word allowed (3 letters?), a time limit or none, hints or none.
+- [ ] **Order against Scrabble (M13).** This game needs no computer opponent, so it is far smaller
+      than Scrabble — it could come third and Scrabble fourth.
+
 ## OPEN QUESTIONS (waiting on owner)
 - [ ] Polish badge names — current picks: Wordsmith → **Mistrz słów**, Typist → **Skryba**,
       Sharpshooter → **Snajper**. Change if you prefer others.
 - [ ] After a give-up / win: also show the true top-10 closest words ("what was rank 1?")?
       Contexto does; not in the design, so not built.
 - [ ] Badge tier thresholds (placeholder numbers in DESIGN.md §6) — tune later.
-- [ ] Final game name (working title: WordGuess). It should fit all three games (M13).
+- [ ] Final game name (working title: WordGuess). It should fit all the games — three planned in M13, four since M14.
       Considered 2026-09-25: **Wordly** — advised against: 8+ "Wordly" games on Google Play (mostly
       Wordle clones), Wordly (wordly.ai) is an established company, and it is one letter from Wordle.
       English-only shortlist searched the same day (web + app stores, NOT trademark registers or
