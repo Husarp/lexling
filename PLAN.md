@@ -107,7 +107,7 @@ diminutives and things that are not animals.
       rights reserved" in the Settings footer, both languages — 0.15.1. Third-party data and fonts
       keep their own licences, listed in the LICENSE.
 
-## M12 — Letters mode (a Wordle inside WordGuess) — PLAYABLE 2026-09-24 (0.16.0), not packaged yet
+## M12 — Letters mode (a Wordle inside WordGuess) — PLAYABLE 2026-09-24 (0.16.0), debug APK on the owner's phone, not released
 Asked for 2026-09-23, settled the same day. Guess a hidden word letter by letter with the usual
 green / yellow / grey feedback. What makes it ours rather than a Wordle clone: **not one word a day**
 — a random word from the dictionary the game already ships, played as often as you like, offline,

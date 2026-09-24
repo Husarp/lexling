@@ -7,7 +7,7 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 ---
 
 ## 0.16.0 — 2026-09-24 23:56: Letters mode is playable — the second game in the app
-*(not packaged yet)*
+*(debug APK built 2026-09-25 00:14 for testing on a phone — not released)*
 
 Built from the design agent's handoff (`design/letters/handoff/`, six screens), ported 1:1 like the
 rest of the app, in both languages.
