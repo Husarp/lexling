@@ -127,16 +127,18 @@ Ported 1:1 in 0.16.0.
       played in (owner's choice over the word's own category). 0.17.0.
 - [x] **Frames on every text-only button**, app-wide. 0.17.0.
 - [x] **Repeated letters**: confirmed right (right places settled first), 4 tests on `ananas`. 0.17.0.
-- [ ] **Polish word forms as guesses — waiting on the owner.** Guesses already accept inflected forms
-      (444 327 Polish forms: *byłem, zrobiłem, kotem*), but two kinds are missing:
-      - **~50 000 irregular forms** the dictionary lists on their own, with no link to their base word —
-        *pasę, pasą, poszedłem, szedłem, poszliśmy*. The pipeline drops them because Guess needs the
-        base word to score a guess; Letters does not. Proposed: ship them as "valid guesses only"
-        (+0.6 MB), no effect on Guess. Needs a data rebuild (~8 min).
-      - **Forms the dictionary does not have at all** — *pasłem*: it knows *paść* mostly as "to fall"
-        (*padłem*) and only a few "to graze" forms. Needs a bigger word list — sjp.pl's list for word
-        games, the one Polish Scrabble uses — which M13 will need anyway. Bigger download, licence to
-        check first.
+- [x] **Polish word forms as guesses.** Guesses already accepted inflected forms (444 327 Polish
+      forms: *byłem, zrobiłem, kotem*), but two kinds were missing:
+      - [x] **~50 000 irregular forms** the dictionary lists on their own, with no link to their base
+        word — *pasę, pasą, poszedłem, szedłem, poszliśmy*. The pipeline dropped them because Guess
+        needs the base word to score a guess; Letters does not. Now shipped as guess-only words in
+        `extra.txt` (owner said yes, 2026-09-25). 0.17.1.
+      - [ ] **Forms the dictionary does not have at all** — *pasłem*: it knows *paść* mostly as "to
+        fall" (*padłem*) and only a few "to graze" forms. Needs a bigger word list — sjp.pl's list for
+        word games, the one Polish Scrabble uses — which M13 will need anyway. Bigger download,
+        licence to check first. Planned together with M13.
+- [x] **Status bar, both games**: the numbers spread across the whole first row, Save & exit and
+      Give up on their own row underneath, aligned left, further apart. 0.17.1.
 
 ### Left to do after 0.16.0
 - [ ] **Play it on a real phone.** Tested here in a browser at 320 px, with the keyboard simulated;
@@ -321,7 +323,12 @@ Starting it before the letters mode exists is how a project ends up with three h
 - [ ] After a give-up / win: also show the true top-10 closest words ("what was rank 1?")?
       Contexto does; not in the design, so not built.
 - [ ] Badge tier thresholds (placeholder numbers in DESIGN.md §6) — tune later.
-- [ ] Final game name (working title: WordGuess).
+- [ ] Final game name (working title: WordGuess). It should fit all three games (M13).
+      Considered 2026-09-25: **Wordly** — advised against: 8+ "Wordly" games on Google Play (mostly
+      Wordle clones), Wordly (wordly.ai) is an established company, and it is one letter from Wordle.
+- [ ] **Before a public store release: Letters' colours.** The New York Times has sent takedown
+      notices (2024) citing the Wordle name AND its green / yellow / grey tiles. Ours come from our
+      own guess-box ramp, but they are still green / yellow / grey. Decide before publishing widely.
 
 ## ANSWERED (2026-09-21)
 - [x] Guess boxes: **top 5**; newest guess always visible; **full history** included

@@ -9,16 +9,17 @@ import { mkdirSync, writeFileSync, statSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tokenRanks, vectorsOf, DIMS as D } from './fasttext.mjs';
-import { polish, english, POS } from './lexicon.mjs';
+import { polish, polishStandalone, english, POS } from './lexicon.mjs';
 import { normalizeRows, allButTheTop } from './vecmath.mjs';
 import { SEEDS, NEVER_SECRET, NOT_IN, KEEP, CATEGORIES } from './seeds.mjs';
 import { fold } from '../app/js/engine.js';
+import { LEN_MIN, LEN_MAX } from '../app/js/letters.js';
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'app', 'data');
 const NOUN = 0, VERB = 2;
 const CFG = {
-  pl: { word: /^[a-ząćęłńóśźż]{2,}$/, lexicon: polish, foldForms: true, check: [['pies', 'kot', 'śruba'], ['krab', 'homar', 'organizacja'], ['lekarz', 'szpital', 'góra']] },
-  en: { word: /^[a-z]{2,}$/, lexicon: english, foldForms: false, check: [['dog', 'cat', 'screw'], ['crab', 'lobster', 'humanity'], ['doctor', 'hospital', 'mountain']] },
+  pl: { word: /^[a-ząćęłńóśźż]{2,}$/, lexicon: polish, standalone: polishStandalone, foldForms: true, check: [['pies', 'kot', 'śruba'], ['krab', 'homar', 'organizacja'], ['lekarz', 'szpital', 'góra']] },
+  en: { word: /^[a-z]{2,}$/, lexicon: english, standalone: () => [], foldForms: false, check: [['dog', 'cat', 'screw'], ['crab', 'lobster', 'humanity'], ['doctor', 'hospital', 'mountain']] },
 };
 const VOCAB_SIZE = 60000;        // guessable words (English has ~41k in total)
 const OTHER = { pl: 'en', en: 'pl' };
@@ -326,6 +327,13 @@ async function build(lang) {
   writeFileSync(join(dir, 'vectors.bin'), Buffer.from(bin.buffer));
   writeFileSync(join(dir, 'ac.txt'), ac.map(e => e.w).join('\n'));
   writeFileSync(join(dir, 'ac.bin'), Buffer.from(Uint32Array.from(ac, e => e.idx).buffer));
+  // Words that are valid guesses in Letters only: the dictionary's stand-alone entries the list above
+  // cannot place under a base word (pasę, poszedłem). Letters asks "is this a word?", never "whose
+  // form is it?", so they need no index - and Guess never sees them. Only the lengths Letters plays.
+  // English has none it lacks (its irregular forms are mapped in lexicon.mjs), so its file is empty.
+  const known = new Set(ac.map(e => e.w));
+  const extra = [...new Set(cfg.standalone())].filter(w => !known.has(w) && [...w].length >= LEN_MIN && [...w].length <= LEN_MAX).sort();
+  writeFileSync(join(dir, 'extra.txt'), extra.join('\n'));
   writeFileSync(join(dir, 'vocab.json'), JSON.stringify({
     lang, dims: D, posNames: POS, words, pos: words.map(w => lex.get(w).pos).join(''), secret,
     cats: Object.fromEntries(cats.map(c => [c.name, c.members.map(m => m.w)])),
@@ -340,6 +348,7 @@ async function build(lang) {
 
   // report
   const tagged = cats.reduce((s, c) => s + c.members.length, 0);
+  log(`guess-only words for Letters ${extra.length}: ${extra.filter(w => /^(pas[ęą]|poszedłem|szedłem|poszliśmy)$/.test(w)).join(' ')}`);
   log(`words ${n} · inflected forms ${ac.length - n} · possible secrets ${secret.length} (${tagged} in a category)`);
   log('most generic words (highest average similarity to the secrets - the z-score cancels exactly this):',
     [...mean.keys()].sort((a, b) => mean[b] - mean[a]).slice(0, 14).map(i => words[i]).join(' '));

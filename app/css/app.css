@@ -485,3 +485,9 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .btn-ghost.btn-danger{border-color:var(--error)}
 [data-screen=letters] .win .btn-ghost{border-color:rgba(255,255,255,.6)}
 [data-screen=letters] .win .btn-ghost:hover{border-color:#fff}
+
+/* ═══ STATUS ROW — asked 2026-09-25, both games ═══
+   The numbers (guesses, length, category, language, time) share the whole first row, spread edge to
+   edge; Save & exit and Give up get a row of their own underneath, on the left, further apart. */
+[data-screen=game] .status,[data-screen=letters] .status{justify-content:space-between}
+[data-screen=game] .status-actions,[data-screen=letters] .status-actions{flex-basis:100%;margin-left:0;gap:var(--space-3)}

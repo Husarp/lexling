@@ -78,6 +78,11 @@ for (const lang of ['pl', 'en']) {
 }
 
 const pl = await load('pl');
+// irregular forms the dictionary lists on their own are valid Letters guesses (asked 2026-09-25)
+check('pasę, pasą, poszedłem, szedłem, poszliśmy are guessable', ['pasę', 'pasą', 'poszedłem', 'szedłem', 'poszliśmy'].every(w => pl.extra.has(w)), true);
+check('the guess-only list holds only Letters lengths', [...pl.extra].every(w => [...w].length >= 3 && [...w].length <= 13), true);
+const plForms = new Set(pl.ac);
+check('the guess-only list repeats nothing the main list already has', [...pl.extra].some(w => plForms.has(w)), false);
 const MARKS = /[ąćęłńóśźż]/;
 check('Polish letters off: none in any hidden word', [5, 8, 12].every(len => pool(pl, { len, marks: false }).every(i => !MARKS.test(pl.words[i]))), true);
 check('Polish letters on: they can appear', pool(pl, { len: 5 }).some(i => MARKS.test(pl.words[i])), true);

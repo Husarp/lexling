@@ -6,6 +6,23 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.17.1 — 2026-09-25 00:53: More Polish words count as guesses in Letters; status bar rearranged
+
+- **50 162 more Polish words are valid Letters guesses** — *pasę, pasą, poszedłem, szedłem,
+  poszliśmy*. The dictionary lists these on their own, with nothing linking them to a base word, and
+  the data build dropped them because Guess needs the base word to score a guess. Letters only needs
+  to know it is a word, so they now ship as a guess-only list, `extra.txt` (0.5 MB, Polish; the English
+  one is empty). Guess never reads it, and every other data file came out of the rebuild byte for
+  byte unchanged.
+  Honest about what is in it: not only irregular forms — also rare regular forms and a few oddities
+  (*aaa*, *abc*). Filtering by "used on the web" was measured and rejected: it keeps *aaa* and drops
+  38 480 real rare forms. Still missing: forms the dictionary itself lacks, like *pasłem* (PLAN.md).
+- **Status bar, both games:** the numbers (guesses, length, category, language) spread across the
+  whole first row; Save & exit and Give up moved to their own row underneath, on the left, 12 px
+  apart instead of 4.
+
+231 tests pass (3 new: the irregular forms, the lengths, no repeats of the main list).
+
 ## 0.17.0 — 2026-09-25 00:34: A games list per mode, any word length, framed buttons
 *(debug APK built and installed on the phone 2026-09-25 00:39 — not released)*
 

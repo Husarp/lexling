@@ -154,7 +154,8 @@ export async function lettersGameScreen(root, id) {
       paintNow();
       return say(t('lt.needN', { n, letters: plural(n, 'lt.letters'), k }), true);
     }
-    if (!resolve(m, word)) return say(t('lt.unknown', { w: word }), true);
+    // a word the list places under a base word, or a stand-alone dictionary form (pasę, poszedłem)
+    if (!resolve(m, word) && !m.extra.has(word)) return say(t('lt.unknown', { w: word }), true);
     if (game.guesses.includes(word)) {
       sink.value = '';
       paintNow();

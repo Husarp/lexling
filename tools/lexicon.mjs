@@ -53,6 +53,13 @@ export function polish(rank) {
   return lex;
 }
 
+// Every entry the dictionary lists with no flags at all. Most are irregular forms written out in full -
+// pasę, pasą, poszedłem, szedłem - which no rule links back to their base word, so Guess cannot score
+// them and polish() above drops the rare ones. Letters only needs to know they are words.
+export function polishStandalone() {
+  return readDic(OFFICE + 'dict-pl/pl_PL.dic', 'iso-8859-2').filter(e => !e.flags && PL_WORD.test(e.word)).map(e => e.word);
+}
+
 // ---------- English ----------
 const EN_WORD = /^[a-z]{2,}$/;
 const EN_PREFIX = 'AIUCEFK';                     // re- in- un- de- dis- con- pro-  → always a new word

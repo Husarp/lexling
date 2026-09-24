@@ -68,6 +68,8 @@ app/data/<lang>/vocab.json   { lang, dims, posNames[], words[], pos (digit strin
 app/data/<lang>/vectors.bin  Int8, words.length × dims, row i = words[i]
 app/data/<lang>/ac.txt       every base word + inflected form, one per line, sorted by fold(spelling)
 app/data/<lang>/ac.bin       Uint32 per ac.txt line: index of the base word it belongs to
+app/data/<lang>/extra.txt    Letters-only guesses, 3–13 letters: dictionary words with no base word to
+                             place them under (pasę, poszedłem). Guess never reads it. Empty for English.
 ```
 - `words` is ordered most-frequent-first (index = frequency rank: difficulty slices and
   autocomplete ordering rely on it). `secret` = indices the engine may pick in "All"; `cats` maps a
