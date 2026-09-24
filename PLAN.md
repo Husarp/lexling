@@ -326,6 +326,13 @@ Starting it before the letters mode exists is how a project ends up with three h
 - [ ] Final game name (working title: WordGuess). It should fit all three games (M13).
       Considered 2026-09-25: **Wordly** — advised against: 8+ "Wordly" games on Google Play (mostly
       Wordle clones), Wordly (wordly.ai) is an established company, and it is one letter from Wordle.
+      English-only shortlist searched the same day (web + app stores, NOT trademark registers or
+      domains): taken — Wordhoard, Wordtrove, Wordloom, Wordnest, Wordvault, Triword, Wordbound,
+      Lexiloom, Verbarium, Lexorium, Wordspire, Letterfall, Lexicorn, Vocabulon, Wordwright. No app
+      found — **Lexling** (recommended), **Wordlark** (but it starts "Wordl…"), **Guessary** (fits
+      only the guessing games). Next: trademark registers (EUIPO, USPTO) and domains for the pick.
+      A rename is also the moment to change the Android app ID away from `com.trivioflow.*`
+      (the owner's employer) — both make phones see a new app, so do them together once.
 - [ ] **Before a public store release: Letters' colours.** The New York Times has sent takedown
       notices (2024) citing the Wordle name AND its green / yellow / grey tiles. Ours come from our
       own guess-box ramp, but they are still green / yellow / grey. Decide before publishing widely.
