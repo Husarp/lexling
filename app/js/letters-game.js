@@ -8,8 +8,6 @@ import { topbar, modeTag, confirmClick, TILE, squares } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 
-const SHARE = { hit: '🟩', near: '🟨', miss: '⬛' };
-
 export async function lettersGameScreen(root, id) {
   const game = getSave(id);
   const m = game && await loadWords(game.lang);
@@ -193,7 +191,7 @@ export async function lettersGameScreen(root, id) {
 
   function paintEnd(pts) {
     const won = game.status === 'won', g = game.guesses.length;
-    const actions = `<div class="win-actions"><a class="btn btn-primary" href="#/new/letters">${t('lt.again')} <span class="arrow">→</span></a><button class="btn btn-outline" type="button" id="copy">${t('lt.copy')}</button><a class="btn btn-ghost" href="#/">${t('menu')}</a></div>`;
+    const actions = `<div class="win-actions"><a class="btn btn-primary" href="#/new/letters">${t('lt.again')} <span class="arrow">→</span></a><a class="btn btn-ghost" href="#/">${t('menu')}</a></div>`;
     // the category the game was played in, next to the word it hid; each card keeps its own dot
     const tally = dot => `<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span>${dot}<span><b>${g}</b> / ${tries} ${plural(g, 'n.guesses')}</span>`;
     let card;
@@ -224,19 +222,6 @@ export async function lettersGameScreen(root, id) {
     board = $('.lt-board');
     paintBoard();
     window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    // Plain text, so it pastes anywhere: the header line and one row of squares per guess. The word
-    // itself is never in it.
-    const share = t('lt.share', { LANG: game.lang.toUpperCase(), n, letters: plural(n, 'lt.letters'), g: won ? g : 'X', t: tries,
-      diff: t('diff.' + game.diff), score: num(pts) })
-      + '\n' + game.guesses.map(w => feedback(w, game.secret).map(f => SHARE[TILE[f]]).join('')).join('\n');
-    const copy = $('#copy');
-    copy.addEventListener('click', async () => {
-      if (!await copyText(share)) return;
-      copy.textContent = t('lt.copied');
-      copy.classList.add('copied');
-      refit();
-    });
     refit();
   }
 
@@ -249,20 +234,4 @@ export async function lettersGameScreen(root, id) {
     window.visualViewport?.removeEventListener('resize', keepDown);
     stop();
   };
-}
-
-// The clipboard API needs a secure page; the desktop wrapper may not count as one, so the old way
-// (select a hidden text area, "copy") is the fallback.
-async function copyText(text) {
-  try { await navigator.clipboard.writeText(text); return true; } catch { /* fall through */ }
-  const area = document.createElement('textarea');
-  area.value = text;
-  area.setAttribute('readonly', '');
-  area.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
-  document.body.append(area);
-  area.select();
-  let ok = false;
-  try { ok = document.execCommand('copy'); } catch { /* nothing left to try */ }
-  area.remove();
-  return ok;
 }

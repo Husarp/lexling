@@ -147,9 +147,8 @@ Ported 1:1 in 0.16.0.
       keeps Guess above the keyboard.
 - [ ] **Badge thresholds** are the design's proposals (Champion 10/50/150/500/1500, High score
       150/250/400/600/1000, On a roll 3/5/10/20/50, Full range 3/5/7/9/11) — tune against real scores.
-- [ ] **Not built from the design, on purpose:** the "what Copy result puts on the clipboard" card
-      under the end screen. It reads as the designer's explanation (none of its text is in
-      `strings.json`), so it was left out. Say if it should be in the game.
+- [x] ~~The "what Copy result puts on the clipboard" card~~ — moot: Copy result itself was removed
+      on 2026-09-25 (0.17.2), the owner did not want it.
 - [ ] Polish text written for things the design left blank: the difficulty help on the new-game
       screen (it showed "undefined"), "best {n}" under the streak, "(ż ó ł count ×2)" in the score
       line, and "already tried" for a repeated guess. Worth a read.
@@ -271,6 +270,7 @@ player should feel they changed game, not app.
 - [ ] **Hard mode** — a revealed letter must be reused. Standard, cheap, and wanted by the people who
       want it at all. Not in the design; not built.
 - [x] **A result grid to copy** — the coloured squares as 🟩🟨⬛ text, never the word. 0.16.0.
+      **Removed 2026-09-25 (0.17.2)** — asked what it was for, the owner said it looked bad: remove it.
 - [x] **Save and resume**, like the main mode. 0.16.0.
 - [x] **The screens** — menu mode cards, new game, game, win / loss, one games list for both modes,
       stats with a tab per mode and four Letters badges. 0.16.0.
@@ -330,7 +330,14 @@ Starting it before the letters mode exists is how a project ends up with three h
       domains): taken — Wordhoard, Wordtrove, Wordloom, Wordnest, Wordvault, Triword, Wordbound,
       Lexiloom, Verbarium, Lexorium, Wordspire, Letterfall, Lexicorn, Vocabulon, Wordwright. No app
       found — **Lexling** (recommended), **Wordlark** (but it starts "Wordl…"), **Guessary** (fits
-      only the guessing games). Next: trademark registers (EUIPO, USPTO) and domains for the pick.
+      only the guessing games).
+      **Lexling checked deeper, 2026-09-25:** no app of that name on Google Play or the App Store; in
+      TMview (EU office plus national offices incl. France, Poland, UK, US) the only mark is an
+      EXPIRED French one (LEXLING SASU, 2015, advertising / telecoms / software). Domains: .com taken
+      (a French translation agency, lexling.com), .app .net .org .game .games free, .io probably.
+      But two translation businesses use the name — that French one and **LexLing, a translation and
+      language-school office in Wrocław since 2011** (lexling.pl). No legal block found; the catch
+      is that in Poland the name already means "a translation office". Owner to decide.
       A rename is also the moment to change the Android app ID away from `com.trivioflow.*`
       (the owner's employer) — both make phones see a new app, so do them together once.
 - [ ] **Before a public store release: Letters' colours.** The New York Times has sent takedown

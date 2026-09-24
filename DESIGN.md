@@ -324,7 +324,8 @@ names the category the game was played in. **Every button has a frame** — the 
 - **Unlimited tries** draws no empty rows; the grid grows by one per guess.
 - **Any length** (0.17.0) draws the word from all lengths 3–13 in one pool, so each length comes up
   as often as words of it exist — not every length equally (owner's choice).
-- **The copied result** is plain text — a header line and 🟩🟨⬛ rows — and never contains the word.
+- **No "Copy result"** — the design had a button that copied a 🟩🟨⬛ summary for sharing; built in
+  0.16.0, removed in 0.17.2 at the owner's request (it looked bad and was not wanted).
 
 ## 4a. Rendering quality & responsiveness (hard requirements)
 

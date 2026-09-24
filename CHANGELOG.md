@@ -6,6 +6,14 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.17.2 — 2026-09-25 01:04: Copy result removed
+*(not packaged — the phone has 0.17.1)*
+
+- **The Letters end screen no longer has "Copy result".** It copied a 🟩🟨⬛ summary of the game for
+  sharing in a chat, Wordle-style; the owner asked what it was for, found it looked bad, and asked
+  for it to go. The end card now has Play again and Menu. Its code, its three strings and its
+  styles are gone with it.
+
 ## 0.17.1 — 2026-09-25 00:53: More Polish words count as guesses in Letters; status bar rearranged
 *(debug APK built and installed on the phone 2026-09-25 00:54 — not released)*
 
