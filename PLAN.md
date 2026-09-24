@@ -139,11 +139,24 @@ A reminder is set for 2026-09-25 20:00 to pick this back up.
 - **The phone's own keyboard is used** — no custom on-screen keyboard. Polish marks sit under their
   plain counterparts on a long press, which is how Android's Polish layout already behaves.
 
+### The look — asked 2026-09-24: like WordGuess
+Not a new style: the same design system the main mode already uses — the colours, the two fonts,
+the boxes, the top bar with the brand in the middle, dark/light and the theme-colour setting. A
+player should feel they changed game, not app.
+- [ ] Proposed: the three feedback colours come from WordGuess's own guess-box ramp rather than
+      Wordle's — **green** = `--fill-hot`, **yellow** = `--fill-mid`, **grey** = `--line`.
+- [ ] Proposed: each letter tile is drawn like a WordGuess guess box (same border, radius, fill
+      animation), just square and in a row.
+
 ### Still open
 - [ ] **The difficulty multiplier.** Suggested Relaxed ×0.75, Easy ×1, Normal ×1.25, Hard ×1.5.
 - [ ] **The letter strip** (below) — confirm or drop.
 - [ ] **What a loss scores.** Running out of tries presumably scores nothing, but say so.
 - [ ] **The ranges**: which word lengths and how many tries may be chosen. Wordle is 5 and 6.
+- [ ] **Who designs the screens.** WordGuess was built exactly to a design agent's handoff. Either
+      the design agent delivers Letters screens the same way, or they are composed from the existing
+      components with no handoff. The second is faster; the first is how the rest of the app was made.
+- [ ] **Which badges.** Proposal: games won, best score, win streak, and wins at each word length.
 
 ### The letter strip — what the keyboard decision costs
 Using the system keyboard means **its keys cannot be coloured**, and in Wordle knowing which letters
@@ -162,6 +175,14 @@ are already dead is half the game; without it you hold that in your head.
 - [ ] **The choices can combine into an empty pool** — a 9-letter Relaxed animal with no Polish
       letters may not exist. The main mode already solves this with a 20-word floor and a readout
       saying how many words a game can hide; do the same here rather than inventing something new.
+- [ ] **Adjectives and adverbs have no difficulty score.** Measured 2026-09-24 over the 20 000
+      commonest words: verbs are all rated, nouns about 60 %, adjectives and adverbs **0 %** — the
+      score was only ever computed for words the main mode can hide. Choosing a difficulty over "any
+      word" therefore needs the pipeline to rate the rest. One change to `difficulty()` in
+      `tools/build-data.mjs` and a rebuild; no new idea needed.
+- [ ] **The stoplist has to reach this mode.** `NEVER_SECRET` (the vulgar and grim words) is applied
+      to nouns and verbs only. With adjectives in the pool it must cover them too, or a crude
+      adjective could be the hidden word.
 
 ### To build
 - [ ] Reuse the vocabulary and the validator: `resolve()` for "is this a word?", `ac.txt` for "is
@@ -172,7 +193,26 @@ are already dead is half the game; without it you hold that in your head.
       that makes a score worth having.
 - [ ] **Save and resume**, like the main mode.
 
-## M13 — Merging a Scrabble game in — asked 2026-09-23, answered: yes eventually, no now
+### Build it as the second of three modes, not a bolt-on
+Decided 2026-09-24 that the app will hold all three games (see M13). That changes how Letters should
+be built: every place that today assumes "there is one game" gets made to hold several *now*, so the
+third mode slots in instead of forcing a second rework.
+- [ ] **Saves carry a mode.** Every saved game gets a `mode` field; old saves read as `guess`, so
+      nothing already saved is lost.
+- [ ] **Statistics and badges are kept per mode**, and the badges screen shows one section per mode.
+      Mode-free counters (letters typed, time in game) can stay shared.
+- [ ] **The menu offers a choice of modes** that works for two and still works for three. Two split
+      buttons is right for now; the layout should not have to be redesigned for the third.
+- [ ] **Routes name the mode** — `#/new/letters`, `#/game/<id>` reads the mode from the save.
+- [ ] **Only Guess loads the vectors.** They are 17 MB of the Polish data and Letters never uses
+      them; today `load()` fetches everything at once. Splitting it makes Letters (and later
+      Scrabble) start instantly.
+
+## M13 — The third mode: Scrabble — DECIDED 2026-09-24: all three games in one app
+The owner wants WordGuess to end up holding all three word games — Guess, Letters, Scrabble. The
+order stays: Letters first, shipped, then Scrabble. Built that way it works; the reasoning below is
+why the order matters. The owner's own plan for this game is `letterex-plan(scrabble).md` in the
+project folder (ignored by git, not read).
 **Size is not the obstacle,** which is the surprising part. Scrabble needs a list of every legal
 word, and that is `ac.txt` — already in the app, 4.8 MB Polish and 0.7 MB English, already shipped.
 Adding Scrabble to WordGuess would cost almost nothing to download, because the expensive part of
@@ -188,9 +228,11 @@ move generation across a 15×15 board — a DAWG or GADDAG over the whole dictio
 largest single piece of work discussed for this project, larger than the semantic engine was.
 Starting it before the letters mode exists is how a project ends up with three half-games.
 
-- [ ] Finish the letters mode, ship it, then decide.
-- [ ] If merged, WordGuess stops being one game and becomes the name of a collection of three, and
-      the menu, the badges screen and the statistics all have to carry a third.
+- [ ] Finish the letters mode — built as the second of three modes (M12) — and ship it first.
+- [ ] WordGuess stops being one game and becomes the name of a collection of three. Decide whether
+      the app keeps that name or gets one that fits all three.
+- [ ] **Polish Scrabble accepts every inflected form**, and `ac.txt` already holds 384 000 of them —
+      so the word list is solved, not just started.
 - [ ] Worth knowing early: **"Scrabble" is a trademark.** A shipped game needs its own name.
 
 ## OPEN QUESTIONS (waiting on owner)
