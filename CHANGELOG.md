@@ -7,7 +7,7 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 ---
 
 ## 0.17.0 — 2026-09-25 00:34: A games list per mode, any word length, framed buttons
-*(not packaged — the phone has the 0.16.0 debug APK)*
+*(debug APK built and installed on the phone 2026-09-25 00:39 — not released)*
 
 From playing 0.16.0 on the phone:
 - **Each game has its own list of games in progress.** The menu cards used to jump straight into New
