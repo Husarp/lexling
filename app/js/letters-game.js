@@ -96,7 +96,7 @@ export async function lettersGameScreen(root, id) {
     });
   }
 
-  // What the guesses have pinned down, above the grid (owner, 2026-09-25): a box per letter - green where
+  // What the guesses have pinned down, under the keyboard (owner, 2026-09-25): a box per letter - green where
   // a guess had the right letter, dashed where a hint showed it - then, in yellow, the letters known to be
   // in the word that no box holds yet. `fresh` = the position a hint has just filled, which fades in.
   function paintKnown(fresh = -1) {
@@ -174,7 +174,6 @@ export async function lettersGameScreen(root, id) {
       [...letters].map(key).join('')}${pads ? '<span class="pad"></span>' : ''}</div>`;
     main.innerHTML = `<div class="status"></div>
     <div class="play">
-      <div class="known"><span class="known-slots" role="img" aria-label="${t('lt.known')}"></span><button class="btn btn-ghost lt-hint" type="button" aria-label="${t('game.hint')}">${BULB}</button></div>
       <p class="msg help" role="status" aria-live="polite"></p>
       <div class="lt-board" role="grid" aria-label="${t('game.guesses')}"></div>
       <div class="kb" role="group" aria-label="${t('kb.label')}">
@@ -182,6 +181,7 @@ export async function lettersGameScreen(root, id) {
         <div class="kb-row"><button type="button" class="key wide enter" data-act="enter">${t('kb.enter')}</button>${
           [...ROWS[2]].map(key).join('')}<button type="button" class="key wide" data-act="back" aria-label="${t('kb.backspace')}">${BACKSPACE}</button></div>
       </div>
+      <div class="known"><span class="known-slots" role="img" aria-label="${t('lt.known')}"></span><button class="btn btn-ghost lt-hint" type="button" aria-label="${t('game.hint')}">${BULB}</button></div>
       <input class="sink" type="text" inputmode="text" enterkeyhint="go" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="${n}" aria-label="${t('game.inputAria')}">
     </div>`;
     board = $('.lt-board');

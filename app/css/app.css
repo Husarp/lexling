@@ -360,7 +360,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-kb] [data-screen=letters].app{height:var(--vvh,100dvh);min-height:0}
 [data-kb] [data-screen=letters] .topbar,[data-kb] [data-screen=letters] .status{display:none}
 [data-kb] [data-screen=letters] .main{min-height:0;padding-top:var(--space-2);padding-bottom:var(--space-2);gap:var(--space-2)}
-[data-kb] [data-screen=letters] .play{flex:1;min-height:0;grid-template-rows:auto auto minmax(0,1fr) auto;gap:var(--space-2)}
+[data-kb] [data-screen=letters] .play{flex:1;min-height:0;grid-template-rows:auto minmax(0,1fr) auto auto;gap:var(--space-2)}
 [data-kb] [data-screen=letters] .lt-board{overflow-y:auto;align-content:start;overscroll-behavior:contain}
 [data-kb] [data-screen=letters] .lt-row{--max:48px}
 /* game-letters-end.html */
@@ -415,7 +415,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
    applies (Guess at the bottom, next to the keyboard). The end screen is an ordinary page again. */
 [data-screen=letters].app.fit{height:var(--vvh,100dvh);min-height:0}
 [data-screen=letters].fit .main{min-height:0}
-html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;grid-template-rows:auto auto minmax(0,1fr) auto}
+html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;grid-template-rows:auto minmax(0,1fr) auto auto}
 [data-screen=letters].fit .lt-board{overflow-y:auto;align-content:start;overscroll-behavior:contain;padding:4px 0}   /* room for the 4px lift of the reveal */
 /* a new row grows in, tile by tile from the left - quick: a 5-letter row is done in under a third of a
    second, a 13-letter one in under half */
@@ -562,7 +562,7 @@ html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;g
    board's padding — budget 14px for them so the last tile is never cut off */
 [data-screen=letters].fit .lt-row{--box:min(var(--max,60px),calc((100cqi - 14px - (var(--n) - 1) * var(--gap)) / var(--n)))}
 [data-screen=letters].kbon .lt-row{--max:48px}
-html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-height:0;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:var(--space-2)}
+html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;gap:var(--space-2)}
 [data-screen=letters].kbon .lt-board{overflow-y:auto;align-content:start;overscroll-behavior:contain;padding:4px}
 /* the grid only ever scrolls up and down; a thin, quiet bar in the app's greys (no arrows, no track) */
 [data-screen=letters].fit .lt-board{overflow-x:hidden;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
@@ -577,7 +577,7 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
 .kb{--kb-gap:6px;flex:none;display:grid;gap:8px;padding-top:var(--space-1);container-type:inline-size;user-select:none;-webkit-user-select:none;touch-action:manipulation}
 .kb-row{display:flex;justify-content:center;gap:var(--kb-gap)}
 .kb-row .pad{flex:.5 1 0;min-width:0;max-width:28px}
-.key{--kbg:var(--surface-2);--kfg:var(--text);position:relative;flex:1 1 0;min-width:0;max-width:56px;height:54px;display:grid;place-items:center;padding:0;border-radius:6px;background:var(--kbg);color:var(--kfg);font:600 19px/1 var(--font-body);text-transform:uppercase;transition:background 150ms var(--ease),color 150ms var(--ease),box-shadow 90ms linear}
+.key{--kbg:var(--surface-2);--kfg:var(--text);position:relative;flex:1 1 0;min-width:0;max-width:56px;height:54px;display:grid;place-items:center;padding:0;border-radius:6px;background:var(--kbg);color:var(--kfg);font:600 22px/1 var(--font-body);text-transform:uppercase;transition:background 150ms var(--ease),color 150ms var(--ease),box-shadow 90ms linear}
 [data-theme=light] .key{--kbg:var(--lt-edge);--kfg:#000}
 /* what the game knows about the letter — the tile colours, white letters, as in the grid */
 .key.hit{--kbg:var(--lt-hit);--kfg:#fff}
@@ -599,7 +599,7 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
 .key:active,.key.down{box-shadow:inset 0 0 0 99px rgba(0,0,0,.22);transition:none}
 .key:active::after,.key.down::after{content:attr(data-k);position:absolute;left:50%;bottom:calc(100% + 6px);translate:-50% 0;z-index:3;min-width:max(46px,150%);height:58px;display:grid;place-items:center;border-radius:10px;background:var(--kbg);color:var(--kfg);font:600 30px/1 var(--font-body);text-transform:uppercase;box-shadow:var(--shadow-md);pointer-events:none}
 .key.wide:active::after,.key.wide.down::after{content:none}
-@container (max-width:360px){.kb{--kb-gap:4px;gap:6px}.key{height:44px;font-size:16px;border-radius:5px}.key.wide{font-size:10px;letter-spacing:.02em}.key .n{top:2px;right:2px;min-width:13px;height:13px;font-size:9px;line-height:13px}}
+@container (max-width:360px){.kb{--kb-gap:4px;gap:6px}.key{height:44px;font-size:18px;border-radius:5px}.key.wide{font-size:10px;letter-spacing:.02em}.key .n{top:2px;right:2px;min-width:13px;height:13px;font-size:9px;line-height:13px}}
 @container (min-width:560px){.key{height:48px;max-width:48px;font-size:16px}.key.wide{max-width:76px}}
 
 /* ── editing a guess: tap a tile of the row being typed ──
@@ -744,7 +744,8 @@ html{-webkit-tap-highlight-color:transparent}
 body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 input,textarea{-webkit-user-select:text;user-select:text}
 
-/* ── Letters: what you know (owner, 2026-09-25) ── above the grid, a box per letter: green where a guess had
+/* ── Letters: what you know (owner, 2026-09-25) ── under the keyboard (so the keys sit higher, easier to
+   reach - owner, the same day), a box per letter: green where a guess had
    the right letter, dashed where a hint showed it; then, in yellow, the letters known to be in the word that
    no box holds yet. It learns from a guess once the row has coloured in. */
 [data-screen=letters] .known{display:flex;align-items:center;gap:var(--space-3)}

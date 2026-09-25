@@ -6,6 +6,15 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.29.3 — 2026-09-25 15:05: Letters' keyboard sits higher, with bigger letters
+*(not packaged)*
+
+The owner, from the phone: the keys are small and too close to the bottom edge to tap easily.
+- **The "what you know" strip and the Hint bulb moved under the keyboard** (the owner's idea), so the keyboard sits
+  that much higher - away from the bottom edge of the screen. Order now: status, grid, keyboard, strip.
+- **Bigger letters on the keys**: 22 px (was 19), and 18 px on narrow phones (was 16). The keys cannot get wider -
+  ten have to fit across - so the letters grow inside them; on a 412 px phone a key is about 32 px wide.
+
 ## 0.29.2 — 2026-09-25 15:03: No "in progress" count on the menu
 *(not packaged)*
 
