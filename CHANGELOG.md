@@ -7,7 +7,7 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 ---
 
 ## 0.20.0 — 2026-09-25 03:22: A new ending for every game — clear at a glance how it went
-*(not packaged)*
+*(debug APK built and installed on the phone 2026-09-25 03:25 — not released)*
 
 From the owner's second design handoff (`design/letters/handoff-v2/`), in both games:
 - **An outcome banner comes first**, full width: **✓ on green** for a win, **✕ on red** for out of tries
