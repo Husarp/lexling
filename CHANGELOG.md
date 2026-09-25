@@ -6,6 +6,17 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.18.1 — 2026-09-25 02:36: The icon says "le"
+*(not packaged)*
+
+- **The icon now reads "le"** (Lexling) instead of "gu" (from Word**Gu**ess): same design — a black
+  squircle, white Barlow Condensed ExtraBold, the orange caret — only the letters changed. It reaches the
+  Windows icon, the PNGs, and the Android launcher icons and splash screens (regenerated with
+  @capacitor/assets on the same black background: the same 44 files as before, nothing added).
+- `tools/make-icon.py` now also writes the two Android masters, `assets/icon.png` and the splash, which
+  had been made by hand in 0.13.2 — measured first: the old splash was exactly the icon at a quarter of a
+  2732 px black square, and the script reproduces it pixel for pixel.
+
 ## 0.18.0 — 2026-09-25 02:24: WordGuess is now Lexling; Letters in the owner's colours
 *(not packaged)*
 

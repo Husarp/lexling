@@ -1,6 +1,11 @@
 """Draws assets/lexling.ico - concept 2b "Caret", black variant, from "WordGuess Icon Ideas.dc.html":
-a black squircle with "gu" in Barlow Condensed ExtraBold, white, and the orange text caret after it.
+a black squircle with "le" in Barlow Condensed ExtraBold, white, and the orange text caret after it.
+("gu" until the rename to Lexling in 0.18.0 - from Word*Gu*ess.)
 Needs Pillow.   python tools/make-icon.py
+Also writes the two masters the Android build takes its launcher icons and splash screens from:
+assets/icon.png (the 1024 icon) and assets/splash.png + splash-dark.png - the icon at a quarter of a
+2732 black square, centred, its black corners vanishing into the black (measured against the splash
+made by hand in 0.13.2: identical). Then:   npx capacitor-assets generate --android ...
 
 The design tile is 144 px; every number below is that tile's CSS, scaled. Its markup is
 
@@ -20,7 +25,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parent.parent
 FONT = ROOT / "app" / "fonts" / "BarlowCondensed-ExtraBold.ttf"
 ACCENT, WHITE, BLACK = "#DB5126", "#FFFFFF", "#000000"
-TEXT = "gu"
+TEXT = "le"
 S = 1024                      # the master size
 SIZES = (16, 24, 32, 48, 64, 128, 256)
 SUPERSAMPLE = 4               # each icon size is drawn at 4x and reduced: crisper than shrinking from 1024
@@ -66,5 +71,12 @@ if __name__ == "__main__":
     frames = [at(n) for n in SIZES]
     frames[-1].save(out / "lexling.ico", sizes=[(n, n) for n in SIZES], append_images=frames[:-1])
     at(256).save(out / "lexling.png")
-    draw(S).save(out / "lexling-1024.png")     # for stores / the Android icon later
-    print("wrote", out / "lexling.ico", "sizes", SIZES)
+    master = draw(S)
+    master.save(out / "lexling-1024.png")      # for stores
+    master.save(out / "icon.png")              # @capacitor/assets: the Android launcher icons
+    splash = Image.new("RGB", (2732, 2732), BLACK)
+    mark = master.resize((683, 683), Image.LANCZOS)
+    splash.paste(mark, ((2732 - 683) // 2, (2732 - 683) // 2), mark)
+    for name in ("splash.png", "splash-dark.png"):
+        splash.save(out / name)
+    print("wrote", out / "lexling.ico", "sizes", SIZES, "+ icon.png, splash.png, splash-dark.png")

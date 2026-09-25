@@ -372,8 +372,7 @@ built from the owner's GitHub name rather than the employer's.
       next build.
 - [x] GitHub repository `Husarp/wordguess` → `Husarp/lexling`, the project folder `WordGuess` →
       `Lexling`. localStorage keys stay `wg.*` on purpose — renaming them would lose every save.
-- [ ] **The icon still says "gu"** (from Word**Gu**ess). Needs new letters or a new design — owner to
-      choose.
+- [x] **The icon says "le"** now (was "gu", from Word**Gu**ess) — owner chose the letters, 2026-09-25, 0.18.1.
 - [x] The other apps checked for the employer's name (Car Crash, Browser Switch, Lockdown): none has
       it. Browser Switch already uses `io.github.husarp.*`; whether Car Crash's
       `com.husarp.recklessdriving` should switch too is the owner's call (it would cost phone saves).
