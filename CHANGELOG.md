@@ -7,7 +7,7 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 ---
 
 ## 0.19.0 — 2026-09-25 02:55: Letters fits the screen, however many tries
-*(not packaged)*
+*(debug APK built and installed on the phone 2026-09-25 03:01 — not released)*
 
 From playing on the phone: with many tries (20) the grid ran off the screen and took the status row or
 the Guess button with it.
