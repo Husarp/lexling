@@ -17,44 +17,50 @@ const BANDS = ['short', 'medium', 'long', 'any'];
 const DOT = '<span class="dot">·</span>';
 const on = cond => cond ? 'on' : '';
 
-// What each mode's feedback looks like, drawn small on its menu card (design: handoff-letters/main-menu.html).
+// Each game's icon in its menu row (design v4, "Lexling Menu Four Games"): Guess two ranked strips,
+// Letters two rows of tiles, Connect a ring of real letters with a found word joined in green (SOWA /
+// WORD), Tiles its glyph enlarged.
+const RING5 = [[50, 14], [84.2, 38.9], [71.2, 79.1], [28.8, 79.1], [15.8, 38.9]];
+const RING_WORD = { pl: 'sował', en: 'words' };   // the path joins the first four letters
 const CUE = {
-  guess: { en: ['mouse', 5], pl: ['mysz', 5] },
-  letters: { en: 'words', pl: 'słowo' },
+  guess: () => '<span class="strips"><i></i><i></i></span>',
+  letters: () => `<span class="sq">${'<i></i>'.repeat(6)}</span>`,
+  connect: () => `<span class="cue-ring"><svg viewBox="0 0 100 100"><polyline points="${RING5.slice(0, 4).map(p => p.join(',')).join(' ')}"></polyline></svg>${
+    [...RING_WORD[getLang()]].map((ch, i) => `<b class="${i < 4 ? 'on' : ''}" style="--x:${RING5[i][0]}%;--y:${RING5[i][1]}%">${ch}</b>`).join('')}</span>`,
+  tiles: () => GLYPH.tiles,
 };
+// A game that is not built yet has its row, saying "soon", but does not open.
+const GAMES = ['guess', 'letters', 'connect', 'tiles'];
+const READY = new Set(['guess', 'letters']);
 const NEW_OF = { guess: '#/new', letters: '#/new/letters' };
 const LIST_OF = { guess: '#/games/guess', letters: '#/games/letters' };
 
 export function menu(root, _, refresh) {
   const saves = listSaves();
-  const [word, rank] = CUE.guess[getLang()];
-  const cue = {
-    guess: `<span class="cue-guess"><i></i><span>${word}</span><span>${rank}</span></span>`,
-    letters: squares(['hit', 'near', 'miss', 'hit', 'hit'], 24, [...CUE.letters[getLang()]]),
-  };
-  // One card per mode, the same weight each: the grid takes a third mode without a redesign.
-  const mode = key => {
+  // One compact row per game, all the same size and weight - only the icon differs. Four of the old
+  // big cards pushed Statistics and Settings off a phone's first screen.
+  const row = key => {
     const going = saves.filter(g => g.mode === key).length;
-    return `<a class="mode" href="${LIST_OF[key]}">
-          <span class="mode-head"><span class="mode-name">${t('mode.' + key)}</span><span class="arrow" aria-hidden="true">→</span></span>
-          <span class="help">${t(`mode.${key}.d`)}</span>
-          <span class="cue" aria-hidden="true">${cue[key]}</span>
-          ${going ? `<span class="meta">${t('mode.inProgress', { n: `<b>${going}</b>` })}</span>` : ''}
-        </a>`;
+    const live = !READY.has(key) ? `<span class="g-live">${t('menu.soon')}</span>`
+      : going ? `<span class="g-live">${t('mode.inProgress', { n: `<b>${going}</b>` })}</span>` : '';
+    const inner = `<span class="cue4" aria-hidden="true">${CUE[key]()}</span>
+          <span class="g-text"><span class="g-head"><span class="g-name">${t('mode.' + key)}</span>${live}</span><span class="g-desc">${t(`mode.${key}.d`)}</span></span>`;
+    return READY.has(key) ? `<a class="game" href="${LIST_OF[key]}">${inner}<span class="arrow" aria-hidden="true">→</span></a>`
+      : `<div class="game soon" aria-disabled="true">${inner}</div>`;
   };
   root.innerHTML = `<div class="app" data-screen="menu">
   ${topbar({ right: `<span class="eyebrow lang-switch">${
     ['pl', 'en'].map(l => `<button type="button" data-lang="${l}" class="${on(getLang() === l)}" aria-label="${LANG_NAMES[l]}">${l.toUpperCase()}</button>`).join(DOT)}</span>` })}
-  <section class="hero">
+  <section class="hero four">
     <div class="wm" aria-hidden="true">L/</div>
     <div class="hero-inner">
       <p class="eyebrow">${t('menu.eyebrow')} ${DOT} ${t('menu.offline')}</p>
       <h1 class="display">${t('menu.h1')}</h1>
       <p class="tagline">${t('menu.tagline')}</p>
-      <nav class="modes" aria-label="${t('menu.modesAria')}">${mode('guess')}${mode('letters')}</nav>
-      <nav class="menu" aria-label="${t('menu.nav')}">
-        <a class="btn btn-outline btn-lg" href="#/stats">${t('menu.stats')} <span class="arrow">→</span></a>
-        <a class="btn btn-outline btn-lg" href="#/settings">${t('menu.settings')} <span class="arrow">→</span></a>
+      <nav class="games" aria-label="${t('menu.modesAria')}">${GAMES.map(row).join('')}</nav>
+      <nav class="menu four" aria-label="${t('menu.nav')}">
+        <a class="btn btn-outline" href="#/stats">${t('menu.stats')} <span class="arrow">→</span></a>
+        <a class="btn btn-outline" href="#/settings">${t('menu.settings')} <span class="arrow">→</span></a>
       </nav>
     </div>
   </section>
@@ -477,35 +483,27 @@ export function lettersNewScreen(root, _, refresh) {
   });
 }
 
-let statsTab = 'guess';   // which mode the stats screen shows, kept while the app is open
+let statsTab = 'guess';   // which game the stats screen shows, kept while the app is open
+// one tab per game that exists (design v4): Tiles gets its tab when it is built
+const STAT_TABS = ['guess', 'letters'];
 
 export function statsScreen(root, _, refresh) {
-  const s = stats;
-  const card = (label, value, sub = '') => `<div class="card stat-card"><span class="eyebrow">${label}</span><span class="num">${value}</span>${sub && `<span class="sub">${sub}</span>`}</div>`;
-  const lt = s.lt;
-  // wins at each word length, 3 to 13, so the player sees which ones are missing
-  const lengthsStrip = `<div class="lengths" aria-label="${t('stats.byLen')}">${Array.from({ length: 11 }, (_, i) => i + 3).map(len =>
-    `<span class="${lt.wonLen[len] ? 'won' : ''}"><b>${lt.wonLen[len] ? num(lt.wonLen[len]) : '·'}</b><em>${len}</em></span>`).join('')}</div>`;
-  const lettersPanel = () => `<section class="section" role="tabpanel">
-      <div class="stats">
-        ${card(t('stats.played'), num(lt.played))}
-        ${card(t('stats.won'), num(lt.won), lt.played ? Math.round(lt.won / lt.played * 100) + ' %' : '')}
-        ${card(t('stats.streak'), num(lt.streak), t('stats.streakBest', { n: num(lt.bestStreak) }))}
-        ${card(t('stats.bestScore'), lt.bestScore ? num(lt.bestScore) : '—')}
-        ${card(t('stats.avgWin'), lt.won ? decimal((lt.wonTries / lt.won).toFixed(1)) : '—', t('stats.perWonLt'))}
-      </div>
-      <h2 class="title">${t('stats.byLen')}</h2>
-      ${lengthsStrip}
-    </section>
-    <div class="shared"><span class="eyebrow" style="width:100%">${t('stats.shared')}</span><span><b>${num(s.letters)}</b> ${t('stats.lettersTyped')}</span>${DOT}<span><b>${clock(s.timeMs, true)} h</b> ${t('game.inGame')}</span></div>`;
-  root.innerHTML = `<div class="app" data-screen="stats">
-  ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
-  <main class="main">
-    <h1 class="title">${t('stats.title')}</h1>
-    <div class="seg tabs" role="tablist">${['guess', 'letters'].map(m =>
-    `<button type="button" role="tab" data-tab="${m}" class="${on(statsTab === m)}" aria-selected="${statsTab === m}">${GLYPH[m]}${t('mode.' + m)}</button>`).join('')}</div>
-    ${statsTab === 'letters' ? lettersPanel() : `<section class="section" role="tabpanel">
-    <div class="stats">
+  const s = stats, lt = s.lt;
+  if (!STAT_TABS.includes(statsTab)) statsTab = 'guess';
+  // a game not played yet says so, above its numbers - which show in dim ink
+  const none = { guess: !s.played, letters: !lt.played }[statsTab];
+  const card = (label, value, sub = '') => `<div class="card stat-card${none ? ' dim' : ''}"><span class="eyebrow">${label}</span><span class="num">${value}</span>${sub && `<span class="sub">${sub}</span>`}</div>`;
+  // Each game's one "shape" card (design v4): how many tries its wins took, the commonest bar in the
+  // game's colour. Counted from 0.24.0 on - older wins were only ever kept as a total.
+  const dist = (title, help, rows, tone = '', ink = '') => {
+    const max = Math.max(...rows.map(r => r[1]));
+    return `<div class="card dist"${tone ? ` style="--tone:${tone};--tone-ink:${ink}"` : ''}>
+      <div class="dist-head"><span class="eyebrow">${title}</span><span class="help">${help}</span></div>
+      <ol>${rows.map(([k, v]) => `<li class="${v === max ? 'top' : ''}"><span>${k}</span><b style="--pct:${Math.max(10, Math.round(v / max * 100))}%">${num(v)}</b></li>`).join('')}</ol>
+    </div>`;
+  };
+  const gd = s.guessDist ?? {}, gWins = Object.values(gd).reduce((a, b) => a + b, 0);
+  const guessPanel = () => `<div class="stats">
       ${card(t('stats.played'), num(s.played))}
       ${card(t('stats.won'), num(s.won), s.played ? Math.round(s.won / s.played * 100) + ' %' : '')}
       ${card(t('stats.givenUp'), num(s.givenUp))}
@@ -521,8 +519,35 @@ export function statsScreen(root, _, refresh) {
       ${card(t('stats.pools'), num(Object.keys(s.wonPools ?? {}).length), t('stats.poolsSub', { n: CATS.length }))}
       ${card(t('stats.byLang'), `${num(s.wonLang?.pl ?? 0)} / ${num(s.wonLang?.en ?? 0)}`)}
     </div>
-    <p class="help">${t('stats.noCat')}</p>
-    </section>`}
+    ${gWins ? dist(t('stats.perWinGuess'), `${num(gWins)} ${plural(gWins, 'n.wins')}`,
+    [['1–10', gd.a || 0], ['11–25', gd.b || 0], ['26–50', gd.c || 0], ['51+', gd.d || 0]], 'var(--fill-hot)', '#000') : ''}
+    <p class="help">${t('stats.noCat')}</p>`;
+  const ld = lt.dist ?? {}, lWins = ['1', '2', '3', '4', '5', '6', '7+'].reduce((a, k) => a + (ld[k] || 0), 0), lLost = ld.x || 0;
+  // wins at each word length, 3 to 13, so the player sees which ones are missing
+  const lengthsStrip = `<div class="lengths" aria-label="${t('stats.byLen')}">${Array.from({ length: 11 }, (_, i) => i + 3).map(len =>
+    `<span class="${lt.wonLen[len] ? 'won' : ''}"><b>${lt.wonLen[len] ? num(lt.wonLen[len]) : '·'}</b><em>${len}</em></span>`).join('')}</div>`;
+  const lettersPanel = () => `<div class="stats">
+        ${card(t('stats.played'), num(lt.played))}
+        ${card(t('stats.won'), num(lt.won), lt.played ? Math.round(lt.won / lt.played * 100) + ' %' : '')}
+        ${card(t('stats.streak'), num(lt.streak), t('stats.streakBest', { n: num(lt.bestStreak) }))}
+        ${card(t('stats.bestScore'), lt.bestScore ? num(lt.bestScore) : '—')}
+        ${card(t('stats.avgWin'), lt.won ? decimal((lt.wonTries / lt.won).toFixed(1)) : '—', t('stats.perWonLt'))}
+      </div>
+      ${lWins + lLost ? dist(t('stats.perWinLt'), `${num(lWins)} ${plural(lWins, 'n.wins')} ${DOT} ${num(lLost)} ${plural(lLost, 'n.losses')}`,
+    [...['1', '2', '3', '4', '5', '6'].map(k => [k, ld[k] || 0]), ...(ld['7+'] ? [['7+', ld['7+']]] : []), ['✕', lLost]]) : ''}
+      <h2 class="title">${t('stats.byLen')}</h2>
+      ${lengthsStrip}`;
+  root.innerHTML = `<div class="app" data-screen="stats">
+  ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
+  <main class="main">
+    <h1 class="title">${t('stats.title')}</h1>
+    <div class="seg tabs tabs4" role="tablist"${STAT_TABS.length < 4 ? ` style="grid-template-columns:repeat(${STAT_TABS.length},minmax(0,1fr))"` : ''}>${STAT_TABS.map(m =>
+    `<button type="button" role="tab" data-tab="${m}" class="${on(statsTab === m)}" aria-selected="${statsTab === m}">${GLYPH[m]}${t('mode.' + m)}</button>`).join('')}</div>
+    <section class="section" role="tabpanel">
+      ${none ? `<div class="none"><strong>${t('stats.none', { g: t('mode.' + statsTab) })}</strong><p class="help">${t('stats.noneHelp')}</p></div>` : ''}
+      ${statsTab === 'letters' ? lettersPanel() : guessPanel()}
+      <div class="shared"><span>${t('stats.allGames')} <b>${num(s.played + lt.played)}</b></span>${DOT}<span><b>${clock(s.timeMs, true)}</b> ${t('stats.hours')}</span></div>
+    </section>
   </main>
 </div>`;
   root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { statsTab = b.dataset.tab; refresh(); }));

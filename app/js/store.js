@@ -85,6 +85,9 @@ export function recordGuess(game, word, typed) {
 export function recordEnd(game, won, difficulty = -1, hinted = false) {
   if (won) {
     stats.won++;
+    // guesses per win, in four bands, for the statistics chart (counted from 0.24.0)
+    const g = game.guesses.length, band = g <= 10 ? 'a' : g <= 25 ? 'b' : g <= 50 ? 'c' : 'd';
+    stats.guessDist = { ...stats.guessDist, [band]: (stats.guessDist?.[band] || 0) + 1 };
     if (!game.friend) {
       stats.wonLang[game.lang] = (stats.wonLang[game.lang] || 0) + 1;
       stats.wonPools[game.cat] = true;
@@ -111,6 +114,9 @@ export function recordEnd(game, won, difficulty = -1, hinted = false) {
 // A Letters game ends won, lost (out of tries) or given up. Only a win keeps the streak going.
 export function recordLettersEnd(game, points) {
   const s = stats.lt;
+  // tries per win (1–6, 7+) and games lost, for the statistics chart (counted from 0.24.0)
+  const tried = game.status === 'won' ? (game.guesses.length > 6 ? '7+' : String(game.guesses.length)) : game.status === 'lost' ? 'x' : null;
+  if (tried) s.dist = { ...s.dist, [tried]: (s.dist?.[tried] || 0) + 1 };
   if (game.status === 'won') {
     s.won++;
     s.bestStreak = Math.max(s.bestStreak, ++s.streak);

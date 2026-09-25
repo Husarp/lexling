@@ -316,22 +316,6 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .glyph.letters i{width:7px;height:7px;border-radius:2px}
 .glyph.letters i:nth-child(1){background:var(--lt-hit)}.glyph.letters i:nth-child(2){background:var(--lt-near)}.glyph.letters i:nth-child(3){background:var(--lt-miss)}
 .glyph.guess{width:22px;height:7px;border-radius:2px;background:linear-gradient(90deg,var(--fill-cold),var(--fill-warm),var(--fill-mid),var(--fill-hot))}
-/* modes: one card per game, equal weight. auto-fit takes a third card without a redesign:
-   stacked below ~500px, side by side above, three across at the 720px column. */
-[data-screen=menu] .modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:var(--space-3)}
-[data-screen=menu] .mode{display:grid;gap:var(--space-3);align-content:start;padding:var(--space-4) var(--space-5) var(--space-5);background:var(--surface);border:1px solid var(--line-soft);border-top:3px solid var(--accent);border-radius:var(--radius-lg);color:var(--text);transition:transform var(--dur) var(--ease),border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
-[data-screen=menu] .mode:hover{color:var(--text);transform:translateY(-3px);border-color:var(--line);border-top-color:var(--accent);box-shadow:var(--shadow-md)}
-[data-screen=menu] .mode-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);min-height:44px}
-[data-screen=menu] .mode-name{font:800 clamp(30px,6vw,38px)/1 var(--font-display);letter-spacing:-.02em;text-transform:uppercase;overflow-wrap:anywhere;min-width:0}
-[data-screen=menu] .mode-head .arrow{flex:none;font:600 26px/1 var(--font-body);transition:transform var(--dur) var(--ease)}
-[data-screen=menu] .mode:hover .mode-head .arrow{transform:translateX(4px)}
-[data-screen=menu] .mode .help{max-width:34ch}
-[data-screen=menu] .cue{display:flex;align-items:center;gap:var(--space-3);min-height:26px}
-[data-screen=menu] .cue-guess{position:relative;overflow:hidden;flex:1;max-width:200px;height:26px;border-radius:6px;background:var(--surface-2);display:flex;align-items:center;justify-content:space-between;padding:0 8px;font:700 14px/1 var(--font-display)}
-[data-screen=menu] .cue-guess i{position:absolute;left:0;top:0;bottom:0;width:78%;background:var(--fill-hot);opacity:var(--fill-alpha)}
-[data-screen=menu] .cue-guess span{position:relative}
-[data-screen=menu] .mode .meta{font-size:12px;color:var(--text-muted)}
-[data-screen=menu] .mode .meta b{color:var(--text);font:800 14px/1 var(--font-display)}
 /* new-game-letters.html */
 /* the length histogram is also a picker: every bar is a button (tap = jump to that length) */
 [data-screen=new] .hist>button{flex:1 1 0;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;gap:7px;height:100%;padding:0}
@@ -478,3 +462,95 @@ html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;g
 /* difficulty + Random switch share a row like Tries + Unlimited; with Random on, the levels step back */
 .tries .seg{flex:1 1 240px}
 .seg.off{opacity:.45}
+
+/* ═══ LEXLING · FOUR GAMES — new CSS, goes below the shared block and the Letters block ═══ */
+
+/* ── Glyphs for the two new games, in the 7px language of .glyph.letters / .glyph.guess ──
+   Connect: five letters on a ring, three of them joined (green = a found word).
+   Tiles: a 3×3 board with a word across and one letter down (yellow = placed tiles). */
+.glyph.connect{position:relative;width:14px;height:14px}
+.glyph.connect i{position:absolute;width:4px;height:4px;border-radius:50%;background:var(--lt-miss)}
+.glyph.connect i:nth-child(1){left:5px;top:0;background:var(--lt-hit)}
+.glyph.connect i:nth-child(2){left:10px;top:3.5px;background:var(--lt-hit)}
+.glyph.connect i:nth-child(3){left:8px;top:10px;background:var(--lt-hit)}
+.glyph.connect i:nth-child(4){left:2px;top:10px}
+.glyph.connect i:nth-child(5){left:0;top:3.5px}
+.glyph.tiles{display:grid;grid-template-columns:repeat(3,4px);grid-auto-rows:4px;gap:1px}
+.glyph.tiles i{border-radius:1px;background:var(--line)}
+.glyph.tiles i:nth-child(2),.glyph.tiles i:nth-child(4),.glyph.tiles i:nth-child(5),.glyph.tiles i:nth-child(6){background:var(--lt-near)}
+[data-theme=light] .glyph.tiles i{background:#C4C9D6}
+[data-theme=light] .glyph.tiles i:nth-child(2),[data-theme=light] .glyph.tiles i:nth-child(4),[data-theme=light] .glyph.tiles i:nth-child(5),[data-theme=light] .glyph.tiles i:nth-child(6){background:var(--lt-near)}
+
+/* ── Main menu for four games ──
+   One compact row per game instead of one large card: four rows of ~84px fit a 360×740 phone with the
+   hero and Statistics/Settings still above the fold. Rows are all the same size and colour; the only
+   difference between them is the glyph, enlarged, as the cue. From 560px of column they pair up 2×2. */
+[data-screen=menu] .hero.four{align-content:start;gap:0;padding-top:clamp(20px,4vh,56px);padding-bottom:var(--space-6)}
+[data-screen=menu] .hero.four .hero-inner{gap:var(--space-4)}
+[data-screen=menu] .hero.four .display{font-size:clamp(40px,9vw,64px)}
+[data-screen=menu] .hero.four .hero-inner{container-type:inline-size;width:100%}
+[data-screen=menu] .games{display:grid;gap:var(--space-2);margin-top:var(--space-2)}
+@container (min-width:600px){[data-screen=menu] .games{grid-template-columns:1fr 1fr;gap:var(--space-3)}[data-screen=menu] .game{min-height:104px;padding:var(--space-4) var(--space-5) var(--space-4) var(--space-4)}[data-screen=menu] .game .cue4{width:64px;height:64px}[data-screen=menu] .g-name{font-size:30px}}
+[data-screen=menu] .game{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--space-3);min-height:84px;padding:var(--space-3) var(--space-4) var(--space-3) var(--space-3);background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-lg);color:var(--text);transition:transform var(--dur) var(--ease),border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
+[data-screen=menu] .game:hover{color:var(--text);transform:translateY(-3px);border-color:var(--line);box-shadow:var(--shadow-md)}
+[data-screen=menu] .game .cue4{flex:none;width:56px;height:56px;border-radius:var(--radius-md);background:var(--surface-2);display:grid;place-items:center}
+[data-screen=menu] .game .cue4 .glyph{transform:scale(2.4)}
+[data-screen=menu] .game .cue4 .glyph.letters,[data-screen=menu] .game .cue4 .glyph.guess{transform:scale(2)}
+[data-theme=light] [data-screen=menu] .game .cue4{background:var(--bg)}
+/* each game's icon on the menu: Guess two ranked strips, Letters two rows of tiles,
+   Connect a ring of real letters with a found word joined in green, Tiles the glyph enlarged */
+[data-screen=menu] .cue4 .strips{display:grid;gap:5px}
+[data-screen=menu] .cue4 .strips i{display:block;width:34px;height:9px;border-radius:3px;background:linear-gradient(90deg,var(--fill-cold),var(--fill-warm),var(--fill-mid),var(--fill-hot))}
+[data-screen=menu] .cue4 .sq{display:grid;grid-template-columns:repeat(3,10px);gap:3px}
+[data-screen=menu] .cue4 .sq i{width:10px;height:10px;border-radius:2.5px;background:var(--lt-miss)}
+[data-screen=menu] .cue4 .sq i:nth-child(3n+1){background:var(--lt-hit)}
+[data-screen=menu] .cue4 .sq i:nth-child(3n+2){background:var(--lt-near)}
+[data-screen=menu] .cue-ring{--cue-bg:var(--surface-2);position:relative;width:48px;height:48px}
+[data-theme=light] [data-screen=menu] .cue-ring{--cue-bg:var(--bg)}
+[data-screen=menu] .cue-ring::before{content:"";position:absolute;inset:6px;border-radius:50%;border:1.5px solid var(--line)}
+[data-theme=light] [data-screen=menu] .cue-ring::before{border-color:var(--lt-edge)}
+[data-screen=menu] .cue-ring svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+[data-screen=menu] .cue-ring polyline{fill:none;stroke:var(--lt-hit);stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+[data-screen=menu] .cue-ring b{position:absolute;left:var(--x);top:var(--y);translate:-50% -50%;width:15px;height:15px;border-radius:50%;display:grid;place-items:center;background:var(--cue-bg);box-shadow:0 0 0 1.5px var(--line);font:600 9px/1 var(--font-body);text-transform:uppercase;color:var(--text)}
+[data-theme=light] [data-screen=menu] .cue-ring b{box-shadow:0 0 0 1.5px var(--lt-edge)}
+[data-screen=menu] .cue-ring b.on{background:var(--lt-hit);box-shadow:none;color:#fff}
+@container (min-width:600px){[data-screen=menu] .game .cue4>span{transform:scale(1.15)}[data-screen=menu] .game .cue4>.glyph.tiles{transform:scale(2.7)}}
+[data-screen=menu] .g-text{min-width:0;display:grid;gap:4px}
+[data-screen=menu] .g-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px var(--space-3)}
+[data-screen=menu] .g-name{font:800 26px/1 var(--font-display);letter-spacing:-.02em;text-transform:uppercase;overflow-wrap:anywhere}
+[data-screen=menu] .g-live{font-size:12px;color:var(--text-muted);white-space:nowrap}
+[data-screen=menu] .g-live b{font:800 14px/1 var(--font-display);color:var(--accent)}
+[data-screen=menu] .g-desc{font-size:13px;line-height:1.4;color:var(--text-muted)}
+[data-screen=menu] .game>.arrow{font:600 22px/1 var(--font-body);transition:transform var(--dur) var(--ease)}
+[data-screen=menu] .game:hover>.arrow{transform:translateX(4px)}
+[data-screen=menu] .game.soon .g-live{color:var(--text-dim)}
+[data-screen=menu] .menu.four{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);max-width:none;margin-top:var(--space-2)}
+[data-screen=menu] .menu.four .btn{min-height:48px;padding:0 var(--space-4)}
+@container (min-width:600px){[data-screen=menu] .menu.four{max-width:520px}}
+
+/* ── Statistics: four tabs, numbers only ──
+   Four names up to ~11 characters do not fit one row at 320px, so under a 500px column the tabs sit 2×2.
+   Each tab: the numbers (.stats), then one "shape" card that only that game has — how many tries a
+   win takes (Guess, Letters) or the longest word found (Connect) — then the line shared by all games. */
+[data-screen=stats] .main{container-type:inline-size}
+[data-screen=stats] .tabs4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+@container (max-width:499px){[data-screen=stats] .tabs4{grid-template-columns:1fr 1fr}}
+[data-screen=stats] .tabs4 button{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-width:0}
+[data-screen=stats] .tabs4 button.on .glyph{filter:brightness(1.15)}
+[data-screen=stats] .stats-sum{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--space-2) var(--space-3)}
+[data-screen=stats] .stats-sum .num{font-size:clamp(56px,14vw,88px);line-height:.85}
+[data-screen=stats] .stats-sum .help b{color:var(--text);font-weight:600}
+[data-screen=stats] .stat-card.dim .num{color:var(--text-dim)}
+[data-screen=stats] .dist{display:grid;gap:var(--space-3);padding:var(--space-4) var(--space-5) var(--space-5)}
+[data-screen=stats] .dist-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:var(--space-1) var(--space-3)}
+[data-screen=stats] .dist ol{list-style:none;padding:0;display:grid;gap:6px}
+[data-screen=stats] .dist li{display:grid;grid-template-columns:5ch minmax(0,1fr);align-items:center;gap:var(--space-3)}
+[data-screen=stats] .dist li>span{font:700 16px/1 var(--font-display);color:var(--text-muted);text-align:right;white-space:nowrap}
+[data-screen=stats] .dist li>b{display:flex;align-items:center;justify-content:flex-end;min-width:32px;width:var(--pct);height:26px;padding:0 8px;border-radius:6px;background:var(--surface-2);font:800 15px/1 var(--font-display);color:var(--text)}
+[data-screen=stats] .dist li.top>b{background:var(--tone,var(--lt-hit));color:var(--tone-ink,#fff)}
+[data-screen=stats] .best{display:grid;gap:var(--space-3);padding:var(--space-4) var(--space-5) var(--space-5)}
+[data-screen=stats] .best .mt-row{flex-wrap:wrap;gap:4px}
+[data-screen=stats] .none{display:grid;gap:var(--space-2);padding:var(--space-5);border:1.5px dashed var(--line);border-radius:var(--radius-lg);background:transparent}
+[data-screen=stats] .none strong{font:700 22px/1.05 var(--font-display);text-transform:uppercase;letter-spacing:-.01em}
+/* a game that is not built yet: its row says "soon" and does not react to the pointer */
+[data-screen=menu] .game.soon:hover{transform:none;border-color:var(--line-soft);box-shadow:none}

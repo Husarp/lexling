@@ -6,6 +6,27 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.24.0 — 2026-09-25 13:30: A main menu for four games; the new Statistics screen
+*(not packaged)*
+
+From the owner's design handoff v4 (`design/v4/`, "Lexling Menu Four Games").
+- **The menu has one compact row per game** — Guess, Letters, Connect, Tiles — all the same size, each with
+  its own icon (two ranked strips; two rows of tiles; a ring of letters with SOWA / WORD joined in green;
+  a small board). Four of the old big cards would have pushed Statistics and Settings off a phone's first
+  screen. From a 600 px column the rows pair up 2 × 2. New headline and tagline: **"Play with words"** /
+  **"Graj słowami"** — "Four word games. A new puzzle every time — offline, for as long as you like."
+- **Connect and Tiles show "soon" / "wkrótce"** and do not open yet (the design's option until a game ships).
+- **Glyphs** for Connect (five dots on a ring, three green) and Tiles (a 3 × 3 board), for the top-bar tags.
+- **Statistics**: a tab per game that exists; each shows its numbers, then a chart — **guesses per win** for
+  Guess (1–10 / 11–25 / 26–50 / 51+), **tries per win** for Letters (1–6, 7+, ✕ = out of tries), the
+  commonest bar in the game's colour — then one line for all games: "All games 20 · 1:30 h played". A game
+  not played yet says so ("No Guess games yet") and its numbers go dim. The charts count from this version:
+  older wins were only ever stored as totals.
+- **Kept, although the design dropped them**: Letters' **best score** (the design assumed points were going
+  app-wide; only Connect has none), and every Guess statistic — the design showed four numbers per tab.
+- Checked by rendering the menu and both tabs in Node, Polish and English, with and without data; every
+  text key the code names exists in both languages.
+
 ## 0.23.0 — 2026-09-25 12:14: No more achievements
 *(not packaged)*
 

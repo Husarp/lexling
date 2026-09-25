@@ -8,7 +8,9 @@ export const topbar = ({ left = '', right = '' } = {}) =>
 
 // Which game a screen or a save belongs to: the mode's small glyph and its name.
 export const GLYPH = { guess: '<span class="glyph guess" aria-hidden="true"></span>',
-  letters: '<span class="glyph letters" aria-hidden="true"><i></i><i></i><i></i></span>' };
+  letters: '<span class="glyph letters" aria-hidden="true"><i></i><i></i><i></i></span>',
+  connect: `<span class="glyph connect" aria-hidden="true">${'<i></i>'.repeat(5)}</span>`,
+  tiles: `<span class="glyph tiles" aria-hidden="true">${'<i></i>'.repeat(9)}</span>` };
 export const modeTag = mode => `<span class="mode-tag">${GLYPH[mode]}${t('mode.' + mode)}</span>`;
 
 // How a game ended, first thing on its end screen and the same in every mode (design v2:
