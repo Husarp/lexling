@@ -46,7 +46,9 @@ Playable in **Polish and English** (both the UI and the word libraries).
   words are bonus words; free hints, a random letter at a time, at most half of any word. Its own statistics.
 - **No scores anywhere** (since 0.29.0): the games are for fun; statistics show how you are doing,
   hints used included.
-- **Tiles** (Kafelki), a Scrabble-like game against the computer, is planned: the menu shows it as "soon".
+- **Tiles** (Kafelki), a Scrabble-like game against the computer, is being built: its rules, boards and
+  computer player exist (0.30.0), its screens wait for the design; the menu shows it as "soon". Points stay
+  in this one - scoring against the computer is the game.
 
 ## Run it (development)
 
@@ -63,8 +65,8 @@ from `file://`.)
 > on the real word data (60 000 Polish + 41 158 English words), with a **Windows installer** and an
 > **Android APK**. What is still open is in [PLAN.md](PLAN.md).
 
-The Letters and Connect rules have tests against the real data: `node tools/test-letters.mjs` and
-`node tools/test-connect.mjs`.
+The Letters, Connect and Tiles rules have tests against the real data: `node tools/test-letters.mjs`,
+`node tools/test-connect.mjs` and `node tools/test-tiles.mjs`.
 
 **Size:** Windows installer 52 MB, 65 MB installed; Android APK 34.5 MB (40 MB of it is the
 game, 39 MB word data).
@@ -168,6 +170,9 @@ app/                the game itself — single-page app, no build step, no depen
   js/game.js        the Guess game screen (input, autocomplete, guess boxes, history, win / give-up)
   js/letters-game.js  the Letters game screen (letter boxes, hidden input, reveal, win / loss, copy result)
   js/letters.js     Letters rules: feedback, the keyboard and hints, which words can be hidden and how hard
+  js/tiles.js       Tiles rules: the boards, letter sets, bag and racks, checking and scoring a move, the end
+  js/tiles-moves.js Tiles move finder (every legal move for a rack) and the computer player's levels
+  js/dawg.js        the word graph Tiles looks words up in (build, save to bytes, load, walk)
   js/engine.js      word data loading, rank scoring, form→lemma, autocomplete, secret picking
   js/store.js       settings, saved games, lifetime stats (localStorage)
   js/i18n.js        every UI string in EN + PL, plural rules, number/time formatting

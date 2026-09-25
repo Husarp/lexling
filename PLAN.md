@@ -138,7 +138,8 @@ Ported 1:1 in 0.16.0.
       - [ ] **Forms the dictionary does not have at all** — *pasłem*: it knows *paść* mostly as "to
         fall" (*padłem*) and only a few "to graze" forms. Needs a bigger word list — sjp.pl's list for
         word games, the one Polish Scrabble uses — which M13 will need anyway. Bigger download,
-        licence to check first. Planned together with M13.
+        licence to check first. Planned together with M13. (Licence checked 2026-09-25: GPL 2 or CC BY 4.0,
+        our choice - see M13 "The word list".)
 - [x] **Status bar, both games**: the numbers spread across the whole first row, Save & exit and
       Give up on their own row underneath, aligned left, further apart. 0.17.1.
 - [x] **Many tries ran off the screen** (reported with 20): the screen now fits the window while
@@ -358,11 +359,70 @@ Starting it before the letters mode exists is how a project ends up with three h
       Playable in 0.16.0; not packaged or released yet.
 - [x] WordGuess stops being one game and becomes the name of a collection of three. Decided
       2026-09-25: the app is renamed **Lexling** (0.18.0) — see "Rename to Lexling" below.
-- [ ] **Polish Scrabble accepts every inflected form**, and `ac.txt` already holds 384 000 of them —
-      so the word list is solved, not just started.
+- [x] ~~**Polish Scrabble accepts every inflected form**, and `ac.txt` already holds 384 000 of them —
+      so the word list is solved, not just started.~~ Not so, measured 2026-09-25 (0.30.0): see "The word list" below.
 - [ ] Worth knowing early: **"Scrabble" is a trademark.** A shipped game needs its own name.
 - [x] **Its name: Kafelki / Tiles** — chosen by the owner 2026-09-25 (also offered: Pojedynek / Duel,
       Mistrz słów / Wordsmith, Letterex; not "Literaki", a well-known Polish online game of this kind).
+
+### Started 2026-09-25 (owner: "the Scrabble pass like the last game": mechanics for phone and PC, the
+official board plus two more, symmetrical, found by looking around; a core system; a design prompt)
+- [x] **The rules, no screens (0.30.0)**: `tiles.js`, `tiles-moves.js`, `dawg.js`, `tools/test-tiles.mjs` -
+      what they do is in DESIGN.md "Tiles". The official rules and letter sets (checked on pl.wikipedia.org and a
+      Polish rules page); a game is plain data, so a save is the state itself.
+- [x] **Boards: Classic** (the original), **Quick** (11 × 11, half the tiles) and **Bonus** (bonuses nearer the
+      middle) - all symmetrical. Looked at: the Words With Friends board (bonuses pulled in, more triple
+      letters, 35 for all seven tiles), its 11 × 11 Fast Play board, Wordfeud's random boards (not symmetrical),
+      Super Scrabble (21 × 21 - too big for a phone), Wordscraper (players draw their own). Quick and Bonus take
+      the two ideas that suit a phone; the layouts are ours. **Owner to confirm.**
+- [x] **The computer player**: finds every legal move (1-2 ms a turn on a PC); four levels, as in the other
+      games - how many words it knows and how hard it tries. Values to tune by playing.
+- [x] **Design prompt**: `notes/tiles-design-prompt.md` (new game, the game screen on phone and PC, placing
+      tiles, blanks, exchange, the computer's turn, the end, saved-game card, statistics).
+
+### The word list — open, the owner decides (asked 2026-09-25)
+Measured on the lists the app has (`ac.txt` + `extra.txt`): 458 306 Polish words, 72 354 English. Two problems:
+- **Abbreviations count as words**: *hr, pp, bp, cm, dr* / *cc, cf, bk* - and the computer plays them (seen in
+  the test games: HR, PP, OPOWI, MAH). The lists come from spell-checkers, which want them.
+- **Most legal Polish words are missing**: the official Polish list (OSPS) has 2.9 million forms, ours
+  0.46 million. A player will have good words refused.
+- The fix: **sjp.pl's "słownik do gier"** (the word-game list Polish players and Literaki use; licence GPL 2
+  or CC BY 4.0, our choice - CC BY needs a credit line in the app) and, for English, **ENABLE** (public domain,
+  ~173 000 words, what Words With Friends started with). Both would go into the word graph file, built ahead of
+  time; download size to measure. The computer's levels would still use our frequency list to decide which
+  words it "knows".
+- [ ] Owner: download and use them? (the downloads need the owner's yes)
+
+### How it plays — mechanics, phone and PC (proposed 2026-09-25, in the design prompt)
+- **You against the computer**; who starts is drawn at random. No timer. Save & exit and Give up, as everywhere.
+- **Placing**: drag a tile from the rack to a square (finger or mouse); or tap a tile, then a square; a tile
+  put down this turn can be dragged elsewhere or tapped back to the rack; **Recall** takes them all back;
+  **Shuffle** mixes the rack; the rack can be reordered by dragging.
+- **Typing on a PC**: click a square (click again, or an arrow key: across or down), type letters from the
+  rack, Backspace takes the last one back, Enter plays, Esc recalls. A blank always asks which letter it is.
+- **A phone has little room**: 15 squares across 320-360 px are ~22 px each - the design must make placing
+  easy there (zoom in on the board while placing, a magnifier under the finger, or both).
+- **Before playing**: the score of the move shows as it is built, and what is wrong with it if anything
+  (not in a line, a gap, not joined, unknown word X). **Play** puts it down.
+- **Blanks**: on landing, pick the letter; a blank shows its letter but no points, and looks different.
+- **Exchange**: pick the tiles to swap - only while 7+ tiles are in the bag (say why when not). **Pass**.
+- **The computer's turn**: a short "thinking" pause (it really takes milliseconds), its tiles land, its
+  points show; the last move of each side stays marked.
+- **Always visible**: both scores, whose turn, tiles left in the bag. On demand: the move history; the letters
+  not yet seen (the bag plus the computer's rack) - proposed, owner to confirm.
+- **Hints** - proposed, owner to confirm: a hint lays one good move for your rack on the board as a preview
+  (play it or take it back); free, counted, as in the other games.
+- **New game**: language, board, the computer's level (Relaxed / Easy / Normal / Hard + Random). No
+  Polish-letters switch - the Polish set has them - and no categories.
+- **End**: won / lost / draw / gave up; the final scores with the leftovers taken off and given; the best
+  word; Play again, Menu. **Statistics**: played, won, best game score, best move (word + points), average
+  score, seven-tile moves, hints used.
+
+### To build — after the owner's answers and the design
+- [ ] The word graph file per language (a tool that builds it from the chosen list) and its loading.
+- [ ] The screens, from the design; the computer's turn off the main thread if it ever needs to be.
+- [ ] Saves, the games list, statistics; the menu row stops saying "soon".
+- [ ] Tune the levels by playing.
 
 ## Litery: hints and the "what you know" strip — DONE 2026-09-25 (0.28.2)
 - [x] Hint = one letter in its right place, free (counted only), at most half the word; the strip above the grid

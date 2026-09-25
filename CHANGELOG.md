@@ -6,6 +6,35 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.30.0 — 2026-09-25 15:47: Tiles' rules and computer player (no screen yet)
+*(not packaged)*
+
+The fourth game, Kafelki / Tiles - the classic crossword game with letter tiles, against the computer (PLAN.md
+M13) - without its screens: `app/js/tiles.js`, `app/js/tiles-moves.js`, `app/js/dawg.js`. The owner: "the normal
+board from the official game, plus two more, symmetrical; a core system; a prompt for the designer".
+- **The official rules and letter sets**: a rack of 7; 100 tiles with two blanks, the Polish and the English
+  distribution and points; the first word across the centre; one line, joined to the tiles down; every word
+  made must be real; bonus squares count under new tiles only; +50 for all seven tiles; exchanges only while 7+
+  tiles are in the bag; the end when a player goes out with the bag empty, or when everyone passes (or exchanges)
+  twice in a row; leftovers taken off, and given to whoever went out. Give up ends it too.
+- **Three boards, all symmetrical**: **Classic**, the original 15 × 15; **Quick**, 11 × 11 with half the tiles
+  for a short game and bigger squares on a phone; **Bonus**, 15 × 15 with the bonuses nearer the middle and more
+  triple letters, for bigger scores. Quick and Bonus borrow the ideas of the Words With Friends boards; the
+  layouts are our own.
+- **Every legal move for a rack** (the Appel-Jacobson method on a word graph): 1-2 ms a turn on a PC, 86 ms
+  with two blanks in Polish. Used by the computer, and by hints if the owner wants them.
+- **The computer**: four levels, as in the other games - how many words it knows (the 5 000, 8 000 or 20 000
+  most common base words and their forms; Hard all of them) and how close to its best move it plays.
+- **Words**: every word and form the app knows, 2-15 letters, never a slur or a vulgar word - 458 306 Polish,
+  72 354 English, in a word graph of 1.7 MB / 0.4 MB that can be saved as a data file and loaded back.
+  Stopgap: these lists let in abbreviations and miss most legal Polish forms (the owner decides on a better
+  list - PLAN.md M13).
+- **Tests**: `tools/test-tiles.mjs`, 106 - the boards (counts, symmetry), the letter sets, the word graph, every
+  placement error, scoring by hand-worked examples, exchanges, passes, going out, giving up; the move finder
+  against a search through every possible placement (5 positions, 44-478 moves each, all agree); five whole
+  games computer against computer - every move legal, no tile lost, scores add up.
+- **Design prompt** for its screens: `notes/tiles-design-prompt.md`.
+
 ## 0.29.6 — 2026-09-25 15:20: Each game remembers its own Polish-letters choice again
 *(released 2026-09-25 as v0.29.6 — Windows installer + signed Android APK, carrying 0.22.6–0.29.5 too; installed on the owner's phone and PC)*
 

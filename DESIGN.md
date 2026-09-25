@@ -367,6 +367,31 @@ the right — and under it a plain card edged in the same colour with the word, 
 - Screen: the status row, the board (tiles sized by width and height), one slot for the word being dragged
   and the game's answer, the circle with Shuffle, Hint and the bonus counter. Motion times are the design's.
 
+### Tiles (Kafelki) - the rules, no screens yet (0.30.0; PLAN.md M13)
+- **The classic crossword-tile game against the computer**, never called by the trademarked name. Official
+  rules: a rack of 7, the first word across the centre, one line, joined to what is down, every word made must
+  be real, bonus squares only under new tiles, 50 for all seven tiles, exchanges only while 7+ tiles are in the
+  bag, the game ends when a player goes out with the bag empty or everyone passes twice in a row (exchanges
+  count, so it cannot run for ever); leftovers are taken off, and whoever went out gets them. No challenges:
+  a move is checked before it goes down, as in the apps.
+- **The official letter sets**, 100 tiles each with two blanks (Polish: 32 letters, A ×9 … Ź ×1 worth 9).
+- **Three boards**, each symmetrical both ways and across the diagonals: **Classic** - the original 15 × 15;
+  **Quick** - 11 × 11 with half the tiles (every letter half as many, rounded up: 60 Polish, 54 English), the
+  idea of Words With Friends' "Fast Play" board, our own layout; **Bonus** - 15 × 15 with the bonuses pulled in
+  from the edges and 16 triple letters, the idea of the Words With Friends board, our own layout. Copying a
+  commercial board square for square was not an option, and their layouts are not published anyway.
+- **Words in a word graph** (DAWG, `dawg.js`): 458 306 Polish words in 1.7 MB, 72 354 English in 0.4 MB.
+  Building it takes 1.5 s on a PC, so the game will load one built ahead of time (bytes format in `dawg.js`).
+  For now the words are the app's own lists (`ac.txt` + `extra.txt`), minus slurs and vulgar words - which
+  lets in abbreviations (hr, pp, bp, cm) and misses most of the 2.9 million forms Polish players accept:
+  PLAN.md M13, "The word list".
+- **Finding moves**: Appel & Jacobson (1988) - anchors, cross-checks, the left part then the right, along
+  the rows of the board and of the board turned over its diagonal. 1-2 ms a turn on a PC, 86 ms for the
+  worst rack there is (two blanks, Polish). The tests check it against a search through every placement.
+- **The computer's levels** = how many words it knows (base word among the 5 000 / 8 000 / 20 000 most
+  common, Hard all) and how hard it tries (the move nearest 50 / 70 / 85 / 100 % of the best it can see).
+  With nothing it can play, it swaps its whole rack while it may, else passes. First values, for tuning.
+
 ## 4a. Rendering quality & responsiveness (hard requirements)
 
 Lockdown's loading glitches are the anti-goal. Rules from day one:
