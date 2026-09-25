@@ -289,7 +289,7 @@ Simple, flat navigation — no tabs inside gameplay:
 Main Menu ─── Play ── (game picker: list of saved games — resume / rename / delete / New Game)
    │                       └─ New Game → settings sheet (language, category, length band, difficulty,
    │                                                     friend mode) → Game screen
-   ├─ Achievements & Stats (badges + lifetime statistics on one screen)
+   ├─ Statistics (one tab per game; no achievements since 0.23.0)
    └─ Settings (app language PL/EN, theme, sound, update check / About)
 
 Game screen: secret-word status bar (guess count, category, give-up / save-exit buttons),
@@ -379,54 +379,28 @@ Fully **offline** at runtime — no API, no server, no accounts. Update check on
 Android builds are done **from the terminal** (Capacitor CLI + Gradle) — no manual
 Android Studio steps in the workflow.
 
-## 6. Achievements & statistics (one screen)
+## 6. Statistics (one screen, a tab per game)
 
-Badges and lifetime stats share one screen (there aren't many badges).
+**No achievements (since 0.23.0).** The owner, 2026-09-25: the games are for fun, and all four games
+have achievements or none — so none. Eight Guess badges and four Letters badges were removed; what
+only a badge showed stays as a plain statistic. (What they were: CHANGELOG 0.12.x–0.16.0.)
 
-**Statistics** (lifetime, across all games): words guessed (total + unique), letters typed,
-games played, games won, games given up, time spent in game, best win (fewest guesses),
-current/best win streak. Same counters feed the badge engine.
+**Guess**: games played, won, given up, words guessed, unique words, letters typed, time in game
+(active play only), best win (fewest guesses), average win, hardest word beaten, hard words won
+(difficulty ≥ 70), categories won (of 21, "All" included), wins in Polish / English.
 
 **What a win counts toward.** A category is a hint: being told the secret is an animal cuts the search
 from 6 207 words to ~150, so those games are quick to win and cannot be compared with open ones.
-Speed and difficulty badges — and the *hardest word beaten* stat — therefore count only **category-free,
-non-friend** games; categories have their own badge (Explorer). Wordsmith and Typist count everything,
+Best win, average win, hardest word and hard words therefore count only **category-free, non-friend**
+games; categories count toward "categories won". Unique words and letters typed count everything,
 because they measure typing, not winning. (Measured the other way round too: category secrets are
 *rarer* words than open ones — PL animals 69 vs all 46 — because categories reach to rank 30 000 while
 "All" stops at 12 000. Rarity is not the same as hard to corner.)
 
-**Badges** — tiered; tier ladder: **Bronze → Silver → Gold → Diamond → Amethyst** (confirmed), drawn as
-the design's "1b Tier ladder" card. Eight of them:
+**Letters**: games played, won, win streak (current, best under it), best score, average tries per win,
+and a strip of wins at each word length, 3–13.
 
-| Badge | Counts | Tiers |
-|---|---|---|
-| Wordsmith | unique words typed (all games) | 100 / 500 / 2 000 / 10 000 / 30 000 |
-| Typist | letters typed (all games) | 1k / 5k / 25k / 100k / 500k |
-| Sharpshooter | fewest guesses in a won open game | under 50 / 25 / 12 / 6 / 3 |
-| Giant Slayer | hardest word beaten, open games | 45 / 55 / 65 / 72 / 79 |
-| Deep Cut | wins on a word of difficulty ≥ 70 | 1 / 3 / 10 / 25 / 50 |
-| Explorer | categories won in at least once (21 incl. "All") | 3 / 6 / 10 / 15 / 21 |
-| Marathon | **active** play time (typing within the last minute) | 1 h / 5 h / 20 h / 50 h / 100 h |
-| Polyglot | wins in both languages, counted in the weaker one | 1 / 3 / 10 / 25 / 50 |
-
-Giant Slayer's tiers come from the data: an uncategorised secret tops out at difficulty 82 (PL) / 85
-(EN) and 79 is the 99th percentile in both, so 79 is a real summit rather than an impossible one.
-The rest are placeholders to tune once there is real play data.
-
-**Letters (0.16.0) has its own tab**: games played, won, win streak (current, best under it), best
-score, average tries per win — and four badges of its own, thresholds from the design, to tune:
-
-| Badge | Counts | Tiers |
-|---|---|---|
-| Champion | Letters games won | 10 / 50 / 150 / 500 / 1 500 |
-| High score | best single-game score | 150 / 250 / 400 / 600 / 1 000 |
-| On a roll | longest run of wins in a row | 3 / 5 / 10 / 20 / 50 |
-| Full range | word lengths won at (of the 11, 3–13), with a per-length strip | 3 / 5 / 7 / 9 / 11 |
-
-Letters typed and time in game are shared by both modes; everything else on the Guess tab is Guess's.
-
-More badge ideas may come later. Engine keeps a lifetime stats record + per-game event log
-(guesses, scores, wins, give-ups) so new badges can be added without losing history.
+Letters typed and time in game are shared by both games and shown under the Letters tab.
 
 ## 7. Design handoff (owner's design agent → this codebase)
 

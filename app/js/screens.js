@@ -1,10 +1,9 @@
-// Menu, game picker, new game, achievements & stats, settings. Markup is the design handoff's
+// Menu, game picker, new game, statistics, settings. Markup is the design handoff's
 // (design/handoff/*.html), with the dummy text replaced by t(...) and live data.
 import { t, plural, esc, num, decimal, clock, ago, dateTime, setLang, getLang, LANG_NAMES } from './i18n.js';
-import { settings, saveSettings, stats, saveStats, listSaves, getSave, putSave, deleteSave, newGame, gameName } from './store.js';
+import { settings, saveSettings, stats, listSaves, getSave, putSave, deleteSave, newGame, gameName, HARD_WIN } from './store.js';
 import { load, loadWords, preload, resolve, pickSecret, lengthStats } from './engine.js';
 import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js';
-import { BADGES, LT_BADGES, TIERS, progress } from './badges.js';
 import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYPH, modeTag, TILE, squares } from './ui.js';
 import { fitAll } from './fit.js';
 import { click } from './sound.js';
@@ -483,42 +482,10 @@ let statsTab = 'guess';   // which mode the stats screen shows, kept while the a
 export function statsScreen(root, _, refresh) {
   const s = stats;
   const card = (label, value, sub = '') => `<div class="card stat-card"><span class="eyebrow">${label}</span><span class="num">${value}</span>${sub && `<span class="sub">${sub}</span>`}</div>`;
-  // Design "1b Tier ladder": the whole climb in one card - five keys, earned ones in their tier colour,
-  // the next one outlined, thresholds always visible - with the key states from the design's
-  // "States, whichever direction wins" block. Only a tier unlocked since the last visit wears the
-  // brand accent, which is what gives the unlock moment somewhere to go.
-  const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
-  const badge = (b, extra = '') => {
-    const p = progress(b, s);
-    const seen = s.seenTiers?.[b.id] ?? p.unlocked;
-    const freshAt = p.unlocked > seen ? p.unlocked - 1 : -1;
-    const nextTier = p.next === null ? '' : t('tier.' + TIERS[p.unlocked]);
-    const state = i => i === freshAt ? 'fresh'
-      : i < p.unlocked ? (p.unlocked === TIERS.length ? 'maxed' : 'earned')
-        : i === p.unlocked ? 'next' : 'locked';
-    const fmt = b.fmt ?? num;
-    const head = b.lower
-      ? `<span class="now"><b class="num">${p.value ? fmt(p.value) : '—'}</b> <span class="help">${t('game.bestWin')}</span></span>`
-      : `<span class="now"><b class="num">${fmt(p.value)}</b> <span class="help">${t('badges.of', { n: fmt(p.next ?? b.th.at(-1)) })}</span></span>`;
-    const note = p.next === null ? t('badges.done')
-      : b.lower ? t('badges.winIn', { n: p.next, tier: nextTier })
-        : t('badges.toGo', { n: fmt(p.next - p.value), tier: nextTier });
-    const from = p.unlocked ? `var(--tier-${TIERS[p.unlocked - 1]})` : 'var(--accent)';
-    const to = p.next === null ? `var(--tier-${TIERS.at(-1)})` : `var(--tier-${TIERS[p.unlocked]})`;
-    return `<article class="card badge">
-        <div class="badge-head"><h3 class="badge-name">${t('badge.' + b.id)}</h3><span class="help">${t(`badge.${b.id}.d`)}</span></div>
-        <div class="keys">${TIERS.map((tier, i) => `<div class="key ${state(i)}" style="--tier:var(--tier-${tier})"><span class="gem">${ROMAN[i]}</span><span class="name">${fmt(b.th[i])}</span></div>`).join('')}</div>
-        <div class="track">
-          <div class="track-head">${head}<span class="note"${p.next === null ? '' : ` style="color:var(--tier-${TIERS[p.unlocked]})"`}>${note}</span></div>
-          <span class="bar"><i style="--pct:${p.pct}%;background:linear-gradient(90deg,${from},${to})"></i></span>
-        </div>${extra}
-      </article>`;
-  };
   const lt = s.lt;
-  // Full range carries a strip of the lengths themselves, so the player sees which ones are missing
-  const lengthsStrip = `<div class="lengths" aria-label="${t('badge.range.strip')}">${Array.from({ length: 11 }, (_, i) => i + 3).map(len =>
+  // wins at each word length, 3 to 13, so the player sees which ones are missing
+  const lengthsStrip = `<div class="lengths" aria-label="${t('stats.byLen')}">${Array.from({ length: 11 }, (_, i) => i + 3).map(len =>
     `<span class="${lt.wonLen[len] ? 'won' : ''}"><b>${lt.wonLen[len] ? num(lt.wonLen[len]) : '·'}</b><em>${len}</em></span>`).join('')}</div>`;
-  const shown = statsTab === 'letters' ? LT_BADGES : BADGES;
   const lettersPanel = () => `<section class="section" role="tabpanel">
       <div class="stats">
         ${card(t('stats.played'), num(lt.played))}
@@ -527,8 +494,8 @@ export function statsScreen(root, _, refresh) {
         ${card(t('stats.bestScore'), lt.bestScore ? num(lt.bestScore) : '—')}
         ${card(t('stats.avgWin'), lt.won ? decimal((lt.wonTries / lt.won).toFixed(1)) : '—', t('stats.perWonLt'))}
       </div>
-      <h2 class="title">${t('badges.letters')}</h2>
-      <div class="badges">${LT_BADGES.map(b => badge(b, b.id === 'range' ? lengthsStrip : '')).join('')}</div>
+      <h2 class="title">${t('stats.byLen')}</h2>
+      ${lengthsStrip}
     </section>
     <div class="shared"><span class="eyebrow" style="width:100%">${t('stats.shared')}</span><span><b>${num(s.letters)}</b> ${t('stats.lettersTyped')}</span>${DOT}<span><b>${clock(s.timeMs, true)} h</b> ${t('game.inGame')}</span></div>`;
   root.innerHTML = `<div class="app" data-screen="stats">
@@ -543,21 +510,20 @@ export function statsScreen(root, _, refresh) {
       ${card(t('stats.won'), num(s.won), s.played ? Math.round(s.won / s.played * 100) + ' %' : '')}
       ${card(t('stats.givenUp'), num(s.givenUp))}
       ${card(t('stats.words'), num(s.words))}
+      ${card(t('stats.unique'), num(s.unique.length))}
       ${card(t('stats.letters'), num(s.letters))}
       ${card(t('stats.time'), `${clock(s.timeMs, true)}<span class="muted" style="font:500 13px var(--font-body)"> h</span>`, t('stats.timeSub'))}
       ${card(t('stats.bestWin'), s.bestWin ? num(s.bestWin) : '—', s.bestWin ? plural(s.bestWin, 'n.guesses') : '')}
       ${card(t('stats.avgWin'), s.wonRated ? (s.wonGuesses / s.wonRated).toFixed(1) : '—', t('stats.perWon'))}
       ${card(t('stats.hardest'), s.hardest ? `<span style="font-size:.7em">${esc(s.hardest.w)}</span>` : '—',
     s.hardest ? t('stats.hardestSub', { n: s.hardest.score }) : '')}
+      ${card(t('stats.hardWins'), num(s.hardWins ?? 0), t('stats.hardWinsSub', { n: HARD_WIN }))}
+      ${card(t('stats.pools'), num(Object.keys(s.wonPools ?? {}).length), t('stats.poolsSub', { n: CATS.length }))}
+      ${card(t('stats.byLang'), `${num(s.wonLang?.pl ?? 0)} / ${num(s.wonLang?.en ?? 0)}`)}
     </div>
-
-    <h2 class="title">${t('badges.title')}</h2>
-    <p class="help">${t('badges.noCat')}</p>
-    <div class="badges">${BADGES.map(b => badge(b)).join('')}</div>
+    <p class="help">${t('stats.noCat')}</p>
     </section>`}
   </main>
-  <!-- an unlock is "fresh" until the player has seen it here once - on the tab it is shown on -->${
-    (() => { for (const b of shown) stats.seenTiers[b.id] = progress(b, s).unlocked; saveStats(); return ''; })()}
 </div>`;
   root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { statsTab = b.dataset.tab; refresh(); }));
 }

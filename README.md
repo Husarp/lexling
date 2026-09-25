@@ -36,12 +36,11 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - **Autocomplete / suggestions** while typing, restricted to words the game knows
   (with diacritic-insensitive matching for Polish — typing `zolw` finds `żółw`).
 - Multiple games at once: save, resume, rename, give up (reveals the word).
-- Achievements / badges.
+- Statistics for each game (no achievements, since 0.23.0).
 - Polish + English, switchable.
 - **Letters mode**: one box per letter, the phone's own keyboard, a score of letters ÷ guesses used
   × 100 × difficulty × 6 ÷ tries allowed (a Polish letter counts double; unlimited tries count as
-  20; running out of tries still pays a little from your best row), and its own statistics
-  and badges.
+  20; running out of tries still pays a little from your best row), and its own statistics.
 
 ## Run it (development)
 
@@ -82,7 +81,7 @@ to the old one, and games saved in the old app do not carry over. The GitHub rep
 produces `build\LexlingSetup.exe` (~3 minutes). Run it: it installs for your account only (no
 admin prompt) into `%LOCALAPPDATA%\Programs\Lexling`, adds Start-menu and desktop shortcuts and an
 "Apps & features" entry. **The same exe is the updater**: run a newer one and it offers *Update*
-and replaces the program in place. Saved games, statistics and badges live in
+and replaces the program in place. Saved games and statistics live in
 `%LOCALAPPDATA%\Lexling` — outside the program folder — so updates never touch them; uninstalling
 keeps them unless you tick the box.
 
@@ -158,7 +157,7 @@ app/                the game itself — single-page app, no build step, no depen
   index.html        shell: no-flash boot (page colour + theme before first paint, fonts preloaded)
   css/app.css       design tokens + shared styles (verbatim from the design) + per-screen styles
   js/main.js        boot + hash router (#/games, #/game/<id> … so Back works on Android)
-  js/screens.js     menu, game picker, new game (both modes), achievements & stats, settings
+  js/screens.js     menu, game picker, new game (both modes), statistics, settings
   js/game.js        the Guess game screen (input, autocomplete, guess boxes, history, win / give-up)
   js/letters-game.js  the Letters game screen (letter boxes, hidden input, reveal, win / loss, copy result)
   js/letters.js     Letters rules: feedback, score, which words can be hidden and how hard they are
@@ -166,7 +165,7 @@ app/                the game itself — single-page app, no build step, no depen
   js/store.js       settings, saved games, lifetime stats (localStorage)
   js/i18n.js        every UI string in EN + PL, plural rules, number/time formatting
   js/fit.js         text-fit guarantee (long labels shrink / wrap, never overflow)
-  js/badges.js  js/sound.js  js/ui.js  js/version.js
+  js/sound.js  js/ui.js  js/version.js
   fonts/            Barlow Condensed + Inter (bundled, OFL licences alongside)
   data/             generated word data (build output, not hand-edited)
 design/v2/handoff/  the design agent's six screens — the visual source of truth (v1 kept in design/v1/)

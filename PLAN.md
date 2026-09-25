@@ -172,6 +172,11 @@ Ported 1:1 in 0.16.0.
       is known to repeat, a press animation, Backspace; tap a tile to select and overwrite it (the
       selection then moves on); a Settings switch to use the phone's keyboard instead. Design prompt
       written: `notes/letters-keyboard-design-prompt.md` — waiting for the design.
+      **The owner's rules for the phone-keyboard switch (2026-09-25) — they win over the brief, which
+      said the on-screen keyboard hides when the switch is on:** the switch is **OFF by default**. When
+      it is ON, the on-screen keyboard stays; tapping a square also opens the phone's keyboard to type
+      with; tapping anywhere else closes it, as Android does; and pressing a key on the on-screen
+      keyboard while the phone's keyboard is open closes the phone's keyboard.
 - [ ] The owner asked whether the other end texts should change as well — the design's versions are in
       (Koniec prób / Out of tries, Poddałeś się / You gave up); waiting to hear if they want others.
 
@@ -354,10 +359,8 @@ Starting it before the letters mode exists is how a project ends up with three h
 - [ ] **Polish Scrabble accepts every inflected form**, and `ac.txt` already holds 384 000 of them —
       so the word list is solved, not just started.
 - [ ] Worth knowing early: **"Scrabble" is a trademark.** A shipped game needs its own name.
-- [ ] **Its name** (asked 2026-09-25): the owner turned down "Plansza / Board". Offered: **Kafelki /
-      Tiles** (recommended), Pojedynek / Duel, Mistrz słów / Wordsmith, Letterex. Not "Literaki" — the
-      name of a well-known Polish online game of this kind. The menu prompt uses Kafelki / Tiles as a
-      stand-in.
+- [x] **Its name: Kafelki / Tiles** — chosen by the owner 2026-09-25 (also offered: Pojedynek / Duel,
+      Mistrz słów / Wordsmith, Letterex; not "Literaki", a well-known Polish online game of this kind).
 
 ## M14 — The third game: Połącz / Connect — PLANNED 2026-09-25, designs requested
 The owner's description: you get a few letters **arranged in a circle**. You draw a word by dragging
@@ -407,10 +410,11 @@ themed packs, and **none of them has a points score** — finishing the board is
   So "which words count" becomes: base forms on the board, every form as a bonus.
 - **Hints — free and unlimited** (owner 2026-09-25: the game is about fun; a player who is stuck
   should not be kept stuck). The owner's idea: a hint puts a letter into an unfinished word, e.g. its
-  first. Proposed, waiting for the owner's OK: each press shows **one more letter of one word, from
+  first. Each press shows **one more letter of one word, from
   its start** — so the player takes as much help as they want. Tap a word on the board to choose it;
   otherwise the hint goes on with the word showing the most letters (shortest on a tie), so repeated
-  presses finish one word. A word completed by hints counts, but looks hinted. (Weighed and not
+  presses finish one word. A word completed by hints counts, but looks hinted. **Agreed by the owner
+  2026-09-25.** (Weighed and not
   proposed: a fixed first + last letter, or first two — they give too much for short words and too
   little for long ones.) Shuffle is free.
 - A wrong word shakes the circle; an already-found word flashes on the board; a bonus word flies into
@@ -431,11 +435,8 @@ The recommendation below was accepted:
 - **Connect has no points**, like the genre: its result is solved / bonus words / hints used.
 - **Each game keeps its own statistics tab**.
 - Later, if wanted: a **personal best list per game** (your top 10 results for that game).
-- [ ] **Achievements: all games or none — the owner leans to NONE** (2026-09-25: "not really needed").
-      Waiting for the owner to confirm. If confirmed: remove the badges from Guess and Letters too —
-      `badges.js`, the badge sections of the statistics screen, their strings and the "freshly
-      unlocked" accent; the numbers they were built on stay as statistics. The design prompts already
-      assume none.
+- [x] **Achievements: none, in any game** — the owner, 2026-09-25. Removed from Guess and Letters in
+      0.23.0; what only a badge showed stays as a plain statistic.
 
 ### Designs — prompts written 2026-09-25
 - [ ] **Main menu for four games** — four big cards do not fit a phone: `notes/menu-four-games-design-prompt.md`.

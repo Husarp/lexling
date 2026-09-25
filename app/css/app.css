@@ -17,8 +17,6 @@
      livelier hues, and .78 opacity instead of .55 so they read as colour rather than as tinted grey.
      White text keeps its legibility with the small shadow added at the bottom of this file. */
   --fill-cold:#FF3B30; --fill-warm:#FF7A18; --fill-mid:#FFC531; --fill-hot:#2BD96B; --fill-alpha:.78;
-  /* badge tiers */
-  --tier-bronze:#A9713F; --tier-silver:#B9BFC7; --tier-gold:#E0AF2B; --tier-diamond:#DDF3FF; --tier-amethyst:#9B6BB0;
   --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px; --space-6:24px; --space-8:32px; --space-10:40px; --space-12:48px;
   --radius-sm:10px; --radius-md:12px; --radius-lg:16px; --radius-pill:9999px;
   --font-display:"Barlow Condensed","Arial Narrow","Roboto Condensed","Helvetica Neue",sans-serif;
@@ -178,33 +176,6 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=stats] .stat-card{padding:var(--space-4);display:grid;gap:var(--space-1);align-content:start}
 [data-screen=stats] .stat-card .num{font-size:clamp(28px,6vw,40px)}
 [data-screen=stats] .stat-card .sub{font-size:12px;color:var(--text-muted)}
-/* badges: design "1b Tier ladder" + the key states from "States, whichever direction wins" */
-[data-screen=stats] .badges{display:grid;gap:var(--space-3)}
-[data-screen=stats] .badge{padding:var(--space-5);display:grid;gap:18px;background:var(--bg);border:1px solid var(--line-soft)}
-[data-screen=stats] .badge-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:var(--space-2) var(--space-3)}
-[data-screen=stats] .badge-name{font:700 clamp(22px,4.5vw,26px)/1 var(--font-display);text-transform:uppercase;letter-spacing:-.01em}
-/* the descriptions read as sentences; ::first-letter does it without touching the translations */
-[data-screen=stats] .badge-head .help::first-letter{text-transform:uppercase}
-[data-screen=stats] .keys{display:flex;gap:6px}
-[data-screen=stats] .key{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:6px;align-items:center}
-[data-screen=stats] .key .gem{width:100%;height:40px;border-radius:12px;display:grid;place-items:center;font:800 16px/1 var(--font-display);
-  background:#0A0A0A;border:1.5px dashed var(--line-soft);color:var(--text-dim);transition:box-shadow var(--dur) var(--ease)}
-[data-screen=stats] .key .name{font:600 10px/1 var(--font-body);letter-spacing:.06em;color:var(--text-dim);overflow-wrap:anywhere;text-align:center}
-[data-screen=stats] .key.earned .gem,[data-screen=stats] .key.maxed .gem{background:color-mix(in srgb,var(--tier) 13%,#0A0A0A);border:1.5px solid var(--tier);color:var(--tier)}
-[data-screen=stats] .key.earned .name,[data-screen=stats] .key.maxed .name{color:var(--text-muted)}
-[data-screen=stats] .key.next .gem{background:#0A0A0A;border:1.5px solid var(--tier);color:var(--tier);opacity:.55}
-[data-screen=stats] .key.next .name{color:var(--tier)}
-[data-screen=stats] .key.fresh .gem{background:var(--accent);border:1.5px solid var(--accent);color:#fff;box-shadow:0 0 0 4px var(--accent-soft)}
-[data-screen=stats] .key.fresh .name{color:var(--accent)}
-[data-screen=stats] .track{display:grid;gap:8px;padding:14px;border-radius:12px;background:var(--surface)}
-[data-screen=stats] .track-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-2);flex-wrap:wrap}
-[data-screen=stats] .track .now{display:flex;align-items:baseline;gap:6px}
-[data-screen=stats] .track .now .num{font-size:28px}
-[data-screen=stats] .track .note{font:600 11px/1.3 var(--font-body);letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);text-align:right}
-[data-screen=stats] .track .bar{display:block;height:8px;border-radius:var(--radius-pill);background:var(--bg);overflow:hidden}
-[data-screen=stats] .track .bar i{display:block;height:100%;width:var(--pct);border-radius:var(--radius-pill);transition:width var(--dur) var(--ease)}
-[data-theme=light] [data-screen=stats] .key .gem{background:var(--surface-2)}
-[data-theme=light] [data-screen=stats] .key.earned .gem,[data-theme=light] [data-screen=stats] .key.maxed .gem{background:color-mix(in srgb,var(--tier) 22%,#fff)}
 
 /* settings.html */
 [data-screen=settings] .group{display:grid;gap:0}
@@ -427,7 +398,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=stats] .tabs button{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2)}
 [data-screen=stats] .tabs button.on .glyph i,[data-screen=stats] .tabs button.on .glyph{outline:1px solid rgba(255,255,255,.5)}
 [data-screen=stats] .section{display:grid;gap:var(--space-6)}
-/* wins at each length: one cell per length 3–13 under the Full range badge */
+/* Letters' wins at each word length: one cell per length 3–13 */
 [data-screen=stats] .lengths{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:4px}
 [data-screen=stats] .lengths span{display:grid;gap:4px;justify-items:center;min-width:0}
 [data-screen=stats] .lengths b{width:100%;height:30px;display:grid;place-items:center;border-radius:8px;font:800 15px/1 var(--font-display);border:1.5px dashed var(--line-soft);color:var(--text-dim)}

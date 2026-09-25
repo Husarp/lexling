@@ -6,6 +6,23 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.23.0 — 2026-09-25 12:14: No more achievements
+*(not packaged)*
+
+- **Achievements (badges) are gone from both games** — the owner's choice: Lexling's games are for
+  fun, and all four games will either have achievements or none. The statistics screen shows each
+  game's numbers only, and the menu button says **Statistics** / **Statystyki** (was "Achievements &
+  stats" / "Osiągnięcia i statystyki").
+- **What only a badge showed stays, as a plain statistic**: in Guess — unique words (was Wordsmith),
+  hard words won, difficulty 70+ (Deep Cut), categories won, of 21 with "All" (Explorer), wins
+  Polish / English (Polyglot); in Letters — the wins-by-word-length strip (Full range). The rest
+  already had their own statistic (games won, best score, best streak, best win, hardest word,
+  letters typed, time).
+- Removed: `badges.js`, the tier colours and badge-card styles, and every badge, tier and "badges."
+  string in both languages. The saved "tiers seen" record is no longer written.
+- Checked by rendering both statistics tabs and the menu in Polish and English: every number in place,
+  no badge text left anywhere, all 240 Letters tests pass.
+
 ## 0.22.6 — 2026-09-25 11:53: The start screen's bottom bar shows only the version
 *(not packaged)*
 

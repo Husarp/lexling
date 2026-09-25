@@ -1,7 +1,9 @@
 // Settings, saved games and lifetime stats. Everything lives in localStorage; the desktop/Android
 // wrappers pin the WebView's storage folder outside the install dir so updates never touch it.
-import { HARD_WIN } from './badges.js';
 import { t } from './i18n.js';
+
+// "A hard word": the top ~10 % of the uncategorised pool, for the hard-words statistic.
+export const HARD_WIN = 70;
 const read = (key, fallback) => {
   try { return { ...fallback, ...JSON.parse(localStorage.getItem(key)) }; } catch { return { ...fallback }; }
 };
@@ -20,12 +22,11 @@ export const stats = read('wg.stats', {
   played: 0, won: 0, givenUp: 0, words: 0, letters: 0, timeMs: 0, bestWin: 0, wonGuesses: 0, wonRated: 0,
   hardest: null,    // { w, lang, score, guesses } - the toughest secret beaten so far
   hardWins: 0,      // wins on a word of difficulty >= HARD_WIN
-  wonPools: {},     // category key (or "all") -> true, for the explorer badge
-  wonLang: {},      // language -> wins, for the polyglot badge
-  seenTiers: {},    // badge id -> tiers the player had when they last opened the stats screen
+  wonPools: {},     // category key (or "all") -> true: the categories-won statistic
+  wonLang: {},      // language -> wins
   unique: [], gameNo: 0,
-  // Letters keeps its own numbers: everything above except letters, timeMs, seenTiers and gameNo is
-  // the Guess mode's. wonLen = word length -> wins, for the Full range badge.
+  // Letters keeps its own numbers: everything above except letters, timeMs and gameNo is the Guess
+  // mode's. wonLen = word length -> wins, for the wins-by-length strip.
   lt: { played: 0, won: 0, lost: 0, givenUp: 0, streak: 0, bestStreak: 0, bestScore: 0, wonTries: 0, wonLen: {} },
 });
 const unique = new Set(stats.unique);
@@ -80,7 +81,7 @@ export function recordGuess(game, word, typed) {
 // What a win counts toward depends on how much help the player had:
 //  * friend mode - somebody else chose the word, so it counts for nothing but the plain totals;
 //  * a category - the hint makes the word quick to corner, so speed and difficulty are not comparable
-//    with an open game. Those wins feed the explorer badge instead (badges.js explains the reasoning).
+//    with an open game. Those wins count toward the categories-won statistic only.
 export function recordEnd(game, won, difficulty = -1, hinted = false) {
   if (won) {
     stats.won++;
