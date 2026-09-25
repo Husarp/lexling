@@ -106,7 +106,7 @@ check('cells of a word across', cellsOf(board.words[0]), ['1-1', '1-2', '1-3', '
 check('cells of a word down', cellsOf(board.words[1]), ['1-1', '2-1', '3-1', '4-1']);
 // hints (owner, 2026-09-25): a random letter not showing yet, anywhere - or in the chosen word; none once half of
 // a word's letters (rounded down) show - letters from found crossing words count too (owner, later that day)
-check('the cap: half a word, rounded down', [hintCap('kora'), hintCap('karton'), hintCap('kot'), hintCap('krowa')], [2, 3, 1, 2]);
+check('the cap: half a word, rounded up (owner, 2026-09-25)', [hintCap('kora'), hintCap('karton'), hintCap('kot'), hintCap('krowa')], [2, 3, 2, 3]);
 const first = nextHint(board, [], [], null, () => 0);
 check('a hint is a letter not showing yet', first.cell !== null && !visible(board, [], []).has(first.cell), true);
 const spots = new Set(Array.from({ length: 60 }, (_, i) => nextHint(board, [], [], null, () => i / 60).cell));

@@ -48,7 +48,9 @@ function candidates(m, marks) {
     mine[key] = [];
     for (let len = WORD_MIN; len <= RING_MAX; len++) {
       for (const i of pool(m, { len, diff: 'random', marks })) {
-        if (!offensive(m, m.words[i])) mine[key].push({ w: m.words[i], n: len, rank: i });   // no slurs on the board
+        // no slurs on the board; a specialist word that only looks common (sedan - pool.json) counts as Hard
+        const rank = m.poolFix?.hard?.has(m.words[i]) ? Math.max(i, RANK_CAP.normal) : i;
+        if (!offensive(m, m.words[i])) mine[key].push({ w: m.words[i], n: len, rank });
       }
     }
   }
@@ -173,13 +175,13 @@ export const solved = (board, found, shown) => doneWords(board, found, shown).le
 
 // The next hint (owner, 2026-09-25): a random letter that is not showing yet, anywhere on the board - or,
 // when the player tapped a word first, anywhere in that word. A hint must stay a hint, not solve the word
-// for you: once half of a word's letters (rounded down) show - 3 of 6, 2 of 5, 1 of 3 - it takes no more
-// hints. Every letter showing counts, a hinted one or one a found crossing word put there (owner, 2026-09-25:
+// for you: once half of a word's letters (rounded up - owner, 2026-09-25) show - 3 of 6, 3 of 5, 2 of 3 - it takes
+// no more hints. Every letter showing counts, a hinted one or one a found crossing word put there (owner, 2026-09-25:
 // "if a word of six letters already has two from crossed words, you can only do one hint on it"). A cell
 // where two words cross counts for both. Returns null when every word is done, { cell: null } when no word may
 // take another hinted letter (or the chosen one may not), otherwise { cell, words } - the unfinished
 // words through that cell.
-export const hintCap = word => Math.floor([...word].length / 2);
+export const hintCap = word => Math.ceil([...word].length / 2);
 export function nextHint(board, found, shown, pick = null, rand = Math.random) {
   const vis = visible(board, found, shown);
   const open = board.words.filter(x => !isDone(x, found, vis));

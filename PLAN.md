@@ -492,6 +492,11 @@ Order: the game itself first, then these; all of them are in the design prompt, 
       kino, złoto, przyjaźń, szachy, spodnie... (each is also a form of something else: gra of grać, muzyka of muzyk). The
       Hunspell dictionary cannot tell them apart; sjp.pl's inflection list (sjp-odm-*.zip, 12.7 MB, same licence) can - it
       starts every line with the base form. Asked the owner to allow the download.
+- [x] **Litery: no hints** (owner, 2026-09-25: "they don't fit - the game is not endless, you can lose"). 0.34.0
+- [x] **Połącz: the hint cap rounds up** (3 of 5, 2 of 3), and **a hinted letter stays marked** once its word is done:
+      green with a dashed edge, in the game and on the end screen (owner: "it doesn't show where you used a hint"). 0.34.0
+- [x] **SEDAN on Normal** (owner: "I don't know it"): specialist words that are also English words look commoner
+      than they are - 105 now Hard only, in Litery and Połącz. 0.34.0
 - [x] Znaczenie (Guess) hides from its own list - the same cleanup now applies there too (owner: yes), 0.33.3. It also
       caught English slurs and vulgar words Znaczenie could still pick (bullshit, prick, bollocks...).
 - [x] **How to play, on every New game screen** (owner, 2026-09-25: "a card that says how to play - which

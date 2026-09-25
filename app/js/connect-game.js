@@ -61,14 +61,17 @@ export async function connectGameScreen(root, id) {
   const collectCells = () => { cells = new Map([...main.querySelectorAll('[data-cell]')].map(el => [el.dataset.cell, el])); };
 
   // Green where a word the player found runs through, dashed where only a hint shows the letter, red
-  // outline after giving up for what was left; the word chosen for a hint outlined in the theme colour.
+  // outline after giving up for what was left; the word chosen for a hint outlined in the theme colour. A hinted
+  // letter in a word that is complete turns green but keeps its dashed edge, during the game and on the end screen
+  // (owner, 2026-09-25: "it doesn't show where you used a hint").
   function paintCells(end = false) {
     const found = new Set(board.words.filter(x => game.found.includes(x.w)).flatMap(cellsOf));
-    const shown = new Set(game.shown);
+    const shown = new Set(game.shown), vis = visible(board, game.found, game.shown);
+    const done = new Set(board.words.filter(x => isDone(x, game.found, vis)).flatMap(cellsOf));
     const picked = new Set(pick ? cellsOf(board.words.find(x => x.w === pick)) : []);
     for (const [k, el] of cells) {
       const f = found.has(k), h = shown.has(k), left = end && !f && !h;
-      el.className = 'c' + (f ? ' hit' : h ? ' hint' : left ? ' left' : '') + (picked.has(k) && !f ? ' pick' : '');
+      el.className = 'c' + (h && (f || done.has(k)) ? ' hit hinted' : f ? ' hit' : h ? ' hint' : left ? ' left' : '') + (picked.has(k) && !f ? ' pick' : '');
       el.textContent = f || h || left ? chars.get(k) : '';
     }
   }
@@ -386,7 +389,7 @@ export async function connectGameScreen(root, id) {
     </div>`;
     app.classList.remove('fit');
     main.innerHTML = `${head}${card}<div class="cw-flow">${boardHtml(40)}</div>
-    <div class="cw-legend"><span><i class="c hit">a</i>${t('cn.lgFound')}</span><span><i class="c hint">a</i>${t('cn.lgHint')}</span>${
+    <div class="cw-legend"><span><i class="c hit">a</i>${t('cn.lgFound')}</span><span><i class="c hit hinted">a</i>${t('cn.lgHintDone')}</span><span><i class="c hint">a</i>${t('cn.lgHint')}</span>${
       won ? '' : `<span><i class="c left">a</i>${t('cn.lgLeft')}</span>`}</div>`;
     pick = null;
     collectCells();

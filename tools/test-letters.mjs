@@ -1,7 +1,7 @@
 // Tests for the Letters mode rules in app/js/letters.js. Run: node tools/test-letters.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { feedback, typeLetter, eraseLetter, skipTile, keyStates, known, hintAt } from '../app/js/letters.js';
+import { feedback, typeLetter, eraseLetter, skipTile, keyStates } from '../app/js/letters.js';
 
 const G = 'green', Y = 'yellow', _ = 'grey';
 let passed = 0;
@@ -62,19 +62,6 @@ check('keys, part-way: S and H of the new row have their colours', [half.state.s
 check('keys, part-way: E is still what CRANE said - yellow, once', [half.state.e, half.count.e], ['near', 1]);
 check('keys, part-way: an older guess always counts in full', keyStates(['crane', 'sheet'], 'steel', 0).state.c, 'miss');
 check('keys, all turned: the same as no limit', keyStates(['crane', 'sheet'], 'steel', 4), keyStates(['crane', 'sheet'], 'steel'));
-
-// ── what the player knows, and hints (owner, 2026-09-25) ────────────────────────────────────────
-const k1 = known(['crane', 'sheet'], 'steel');
-check('known: S E E placed by SHEET, the rest empty', k1.slots.map(s => s.how ? s.ch : '_').join(''), 's_ee_');
-const k2 = known(['crane', 'sheet'], 'steel', [4]);
-check('known: a hint fills its slot, marked as a hint', [k2.slots[4].ch, k2.slots[4].how], ['l', 'hint']);
-check('hint: never a letter already known', [0, .3, .6, .99].every(r => hintAt(['kxxxx'], 'kotek', [], () => r) > 0), true);
-check('hint: half the word at most - 2 of 5', hintAt([], 'kotek', [0, 3]), -2);
-// green letters count too (owner, 2026-09-25): 1 green + 1 hint of 5 is half; 3 greens of 5 - no hint at all
-check('hint: green letters count toward the half', [hintAt(['kxxxx'], 'kotek', [], () => 0) >= 0, hintAt(['kxxxx'], 'kotek', [2])], [true, -2]);
-check('hint: half the word green already - none', hintAt(['crane', 'sheet'], 'steel'), -2);
-check('hint: nothing left to show', hintAt(['kotek'], 'kotek'), -1);
-check('hint: before any guess, any position', hintAt([], 'kotek', [], () => .5), 2);
 
 // ── which words can be hidden — against the real word data ──────────────────────────────────────
 const ROOT = new URL('../app/', import.meta.url);
@@ -149,6 +136,10 @@ check('every Polish word Letters may hide is in the word-game dictionary (sjp.pl
   try { const sjp = new Set(readFileSync(new URL('raw/tiles/slowa.txt', import.meta.url), 'utf8').split(/\r?\n/)); return plAll.filter(i => !sjp.has(pl.words[i])).map(i => pl.words[i]); }
   catch { return []; }                    // the raw list is not in git: checked where it was downloaded
 })(), []);
+// specialist words that look common because they are English words too (owner: "SEDAN on Normal") - Hard only
+const plNormal = new Set(pool(pl, { len: 5, diff: 'normal' }).map(i => pl.words[i])), plHard = new Set(pool(pl, { len: 5, diff: 'hard' }).map(i => pl.words[i]));
+check('sedan, patio, omega: never below Hard, still on Hard', [['sedan', 'patio', 'omega'].filter(w => plNormal.has(w)), ['sedan', 'patio', 'omega'].every(w => plHard.has(w))], [[], true]);
+check('everyday words keep their level (beton, notes)', ['beton', 'notes'].every(w => plNormal.has(w)), true);
 // Znaczenie's secrets go through the same list (owner, 2026-09-25)
 const { secretPool } = await import('../app/js/engine.js');
 const guessPl = new Set(['relaxed', 'easy', 'normal', 'hard'].flatMap(diff => secretPool(pl, { cat: 'all', band: 'any', diff })).map(i => pl.words[i]));

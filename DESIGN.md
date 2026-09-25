@@ -143,6 +143,11 @@ web text belongs to something else (szer = szer., the abbreviation of szerokoś�
 data took for base words (staje, września, żarty). English: only junk (asap, pct, vii, kinda); ENABLE is too old to
 judge (no email, no website). The frequency list the levels rest on is web text, so an abbreviation or a foreign word
 can look common: that is how SZER sat among the 3 000 commonest words, on Relaxed.
+Hard only (0.34.0, owner: "SEDAN on Normal - I don't know it"): 105 Polish words that are also English words -
+their web-text count includes English sentences, so they look commoner than they are to a Polish player. Measured by
+their Polish-only forms (sedana, sedanem - past the 50 000 commonest), then picked by hand, the everyday ones kept
+(beton, notes, kefir, zebra): sedan, patio, omega, sigma, tenor, cabernet, judoka, dramaturg, roadster, token...
+Litery counts them as Hard (difficulty 100); Połącz lets them on a board only on Hard.
 Back in (0.33.2): 172 words the data kept out as "an inflected form of another word" that are words in their
 own right - gra (also "on gra"), muzyka (also the genitive of muzyk), droga, polityka, walka, wino, złoto. The test,
 with sjp.pl's inflection list (`odm.txt`, each line a base form and its forms): the word heads a line of its own with
@@ -358,6 +363,9 @@ the right — and under it a plain card edged in the same colour with the word, 
 - **Under the keyboard (0.31.1, owner)**: one row - a long Space on the left (leaves a tile empty and moves on:
   the selected one, or the first gap), ← → (the selection one tile along, as the arrow keys), then Hint. Space
   and the arrows also work from a computer's keyboard.
+- **No hints any more (0.34.0, owner: "they don't fit - the game isn't endless, you can lose")**: the Hint key, the
+  hinted letters and the hint counts are gone from Litery; the row under the keyboard is Space, ←, →. What follows about
+  hints is how it was from 0.28.2 to 0.33.3.
 - **The hint cap counts green letters (0.32.1, owner)**: no hint once half the word (rounded down) shows, green from
   the guesses or hinted - as in Połącz, where crossing words count.
 - **Hinted letters in the row being typed (0.31.2, owner)**: with the strip gone, a hinted letter stands greyed
@@ -387,8 +395,11 @@ the right — and under it a plain card edged in the same colour with the word, 
   12 000, Hard 20 000.
 - **Hints are free** (owner: nobody should stay stuck), but a hint stays a hint (0.27.4): each press shows a
   random letter not showing yet - anywhere, or in the word tapped first - and a word takes no more hints once half
-  its letters (rounded down) show - since 0.32.0 counting letters from found crossing words too (owner: a six-letter
-  word with two letters from crossings gets one hint); a crossing letter counts for both words. A word whose letters all show (hints plus crossings) counts as found and keeps the dashed look.
+  its letters show - rounded up since 0.34.0 (owner: 3 of 5, 2 of 3), counting letters from found crossing words too
+  (0.32.0); a crossing letter counts for both words. A word whose letters all show (hints plus crossings) counts as
+  found. **A hinted letter stays marked (0.34.0, owner: "it doesn't show where you used a hint")**: dashed and grey
+  while its word is open, then green with a dark dashed edge once the word is complete - in the game and on the end
+  screen, whose legend explains it.
 - **No points and no achievements** (owner, 2026-09-25): the result is solved or given up, words, bonus words,
   hints. Statistics: played, solved, words found, bonus words, the longest word found.
 - Screen: the status row, the board (tiles sized by width and height), one slot for the word being dragged

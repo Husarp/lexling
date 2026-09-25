@@ -300,7 +300,6 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .lt-row.now .lt{border-color:var(--line)}
 .lt.typed{border-color:var(--text-muted)}
 .lt.caret{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-.lt.ghost{color:var(--text-dim)}   /* a hinted letter nobody has typed over yet (owner, 2026-09-25) */
 .lt.hit{background:var(--lt-hit);border-color:var(--lt-hit);color:#fff}
 .lt.near{background:var(--lt-near);border-color:var(--lt-near);color:#fff}
 .lt.miss{background:var(--lt-miss);border-color:var(--lt-miss);color:#fff}
@@ -596,7 +595,7 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
 /* known to be in the word more than once: the count in the top-right corner */
 .key .n{position:absolute;top:3px;right:3px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:rgba(0,0,0,.28);color:#fff;font:700 10px/15px var(--font-body);text-align:center}
 .key.wide{flex:1.5 1 0;max-width:84px;font-size:11px;letter-spacing:.06em}
-/* the row under the keyboard (owner, 2026-09-25): a long Space on the left, then ← →, then Hint */
+/* the row under the keyboard (owner, 2026-09-25): a long Space on the left, then ← → */
 .key.space{flex:4 1 0;max-width:240px}
 .key svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 /* Enter wakes up when the row is full — as the Guess button did (outline → primary) */
@@ -656,6 +655,8 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
 [data-theme=light] :is(.cw,.cw-legend) .c{background:var(--lt-empty);border-color:var(--lt-edge)}
 /* found by the player: the Letters green */
 :is(.cw,.cw-legend) .c.hit{background:var(--lt-hit);border-color:var(--lt-hit);color:#fff}
+/* a hinted letter in a word that is complete: green, but the hint's dashed edge stays (owner, 2026-09-25) */
+:is(.cw,.cw-legend) .c.hit.hinted{border-style:dashed;border-color:rgba(0,0,0,.4)}
 /* shown by a hint: no fill, dashed edge, muted letter — the same "the game did this for you" look
    Guess gives a hint row (.guess.tip). Never green, so it can't be read as found. */
 :is(.cw,.cw-legend) .c.hint{background:transparent;border-style:dashed;border-color:var(--text-muted);color:var(--text-muted)}

@@ -40,10 +40,10 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - Polish + English, switchable.
 - **Letters mode**: one box per letter, its own on-screen keyboard (keys coloured by what the guesses
   showed; tap a tile to edit it; Space leaves a tile empty, ← → move along the row; the phone's keyboard
-  as an option), free hints (one letter in its place, at most half the word - it then stands greyed out in
-  every row you type: type over it or leave it), and its own statistics.
+  as an option), no hints (since 0.34.0 - run out of tries and it is over), and its own statistics.
 - **Connect mode** (Połącz): drag across a circle of 4–10 letters to fill a small crossword; other real
-  words are bonus words; free hints, a random letter at a time, at most half of any word. Its own statistics.
+  words are bonus words; free hints, a random letter at a time, until half of a word shows (rounded up); a hinted
+  letter stays marked, in green, once its word is done. Its own statistics.
 - **How to play** on every New game screen: a short card that opens and closes (open until your first finished game).
 - **No scores anywhere** (since 0.29.0): the games are for fun; statistics show how you are doing,
   hints used included.
@@ -185,7 +185,7 @@ app/                the game itself — single-page app, no build step, no depen
   js/screens.js     menu, game picker, new game (both modes), statistics, settings
   js/game.js        the Guess game screen (input, autocomplete, guess boxes, history, win / give-up)
   js/letters-game.js  the Letters game screen (letter boxes, hidden input, reveal, win / loss, copy result)
-  js/letters.js     Letters rules: feedback, the keyboard and hints, which words can be hidden and how hard
+  js/letters.js     Letters rules: feedback, the keyboard, which words can be hidden and how hard
   js/tiles.js       Tiles rules: the boards, letter sets, bag and racks, checking and scoring a move, the end
   js/tiles-moves.js Tiles move finder (every legal move for a rack) and the computer player's levels
   js/dawg.js        the word graph Tiles looks words up in (build, save to bytes, load, walk)

@@ -26,6 +26,16 @@ const { pool } = await import('../app/js/letters.js');
 const { offensiveWord } = await import('../app/js/offensive.js');
 
 const USED = 60000;
+// Hard only (owner, 2026-09-25: "SEDAN on Normal - I don't know it"): Polish words that are also English words get their
+// web-text count from English sentences too, so they look commoner than they are to a Polish player. Measured: the
+// Polish-only forms of each (sedana, sedanem) against its own count - these, picked by hand from the ~250 whose Polish
+// forms sit past the 50 000 commonest, are specialist words; everyday ones (beton, notes, kefir, zebra) keep their level.
+const HARD_PL = 'sedan patio omega sigma lambda theta kappa colon pinyin personal zek mignon cabernet bypass petit siding '
+  + 'sprinter opus credo modus cross imago agio ibis magenta pareo tenor dramaturg joint rep strongman reprint judoka '
+  + 'teaser lager alb biker clip fagot hosta zonk lotion blister aga robusta lament pat tar roadster sampler fluid crack '
+  + 'persona octan aspirant branding tors tuner spiker shaker floret spec bronzer nestor hart recital manifest token bel '
+  + 'platan mural palm pled stoper proso raster gradient fon tensor gloria hospodar baronet stupa cep emir jar stela anion '
+  + 'kation heros rota kalif china polar sepia gar sonar epos splendor grad wat delta slot bas step';
 // by hand, the other way: its own forms are used, but its spelling mostly means something else (cech - cecha)
 const KEEP_OUT = new Set(['cech']);
 
@@ -66,8 +76,9 @@ for (const lang of ['pl', 'en']) {
   const restore = lang === 'pl' ? wordsInTheirOwnRight(m) : [];
   const words = [...drop].filter(w => all.includes(w) || restore.includes(w)).sort((a, b) => a.localeCompare(b, lang));
   const back = restore.filter(w => !drop.has(w)).sort((a, b) => a.localeCompare(b, lang));
-  writeFileSync(new URL(`data/${lang}/pool.json`, ROOT), JSON.stringify({ drop: words, restore: back }) + '\n');
-  console.log(`${lang}: ${all.length} words could be hidden; ${words.length} dropped, ${back.length} back in -> app/data/${lang}/pool.json`);
+  const hard = lang === 'pl' ? HARD_PL.split(' ').filter(w => all.includes(w) && !drop.has(w)).sort((a, b) => a.localeCompare(b, lang)) : [];
+  writeFileSync(new URL(`data/${lang}/pool.json`, ROOT), JSON.stringify({ drop: words, restore: back, hard }) + '\n');
+  console.log(`${lang}: ${all.length} words could be hidden; ${words.length} dropped, ${back.length} back in, ${hard.length} Hard only -> app/data/${lang}/pool.json`);
 }
 
 function wordsInTheirOwnRight(m) {

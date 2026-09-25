@@ -6,6 +6,25 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.34.0 — 2026-09-25 20:54: No hints in Litery; Połącz shows where hints went; specialist words only on Hard
+*(not packaged)*
+
+- **Litery has no hints any more** (owner: "they don't fit - the game isn't endless, you can lose it"): the Hint key
+  is gone (the row under the keyboard is Space, ←, →), and so are the grey hinted letters, the hints line on the end
+  card and "Hints used" in Litery's statistics. "Jak grać" says so. Games saved with hints still open.
+- **Połącz: a hinted letter stays marked once its word is done** (owner: "it doesn't show where you used a hint") -
+  green like a found letter, with a dark dashed edge - during the game and on the end screen, whose legend has a new
+  entry: "Znalezione z podpowiedzią" / "Found, with a hint".
+- **Połącz: the hint limit rounds up** (owner): half a word, rounded up - 3 letters of 5, 2 of 3, 3 of 6.
+- **SEDAN on Normal** (owner: "I don't know it - it shouldn't be on Normal"): it is a real word (a car body type), but
+  it is also an English word, and the web text the levels are measured on has English sentences in it - so it looked
+  like one of the 14 000 commonest words. 105 such specialist words now count as Hard only, in Litery and Połącz:
+  sedan, patio, omega, sigma, tenor, cabernet, judoka, dramaturg, roadster, gradient, token... Found by how rarely
+  their Polish forms are used (sedana, sedanem), then picked by hand; everyday ones keep their level (beton, notes,
+  kefir, zebra).
+- Checked in headless Edge: the green hinted letter in a found word, in the game and on the end screen; Litery's
+  keyboard row. 264 Letters tests, 286 Connect, 231 Tiles.
+
 ## 0.33.3 — 2026-09-25 19:01: Znaczenie gets the same word cleanup
 *(packaged for the owner's phone)*
 

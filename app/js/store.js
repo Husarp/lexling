@@ -37,7 +37,7 @@ export const stats = read('wg.stats', {
   unique: [], gameNo: 0,
   // Letters keeps its own numbers: everything above except letters, timeMs and gameNo is the Guess
   // mode's. wonLen = word length -> wins, for the wins-by-length strip.
-  lt: { played: 0, won: 0, lost: 0, givenUp: 0, streak: 0, bestStreak: 0, wonTries: 0, wonLen: {}, hints: 0, hintGames: 0 },
+  lt: { played: 0, won: 0, lost: 0, givenUp: 0, streak: 0, bestStreak: 0, wonTries: 0, wonLen: {} },
   // Connect's own numbers: words = board words the player found, longest = { w, game, at } of any word found
   cn: { played: 0, solved: 0, givenUp: 0, words: 0, bonus: 0, hints: 0, longest: null },
   // Tiles' own numbers, kept per language and level ('pl|normal', 'en|people' ...) so its tab can show any mix
@@ -133,8 +133,6 @@ export function recordEnd(game, won, difficulty = -1, hinted = false) {
 // A Letters game ends won, lost (out of tries) or given up. Only a win keeps the streak going.
 export function recordLettersEnd(game) {
   const s = stats.lt;
-  s.hints = (s.hints || 0) + (game.hinted?.length || 0);
-  s.hintGames = (s.hintGames || 0) + 1;
   // tries per win (1–6, 7+) and games lost, for the statistics chart (counted from 0.24.0)
   const tried = game.status === 'won' ? (game.guesses.length > 6 ? '7+' : String(game.guesses.length)) : game.status === 'lost' ? 'x' : null;
   if (tried) s.dist = { ...s.dist, [tried]: (s.dist?.[tried] || 0) + 1 };

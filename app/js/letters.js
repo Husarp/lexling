@@ -50,6 +50,8 @@ function prepare(m) {
   const byLetters = [...words].sort((a, b) => scored.get(a) - scored.get(b));
   const letterPct = new Map(byLetters.map((i, n) => [i, n / (words.length - 1)]));
   const hard = new Map(words.map((i, n) => [i, Math.round((n / (words.length - 1) + letterPct.get(i)) / 2 * 100)]));
+  // specialist words that look commoner than they are (sedan - English text counts too): Hard only (pool.json)
+  for (const i of words) if (m.poolFix?.hard?.has(m.words[i])) hard.set(i, 100);
 
   const out = { words, hard };
   prepared.set(m, out);
@@ -172,30 +174,5 @@ export function keyStates(guesses, answer, upto = Infinity) {
     for (const [ch, k] of Object.entries(inWord)) count[ch] = Math.max(count[ch] || 0, k);
   });
   return { state, count };
-}
-
-// ── What the player knows, and hints (owner, 2026-09-25) ─────────────────────────────────────────
-// `hinted` = the positions a hint has shown (0-based). A hint shows one letter in its right place and
-// costs nothing but being counted; none once half the word (rounded down) shows - green letters from the guesses
-// count as well as hints (owner, 2026-09-25, as in Connect).
-
-// The strip under the keyboard: one slot per letter - 'hit' where some guess had the right letter there,
-// 'hint' where a hint showed it, '' where nothing is known. Only letters in place: the yellows are on
-// the keyboard already (owner, 2026-09-25).
-export function known(guesses, answer, hinted = []) {
-  const a = [...answer.toLowerCase()];
-  const slots = a.map((ch, i) => guesses.some(g => [...g.toLowerCase()][i] === ch) ? { ch, how: 'hit' }
-    : hinted.includes(i) ? { ch, how: 'hint' } : { ch: '', how: '' });
-  return { slots };
-}
-
-// The next hint: a random position whose letter is not known yet - or -1 when every letter is known,
-// or -2 when half the word already shows, green or hinted.
-export function hintAt(guesses, answer, hinted = [], rand = Math.random) {
-  const { slots } = known(guesses, answer, hinted);
-  const open = slots.map((s, i) => s.how ? -1 : i).filter(i => i >= 0);
-  if (!open.length) return -1;
-  if (slots.length - open.length >= Math.floor(slots.length / 2)) return -2;
-  return open[Math.floor(rand() * open.length)];
 }
 
