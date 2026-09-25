@@ -6,6 +6,18 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.33.2 — 2026-09-25 18:36: Good words back in Litery and Połącz (gra, muzyka, droga...)
+*(not packaged)*
+
+- **172 Polish words can be hidden again** (owner: yes to downloading sjp.pl's inflection list, 12.7 MB): words the
+  data kept out because they are also a form of another word - gra (also "on gra"), muzyka (also the genitive of
+  muzyk), droga, polityka, walka, wino, złoto, technika, gość, zwierzę, ból, rada, kara, dym, klej, piekło...
+- How they were told apart from real forms (ptaki, nowe, stara, była, wody - still never hidden): in the inflection list
+  the word heads a line of its own with forms no other line has (grę, gry, grze), and people use them (one among the
+  60 000 commonest in the web text). "kota" stays out: its own forms (kotę) are never used - it is really the
+  genitive of kot. "cech" stays out by hand (mostly "cech" of cecha).
+- 267 Letters tests (2 new: those words can be hidden, the plain forms never).
+
 ## 0.33.1 — 2026-09-25 18:04: Weird words no longer hidden in Litery and Połącz
 *(not packaged)*
 

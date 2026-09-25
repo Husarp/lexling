@@ -20,8 +20,10 @@ function prepare(m) {
   // `formOf` lists the words that are really an inflected form of another word - `ptaki`, `stara`,
   // `kota` - worked out by the pipeline, which still knows every word's forms (tools/build-data.mjs).
   // `poolFix.drop`: words no player would think of as ones to guess - not in the word-game dictionary, plain
-  // English, abbreviations riding on a real word (szer) - tools/build-pool-fix.mjs (owner, 2026-09-25).
-  const skip = new Set([...(m.blocked || []), ...(m.formOf || [])]), drop = m.poolFix?.drop ?? new Set();
+  // English, abbreviations riding on a real word (szer); `poolFix.restore`: formOf words that are words in their own
+  // right (gra, muzyka, droga) - tools/build-pool-fix.mjs (owner, 2026-09-25).
+  const back = m.poolFix?.restore ?? new Set(), drop = m.poolFix?.drop ?? new Set();
+  const skip = new Set([...(m.blocked || []), ...(m.formOf || []).filter(i => !back.has(m.words[i]))]);
   const words = [];
   for (let i = 0; i < Math.min(POOL_WITHIN, m.count); i++) {
     // never a slur or a vulgar word either - the data's stoplist missed some (mineta): offensive.js

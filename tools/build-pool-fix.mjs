@@ -7,6 +7,14 @@
 // guess: plain English (download, street), words whose count in the web text belongs to something else
 // (szer - the abbreviation of szerokość; rej), and inflected forms the data took for base words (staje, września).
 // English: by hand only - ENABLE (2000) lacks everyday words such as email and website, which may stay.
+//
+// And back in, Polish (owner, 2026-09-25: "check whether some words are wrongly ruled out"): words the data keeps
+// out as "an inflected form of another word" (formOf) that are words in their own right - gra (also "on gra"),
+// muzyka (also the genitive of muzyk), droga, polityka, wino. sjp.pl's inflection list (tools/raw/tiles/odm.txt,
+// from sjp-odm-YYYYMMDD.zip, https://sjp.pl/sl/odmiany/) starts every line with a base form; a word heading its own
+// line, with forms no other line has (grę, gry, grze) that the web text really uses (among its 60 000 commonest
+// words), is a word to guess. Plain forms fail: every form of "ptaki" sits in the line of ptak; "kota" (a rare noun,
+// really the genitive of kot) has forms of its own nobody uses (kotę).
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
 const ROOT = new URL('../app/', import.meta.url), RAW = new URL('raw/tiles/', import.meta.url);
@@ -15,6 +23,10 @@ globalThis.fetch = async url => { const b = readFileSync(new URL(url, ROOT));
     arrayBuffer: async () => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) }; };
 const { loadWords } = await import('../app/js/engine.js');
 const { pool } = await import('../app/js/letters.js');
+
+const USED = 60000;
+// by hand, the other way: its own forms are used, but its spelling mostly means something else (cech - cecha)
+const KEEP_OUT = new Set(['cech']);
 
 const HAND = {
   // plain English in Polish web text; loanwords Polish really uses stay (menu, sushi, kebab, camping, show...)
@@ -44,7 +56,29 @@ for (const lang of ['pl', 'en']) {
     const known = new Set(readFileSync(new URL('slowa.txt', RAW), 'utf8').split(/\r?\n/));
     for (const w of all) if (!known.has(w)) drop.add(w);
   }
-  const words = [...drop].filter(w => all.includes(w)).sort((a, b) => a.localeCompare(b, lang));
-  writeFileSync(new URL(`data/${lang}/pool.json`, ROOT), JSON.stringify({ drop: words }) + '\n');
-  console.log(`${lang}: ${all.length} words could be hidden; ${words.length} dropped -> app/data/${lang}/pool.json`);
+  const restore = lang === 'pl' ? wordsInTheirOwnRight(m) : [];
+  const words = [...drop].filter(w => all.includes(w) || restore.includes(w)).sort((a, b) => a.localeCompare(b, lang));
+  const back = restore.filter(w => !drop.has(w)).sort((a, b) => a.localeCompare(b, lang));
+  writeFileSync(new URL(`data/${lang}/pool.json`, ROOT), JSON.stringify({ drop: words, restore: back }) + '\n');
+  console.log(`${lang}: ${all.length} words could be hidden; ${words.length} dropped, ${back.length} back in -> app/data/${lang}/pool.json`);
+}
+
+function wordsInTheirOwnRight(m) {
+  const odm = new URL('odm.txt', RAW), tokens = new URL('../cc.pl.tokens.txt', RAW);
+  if (!existsSync(odm) || !existsSync(tokens)) throw new Error('tools/raw/tiles/odm.txt or tools/raw/cc.pl.tokens.txt is missing');
+  const lines = readFileSync(odm, 'utf8').split(/\r?\n/).map(l => l.split(', ')).filter(l => l[0] && l[0] === l[0].toLowerCase());
+  const inLines = new Map(), heads = new Map();
+  for (const l of lines) {
+    for (const f of new Set(l)) inLines.set(f, (inLines.get(f) || 0) + 1);
+    (heads.get(l[0]) ?? heads.set(l[0], []).get(l[0])).push(l);
+  }
+  const rank = new Map(readFileSync(tokens, 'utf8').split(/\r?\n/).map((w, i) => [w, i + 1]));
+  const KINDS = new Set(['noun', 'adj', 'verb', 'adv']), out = [];
+  for (const i of m.formOf) {
+    const w = m.words[i];
+    if (i >= 20000 || !KINDS.has(m.posNames[m.pos[i]]) || KEEP_OUT.has(w)) continue;
+    const own = (heads.get(w) ?? []).flatMap(l => l.slice(1)).filter(f => f !== w && inLines.get(f) === 1);
+    if (own.some(f => (rank.get(f) ?? Infinity) <= USED)) out.push(w);
+  }
+  return out;
 }

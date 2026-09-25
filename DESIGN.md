@@ -140,6 +140,11 @@ web text belongs to something else (szer = szer., the abbreviation of szerokoś�
 data took for base words (staje, września, żarty). English: only junk (asap, pct, vii, kinda); ENABLE is too old to
 judge (no email, no website). The frequency list the levels rest on is web text, so an abbreviation or a foreign word
 can look common: that is how SZER sat among the 3 000 commonest words, on Relaxed.
+Back in (0.33.2): 172 words the data kept out as "an inflected form of another word" that are words in their
+own right - gra (also "on gra"), muzyka (also the genitive of muzyk), droga, polityka, walka, wino, złoto. The test,
+with sjp.pl's inflection list (`odm.txt`, each line a base form and its forms): the word heads a line of its own with
+forms no other line has, and one of them is among the 60 000 commonest in the web text. Plain forms fail (every form of
+"ptaki" is in the line of ptak; "kota"'s own forms - kotę - are never used). Kept out by hand: cech (mostly cecha).
 
 ### Letters mode: a different difficulty, and base forms only
 The second mode (a Wordle, PLAN.md M12) cannot reuse the difficulty above. That one is rarity +

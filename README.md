@@ -146,7 +146,9 @@ two word-game lists by `node tools/build-tiles-words.mjs` (~20 s). It needs, in 
 dictionaries above (to leave out every form of a slur or vulgar word).
 
 `app/data/<lang>/pool.json` - the words Litery and Połącz never hide (not in the word-game list, plain English,
-abbreviations riding on a real word) - is built by `node tools/build-pool-fix.mjs` from the same `slowa.txt`.
+abbreviations riding on a real word) and the words let back in (gra, muzyka) - is built by
+`node tools/build-pool-fix.mjs` from the same `slowa.txt`, sjp.pl's inflection list `tools/raw/tiles/odm.txt`
+(https://sjp.pl/sl/odmiany/ - unzip `sjp-odm-YYYYMMDD.zip`) and `tools/raw/cc.pl.tokens.txt`.
 
 ## Data sources & licences
 
@@ -161,6 +163,7 @@ when it is distributed (to-do in PLAN.md M5). Not legal advice; check the terms 
 | WordNet-based LibreOffice thesaurus | English parts of speech | WordNet licence (permissive, attribution) |
 | SJP.PL "słownik do gier" (sjp.pl) | Tiles: Polish words (`app/data/pl/tiles.bin`; changed: slurs and vulgar words left out) | GPL 2 or CC BY 4.0 — we use CC BY 4.0: attribution |
 | ENABLE word list | Tiles: English words (`app/data/en/tiles.bin`) | public domain |
+| SJP.PL "odmiany" (sjp.pl inflection list) | Letters / Connect: which words are base words (`app/data/pl/pool.json`) | GPL 2, LGPL 2.1, Apache 2.0 or CC BY 4.0 — we use CC BY 4.0: attribution |
 | Barlow Condensed, Inter | fonts | SIL OFL (licence files in `app/fonts/`) |
 
 ## Licence

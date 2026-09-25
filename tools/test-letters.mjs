@@ -97,7 +97,8 @@ for (const lang of ['pl', 'en']) {
   }
   const blocked = new Set(m.blocked), formOf = new Set(m.formOf);
   check(`${lang}: nothing on the stoplist is ever hidden`, all.some(i => blocked.has(i)), false);
-  check(`${lang}: no inflected form posing as a word is ever hidden`, all.some(i => formOf.has(i)), false);
+  // ...except the words in their own right that are also a form of another word (gra), put back by pool.json
+  check(`${lang}: no inflected form posing as a word is ever hidden`, all.some(i => formOf.has(i) && !m.poolFix.restore.has(m.words[i])), false);
   // slurs and vulgar words, the data's stoplist or not (owner, 2026-09-25): offensive.js
   check(`${lang}: no slur or vulgar word is ever hidden`, all.some(i => offensiveWord(lang, m.words[i])), false);
   check(`${lang}: difficulty is 0-100`, all.every(i => difficulty(m, i) >= 0 && difficulty(m, i) <= 100), true);
@@ -141,6 +142,9 @@ const plAll = pool(pl, { diff: 'random' });
 check('never hidden: an abbreviation riding on a word, English, brands, fragments',
   ['szer', 'rej', 'video', 'download', 'street', 'nokia', 'ppłk', 'owy', 'staje', 'września'].filter(w => has(pl, plAll, w)), []);
 check('loanwords Polish uses stay', ['menu', 'show', 'sushi', 'kebab', 'kiwi', 'tango'].filter(w => !has(pl, plAll, w)), []);
+// words in their own right that are also a form of another word (gra: on gra; muzyka: muzyka) - back in
+check('gra, muzyka, droga, polityka, walka, wino, złoto can be hidden', ['gra', 'muzyka', 'droga', 'polityka', 'walka', 'wino', 'złoto'].filter(w => !has(pl, plAll, w)), []);
+check('...plain forms still never: ptaki, nowe, stara, była, wody, kota, cech', ['ptaki', 'nowe', 'stara', 'była', 'wody', 'kota', 'cech'].filter(w => has(pl, plAll, w)), []);
 check('every Polish word Letters may hide is in the word-game dictionary (sjp.pl)', (() => {
   try { const sjp = new Set(readFileSync(new URL('raw/tiles/slowa.txt', import.meta.url), 'utf8').split(/\r?\n/)); return plAll.filter(i => !sjp.has(pl.words[i])).map(i => pl.words[i]); }
   catch { return []; }                    // the raw list is not in git: checked where it was downloaded
