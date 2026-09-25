@@ -189,6 +189,8 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=settings] .group{display:grid;gap:0}
 [data-screen=settings] .group .title{margin-bottom:var(--space-2)}
 [data-screen=settings] .row .seg{flex:0 1 320px;width:100%;max-width:320px}
+/* Check for updates, and beside it Check manually - the releases page (owner, 2026-09-25) */
+[data-screen=settings] .row-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--space-2)}
 @media (max-width:480px){[data-screen=settings] .row .seg{max-width:none}}
 [data-screen=settings] .about{display:grid;gap:var(--space-3);padding:var(--space-5);font-size:14px;color:var(--text-muted)}
 [data-screen=settings] .about strong{color:var(--text)}

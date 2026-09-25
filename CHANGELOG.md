@@ -6,6 +6,12 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.34.1 — 2026-09-25 20:57: "Check manually" beside "Check for updates"
+*(not packaged)*
+
+- **Settings → Updates**: next to "Sprawdź aktualizacje" / "Check for updates" a second button, **"Sprawdź ręcznie" /
+  "Check manually"**, opens the releases page on GitHub - for when the check itself fails (owner).
+
 ## 0.34.0 — 2026-09-25 20:54: No hints in Litery; Połącz shows where hints went; specialist words only on Hard
 *(not packaged)*
 

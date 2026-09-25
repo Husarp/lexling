@@ -757,9 +757,10 @@ export async function settingsScreen(root, _, refresh) {
     <section class="group">
       <h2 class="title">${t('set.updates')}</h2>
       <div class="row"><div class="row-text"><strong>${t('set.version', { v: VERSION })}</strong><span id="update-line">${updateLine}</span></div>
-        ${waiting
+        <div class="row-actions">${waiting
     ? `<button type="button" class="btn btn-primary" id="get">${t('set.get')} <span class="arrow">→</span></button>`
-    : `<button type="button" class="btn btn-outline" id="check" ${REPO ? '' : 'disabled'}>${t('set.check')}</button>`}</div>
+    : `<button type="button" class="btn btn-outline" id="check" ${REPO ? '' : 'disabled'}>${t('set.check')}</button>`}
+        <button type="button" class="btn btn-ghost" id="manual" ${REPO ? '' : 'disabled'}>${t('set.manual')}</button></div></div>
     </section>
     <section class="group">
       <h2 class="title">${t('set.about')}</h2>
@@ -801,12 +802,14 @@ export async function settingsScreen(root, _, refresh) {
   // APK on it. It has to leave the app, and each of the three places this runs needs asking
   // differently - the desktop wrapper through its Python bridge, Android and a browser through the
   // ordinary one, which Capacitor hands to the system browser.
-  root.querySelector('#get')?.addEventListener('click', () => {
-    const url = `https://github.com/${REPO}/releases/latest`;
+  const open = url => {
     const api = window.pywebview?.api;
     if (api?.open_url) api.open_url(url);
     else window.open(url, '_blank', 'noopener');
-  });
+  };
+  root.querySelector('#get')?.addEventListener('click', () => open(`https://github.com/${REPO}/releases/latest`));
+  // "Check manually" (owner, 2026-09-25: the check sometimes fails): straight to the releases page on GitHub
+  root.querySelector('#manual')?.addEventListener('click', () => open(`https://github.com/${REPO}/releases`));
 
   const check = root.querySelector('#check');
   check?.addEventListener('click', async () => {
