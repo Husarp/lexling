@@ -340,6 +340,10 @@ the right — and under it a plain card edged in the same colour with the word, 
 - **Under the keyboard (0.31.1, owner)**: one row - a long Space on the left (leaves a tile empty and moves on:
   the selected one, or the first gap), ← → (the selection one tile along, as the arrow keys), then Hint. Space
   and the arrows also work from a computer's keyboard.
+- **Hinted letters in the row being typed (0.31.2, owner)**: with the strip gone, a hinted letter stands greyed
+  out in its place in every row you type. Typing puts a letter over it (it is an empty tile to the keys, so
+  letters fill it in order); a tile left with only its hint is sent as that letter (Space skips it), and
+  Enter lights up when the row is full counting hints.
 - **Random difficulty** (0.21.0): the game draws one of the four levels at the start and plays it,
   but never shows which — only "Random". The count before the start is all levels together.
 - **The screen fits the window while playing** (0.19.0): status on top, Guess right under the grid, and
@@ -377,7 +381,11 @@ the right — and under it a plain card edged in the same colour with the word, 
   exchange / pass / resign; the bag is shuffled from a seed kept in the state, so a first state plus its actions
   replay the same game (the tests do) - ready for replays, and one day for games between devices. A save also
   records the tag (a hash) of the word list that checked its moves.
-- **Hints** (0.31.0): the best move for the rack, laid on the board as a preview; counted per player.
+- **Hints** (0.31.0): the best move for the rack; counted per player. The screen shows it in two steps (owner,
+  0.31.2): first the squares where it goes, then the word as a preview - each press a hint.
+- **Check a word** (0.31.2, owner: any time): `checkWord` - allowed, or why not (too short / too long / a
+  letter with no tile / not a word). **Who put each tile**: every square remembers its player (`by`), for the
+  frames in each player's colour the owner can switch on and off during a game.
   **Letters not yet seen** (0.31.0): the full set minus the board and your own rack.
 - **The classic crossword-tile game**, never called by the trademarked name. Official
   rules: a rack of 7, the first word across the centre, one line, joined to what is down, every word made must

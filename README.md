@@ -40,7 +40,8 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - Polish + English, switchable.
 - **Letters mode**: one box per letter, its own on-screen keyboard (keys coloured by what the guesses
   showed; tap a tile to edit it; Space leaves a tile empty, ← → move along the row; the phone's keyboard
-  as an option), free hints (one letter in its place, at most half the word), and its own statistics.
+  as an option), free hints (one letter in its place, at most half the word - it then stands greyed out in
+  every row you type: type over it or leave it), and its own statistics.
 - **Connect mode** (Połącz): drag across a circle of 4–10 letters to fill a small crossword; other real
   words are bonus words; free hints, a random letter at a time, at most half of any word. Its own statistics.
 - **No scores anywhere** (since 0.29.0): the games are for fun; statistics show how you are doing,

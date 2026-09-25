@@ -13,7 +13,7 @@ const { buildDawg, has, toBytes, fromBytes } = await import('../app/js/dawg.js')
 const T = await import('../app/js/tiles.js');
 const { findMoves, computerMove, hint, LEVELS } = await import('../app/js/tiles-moves.js');
 const { BOARDS, sizeOf, premiums, letterSet, fullBag, loadTileWords, newGame, placementError, wordsMade, checkMove,
-  play, exchange, pass, resign, canExchange, apply, hinted, unseen, RACK, BINGO, BLANK } = T;
+  play, exchange, pass, resign, canExchange, apply, hinted, unseen, checkWord, RACK, BINGO, BLANK } = T;
 
 let passed = 0;
 const check = (name, actual, expected) => { assert.deepEqual(actual, expected, name); passed++; };
@@ -112,7 +112,9 @@ const col = (r, c, word, blanks = []) => [...word].map((ch, i) => ({ r: r + i, c
   check('play: rack refilled from the bag', [s2.racks[0].length, s2.bag.length], [7, s.bag.length - 3]);
   check('play: turn passes on', s2.turn, 1);
   check('play: the old state untouched', [s.cells[112], s.scores[0], s.racks[0].length], [null, 0, 7]);
-  check('play: tiles on the board', [s2.cells[112], s2.cells[113], s2.cells[114]], [{ ch: 'c' }, { ch: 'a' }, { ch: 't' }]);
+  check('play: tiles on the board, each with who put it there', [s2.cells[112], s2.cells[113], s2.cells[114]], [{ ch: 'c', by: 0 }, { ch: 'a', by: 0 }, { ch: 't', by: 0 }]);
+  check('play: a blank keeps who put it there too', play(s, row(7, 7, 'cat', [2]), isEn).cells[114], { ch: 't', blank: true, by: 0 });
+  check('the second player\'s tiles are theirs', play({ ...s2, racks: [s2.racks[0], ['s', 'x', 'x', 'x', 'x', 'x', 'x']] }, [{ r: 7, c: 10, ch: 's' }], isEn).cells[115], { ch: 's', by: 1 });
   check('play: history', s2.moves[0], { p: 0, kind: 'play', placed: row(7, 7, 'cat'), words: [{ w: 'cat', score: 10 }], score: 10, bingo: false });
 
   const s3 = { ...s2, racks: [s2.racks[0], ['d', 'o', 'g', 's', 'x', 'i', 'n']] };
@@ -194,6 +196,12 @@ const col = (r, c, word, blanks = []) => [...word].map((ch, i) => ({ r: r + i, c
   const over = apply(s, { type: 'resign' });
   check('apply: nothing after the end', (() => { try { apply(over, { type: 'pass' }); return 'ok'; } catch { return 'refused'; } })(), 'refused');
 }
+
+// ── checking a word, any time ──
+check('check: a word', checkWord(dicts.pl, 'pl', '  Żółw '), { word: 'żółw', ok: true, why: null });
+check('check: every form', [checkWord(dicts.pl, 'pl', 'pasłem').ok, checkWord(dicts.en, 'en', 'casters').ok], [true, true]);
+check('check: why not', ['a', 'konstantynopolitańczykowianeczka', 'quiz', 'zzkot'].map(w => checkWord(dicts.pl, 'pl', w).why), ['short', 'long', 'letters', 'unknown']);
+check('check: slurs are not allowed', checkWord(dicts.pl, 'pl', 'kurwa').ok, false);
 
 // ── hints and the tiles not yet seen ──
 {

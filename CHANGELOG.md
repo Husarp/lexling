@@ -6,6 +6,24 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.31.2 — 2026-09-25 16:45: Litery's hinted letters in the row you type; Tiles: who put each tile, check a word
+*(not packaged)*
+
+The owner's answers, 2026-09-25:
+- **Litery: a hinted letter now stands greyed out in its place in every row you type** (the strip that showed it
+  is gone since 0.31.1). Type over it like any empty tile - letters fill it in order - or leave it: Space skips it,
+  and Enter sends it as that letter. Enter lights up once the row is full, hints counting.
+- **Tiles, the rules**: every square remembers who put its tile there, for the frames in each player's colour that
+  can be switched on and off during a game (the owner's idea); **check a word** at any time - allowed, or why not
+  (too short, too long, a letter with no tile, not a word).
+- **The design prompt**: hints in two steps (first where the best word goes, then the word), check a word any time,
+  the player-colour frames, statistics from every game (several people too), and - to be built after the game itself
+  - rule options (challenges, a time limit...), an Expert computer, statistics per level and language, a look-back
+  after the game. Dropped at the owner's word: quick start, the daily puzzle, the anagram trainer, replays.
+- Połącz hints looked at again (16 hints, all S or I): not reproduced in 580 simulated games with 10 letters - never
+  fewer than 4 different letters. No change; the owner will send a screenshot if it happens again.
+- 165 Tiles tests (6 new), 259 Letters, 284 Connect.
+
 ## 0.31.1 — 2026-09-25 16:32: Litery - Space and arrows under the keyboard; clearer "not a word"; no orange line
 *(not packaged)*
 

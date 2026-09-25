@@ -292,6 +292,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .lt-row.now .lt{border-color:var(--line)}
 .lt.typed{border-color:var(--text-muted)}
 .lt.caret{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.lt.ghost{color:var(--text-dim)}   /* a hinted letter nobody has typed over yet (owner, 2026-09-25) */
 .lt.hit{background:var(--lt-hit);border-color:var(--lt-hit);color:#fff}
 .lt.near{background:var(--lt-near);border-color:var(--lt-near);color:#fff}
 .lt.miss{background:var(--lt-miss);border-color:var(--lt-miss);color:#fff}

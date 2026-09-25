@@ -3,7 +3,7 @@
 // sets, the bag and racks, checking and scoring a move, exchanging, passing and the end of the game. Finding
 // moves (the computer, hints) is tiles-moves.js; the word list lives in a word graph (dawg.js). "Scrabble" is a
 // trademark - the game never uses the name.
-import { fromBytes } from './dawg.js';
+import { fromBytes, has } from './dawg.js';
 
 export const RACK = 7, BINGO = 50, BLANK = '?';
 
@@ -112,10 +112,21 @@ const graphs = {};
 export const loadTileWords = lang => graphs[lang] ??= fetch(`data/${lang}/tiles.bin`).then(r => r.arrayBuffer()).then(fromBytes)
   .catch(e => { delete graphs[lang]; throw e; });
 
+// "Check a word" (owner, 2026-09-25: any time, just to see whether a word is allowed): { word, ok, why } -
+// `why` = 'short' (under 2 letters), 'long' (over 15: no board holds it), 'letters' (a letter with no tile,
+// such as q, v, x in Polish) or 'unknown'. Capitals and spaces around the word do not matter.
+export function checkWord(dict, lang, text) {
+  const word = text.trim().toLowerCase(), chars = [...word], { values } = letterSet(lang);
+  const why = chars.length < 2 ? 'short' : chars.length > 15 ? 'long' : !chars.every(ch => values[ch]) ? 'letters'
+    : !has(dict, word) ? 'unknown' : null;
+  return { word, ok: !why, why };
+}
+
 // ── A game ───────────────────────────────────────────────────────────────────────────────────────
 // Plain data, so a save is the state itself: `players[p]` = { name, cpu } (`cpu` = the computer's level, or
-// null for a person - 2 to 5 of them, any mix: owner, 2026-09-25), `cells` holds null or { ch, blank } per
-// square (r * size + c), `bag` is drawn from the end, `racks[p]` / `scores[p]` / `hints[p]` per player,
+// null for a person - 2 to 5 of them, any mix: owner, 2026-09-25), `cells` holds null or { ch, blank, by } per
+// square (r * size + c) - `by` = the player who put it there, for the frames in each player's colour that the
+// owner can switch on in a game, `bag` is drawn from the end, `racks[p]` / `scores[p]` / `hints[p]` per player,
 // `zeros` counts turns in a row that scored nothing, `moves` is the history, `over` null or how it ended,
 // `words` the tag of the word list that checked the moves (dawg.js), `seed` the game's own random numbers.
 // A placement is a list of { r, c, ch, blank }: `blank` true = a blank tile showing `ch`.
@@ -252,7 +263,7 @@ export function play(state, placed, isWord) {
   const cells = [...state.cells];
   const rack = [...state.racks[p]];
   for (const t of placed) {
-    cells[t.r * n + t.c] = t.blank ? { ch: t.ch, blank: true } : { ch: t.ch };
+    cells[t.r * n + t.c] = t.blank ? { ch: t.ch, blank: true, by: p } : { ch: t.ch, by: p };
     rack.splice(rack.indexOf(t.blank ? BLANK : t.ch), 1);
   }
   const d = draw(state.bag, rack);

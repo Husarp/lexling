@@ -35,6 +35,11 @@ export async function lettersGameScreen(root, id) {
   const revealMs = Math.min(30, 300 / n) * (n - 1) + 180;   // = the row's colour reveal (app.css)
   const marksOn = game.lang === 'pl' && game.marks;   // Polish letters allowed: in the word, and on the keyboard
   game.hinted ??= [];                        // the positions hints have shown (saves from before 0.28.2 have none)
+  // A hinted letter stands greyed out in its place in every row being typed (owner, 2026-09-25): typing puts a
+  // letter over it, and a tile left with only the hint in it is sent as that letter.
+  const secret = [...game.secret];
+  const hintIn = i => !cur[i] && game.hinted.includes(i) ? secret[i] : '';
+  const withHints = () => cur.map((ch, i) => ch || hintIn(i));
 
   root.innerHTML = `<div class="app" data-screen="letters">
   ${topbar({ left: modeTag('letters'), right: `<span class="eyebrow">${esc(gameName(game))}</span>` })}
@@ -65,18 +70,19 @@ export async function lettersGameScreen(root, id) {
     if (playing()) paintNow();
   }
 
-  // The current row: its letters, the tapped tile ringed (sel), otherwise the caret in the first gap.
-  // `put` = the tile a key has just filled, which pops. Enter wakes up when the row is full.
+  // The current row: its letters, the tapped tile ringed (sel), otherwise the caret in the first gap; a hinted
+  // letter in grey where nothing is typed. `put` = the tile a key has just filled, which pops. Enter wakes up when
+  // the row is full, hinted letters counting.
   function paintNow(put = -1) {
     const now = board.querySelector('.lt-row.now');
     if (!now) return;                        // the game has just ended: no row to type into
     now.classList.toggle('bad', bad);
     const gap = cur.indexOf('');
     [...now.children].forEach((el, i) => {
-      el.textContent = cur[i];
-      el.className = 'lt' + (cur[i] ? ' typed' : '') + (sel === i ? ' sel' : sel === null && i === gap ? ' caret' : '') + (i === put ? ' put' : '');
+      el.textContent = cur[i] || hintIn(i);
+      el.className = 'lt' + (cur[i] ? ' typed' : hintIn(i) ? ' ghost' : '') + (sel === i ? ' sel' : sel === null && i === gap ? ' caret' : '') + (i === put ? ' put' : '');
     });
-    kb.querySelector('.enter').classList.toggle('go', gap < 0);
+    kb.querySelector('.enter').classList.toggle('go', withHints().every(Boolean));
   }
 
   // What the game has learnt about each letter, on its key (letters.js, keyStates): the tile colours,
@@ -108,6 +114,7 @@ export async function lettersGameScreen(root, id) {
     game.hinted.push(at);
     putSave(game);
     say(t('lt.hintGot', { i: at + 1, ch: esc([...game.secret][at].toUpperCase()) }));
+    paintNow();                              // the letter appears, greyed out, in the row being typed
   }
 
   // While playing, the grid is the part that scrolls (the screen fits the window): keep it at the
@@ -293,8 +300,8 @@ export async function lettersGameScreen(root, id) {
   let revealing = false;
   function submit() {
     if (!playing() || revealing) return;
-    const word = cur.join('');
-    const k = cur.filter(Boolean).length;
+    const word = withHints().join('');           // a tile left with only its hint takes the hinted letter
+    const k = withHints().filter(Boolean).length;
     sel = null;                              // sending the row ends any editing
     if (k < n) {
       bad = true;

@@ -430,20 +430,27 @@ hot-seat. Taken into the core at once, as the plan asks for them "from day one" 
 - [x] A tag (hash) of the word list in every save - a new list never breaks an old game.
 - [x] Letter names (es, ef, zet / ess, aitch, zed) - checked: in both lists already, no extra list needed.
 - [x] Proper nouns and abbreviations out - the word-game lists have none.
-Its other ideas - **the owner to choose which go into the first version** (asked 2026-09-25):
-- [ ] Hint types chosen when asking: can I play anything (or better exchange - which tiles)? / the word only /
-      the place only / the full move; hint strength best / good; an optional hint limit; games with hints
-      counted apart in the statistics.
-- [ ] "Check a word" - look a word up in the list.
+Its other ideas - the owner (2026-09-25): "arrange them as is best, but make sure they are there when
+everything is built" - except quick start, the daily puzzle, the anagram trainer and replays (dropped).
+Order: the game itself first, then these; all of them are in the design prompt, so one design covers them.
+- [x] **Hints, the owner's way**: the first press marks where the best word goes, the second shows the word.
+      (In place of the plan's four hint types.) Core: hint() 0.31.0; the two steps are the screen's.
+- [x] **"Check a word" - any time** (owner: not as a hint - "you just want to check if they are possible"),
+      in the game and from the games list. Core: checkWord 0.31.2.
 - [ ] Rule options: bonus squares once (standard) / always; automatic checking / challenges with a penalty;
       exchanges only with 7+ in the bag / always; the bonus for seven tiles; an optional time limit (per move /
       per game).
 - [ ] A stronger computer: Hard weighing the tiles it keeps (needed for "exchange these"), an Expert level
       that simulates (Monte Carlo).
 - [ ] Statistics per level and language, points per move, passes; a look-back after the game (the best move
-      of each turn) and replays.
-- [ ] New game on the last settings in one tap; a daily puzzle (the date as the seed); an anagram trainer;
-      bigger text.
+      of each turn). ~~Replays~~ - dropped (owner: "too much hassle").
+- ~~New game on the last settings in one tap; a daily puzzle; an anagram trainer~~ - dropped (owner).
+- [ ] Bigger text - maybe (owner: "could be it").
+- [ ] **The owner's own new idea (2026-09-25): who put which tile** - a switch in the game, on and off at any
+      moment: a frame in each player's colour round the tiles they put down (the computer too). Core: every
+      square keeps its player (0.31.2); in the design prompt.
+- [x] **Statistics with several people** - yes (owner: "it's the phone's statistics"): every game counts;
+      the computer's own moves never do. In the design prompt.
 - [ ] Later: games over the local network (PC ↔ Android), then Bluetooth (Android ↔ Android).
 
 ### To build — after the owner's answers and the design
@@ -462,10 +469,13 @@ Its other ideas - **the owner to choose which go into the first version** (asked
       Space (leaves a tile empty and moves on), ← → (along the tiles), Hint. 0.31.1
 - [x] **"Doesn't exist or isn't allowed"** instead of "I don't know the word" - Guess, Letters, Connect. 0.31.1
 - [x] **The orange line at the top of every screen** (the top bar's 3 px accent edge) - gone, phone and PC. 0.31.1
-- [ ] Litery: where hinted letters show now that the row is gone - asked the owner.
+- [x] Litery: where hinted letters show now that the row is gone - owner: greyed out in its place in every
+      row being typed, to type over. 0.31.2
 - [ ] Połącz: "hints mostly pick first letters" - measured, not so: over 1 200 hints 26.0 % landed on a first
       letter, and 26.7 % of the squares are first letters; every letter of the circle equally often. Asked the
-      owner what they saw.
+      owner what they saw. Owner: 16 hints on 10 letters, all S or I. Not reproduced either: 580 simulated
+      10-letter games (some words already found), never fewer than 4 different letters in 8-16 hints; the
+      hint code is unchanged since 0.27.4. Asked for a screenshot when it happens again.
 
 ## M14 — The third game: Połącz / Connect — PLANNED 2026-09-25, designs requested
 The owner's description: you get a few letters **arranged in a circle**. You draw a word by dragging
