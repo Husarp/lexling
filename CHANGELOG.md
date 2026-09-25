@@ -21,7 +21,7 @@ folder.
   first start, whichever comes first; when both folders exist it never touches the old one. The local
   port — the origin the saves belong to — is unchanged, so every save reads as before. Tested with
   throwaway folders and a fake registry (10 checks, the real saves and registry never opened).
-- **Android: a new ID, `io.github.husarp.lexling`** (was `com.trivioflow.wordguess`, the owner's
+- **Android: a new ID, `io.github.husarp.lexling`** (the old one carried the name of the owner's
   employer, public on GitHub). Android treats it as a new app: it installs next to the old one, and
   games saved in the old app stay there.
 - The game's own storage keys stay `wg.*` on purpose — renaming them would lose every save.
@@ -474,7 +474,7 @@ are above 60. Tools had no easy words at all. That is why "easy, with a category
 
 M6. The same `app/` folder now ships as an APK as well as the Windows installer, built from the terminal.
 
-- **`build\WordGuess-debug.apk`, 34.5 MB**, package `com.trivioflow.wordguess`, target SDK 35.
+- **`build\WordGuess-debug.apk`, 34.5 MB**, package ID later replaced (0.18.0), target SDK 35.
   `scripts\build-android.ps1` does the whole thing (`-Install` also pushes it to a connected phone);
   it points at the Android SDK in `%LOCALAPPDATA%` and the JDK 21 inside Android Studio, so neither
   needs to be on PATH. Verified the word data really is inside the package: `data/pl/vectors.bin`

@@ -363,7 +363,7 @@ Asked 2026-09-25: rename the app "in GitHub and everywhere (folder name)", with 
 built from the owner's GitHub name rather than the employer's.
 - [x] Name everywhere the player sees it: logo LEX/LING (the slash stays orange, as in WORD/GUESS),
       the menu's big letters L/, window and page title, About text, footers.
-- [x] Android ID `com.trivioflow.wordguess` → **`io.github.husarp.lexling`** (the same form as Browser
+- [x] Android ID → **`io.github.husarp.lexling`** (the old one named the owner's employer) (the same form as Browser
       Switch's). Android sees a new app: the old one stays until uninstalled, its saves do not carry over.
 - [x] Windows: program, setup, folders and shortcuts are Lexling. The setup recognises a WordGuess
       install and updates it: old program, shortcuts and uninstall entry removed, saves folder moved
@@ -399,7 +399,7 @@ built from the owner's GitHub name rather than the employer's.
       But two translation businesses use the name — that French one and **LexLing, a translation and
       language-school office in Wrocław since 2011** (lexling.pl). No legal block found; the catch
       is that in Poland the name already means "a translation office". Owner to decide.
-      A rename is also the moment to change the Android app ID away from `com.trivioflow.*`
+      A rename is also the moment to change the Android app ID away from the old one
       (the owner's employer) — both make phones see a new app, so do them together once.
 - [ ] **Before a public store release: Letters' colours.** The New York Times has sent takedown
       notices (2024) citing the Wordle name AND its green / yellow / grey tiles. Ours come from our

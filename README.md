@@ -66,8 +66,8 @@ game, 39 MB word data).
 The app was called **WordGuess** until 0.18.0. On Windows, installing Lexling over WordGuess is an
 ordinary update: the setup recognises the old install, removes the old program and shortcuts, and
 moves the saves folder `%LOCALAPPDATA%\WordGuess` to `%LOCALAPPDATA%\Lexling` whole (the game does
-the same on its first start, whichever comes first). On Android the app ID changed from
-`com.trivioflow.wordguess` to `io.github.husarp.lexling`, so Android sees a new app: it installs next
+the same on its first start, whichever comes first). On Android the app ID changed to
+`io.github.husarp.lexling`, so Android sees a new app: it installs next
 to the old one, and games saved in the old app do not carry over. The GitHub repository moved to
 `Husarp/lexling`; GitHub forwards the old address, so older versions' update check still works.
 
