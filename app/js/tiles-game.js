@@ -8,7 +8,7 @@ import { has } from './dawg.js';
 import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, checkMove, apply, canExchange, hinted,
   unseen, undo, loadTileWords, checkWord, fullBag, BLANK } from './tiles.js';
 import { hintLevels, sameMove, computerMove, lookBack, LEVELS } from './tiles-moves.js';
-import { topbar, modeTag, confirmClick, outcome } from './ui.js';
+import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 
@@ -140,7 +140,7 @@ export async function tilesGameScreen(root, id) {
   const touches = new Map();
 
   root.innerHTML = `<div class="app fit" data-screen="tiles">
-  ${topbar({ left: modeTag('tiles'), right: `<span class="eyebrow">${esc(gameName(game))}</span><button class="btn btn-ghost tl-q" type="button" data-act="guide" aria-label="${t('tiles.guide')}">?</button>` })}
+  ${topbar({ left: modeTag('tiles'), right: `<span class="eyebrow">${esc(gameName(game))}</span>${gearButton()}<button class="btn btn-ghost tl-q" type="button" data-act="guide" aria-label="${t('tiles.guide')}">?</button>` })}
   <main class="main"><div class="tl-play">
     <div class="status"></div>
     <div class="tl-bwrap"><div class="tl-board"><div class="tb"></div></div></div>
@@ -152,6 +152,7 @@ export async function tilesGameScreen(root, id) {
   </div></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main'), play = app.querySelector('.tl-play');
+  wireGear(root);
   const $ = s => play.querySelector(s);
   const status = $('.status'), boardEl = $('.tl-board'), tb = $('.tb'), say = $('.say'), rackEl = $('.tl-rack'), dock = $('.tl-dock');
   const more = $('.tl-more'), over = $('.tl-over');

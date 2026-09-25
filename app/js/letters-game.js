@@ -5,7 +5,7 @@ import { t, plural, esc } from './i18n.js';
 import { settings, stats, saveStats, getSave, putSave, gameName, recordLettersEnd, playClock } from './store.js';
 import { loadWords, resolve } from './engine.js';
 import { feedback, typeLetter, eraseLetter, skipTile, keyStates, MARKED } from './letters.js';
-import { topbar, modeTag, confirmClick, TILE, outcome } from './ui.js';
+import { topbar, modeTag, confirmClick, TILE, outcome, gearButton, wireGear } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 import { offensive } from './offensive.js';
@@ -36,10 +36,11 @@ export async function lettersGameScreen(root, id) {
   // stuck). Saves from 0.28.2-0.33.3 may still carry `hinted`; it is ignored.
 
   root.innerHTML = `<div class="app" data-screen="letters">
-  ${topbar({ left: modeTag('letters'), right: `<span class="eyebrow">${esc(gameName(game))}</span>` })}
+  ${topbar({ left: modeTag('letters'), right: `<span class="eyebrow">${esc(gameName(game))}</span>${gearButton()}` })}
   <main class="main"></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main');
+  wireGear(root);
   const $ = sel => main.querySelector(sel);
   const refit = () => fitAll(root);
   let board, sink, kb;

@@ -6,6 +6,16 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.39.0 — 2026-09-26 00:18: A settings gear in every game
+*(not packaged)*
+
+- **⚙ in the top bar of all four games** (owner: "a settings button, the usual icon only"): a small window over the
+  game with **Dźwięk / Sound**. Esc, ✕ or a tap outside closes it, and it never leaves the game; the keyboard does not
+  type into the game while it is open.
+- On narrow phones the game's name makes room for it in the top bar (it stays on the saved-games list).
+- Checked in headless Edge in all four games at 320-480 px: the switch saves, Esc only closes the window, nothing
+  overflows, no console errors.
+
 ## 0.38.0 — 2026-09-26 00:04: Kafelki: fewer colours when you want, and the points added up
 *(not packaged)*
 

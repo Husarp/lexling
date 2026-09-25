@@ -2,7 +2,7 @@
 import { t, plural, esc, num, clock } from './i18n.js';
 import { settings, stats, getSave, putSave, recordGuess, recordEnd, gameName, playClock } from './store.js';
 import { load, resolve, suggest, rankAll, pct, hint, HINT_FLOOR } from './engine.js';
-import { topbar, fillColor, confirmClick, outcome } from './ui.js';
+import { topbar, fillColor, confirmClick, outcome, gearButton, wireGear } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 
@@ -16,13 +16,14 @@ export async function gameScreen(root, id) {
   const rank = rankAll(m, secretIdx);
 
   root.innerHTML = `<div class="app" data-screen="game">
-  ${topbar({ left: `<a class="btn btn-ghost" href="#/games/guess">${t('back.games')}</a>`, right: `<span class="eyebrow">${esc(gameName(game))}</span>` })}
+  ${topbar({ left: `<a class="btn btn-ghost" href="#/games/guess">${t('back.games')}</a>`, right: `<span class="eyebrow">${esc(gameName(game))}</span>${gearButton()}` })}
   <main class="main">
     <div class="status"></div>
     <div id="entry"></div>
     <div id="board"></div>
   </main>
 </div>`;
+  wireGear(root);
   const $ = sel => root.querySelector(sel);
   const board = $('#board');
   let input, ac, items = [], hl = 0, picked = false;

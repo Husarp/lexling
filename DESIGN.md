@@ -526,6 +526,13 @@ are in `screens.js`.
   places list from three players), what the leftover tiles did, the best word in tiles, seven-tile moves and
   hints, the final board, and the look-back (each of the people's turns next to the best move there was).
 
+### Settings inside a game (0.39.0, owner: "a settings button, the usual icon only")
+A gear at the right of every game's top bar (ui.js `gearButton` / `wireGear`) opens a small window over the game
+(a native modal dialog, centred) with the settings that matter while playing - Sound for now. While it is open the
+keys belong to it alone (a game would otherwise type into itself, and Esc would leave the screen): Esc, ✕ or a tap
+outside closes it. On a narrow phone the game's name gives way in the top bar (under 375 px; Kafelki, which also has
+its "?", under 460 px) - the name is on the saved-games list anyway.
+
 ### How to play (0.33.0, owner)
 Every New game screen has a card under the title: "Jak grać / How to play", 4-5 short lines, opened and closed
 with a tap (a native details element - works with a finger, a mouse, the keyboard and a screen reader). Closed every

@@ -499,8 +499,12 @@ Order: the game itself first, then these; all of them are in the design prompt, 
 - [x] **Too many colours** (owner): "Kolorowe premie" - bonus squares one quiet grey with their labels - in Settings,
       New game and the game; a palette button beside the magnifier turns the player colours on and off. 0.38.0
 - [x] **The message line adds up**: "KOT 5 + TOK 6 = 11" instead of dots (owner). 0.38.0
-- [ ] Other settings in the game too? (owner asked, 2026-09-26) - proposal sent: sound in every game, Letters' phone
-      keyboard in Litery, spelling mistakes in Znaczenie.
+- [x] **A settings gear in every game** (owner: "the usual icon only"): Sound. 0.39.0
+- [ ] More in the gear? - asked: Litery's phone keyboard, Znaczenie's spelling mistakes ("Literówki"), Kafelki's two
+      colour switches.
+- [ ] **Word meanings** (owner, 2026-09-26: "if you have a meaning for every word, show it when checking a word or
+      when a word is played - all games"): we have none. Proposal sent: Polish from the Polish Wiktionary (kaikki.org
+      extraction, CC BY-SA), English from Open English WordNet (CC BY 4.0); waiting for a yes to download.
 - [ ] Tune the levels by playing.
 
 ## Litery: hints and the "what you know" strip — DONE 2026-09-25 (0.28.2)

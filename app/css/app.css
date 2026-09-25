@@ -1169,3 +1169,20 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* the palette beside the magnifier: player colours on / off in one tap; lit while they are on */
 [data-screen=tiles] .status-actions .tl-find+.tl-find{margin-left:0}
 .tl-paint.on{color:var(--accent)}
+/* 0.39.0: the gear in a game's top bar and its small settings window (owner, 2026-09-26) */
+.gs-open{min-width:36px;min-height:36px;padding:0}
+.gs-open svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.topbar .side.end>.eyebrow{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.game-settings{margin:auto;width:min(400px,calc(100vw - 32px));padding:var(--space-4) var(--space-5);color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-md)}
+.game-settings::backdrop{background:rgba(0,0,0,.55)}
+[data-theme=light] .game-settings::backdrop{background:rgba(0,0,0,.3)}
+.gs-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-2)}
+.gs-close{min-width:40px;padding:0}
+.gs-row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);padding:var(--space-3) 0;border-top:1px solid var(--line-soft)}
+.gs-row .row-text{display:grid;gap:4px}
+.gs-row strong{font-weight:600}
+.gs-row .row-text span{font-size:13px;line-height:1.4;color:var(--text-muted)}
+/* on a narrow phone the game's name gives way to the gear (and Kafelki's "?") - it is on the saved-games list anyway */
+.topbar .gs-open,.topbar .tl-q{flex:none}
+@media (max-width:374px){.topbar .side.end:has(.gs-open)>.eyebrow{display:none}}
+@media (max-width:459px){[data-screen=tiles] .topbar .side.end:has(.gs-open)>.eyebrow{display:none}}

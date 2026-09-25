@@ -45,6 +45,7 @@ Playable in **Polish and English** (both the UI and the word libraries).
   words are bonus words; free hints, a random letter at a time, until half of a word shows (rounded up); a hinted
   letter stays marked, in green, once its word is done. Its own statistics.
 - **How to play** on every New game screen: a short card, closed until you open it.
+- **A gear in every game's top bar**: the settings that matter while playing (Sound), without leaving the game.
 - **No scores anywhere** (since 0.29.0): the games are for fun; statistics show how you are doing,
   hints used included.
 - **Tiles mode** (Kafelki, since 0.35.0), the classic crossword-tile game for 2–5 players - people passing

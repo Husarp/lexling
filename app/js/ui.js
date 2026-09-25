@@ -1,5 +1,40 @@
-import { settings } from './store.js';
+import { settings, saveSettings } from './store.js';
 import { t } from './i18n.js';
+import { click } from './sound.js';
+
+// The gear in every game's top bar (owner, 2026-09-26: "a settings button, the usual icon only"): the settings that
+// matter while playing, in a small window over the game - Sound for now. The keys go to the window alone while it
+// is open (a game would otherwise type into itself, and Esc would leave the screen).
+const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+export const gearButton = () => `<button class="btn btn-ghost gs-open" type="button" aria-label="${t('set.title')}" title="${t('set.title')}">${GEAR}</button>`;
+export function wireGear(root) {
+  root.querySelector('.gs-open')?.addEventListener('click', () => {
+    const items = [['sound', t('set.sound'), t('set.soundDesc')]];
+    const dlg = document.createElement('dialog');
+    dlg.className = 'card game-settings';
+    dlg.innerHTML = `<div class="gs-head"><span class="eyebrow">${t('set.title')}</span><button class="btn btn-ghost gs-close" type="button" aria-label="${t('tiles.close')}">✕</button></div>${
+      items.map(([key, label, help]) => `<div class="gs-row"><div class="row-text"><strong>${label}</strong><span>${help}</span></div><button type="button" class="toggle${settings[key] ? ' on' : ''}" role="switch" aria-checked="${!!settings[key]}" aria-label="${label}" data-key="${key}"></button></div>`).join('')}`;
+    const keys = e => {
+      e.stopPropagation();
+      if (e.key === 'Escape') { e.preventDefault(); close(); }
+    };
+    const close = () => { window.removeEventListener('keydown', keys, true); dlg.close(); dlg.remove(); };
+    window.addEventListener('keydown', keys, true);
+    dlg.addEventListener('click', e => {
+      const toggle = e.target.closest('[data-key]');
+      if (toggle) {
+        const key = toggle.dataset.key;
+        settings[key] = !settings[key];
+        saveSettings();
+        toggle.classList.toggle('on', settings[key]);
+        toggle.setAttribute('aria-checked', settings[key]);
+        if (key === 'sound') click();
+      } else if (e.target === dlg || e.target.closest('.gs-close')) close();   // the backdrop, or ✕
+    });
+    document.body.append(dlg);
+    dlg.showModal();
+  });
+}
 
 // Brand centred, whatever sits beside it: back on the left (only when the screen has one), the
 // screen's own note on the right. The side slots are equal columns, so the brand stays centred.

@@ -4,7 +4,7 @@ import { t, esc } from './i18n.js';
 import { getSave, putSave, gameName, recordConnectEnd, playClock } from './store.js';
 import { loadWords } from './engine.js';
 import { WORD_MIN, cellsOf, visible, isDone, nextHint, judge } from './connect.js';
-import { topbar, modeTag, confirmClick, outcome } from './ui.js';
+import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 
@@ -47,10 +47,11 @@ export async function connectGameScreen(root, id) {
   const state = () => ({ found: game.found, shown: game.shown, bonus: game.bonus });
 
   root.innerHTML = `<div class="app" data-screen="connect">
-  ${topbar({ left: modeTag('connect'), right: `<span class="eyebrow">${esc(gameName(game))}</span>` })}
+  ${topbar({ left: modeTag('connect'), right: `<span class="eyebrow">${esc(gameName(game))}</span>${gearButton()}` })}
   <main class="main"></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main');
+  wireGear(root);
   const $ = sel => main.querySelector(sel);
   const refit = () => fitAll(root);
   let cells = new Map(), ring, dock, bonusBtn;
