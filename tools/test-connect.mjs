@@ -65,6 +65,9 @@ for (const lang of ['pl', 'en']) {
   const m = await loadWords(lang);
   const common = new Set();
   for (let len = 3; len <= 7; len++) for (const i of pool(m, { len, diff: 'random' })) common.add(m.words[i]);
+  // every board-worthy word by its letters, sorted: the words that use a whole circle
+  const sorted = w => [...w].sort().join(''), byLetters = new Map();
+  for (const w of common) byLetters.set(sorted(w), [...(byLetters.get(sorted(w)) || []), w]);
   for (const letters of [4, 5, 6, 7]) for (const diff of ['relaxed', 'easy', 'normal', 'hard']) for (const marks of lang === 'pl' ? [false, true] : [true]) {
     const rand = seeded(letters * 100 + diff.length * 7 + (marks ? 1 : 0));
     const t0 = performance.now();
@@ -79,6 +82,9 @@ for (const lang of ['pl', 'en']) {
       if (!p.board.words.every(x => common.has(x.w))) throw new Error('a board word that is not a common base word');
       if (!marks && MARKS.test(p.ring)) throw new Error('Polish letters in the circle with the switch off');
       if ([...p.ring].length !== letters) throw new Error('circle size');
+      // a base word that uses every letter is always on the board, however rare (owner, 2026-09-25)
+      const onBoard = new Set(p.board.words.map(x => x.w));
+      for (const w of byLetters.get(sorted(p.ring)) || []) if (!onBoard.has(w)) throw new Error(`${w} uses every letter of ${p.ring} but is not on the board`);
       words += n; widest = Math.max(widest, p.board.cols); tallest = Math.max(tallest, p.board.rows);
     }
     const ms = (performance.now() - t0) / 25;

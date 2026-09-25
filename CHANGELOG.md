@@ -6,6 +6,20 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.27.2 — 2026-09-25 14:03: A bigger letter circle; every base word that uses all the letters is on the board
+*(not packaged)*
+
+From the owner's first games on the phone:
+- **The circle is bigger**: up to 276 px across (was 240), and on a narrow phone it keeps 52 px each side for
+  the tools instead of 56. The letters grow with it.
+- **A word that uses every letter is always on the board** if it is a base word, whatever the level - the
+  owner found such words ending up as bonus words. Measured over 360 games a language: 20 Polish and 16
+  English ones were left off only for being rarer than the level (TORBA's circle also spells TABOR, SPORT
+  STROP, RESET STEER, PANEL PENAL); now none are. A test checks it for every generated puzzle.
+- Still bonus words: all-letter words that are **inflected forms** - LISTA → STALI, ZAWÓR → RAZÓW, DEATH →
+  HATED, DENSE → NEEDS (284 Polish, 91 English in those games), because the board only takes base forms.
+  Put to the owner.
+
 ## 0.27.1 — 2026-09-25 13:59: Fixes from a review of the new game screens
 *(not packaged)*
 

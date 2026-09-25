@@ -61,7 +61,9 @@ export function makePuzzle(m, { letters: n, diff = 'normal', marks = true, rand 
   for (let attempt = 0; attempt < TRIES && keys.length; attempt++) {
     const key = keys[Math.floor(rand() * keys.length)].w;
     const have = count([...key]);
-    const words = usable.filter(x => x.w !== key && fits(x.w, have)).map(x => x.w);
+    // A word that uses every letter always goes on the board, however rare (owner, 2026-09-25: TORBA's circle
+    // also spells TABOR - a player who finds it should see it land on the board, not as a bonus).
+    const words = candidates(m, marks).filter(x => x.w !== key && (x.rank < cap || x.n === n) && fits(x.w, have)).map(x => x.w);
     if (words.length + 1 < lo) continue;
     const board = layout(key, words, hi, rand);
     if (board.words.length >= lo) return { ring: shuffle([...key], rand).join(''), key, board };
