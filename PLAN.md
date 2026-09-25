@@ -408,6 +408,8 @@ themed packs, and **none of them has a points score** — finishing the board is
   stoplist, base forms), 3+ letters; difficulty picks how common they are, as in Letters.
 - **Bonus words: any other real word, every Polish form included** (`ac`) — counted, never required.
   So "which words count" becomes: base forms on the board, every form as a bonus.
+- **Hints (changed 0.27.4, owner): a random letter anywhere (or in the tapped word), at most half a word's
+  letters from hints.** The earlier rule below - one word at a time from its start - is replaced.
 - **Hints — free and unlimited** (owner 2026-09-25: the game is about fun; a player who is stuck
   should not be kept stuck). The owner's idea: a hint puts a letter into an unfinished word, e.g. its
   first. Each press shows **one more letter of one word, from

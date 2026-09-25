@@ -210,20 +210,23 @@ export async function connectGameScreen(root, id) {
     placeKeys();                             // the letters glide to their new places (200 ms, app.css)
   }
 
+  // A hint: a random letter not showing yet (connect.js, nextHint) - in the chosen word if there is one -
+  // and never more than half of any word's letters from hints.
   function hint() {
     if (!playing() || busy) return;
     const h = nextHint(board, game.found, game.shown, pick);
     if (!h) return;
+    if (!h.cell) return sayText(pick ? t('cn.msg.wordCapped', { w: loud(pick) }) : t('cn.msg.noHints'));
     game.shown.push(h.cell);
     game.hints++;
     putSave(game);
-    const x = board.words.find(b => b.w === h.word), vis = visible(board, game.found, game.shown);
+    const vis = visible(board, game.found, game.shown);
+    const finished = board.words.find(x => h.words.includes(x.w) && isDone(x, game.found, vis));
+    const chosen = board.words.find(x => x.w === pick);
     unpick();
-    if (isDone(x, game.found, vis)) {
-      sayText(t('cn.msg.byHints', { w: loud(x.w) }));
-    } else {
-      sayText(t('cn.msg.hint', { k: cellsOf(x).filter(k => vis.has(k)).length, n: [...x.w].length }));
-    }
+    if (finished) sayText(t('cn.msg.byHints', { w: loud(finished.w) }));
+    else if (chosen) sayText(t('cn.msg.hint', { k: cellsOf(chosen).filter(k => vis.has(k)).length, n: [...chosen.w].length }));
+    else sayText(t('cn.msg.hinted'));
     paintCells();
     animate([h.cell], 'new-hint', 150);
     paintStatus();

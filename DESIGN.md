@@ -350,10 +350,10 @@ the right — and under it a plain card edged in the same colour with the word, 
 - **Levels go by frequency rank**, not by Letters' difficulty (which also weighs how rare the letters are - no
   help to anyone when the circle hands the letters over): Relaxed 5 000 most common words, Easy 8 000, Normal
   12 000, Hard 20 000.
-- **Hints are free and unlimited** (owner: nobody should stay stuck). A press shows one more letter of one word:
-  the one tapped on the board, or the unfinished one showing the most letters (the shortest on a tie), from
-  its start, skipping letters already showing through a crossing word. A word whose letters all show counts
-  as found but keeps the dashed "hinted" look.
+- **Hints are free** (owner: nobody should stay stuck), but a hint stays a hint (0.27.4): each press shows a
+  random letter not showing yet - anywhere, or in the word tapped first - and no word gets more than half its
+  letters (rounded down) from hints; letters from found crossing words do not count, a crossing letter counts for
+  both words. A word whose letters all show (hints plus crossings) counts as found and keeps the dashed look.
 - **No points and no achievements** (owner, 2026-09-25): the result is solved or given up, words, bonus words,
   hints. Statistics: played, solved, words found, bonus words, the longest word found.
 - Screen: the status row, the board (tiles sized by width and height), one slot for the word being dragged

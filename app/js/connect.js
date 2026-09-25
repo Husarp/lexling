@@ -169,18 +169,25 @@ export const doneWords = (board, found, shown) => {
 };
 export const solved = (board, found, shown) => doneWords(board, found, shown).length === board.words.length;
 
-// The next hint (design v4): the chosen word's first letter that is not showing yet - letters already
-// visible through a crossing word are skipped, so a press never gives nothing. With no word chosen, it
-// goes on with the unfinished word showing the most letters (the shortest on a tie), so repeated
-// presses finish one word instead of scattering. Returns { word, cell } or null when all are done.
-export function nextHint(board, found, shown, pick = null) {
-  const vis = visible(board, found, shown);
+// The next hint (owner, 2026-09-25): a random letter that is not showing yet, anywhere on the board - or,
+// when the player tapped a word first, anywhere in that word. A hint must stay a hint, not solve the word
+// for you: at most half of a word's letters (rounded down) may come from hints - 3 of 6, 2 of 5, 1 of 3.
+// Letters showing through a word the player found do not count; those were earned. A cell where two
+// words cross counts for both. Returns null when every word is done, { cell: null } when no word may
+// take another hinted letter (or the chosen one may not), otherwise { cell, words } - the unfinished
+// words through that cell.
+export const hintCap = word => Math.floor([...word].length / 2);
+export function nextHint(board, found, shown, pick = null, rand = Math.random) {
+  const vis = visible(board, found, shown), hinted = new Set(shown);
   const open = board.words.filter(x => !isDone(x, found, vis));
   if (!open.length) return null;
-  const showing = x => cellsOf(x).filter(k => vis.has(k)).length;
-  const target = open.find(x => x.w === pick) ?? open.reduce((a, b) =>
-    showing(b) > showing(a) || (showing(b) === showing(a) && b.w.length < a.w.length) ? b : a);
-  return { word: target.w, cell: cellsOf(target).find(k => !vis.has(k)) };
+  const through = k => open.filter(x => cellsOf(x).includes(k));
+  const allowed = k => !vis.has(k) && through(k).every(x => cellsOf(x).filter(c => hinted.has(c)).length < hintCap(x.w));
+  const chosen = pick && open.find(x => x.w === pick);
+  const cells = [...new Set((chosen ? [chosen] : open).flatMap(cellsOf))].filter(allowed);
+  if (!cells.length) return { cell: null, words: [] };
+  const cell = cells[Math.floor(rand() * cells.length)];
+  return { cell, words: through(cell).map(x => x.w) };
 }
 
 // What a word made on the circle is: 'short' (under 3 letters), 'found' (a board word, new),

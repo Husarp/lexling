@@ -6,6 +6,21 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.27.4 — 2026-09-25 14:29: Connect hints are random letters, never more than half a word; a cleaner icon
+*(not packaged)*
+
+- **A hint is a random letter anywhere on the board** (owner: filling words one by one "is very wrong") - or,
+  when a word was tapped first, a random letter of that word.
+- **At most half of a word's letters can come from hints**, rounded down - 3 of 6, 2 of 5, 1 of 3 - "it should
+  be a hint, not complete it for me". Letters showing through a word the player found do not count; a letter
+  where two words cross counts for both. When every word left is at its limit, Hint says there are no more
+  hints; a tapped word at its limit says so too. A word can still fill up through hints plus crossing words -
+  then it counts, and the message says it is complete.
+- Tests: the limit, random spread, the chosen word, crossings, running out; and 80 real boards hinted until
+  Hint had nothing left - no word ever went over half. 176 Connect tests.
+- **The Connect icon on the menu**: its grey ring ran between the joined letters too, under the green line.
+  The grey is now only where no word joins the letters - from the last green letter round to the first.
+
 ## 0.27.3 — 2026-09-25 14:07: No slurs in Connect; no square on a tapped button; no text selection
 *(not packaged)*
 

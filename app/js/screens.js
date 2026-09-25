@@ -26,7 +26,8 @@ const RING_WORD = { pl: 'sował', en: 'words' };   // the path joins the first f
 const CUE = {
   guess: () => '<span class="strips"><i></i><i></i></span>',
   letters: () => `<span class="sq">${'<i></i>'.repeat(6)}</span>`,
-  connect: () => `<span class="cue-ring"><svg viewBox="0 0 100 100"><polyline points="${RING5.slice(0, 4).map(p => p.join(',')).join(' ')}"></polyline></svg>${
+  // the ring is grey only where the letters are not joined: from the last green letter round to the first
+  connect: () => `<span class="cue-ring"><svg viewBox="0 0 100 100"><path d="M${RING5[3]} A36 36 0 0 1 ${RING5[4]} A36 36 0 0 1 ${RING5[0]}"></path><polyline points="${RING5.slice(0, 4).map(p => p.join(',')).join(' ')}"></polyline></svg>${
     [...RING_WORD[getLang()]].map((ch, i) => `<b class="${i < 4 ? 'on' : ''}" style="--x:${RING5[i][0]}%;--y:${RING5[i][1]}%">${ch}</b>`).join('')}</span>`,
   tiles: () => GLYPH.tiles,
 };

@@ -8,7 +8,7 @@ globalThis.fetch = async url => { const b = readFileSync(new URL(url, ROOT));
   return { json: async () => JSON.parse(b.toString('utf8')), text: async () => b.toString('utf8'),
     arrayBuffer: async () => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) }; };
 const { loadWords } = await import('../app/js/engine.js');
-const { makePuzzle, RANGE, cellsOf, visible, isDone, nextHint, judge, solved, doneWords } = await import('../app/js/connect.js');
+const { makePuzzle, RANGE, cellsOf, visible, isDone, nextHint, hintCap, judge, solved, doneWords } = await import('../app/js/connect.js');
 const { pool } = await import('../app/js/letters.js');
 const { offensive } = await import('../app/js/offensive.js');
 
@@ -103,14 +103,35 @@ for (const lang of ['pl', 'en']) {
 const board = { cols: 6, rows: 4, words: [{ w: 'karton', r: 1, c: 1, d: 'a' }, { w: 'kora', r: 1, c: 1, d: 'd' }, { w: 'tron', r: 1, c: 4, d: 'd' }] };
 check('cells of a word across', cellsOf(board.words[0]), ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6']);
 check('cells of a word down', cellsOf(board.words[1]), ['1-1', '2-1', '3-1', '4-1']);
-// nothing found: the hint goes to the shortest word (all show 0 letters) - KORA or TRON, 4 letters; the first of them
-check('first hint: the shortest unfinished word, its first letter', nextHint(board, [], []), { word: 'kora', cell: '1-1' });
-// KARTON found: KORA and TRON each show 1 letter (their first, through KARTON) - a press skips it
-check('a hint skips a letter already showing through a crossing word', nextHint(board, ['karton'], []), { word: 'kora', cell: '2-1' });
-check('a chosen word gets the hint', nextHint(board, ['karton'], [], 'tron'), { word: 'tron', cell: '2-4' });
-check('repeated hints stay on the word showing the most', nextHint(board, ['karton'], ['2-4']), { word: 'tron', cell: '3-4' });
+// hints (owner, 2026-09-25): a random letter not showing yet, anywhere - or in the chosen word; never more
+// than half of a word's letters (rounded down) from hints; letters from found crossing words do not count
+check('the cap: half a word, rounded down', [hintCap('kora'), hintCap('karton'), hintCap('kot'), hintCap('krowa')], [2, 3, 1, 2]);
+const first = nextHint(board, [], [], null, () => 0);
+check('a hint is a letter not showing yet', first.cell !== null && !visible(board, [], []).has(first.cell), true);
+const spots = new Set(Array.from({ length: 60 }, (_, i) => nextHint(board, [], [], null, () => i / 60).cell));
+check('hints land all over the board, not word by word', spots.size >= 8, true);
+check('a chosen word gets the hint', cellsOf(board.words[2]).includes(nextHint(board, ['karton'], [], 'tron', () => .5).cell), true);
+check('...and never a letter already showing', nextHint(board, ['karton'], [], 'tron', () => 0).cell, '2-4');
+// KORA (4 letters, cap 2) with 2 hinted letters: none of its cells may be hinted again
+check('a word at its cap takes no more hints', nextHint(board, ['karton'], ['2-1', '3-1'], 'kora').cell, null);
+// the crossing cell 1-1 (K of KARTON and KORA) counts for both: with KORA at its cap, 1-1 is off limits too
+check('a crossing letter counts for both words', Array.from({ length: 40 }, (_, i) => nextHint(board, [], ['2-1', '3-1'], null, () => i / 40).cell).includes('1-1'), false);
+// KARTON 3 of 6 hinted (A R O), KORA 2 of 4 (O R), TRON 2 of 4 (R O): every word at its cap
+check('no hint left: says so', nextHint(board, [], ['1-2', '1-3', '1-5', '2-1', '3-1', '2-4', '3-4']).cell, null);
+// on real puzzles: pressing Hint until it has nothing left never puts a word over its cap, and ends
+for (const lang of ['pl', 'en']) {
+  const m = await loadWords(lang), rand = seeded(7);
+  let fine = true, presses = 0;
+  for (let g = 0; g < 40; g++) {
+    const p = makePuzzle(m, { letters: 4 + (g % 4), diff: 'normal', rand });
+    const shown = [];
+    for (let h = nextHint(p.board, [], shown, null, rand); h && h.cell; h = nextHint(p.board, [], shown, null, rand)) { shown.push(h.cell); presses++; }
+    for (const x of p.board.words) if (cellsOf(x).filter(k => shown.includes(k)).length > hintCap(x.w)) fine = false;
+  }
+  check(`${lang}: 40 boards hinted to the end - no word ever over half (${presses} hints)`, fine, true);
+}
 const vis = visible(board, ['karton'], ['2-4', '3-4', '4-4']);
-check('a word whose letters all show is done - finished by hints', isDone(board.words[2], ['karton'], vis), true);
+check('a word whose letters all show is done (hints and a crossing word)', isDone(board.words[2], ['karton'], vis), true);
 check('...and counts toward the board', doneWords(board, ['karton'], ['2-4', '3-4', '4-4']).length, 2);
 check('not solved while a word is left', solved(board, ['karton'], ['2-4', '3-4', '4-4']), false);
 check('solved when every word is done', solved(board, ['karton', 'kora'], ['2-4', '3-4', '4-4']), true);
