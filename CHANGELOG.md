@@ -6,6 +6,17 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.28.0 — 2026-09-25 14:32: Connect circles of up to 10 letters
+*(not packaged)*
+
+- **Letters in the circle: 4 to 10** (was 7) - the owner: "a lot of words, but maybe that's the fun of it; nobody
+  has to pick it". Boards aim for 7–12 words at 8 letters, 8–13 at 9, 9–14 at 10 (the new-game readout says so).
+  Measured, 25 puzzles for every size, level and Polish-letters setting: 8 letters ~8–12 words on boards up to
+  11 × 9; 9–10 letters ~10–14 words, up to 12 × 10 (a 10-letter word alone is 10 across). 2–6 ms a puzzle.
+- **The circle holds them**: 8–10 letters sit on the same ring, a little smaller (20 %, 18.5 %, 17 % of the circle
+  across), always at least 4 % of the circle apart so a finger lands on one letter at a time.
+- 284 Connect tests (the new sizes included).
+
 ## 0.27.5 — 2026-09-25 14:30: Letters never hides or accepts a slur; "13,3" in Polish
 *(not packaged)*
 

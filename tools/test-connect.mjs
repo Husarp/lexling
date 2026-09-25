@@ -65,11 +65,11 @@ const MARKS = /[ąćęłńóśźż]/;
 for (const lang of ['pl', 'en']) {
   const m = await loadWords(lang);
   const common = new Set();
-  for (let len = 3; len <= 7; len++) for (const i of pool(m, { len, diff: 'random' })) common.add(m.words[i]);
+  for (let len = 3; len <= 10; len++) for (const i of pool(m, { len, diff: 'random' })) common.add(m.words[i]);
   // every board-worthy word by its letters, sorted: the words that use a whole circle
   const sorted = w => [...w].sort().join(''), byLetters = new Map();
   for (const w of common) byLetters.set(sorted(w), [...(byLetters.get(sorted(w)) || []), w]);
-  for (const letters of [4, 5, 6, 7]) for (const diff of ['relaxed', 'easy', 'normal', 'hard']) for (const marks of lang === 'pl' ? [false, true] : [true]) {
+  for (const letters of [4, 5, 6, 7, 8, 9, 10]) for (const diff of ['relaxed', 'easy', 'normal', 'hard']) for (const marks of lang === 'pl' ? [false, true] : [true]) {
     const rand = seeded(letters * 100 + diff.length * 7 + (marks ? 1 : 0));
     const t0 = performance.now();
     let made = 0, words = 0, widest = 0, tallest = 0;
@@ -92,7 +92,8 @@ for (const lang of ['pl', 'en']) {
     const ms = (performance.now() - t0) / 25;
     const label = `${lang} ${letters} letters ${diff}${lang === 'pl' ? (marks ? ' ą-ż' : ' plain') : ''}`;
     check(`${label}: every game gets a puzzle`, made, 25);
-    check(`${label}: boards no bigger than 10 across, 8 down`, widest <= 10 && tallest <= 8, true);
+    const most = letters <= 7 ? [10, 8] : letters === 8 ? [11, 9] : [12, 10];
+    check(`${label}: boards no bigger than ${most[0]} across, ${most[1]} down`, widest <= most[0] && tallest <= most[1], true);
     check(`${label}: quick (${ms.toFixed(0)} ms a puzzle)`, ms < 250, true);
     console.log(`  ${label.padEnd(30)} ${(words / made).toFixed(1)} words avg, largest ${widest} × ${tallest}, ${ms.toFixed(1)} ms`);
   }

@@ -4,12 +4,14 @@ import { resolve } from './engine.js';
 import { pool } from './letters.js';
 import { offensive } from './offensive.js';
 
-export const RING_MIN = 4, RING_MAX = 7, WORD_MIN = 3;
+export const RING_MIN = 4, RING_MAX = 10, WORD_MIN = 3;
 // How many words a board aims for, by circle size - the new-game readout shows the same (design v4).
-export const RANGE = { 4: [3, 5], 5: [4, 7], 6: [5, 8], 7: [6, 10] };
+// 8-10 letters were added at the owner's wish (2026-09-25): a lot of words, for whoever wants that.
+export const RANGE = { 4: [3, 5], 5: [4, 7], 6: [5, 8], 7: [6, 10], 8: [7, 12], 9: [8, 13], 10: [9, 14] };
 // The largest board: on a phone the height is what runs out (the circle takes the bottom), so boards
 // are kept wider than tall - the design's worst case is 10 across, 7 down, with 27 px tiles at 320 × 640.
-const MAX_COLS = 10, MAX_ROWS = 8;
+// The bigger circles need more: a 10-letter word alone is 10 across.
+const LIMIT = n => n <= 7 ? { cols: 10, rows: 8 } : n === 8 ? { cols: 11, rows: 9 } : { cols: 12, rows: 10 };
 const TRIES = 300;            // letter sets tried before giving up (a thin choice: 4 Polish letters, Relaxed)
 
 const count = letters => letters.reduce((c, ch) => c.set(ch, (c.get(ch) || 0) + 1), new Map());
@@ -68,7 +70,7 @@ export function makePuzzle(m, { letters: n, diff = 'normal', marks = true, rand 
     // also spells TABOR - a player who finds it should see it land on the board, not as a bonus).
     const words = candidates(m, marks).filter(x => x.w !== key && (x.rank < cap || x.n === n) && fits(x.w, have)).map(x => x.w);
     if (words.length + 1 < lo) continue;
-    const board = layout(key, words, hi, rand);
+    const board = layout(key, words, hi, rand, LIMIT(n));
     if (board.words.length >= lo) return { ring: shuffle([...key], rand).join(''), key, board };
   }
   return null;
@@ -81,7 +83,7 @@ export function makePuzzle(m, { letters: n, diff = 'normal', marks = true, rand 
 // are 1-based, as in CSS grid.
 export const cellsOf = ({ w, r, c, d }) => [...w].map((_, k) => d === 'a' ? `${r}-${c + k}` : `${r + k}-${c}`);
 
-function layout(key, words, max, rand) {
+function layout(key, words, max, rand, limit) {
   const grid = new Map();                    // 'r,c' -> { ch, dirs: Set }
   const placed = [];
   let box = { r0: 0, r1: 0, c0: 0, c1: [...key].length - 1 };
@@ -99,7 +101,7 @@ function layout(key, words, max, rand) {
   const queue = shuffle(words, rand).sort((a, b) => [...b].length - [...a].length);
   for (const w of queue) {
     if (placed.length >= max) break;
-    const spot = bestSpot(w, grid, box, rand);
+    const spot = bestSpot(w, grid, box, rand, limit);
     if (!spot) continue;
     put(w, spot.r, spot.c, spot.d);
     box = spot.box;
@@ -108,7 +110,7 @@ function layout(key, words, max, rand) {
   return { cols: box.c1 - box.c0 + 1, rows: box.r1 - box.r0 + 1, words: words0 };
 }
 
-function bestSpot(w, grid, box, rand) {
+function bestSpot(w, grid, box, rand, limit) {
   const letters = [...w], L = letters.length;
   let best = null;
   for (const [at, cell] of grid) {
@@ -123,7 +125,7 @@ function bestSpot(w, grid, box, rand) {
       const nb = { r0: Math.min(box.r0, r), c0: Math.min(box.c0, c),
         r1: Math.max(box.r1, d === 'a' ? r : r + L - 1), c1: Math.max(box.c1, d === 'a' ? c + L - 1 : c) };
       const rows = nb.r1 - nb.r0 + 1, cols = nb.c1 - nb.c0 + 1;
-      if (rows > MAX_ROWS || cols > MAX_COLS) return;
+      if (rows > limit.rows || cols > limit.cols) return;
       // most crossings first, then the smallest board, not taller than wide; ties broken at random
       const score = crossings * 1000 - rows * cols - Math.max(0, rows - cols) * 8 + rand();
       if (!best || score > best.score) best = { r, c, d, box: nb, score };

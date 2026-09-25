@@ -15,7 +15,12 @@ const POS = {
   6: [[50, 16], [79.4, 33], [79.4, 67], [50, 84], [20.6, 67], [20.6, 33]],
   7: [[50, 16], [76.6, 28.8], [83.1, 57.6], [64.8, 80.6], [35.2, 80.6], [16.9, 57.6], [23.4, 28.8]],
 };
-const KEY = { 4: .28, 5: .26, 6: .24, 7: .215 };   // a letter's width as a share of the circle's (app.css .cn-ring.nN)
+// 8-10 letters (owner, 2026-09-25): the same ring, radius 34 %, the first letter at the top
+for (const n of [8, 9, 10]) POS[n] = Array.from({ length: n }, (_, i) => {
+  const a = (i / n - .25) * 2 * Math.PI;
+  return [+(50 + 34 * Math.cos(a)).toFixed(1), +(50 + 34 * Math.sin(a)).toFixed(1)];
+});
+const KEY = { 4: .28, 5: .26, 6: .24, 7: .215, 8: .2, 9: .185, 10: .17 };   // a letter's width as a share of the circle's (app.css .cn-ring.nN)
 const DOT = '<span class="dot">·</span>';
 const SHUFFLE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 14 4 4-4 4"></path><path d="m18 2 4 4-4 4"></path><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-7.6a4 4 0 0 1 3.3-1.7H22"></path><path d="M2 6h1.972a4 4 0 0 1 3.6 2.2"></path><path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"></path></svg>';
 const BULB = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path></svg>';

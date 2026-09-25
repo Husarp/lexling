@@ -340,7 +340,8 @@ the right — and under it a plain card edged in the same colour with the word, 
   0.16.0, removed in 0.17.2 at the owner's request (it looked bad and was not wanted).
 
 ### Connect screens (design: `design/v4/`, "Lexling Connect")
-- **The puzzle** (`app/js/connect.js`): the circle is one common word's letters, shuffled (4–7); the board is a
+- **The puzzle** (`app/js/connect.js`): the circle is one common word's letters, shuffled (4–10 since 0.28.0; 8–10
+  aim for 7–12, 8–13, 9–14 words on boards up to 12 × 10); the board is a
   crossword of the common words they make - 3–5 words for 4 letters, 4–7, 5–8, 6–10 for 7 - always with the word
   that uses every letter. Board words come from the Letters pool (base forms, no stoplist, no inflected forms
   posing as words); any other real word, every Polish form included, is a **bonus word**: counted, never needed.
