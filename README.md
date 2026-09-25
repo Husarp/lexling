@@ -39,8 +39,8 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - Achievements / badges.
 - Polish + English, switchable.
 - **Letters mode**: one box per letter, the phone's own keyboard, a score of letters ÷ guesses used
-  × 100 × difficulty × 6 ÷ tries allowed (a Polish letter counts double; unlimited tries count every
-  guess twice; running out of tries still pays a little from your best row), and its own statistics
+  × 100 × difficulty × 6 ÷ tries allowed (a Polish letter counts double; unlimited tries count as
+  20; running out of tries still pays a little from your best row), and its own statistics
   and badges.
 
 ## Run it (development)

@@ -111,9 +111,11 @@ export const MULTIPLIER = { relaxed: 0.75, easy: 1, normal: 1.25, hard: 1.5 };
 //
 // Since 0.22.0 also × the tries factor (owner, 2026-09-25): dividing by the guesses used alone made
 // unlimited tries the obvious choice - it can never lose and still paid in full. Now 6 ÷ tries
-// allowed: 6, the classic Wordle, is ×1; 3 tries is ×2 (more risk, more points); 12 is ×0.5. With
-// unlimited tries every guess counts as two - ×0.5.
-export const triesFactor = tries => tries ? 6 / tries : 0.5;
+// allowed: 6, the classic Wordle, is ×1; 3 tries is ×2 (more risk, more points); 12 is ×0.5.
+// Unlimited counts as the most tries you can choose (0.22.1): at ×0.5 it paid more than 13-20 tries
+// while it can never lose, so nobody had a reason to pick those.
+export const TRIES_MAX = 20;
+export const triesFactor = tries => 6 / (tries || TRIES_MAX);
 
 export function score(answer, guessesUsed, won, diff, tries = 6) {
   if (!won || guessesUsed < 1) return 0;

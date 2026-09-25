@@ -160,7 +160,10 @@ Ported 1:1 in 0.16.0.
       ALLOWED (unlimited counted as 20) — rewards risk, not speed; (b) keep dividing by tries used and
       multiply by 6 ÷ tries allowed (6 → ×1, 3 → ×2, 12 → ×0.5, unlimited as 20 → ×0.3) — rewards both.
       **Done in 0.22.0**: the owner chose (b), with unlimited counting every guess as two (×0.5).
-- [ ] Open: with (b), unlimited (×0.5) pays MORE than 13–20 tries (×0.46 … ×0.3) — put to the owner.
+- [x] With (b), unlimited (×0.5) paid MORE than 13–20 tries (×0.46 … ×0.3). The owner chose: unlimited
+      counts as 20 tries (×0.3), keep 20 as the most. 0.22.1.
+- [ ] **Tries stepper: + at 20 switches to Unlimited** (owner's idea, 2026-09-25) — asked for an
+      opinion first; waiting for the go-ahead.
 - [x] **Points for a loss?** (owner's question) — e.g. out of tries scores from the best row: greens
       and half the yellows, as a share of the word, of a quarter of a last-try win; giving up scores 0.
       **Done in 0.22.0** — the owner chose exactly this.
@@ -197,7 +200,7 @@ Ported 1:1 in 0.16.0.
 - **A guess must be a real word** of the right length. `resolve()` already answers that.
 - **Difficulty** is chosen as in the main mode and multiplies the score.
 - **Score** = letters ÷ guesses **actually used** × 100 × difficulty × **6 ÷ tries allowed** (0.22.0;
-  unlimited ×0.5 — every guess counts as two). A Polish letter counts as two; tries you did not need
+  unlimited counts as 20 tries, ×0.3 — 0.22.1). A Polish letter counts as two; tries you did not need
   never enter the sum, which is the bonus for finishing early.
   **Out of tries** (0.22.0): the best row (greens + ½ yellows) ÷ the word's letters × ¼ of a
   last-try win. Giving up: 0.

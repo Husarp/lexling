@@ -6,6 +6,14 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.22.1 — 2026-09-25 04:05: Unlimited tries score like 20 tries
+*(not packaged)*
+
+- **Unlimited tries now count as 20 tries (×0.3)**, the most you can choose, instead of ×0.5. At ×0.5
+  unlimited paid more than choosing 13–20 tries, although it can never lose — so nobody had a
+  reason to pick those. Now unlimited never pays more than any limit.
+- The new-game tries hint says so: "fewer tries, more points — unlimited counts as 20".
+
 ## 0.22.0 — 2026-09-25 03:56: Letters scoring - fewer tries pay more; running out of tries pays a little
 *(not packaged)*
 

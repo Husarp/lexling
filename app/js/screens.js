@@ -3,7 +3,7 @@
 import { t, plural, esc, num, decimal, clock, ago, dateTime, setLang, getLang, LANG_NAMES } from './i18n.js';
 import { settings, saveSettings, stats, saveStats, listSaves, getSave, putSave, deleteSave, newGame, gameName } from './store.js';
 import { load, loadWords, preload, resolve, pickSecret, lengthStats } from './engine.js';
-import { feedback, pool, pick, LEN_MIN, LEN_MAX } from './letters.js';
+import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js';
 import { BADGES, LT_BADGES, TIERS, progress } from './badges.js';
 import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYPH, modeTag, TILE, squares } from './ui.js';
 import { fitAll } from './fit.js';
@@ -298,7 +298,6 @@ export function newGameScreen(root, _, refresh) {
 // ── Letters: new game (design: handoff-letters/new-game-letters.html) ─────────────────────────────
 // Same footing rule as above: every game starts from these, only the language carries over.
 const LT_NEW = { cat: 'all', len: 5, anyLen: false, tries: 6, unlimited: false, diff: 'normal', diffRandom: false, marks: false };
-const TRIES_MAX = 20;
 let ltPending = null;
 
 export function lettersNewScreen(root, _, refresh) {
