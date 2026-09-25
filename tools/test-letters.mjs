@@ -68,8 +68,11 @@ const k1 = known(['crane', 'sheet'], 'steel');
 check('known: S E E placed by SHEET, the rest empty', k1.slots.map(s => s.how ? s.ch : '_').join(''), 's_ee_');
 const k2 = known(['crane', 'sheet'], 'steel', [4]);
 check('known: a hint fills its slot, marked as a hint', [k2.slots[4].ch, k2.slots[4].how], ['l', 'hint']);
-check('hint: never a letter already known', [0, .3, .6, .99].every(r => ![0, 2, 3].includes(hintAt(['crane', 'sheet'], 'steel', [], () => r))), true);
+check('hint: never a letter already known', [0, .3, .6, .99].every(r => hintAt(['kxxxx'], 'kotek', [], () => r) > 0), true);
 check('hint: half the word at most - 2 of 5', hintAt([], 'kotek', [0, 3]), -2);
+// green letters count too (owner, 2026-09-25): 1 green + 1 hint of 5 is half; 3 greens of 5 - no hint at all
+check('hint: green letters count toward the half', [hintAt(['kxxxx'], 'kotek', [], () => 0) >= 0, hintAt(['kxxxx'], 'kotek', [2])], [true, -2]);
+check('hint: half the word green already - none', hintAt(['crane', 'sheet'], 'steel'), -2);
 check('hint: nothing left to show', hintAt(['kotek'], 'kotek'), -1);
 check('hint: before any guess, any position', hintAt([], 'kotek', [], () => .5), 2);
 

@@ -340,6 +340,8 @@ the right — and under it a plain card edged in the same colour with the word, 
 - **Under the keyboard (0.31.1, owner)**: one row - a long Space on the left (leaves a tile empty and moves on:
   the selected one, or the first gap), ← → (the selection one tile along, as the arrow keys), then Hint. Space
   and the arrows also work from a computer's keyboard.
+- **The hint cap counts green letters (0.32.1, owner)**: no hint once half the word (rounded down) shows, green from
+  the guesses or hinted - as in Połącz, where crossing words count.
 - **Hinted letters in the row being typed (0.31.2, owner)**: with the strip gone, a hinted letter stands greyed
   out in its place in every row you type. Typing puts a letter over it (it is an empty tile to the keys, so
   letters fill it in order); a tile left with only its hint is sent as that letter (Space skips it), and

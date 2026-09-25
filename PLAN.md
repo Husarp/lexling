@@ -476,7 +476,15 @@ Order: the game itself first, then these; all of them are in the design prompt, 
       every screen in headless Edge, both languages, 320-1100 px: Połącz's Hint button was squeezed below its
       label at 480 px (the owner's phone is 480 px wide), "Normalny" in the level buttons at 412 px, "Znaczenie"
       in the statistics tabs at 320 px. All fixed. 0.32.0
-- [ ] Owner: should Litery's hint cap count letters already green too (as Połącz's now counts crossings)? Asked.
+- [x] Litery's hint cap counts letters already green too (owner: yes) - no hint once half the word shows. 0.32.1
+- [x] Połącz "16 hints, all S or I": the owner - "might have been just luck". Closed.
+- [ ] **How to play, on every New game screen** (owner, 2026-09-25: "a card that says how to play - which
+      letters are used and things like that"; for Kafelki, long, "maybe an expandable section"). Proposed, waiting
+      for the owner's yes: one collapsible card under the title (open until the first game of that kind is
+      finished, then closed; the player's open / closed remembered per game); 3-5 short lines for Znaczenie,
+      Litery and Połącz; for Kafelki the same card holding topics that open one at a time (goal, a turn, points
+      and bonus squares, blanks, exchange and pass, the end, challenges and the clock when switched on), and the
+      same guide behind a "?" in the game. Kafelki's is in its design prompt.
 - [x] **The orange line at the top of every screen** (the top bar's 3 px accent edge) - gone, phone and PC. 0.31.1
 - [x] Litery: where hinted letters show now that the row is gone - owner: greyed out in its place in every
       row being typed, to type over. 0.31.2

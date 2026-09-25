@@ -6,6 +6,17 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.32.1 — 2026-09-25 17:36: Litery's hint limit counts green letters too
+*(not packaged)*
+
+- **Litery: no hint once half the word shows** - green letters from your guesses count now, not only hinted ones
+  (owner: yes - the same rule as Połącz, where letters from crossing words count). Five letters with two green:
+  no hint. The message: "No more hints allowed: half the word already shows" / "Więcej podpowiedzi nie ma: widać
+  już połowę słowa".
+- How to play on every New game screen: proposed to the owner (a collapsible card; Kafelki's with topics that open
+  one at a time) - in PLAN.md and in Kafelki's design prompt, waiting for a yes.
+- 261 Letters tests (2 new).
+
 ## 0.32.0 — 2026-09-25 17:28: Tiles' rules finished (options, challenges, clocks, Expert, look-back); Połącz hints; labels that did not fit
 *(not packaged)*
 
