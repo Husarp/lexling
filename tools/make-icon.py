@@ -35,7 +35,9 @@ def draw(size: int) -> Image.Image:
     em = 106 / 144 * size                 # font-size
     radius = 36 / 144 * size              # border-radius
     tracking = -0.03 * em                 # letter-spacing, added after every character (Chromium)
-    margin_right, nudge_up = 0.15 * em, 0.15 * em      # margin-right / position:relative; top:-.15em
+    # margin-right / position:relative; top:-.10em. The design's -.15em suited "gu", whose g hangs below
+    # the line; "le" does not, and sat 38 px (of 1024) above centre - so .05em lower, asked 2026-09-25.
+    margin_right, nudge_up = 0.15 * em, 0.10 * em
     caret = dict(left=0.05 * em, top=0.14 * em, width=0.10 * em, height=0.92 * em)
 
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))

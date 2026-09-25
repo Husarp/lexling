@@ -6,6 +6,14 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.18.2 — 2026-09-25 02:37: "le" moved down, centred in the icon
+*(not packaged)*
+
+- The mark sat high: the design lifted it by .15em to make room for the tail of the g in "gu", and
+  "le" has no tail — 128 px of space above it and 203 below, on the 1024 icon. Lifted by .10em
+  instead, it is centred (166 above, 165 below). Windows icon, Android launcher icons and splash
+  regenerated.
+
 ## 0.18.1 — 2026-09-25 02:36: The icon says "le"
 *(not packaged)*
 
