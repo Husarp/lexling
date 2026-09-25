@@ -7,7 +7,7 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 ---
 
 ## 0.29.6 — 2026-09-25 15:20: Each game remembers its own Polish-letters choice again
-*(not packaged)*
+*(released 2026-09-25 as v0.29.6 — Windows installer + signed Android APK, carrying 0.22.6–0.29.5 too; installed on the owner's phone and PC)*
 
 - "Allow Polish letters" is remembered **per game** again (the owner: each game separately) - Letters and Connect each
   start from their own last choice, on at first. 0.29.5 had made it one choice for both.
