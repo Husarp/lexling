@@ -6,6 +6,14 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.29.5 — 2026-09-25 15:18: Hinted letters in green; one Polish-letters choice for every game
+*(not packaged)*
+
+- **Letters: a letter from a hint shows in green** in the row under the keyboard - still dashed and unfilled, only the
+  grey became green (owner). Connect's hinted letters stay grey: there green means found.
+- **"Allow Polish letters" is one choice for every game** (owner: "for all games"): switched off in Letters, a new Connect
+  game starts with it off too, and the other way round. On at first.
+
 ## 0.29.4 — 2026-09-25 15:17: A big row of the letters in place; Polish letters on by default; bigger short words; a snappier key
 *(not packaged)*
 

@@ -750,7 +750,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-screen=letters] .known{display:flex;align-items:center;gap:var(--space-2)}
 [data-screen=letters] .known-fit{flex:1;min-width:0;container-type:inline-size}
 [data-screen=letters] .known-row{justify-content:center}
-[data-screen=letters] .known .lt.hint{background:transparent;border-style:dashed;border-color:var(--text-muted);color:var(--text-muted)}
+[data-screen=letters] .known .lt.hint{background:transparent;border-style:dashed;border-color:var(--lt-hit);color:var(--lt-hit)}   /* a hinted letter: dashed, in green (owner) */
 [data-screen=letters] .known .lt.new-hint{animation:cw-hint 150ms var(--ease)}
 /* Hint sits at the end of the row it fills: Connect's bulb, a quiet ghost button */
 [data-screen=letters] .lt-hint{flex:none;min-height:36px;padding:0 var(--space-2);color:var(--text)}
