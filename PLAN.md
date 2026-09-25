@@ -501,6 +501,7 @@ Order: the game itself first, then these; all of them are in the design prompt, 
 - [x] **The message line adds up**: "KOT 5 + TOK 6 = 11" instead of dots (owner). 0.38.0
 - [x] **A settings gear in every game** (owner: "the usual icon only"): Sound. 0.39.0
 - [x] Kafelki's gear also holds its two colour switches (owner). 0.40.0
+- [x] Kafelki's gear moved to the button row, right of the magnifier (owner). 0.40.1
 - [x] **Word meanings** (owner, 2026-09-26) - not downloaded ("too much"): a word opens its meaning in the browser,
       sjp.pl for Polish, Wiktionary for English - Check a word and History in Kafelki, the guesses in Znaczenie, the
       end cards of every game. 0.40.0

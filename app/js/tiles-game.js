@@ -142,7 +142,7 @@ export async function tilesGameScreen(root, id) {
   const touches = new Map();
 
   root.innerHTML = `<div class="app fit" data-screen="tiles">
-  ${topbar({ left: modeTag('tiles'), right: `<span class="eyebrow">${esc(gameName(game))}</span>${gearButton()}<button class="btn btn-ghost tl-q" type="button" data-act="guide" aria-label="${t('tiles.guide')}">?</button>` })}
+  ${topbar({ left: modeTag('tiles'), right: `<span class="eyebrow">${esc(gameName(game))}</span><button class="btn btn-ghost tl-q" type="button" data-act="guide" aria-label="${t('tiles.guide')}">?</button>` })}
   <main class="main"><div class="tl-play">
     <div class="status"></div>
     <div class="tl-bwrap"><div class="tl-board"><div class="tb"></div></div></div>
@@ -204,7 +204,7 @@ export async function tilesGameScreen(root, id) {
       ${S.rules.time ? `<div class="tl-clock"><span class="eyebrow">${t('tiles.r.time')}</span><span class="num"></span></div>` : ''}
       ${open ? othersHtml() : ''}
       <div class="status-actions"><a class="btn btn-ghost" href="#/games/tiles">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button>${
-        canUndo ? `<button class="btn btn-ghost" type="button" data-act="undo"${undo(S, isWord, 0) ? '' : ' disabled'}>${t('tiles.undo')}</button>` : ''}<button class="btn btn-ghost tl-find tl-paint${settings.tilesColours !== false ? ' on' : ''}" type="button" data-act="colours" aria-pressed="${settings.tilesColours !== false}" aria-label="${t('tiles.colours')}" title="${t('tiles.colours')}">${PAINT}</button><button class="btn btn-ghost tl-find" type="button" data-open="check" aria-label="${t('tiles.check')}" title="${t('tiles.check')}">${FIND}</button></div>`;
+        canUndo ? `<button class="btn btn-ghost" type="button" data-act="undo"${undo(S, isWord, 0) ? '' : ' disabled'}>${t('tiles.undo')}</button>` : ''}<button class="btn btn-ghost tl-find tl-paint${settings.tilesColours !== false ? ' on' : ''}" type="button" data-act="colours" aria-pressed="${settings.tilesColours !== false}" aria-label="${t('tiles.colours')}" title="${t('tiles.colours')}">${PAINT}</button><button class="btn btn-ghost tl-find" type="button" data-open="check" aria-label="${t('tiles.check')}" title="${t('tiles.check')}">${FIND}</button>${gearButton('tl-find')}</div>`;
     confirmClick(status.querySelector('#give-up'), giveUp, refit);
     paintClock();
   }

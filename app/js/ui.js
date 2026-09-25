@@ -27,10 +27,11 @@ document.addEventListener('pointerdown', e => { if (e.target.closest?.('.mw')) e
 // matter while playing, in a small window over the game - Sound for now. The keys go to the window alone while it
 // is open (a game would otherwise type into itself, and Esc would leave the screen).
 const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
-export const gearButton = () => `<button class="btn btn-ghost gs-open" type="button" aria-label="${t('set.title')}" title="${t('set.title')}">${GEAR}</button>`;
+export const gearButton = (cls = '') => `<button class="btn btn-ghost gs-open${cls ? ' ' + cls : ''}" type="button" aria-label="${t('set.title')}" title="${t('set.title')}">${GEAR}</button>`;
 // `extra` = the game's own settings, [[key, label, help]]; `onChange()` repaints what they change.
 export function wireGear(root, extra = [], onChange = () => {}) {
-  root.querySelector('.gs-open')?.addEventListener('click', () => {
+  root.firstElementChild.addEventListener('click', e => {        // the screen, which goes when it is replaced
+    if (!e.target.closest('.gs-open')) return;
     const items = [['sound', t('set.sound'), t('set.soundDesc')], ...extra];
     const dlg = document.createElement('dialog');
     dlg.className = 'card game-settings';

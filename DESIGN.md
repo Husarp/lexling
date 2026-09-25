@@ -531,8 +531,9 @@ A gear at the right of every game's top bar (ui.js `gearButton` / `wireGear`) op
 (a native modal dialog, centred) with the settings that matter while playing - Sound; in Kafelki also its two
 colour switches (0.40.0). While it is open the
 keys belong to it alone (a game would otherwise type into itself, and Esc would leave the screen): Esc, ✕ or a tap
-outside closes it. On a narrow phone the game's name gives way in the top bar (under 375 px; Kafelki, which also has
-its "?", under 460 px) - the name is on the saved-games list anyway.
+outside closes it. Kafelki's gear sits in its button row instead, right of the magnifier (0.40.1, owner) - that row
+stays one line up to 470 px, the labels giving up their letter-spacing first. On a phone under 375 px the game's
+name gives way in the top bar (to the gear, or Kafelki's "?") - it is on the saved-games list anyway.
 
 ### What a word means (0.40.0, owner: "don't download - too much; open the browser")
 The app holds no definitions (a Polish dictionary would be 126 MB to fetch and tens of MB in the app). A word opens

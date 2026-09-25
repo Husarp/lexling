@@ -1155,8 +1155,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-screen=tiles] .status-actions .tl-find{margin-left:auto;min-width:40px;padding:0}
 .tl-find svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 @container (max-width:480px){[data-screen=tiles] .status-actions .tl-find{min-width:36px}}
-/* on the narrowest phones the row stays one line - the labels give up their tracking first (fit.js) - unless Undo is there too */
-@container (max-width:360px){
+/* on phones the row stays one line - the labels give up their tracking first (fit.js) - unless Undo is there too */
+@container (max-width:470px){
   [data-screen=tiles] .status-actions:not(:has([data-act=undo])){flex-wrap:nowrap;gap:6px;min-width:0}
   [data-screen=tiles] .status-actions:not(:has([data-act=undo])) .btn{min-width:0;padding:0 var(--space-2)}
   [data-screen=tiles] .status-actions .tl-find{flex:none;min-width:36px}
@@ -1184,8 +1184,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .gs-row .row-text span{font-size:13px;line-height:1.4;color:var(--text-muted)}
 /* on a narrow phone the game's name gives way to the gear (and Kafelki's "?") - it is on the saved-games list anyway */
 .topbar .gs-open,.topbar .tl-q{flex:none}
-@media (max-width:374px){.topbar .side.end:has(.gs-open)>.eyebrow{display:none}}
-@media (max-width:459px){[data-screen=tiles] .topbar .side.end:has(.gs-open)>.eyebrow{display:none}}
+@media (max-width:374px){.topbar .side.end:has(.gs-open, .tl-q)>.eyebrow{display:none}}
 /* 0.40.0: what a word means (owner, 2026-09-26) - a button under a word, or the word itself as a link, opening the
    browser (sjp.pl, Wiktionary) */
 .btn.mean svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}

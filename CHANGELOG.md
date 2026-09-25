@@ -6,6 +6,15 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.40.1 — 2026-09-26 00:41: Kafelki: the gear beside the magnifier
+*(not packaged)*
+
+- **Kafelki's ⚙ moved** from the top bar to the "Zapisz i wyjdź / Poddaję się" row, right of 🔍 (owner). The top bar
+  shows the game's name and "?" again (the name gives way under 375 px).
+- That row stays on one line on phones up to 470 px wide (it broke onto two lines at 412 px).
+- Checked in headless Edge at 320-480 px: the gear opens its window also after a move, the row fits, no console
+  errors.
+
 ## 0.40.0 — 2026-09-26 00:29: What a word means - one tap to the dictionary
 *(not packaged)*
 
