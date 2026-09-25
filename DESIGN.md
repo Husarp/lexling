@@ -372,8 +372,9 @@ the right — and under it a plain card edged in the same colour with the word, 
   out in its place in every row you type. Typing puts a letter over it (it is an empty tile to the keys, so
   letters fill it in order); a tile left with only its hint is sent as that letter (Space skips it), and
   Enter lights up when the row is full counting hints.
-- **Random difficulty** (0.21.0): the game draws one of the four levels at the start and plays it,
-  but never shows which — only "Random". The count before the start is all levels together.
+- ~~**Random difficulty** (0.21.0): the game draws one of the four levels at the start and plays it,
+  but never shows which — only "Random".~~ Gone in 0.37.0 (owner), here and in Connect; saves from before still
+  say "Random".
 - **The screen fits the window while playing** (0.19.0): status on top, Guess right under the grid, and
   only the grid scrolls, kept at the newest row — however many tries were chosen.
 - **Any length** (0.17.0) draws the word from all lengths 3–13 in one pool, so each length comes up
@@ -436,11 +437,14 @@ the right — and under it a plain card edged in the same colour with the word, 
   count, so it cannot run for ever); leftovers are taken off, and whoever went out gets them. No challenges:
   a move is checked before it goes down, as in the apps.
 - **The official letter sets**, 100 tiles each with two blanks (Polish: 32 letters, A ×9 … Ź ×1 worth 9).
-- **Two boards**, each symmetrical both ways and across the diagonals, both with all 100 tiles: **Classic** - the
-  original 15 × 15; (**Quick**, 11 × 11 with half the tiles, 0.30.0-0.31.2, dropped in 0.32.0 - the owner wants the
-  full game every time); **Bonus** - 15 × 15 with the bonuses pulled in
-  from the edges and 16 triple letters, the idea of the Words With Friends board, our own layout. Copying a
-  commercial board square for square was not an option, and their layouts are not published anyway.
+- **Four boards**, each symmetrical both ways and across the diagonals: **Classic** - the original 15 × 15;
+  **Bonus** - 15 × 15 with the bonuses pulled in from the edges and 16 triple letters, the idea of the Words With
+  Friends board, our own layout; **Romb / Diamond** (0.37.0) - 15 × 15, the bonuses on diamond rings round the
+  centre, the triple words at the middle of each edge; **Quick** - 11 × 11 (0.30.0-0.31.2, dropped in 0.32.0, back in
+  0.37.0: the owner had not understood what it was), with **its own letters**: about half of each common letter, the
+  full set's share of vowels (~40 %), one blank, and the letters hard to place left out (Polish ć ń ź ó f, English
+  q z v) - 53 tiles in Polish, 50 in English; a game takes about half the turns. Copying a commercial board square
+  for square was not an option, and their layouts are not published anyway.
 - **Words** (0.31.0, owner's choice): word-game lists, every form, no abbreviations or proper nouns - SJP.PL's
   "słownik do gier" (CC BY 4.0) and ENABLE (public domain), 2-15 letters, only the set's letters, minus every
   form of a slur or vulgar word (the Hunspell dictionaries give the forms). 3 235 733 Polish words in a 2.8 MB
@@ -470,8 +474,19 @@ are in `screens.js`.
 - **The move as it is built**: its words and points on the message line, a bubble at its last tile, Play with the
   points - or red tiles and the reason. With challenges on, the words are not checked (that is the rule) - except
   a move that uses the last tiles.
-- **Hint in two steps**: the squares, then the word as dashed tiles (Play plays it, Recall takes it back);
-  counted once. **Exchange** turns the rack into a picker; off below 7 in the bag, but still says why when tapped.
+- **Hints in three levels** (0.37.0, owner; the two steps of 0.35.0 went - "the squares alone are too hard, the word
+  alone too easy"): Hint turns the tool row into Mała / Duża / Mistrzowska (Small / Big / Master) and Cancel.
+  Small = the best move whose words are all common (the ones the Normal computer knows), Big = the most points,
+  Master = the best looking ahead (Expert's way: the tiles kept, the next player's answers). The move goes straight
+  onto the board as dashed tiles in its place, with its points - Play plays it, Recall takes it back; one hint
+  counted. A level that would show the same move as a smaller one is faded; tapped, it says so ("Master would show
+  the same move as Big"). Small is faded when no move is made of common words only.
+- **"+points" beside each score** (0.37.0, owner): what that player's last turn brought - +23, or +0 for a pass,
+  an exchange or a challenge - until their next turn. ("This round" was the other idea; it would clear the other
+  player's points exactly when your turn comes round.)
+- **Everyone's tiles** (0.37.0, owner: "so my friend can think while I move"): a rule on New game, two people or
+  more. The other people's racks sit under the scores, one row each, always in view; no hand-over card then. The
+  computer's tiles are never shown. **Exchange** turns the rack into a picker; off below 7 in the bag, but still says why when tapped.
   **Pass** asks first. **Challenge** appears among the tools while a move waits for one.
 - **Between people** (0.35.0): when the turn passes from one person to another, a card - "Ala - your turn" -
   hides the rack until its player taps "Show my tiles". One person against computers never sees it.
@@ -503,10 +518,10 @@ are in `screens.js`.
 
 ### How to play (0.33.0, owner)
 Every New game screen has a card under the title: "Jak grać / How to play", 4-5 short lines, opened and closed
-with a tap (a native details element - works with a finger, a mouse, the keyboard and a screen reader). Open until
-a game of that kind has been finished, closed after that; once the player opens or closes it, it stays as they left
-it (settings.howTo). Kafelki's holds topics that open one at a time, and opens from a "?" in the game too; it is
-closed every time (0.36.0, owner: "collapsed every time").
+with a tap (a native details element - works with a finger, a mouse, the keyboard and a screen reader). Closed every
+time the screen opens (owner: "collapsed every time" - Kafelki in 0.36.0, all games in 0.37.0; before that it was
+open until the first finished game, and remembered). Kafelki's holds topics that open one at a time, and opens from
+a "?" in the game too.
 
 ## 4a. Rendering quality & responsiveness (hard requirements)
 

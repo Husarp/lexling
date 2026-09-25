@@ -154,7 +154,8 @@ Ported 1:1 in 0.16.0.
       "Random". A switch beside the levels (five buttons did not fit 320 px). 0.21.0.
 - [x] **Never X/6 on the end banner** — the tries used, however it ended (6/6, 2/6, 0/6). 0.21.0.
 - [x] **✓ / ✕ centred** in the banner's circle (drawn, not typed). 0.21.0.
-- [ ] Open: should Znaczenie get Random difficulty too? Letters was asked for (it is the one with a score).
+- [x] ~~Open: should Znaczenie get Random difficulty too?~~ - no: Random left Letters and Connect as well (owner,
+      2026-09-25). 0.37.0
 - [x] **Scoring question from the owner (2026-09-25)**: the score divides by the tries USED, so
       unlimited tries can never lose and always pays — "you will always choose unlimited". The owner
       suggested counting all tries, even unused. Options put to the owner: (a) divide by the tries
@@ -482,10 +483,17 @@ Order: the game itself first, then these; all of them are in the design prompt, 
 - [x] **Hints on / off** - a rule on New game. 0.36.0
 - [x] **Undo** - a rule on New game, one person against the computer only: back a turn at a time, the computer's
       replies too, as far as the start; the bag is shuffled again each time, so the next tiles are new. 0.36.0
-- [ ] A third board: the third one was Quick (11 × 11, half the tiles), dropped at the owner's wish - asked whether
-      to design a new 15 × 15 one.
-- [ ] "+points" beside each score (the last turn per player, or this round) - proposal sent, waiting.
-- [ ] Hint levels (a smaller hint, the best move, the best move looking ahead) - proposal sent, waiting.
+- [x] **Boards: Romb (Diamond)**, full size, the bonuses on diamond rings; **Quick back** (owner: "I didn't understand
+      what Quick meant - bring it back"), 11 × 11 with its own letters: about half, the hard ones left out (PL ć ń ź
+      ó f, EN q z v), one blank - PL 53 tiles, EN 50. A game takes about half the turns. 0.37.0
+- [x] **"+points" beside each score**: what that player's last turn brought, +0 for a pass or exchange (owner chose
+      this over "this round", which would clear the other player's points just when your turn comes). 0.37.0
+- [x] **Hints in three levels**: Small (the best move of common words), Big (the most points), Master (the best,
+      looking ahead); straight onto the board, no two steps (owner: "the squares alone are too hard, the word alone
+      too easy"); a level that would show the same move as a smaller one is faded and says so. 0.37.0
+- [x] **Everyone's tiles** - a rule, two people or more: the other people's racks under the scores, always in view,
+      so a friend can think while you move; no hand-over card then; the computer's tiles stay hidden. 0.37.0
+- [x] **How to play closed every time**, in all four games; **no Random level** in Litery and Połącz either. 0.37.0
 - [ ] Tune the levels by playing.
 
 ## Litery: hints and the "what you know" strip — DONE 2026-09-25 (0.28.2)

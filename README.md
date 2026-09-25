@@ -44,17 +44,18 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - **Connect mode** (Połącz): drag across a circle of 4–10 letters to fill a small crossword; other real
   words are bonus words; free hints, a random letter at a time, until half of a word shows (rounded up); a hinted
   letter stays marked, in green, once its word is done. Its own statistics.
-- **How to play** on every New game screen: a short card that opens and closes (open until your first finished game).
+- **How to play** on every New game screen: a short card, closed until you open it.
 - **No scores anywhere** (since 0.29.0): the games are for fun; statistics show how you are doing,
   hints used included.
 - **Tiles mode** (Kafelki, since 0.35.0), the classic crossword-tile game for 2–5 players - people passing
   one device and/or the computer (five levels, Relaxed to Expert), in the order you set, the first chosen or
-  drawn. Two boards (Classic, Bonus), the
+  drawn. Four boards (Classic, Bonus, Diamond; Quick - 11 × 11 with about half the tiles), the
   full 100-tile sets, sjp.pl / ENABLE word lists. Place tiles by dragging, by tapping, or by typing on a PC;
-  the board zooms in on a phone (and pinches). A two-step hint (where, then the word), exchange, pass, a
+  the board zooms in on a phone (and pinches). Hints in three levels (Small, Big, Master), exchange, pass, a
   letters-left list, check any word, each player's tiles in their colour (switchable), rule options
   (bonus squares every time, challenges, exchanges always, no seven-tile bonus, a clock per move or per game,
-  hints off, undo against the computer),
+  hints off, undo against the computer, everyone's tiles shown between friends), each score's "+points" of the
+  last turn,
   a look-back after the game (your move next to the best there was) and its own statistics by language and
   level. Points stay in this one - scoring is the game.
 

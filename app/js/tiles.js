@@ -10,8 +10,9 @@ export const RACK = 7, BINGO = 50, BLANK = '?';
 // ── Boards ───────────────────────────────────────────────────────────────────────────────────────
 // One string per row: '.' plain, 'd' double letter, 't' triple letter, 'D' double word, 'T' triple word.
 // The first move covers the centre. Every board is symmetrical left-right, top-bottom and across both
-// diagonals, and every game uses all 100 tiles (owner, 2026-09-25: "the full game, from start to finish, with
-// all the letters" - an 11 × 11 board with half the tiles, 0.30.0-0.31.2, was dropped).
+// diagonals. The 15 × 15 ones use all 100 tiles; Quick, 11 × 11, about half, chosen to be easy to use (below).
+// (Quick was dropped in 0.32.0 - the owner had not understood what it was - and came back in 0.37.0: "a shorter
+// version of the game, when you don't want to spend that much time".)
 export const BOARDS = {
   // The original game's board (owner, 2026-09-25: "the normal board from the official game"): 15 × 15,
   // triple words on the edges, double words on the diagonals and in the centre - 8 T, 17 D, 12 t, 24 d.
@@ -52,6 +53,40 @@ export const BOARDS = {
     '...T.......T...',
     't...d..D..d...t',
   ],
+  // Romb (owner, 2026-09-25: yes to the proposal): the bonuses on diamond rings round the centre, the triple words
+  // at the middle of each edge. 4 T, 21 D, 12 t, 28 d.
+  romb: [
+    't..d...T...d..t',
+    '.D....d.d....D.',
+    '.....D...D.....',
+    'd...d..t..d...d',
+    '...d..D.D..d...',
+    '..D..t.d.t..D..',
+    '.d..D.....D..d.',
+    'T..t.d.D.d.t..T',
+    '.d..D.....D..d.',
+    '..D..t.d.t..D..',
+    '...d..D.D..d...',
+    'd...d..t..d...d',
+    '.....D...D.....',
+    '.D....d.d....D.',
+    't..d...T...d..t',
+  ],
+  // Quick: 11 × 11 (the idea of the Fast Play board, our own layout - as in 0.30.0), played with the Quick tiles.
+  // 4 T, 9 D, 8 t, 16 d.
+  quick: [
+    'T..d...d..T',
+    '.D...t...D.',
+    '..D.d.d.D..',
+    'd..t...t..d',
+    '..d.....d..',
+    '.t...D...t.',
+    '..d.....d..',
+    'd..t...t..d',
+    '..D.d.d.D..',
+    '.D...t...D.',
+    'T..d...d..T',
+  ],
 };
 export const sizeOf = board => BOARDS[board].length;
 export const centre = board => { const n = sizeOf(board); return (n * n - 1) / 2; };
@@ -82,11 +117,19 @@ export function letterSet(lang) {
 }
 export const valueOf = (lang, tile) => tile === BLANK ? 0 : letterSet(lang).values[tile];
 
-// Every tile a game starts with, unshuffled.
-export function fullBag(lang) {
-  const { counts } = letterSet(lang), bag = [];
+// The Quick board's tiles (owner, 2026-09-25: "fewer letters, picked carefully - the ones that are actually useful"):
+// about half of each common letter, the same share of vowels as the full set (~40 %), and one blank; left out, the
+// letters that are hard to place - Polish ć ń ź ó f, English q z v. Polish 52 + 1, English 49 + 1.
+const QUICK = {
+  pl: 'a5 e4 i4 o3 n3 z2 r2 s2 w2 c2 d2 k2 l1 m2 p2 t2 y2 b1 g1 h1 j1 ł1 u1 ą1 ę1 ś1 ż1',
+  en: 'a5 e6 i4 o4 u2 n3 r3 s3 t3 l2 d2 g1 b1 c1 m1 p1 f1 h1 w1 y1 k1 j1 x1',
+};
+// Every tile a game on `board` starts with, unshuffled.
+export function fullBag(lang, board = 'classic') {
+  const quick = board === 'quick', bag = [];
+  const counts = quick ? Object.fromEntries(QUICK[lang].split(' ').map(x => [x[0], +x.slice(1)])) : letterSet(lang).counts;
   for (const [ch, k] of Object.entries(counts)) for (let i = 0; i < k; i++) bag.push(ch);
-  for (let i = 0; i < BLANKS; i++) bag.push(BLANK);
+  for (let i = 0; i < (quick ? 1 : BLANKS); i++) bag.push(BLANK);
   return bag;
 }
 
@@ -119,7 +162,9 @@ export function checkWord(dict, lang, text) {
 //   'timeout' action); per game, every started minute over costs 10 points at the end (the tournament rule).
 // hints: the Hint tool there (the standard) or not (owner, 2026-09-25: "allow turning hints off") - the screen's rule.
 // undo: moves can be taken back - one person against the computer only (owner, 2026-09-25) - see undo() below.
-export const STANDARD = { premiums: 'once', check: 'auto', exchange: 'bag7', bingo: BINGO, time: null, hints: true, undo: false };
+// open: every person sees the other people's tiles all the time (owner, 2026-09-25: "so a friend can think while
+//   you move") - the computer's never; the screen's rule.
+export const STANDARD = { premiums: 'once', check: 'auto', exchange: 'bag7', bingo: BINGO, time: null, hints: true, undo: false, open: false };
 const OVERTIME = 10;
 
 // ── A game ───────────────────────────────────────────────────────────────────────────────────────
@@ -152,7 +197,7 @@ const draw = (bag, rack) => { const b = [...bag], r = [...rack]; while (r.length
 // `first`: who starts - drawn from the seed when not given (the real game draws tiles for it).
 export function newGame({ lang, board = 'classic', players, first, seed = Math.floor(Math.random() * 2 ** 32), words = 0, rules = {} }) {
   if (players.length < PLAYERS_MIN || players.length > PLAYERS_MAX) throw new Error(`${players.length} players: 2 to 5 play`);
-  let { list: bag, seed: s } = shuffle(fullBag(lang), seed);
+  let { list: bag, seed: s } = shuffle(fullBag(lang, board), seed);
   const racks = [];
   for (let p = 0; p < players.length; p++) { const d = draw(bag, []); bag = d.bag; racks.push(d.rack); }
   // the draw for who starts is made even when `first` is given, so a game rebuilt from its start (replay) runs
@@ -389,7 +434,7 @@ export const hinted = state => ({ ...state, hints: state.hints.map((h, p) => p =
 // the language's alphabetical order, blanks ('?') last; letters all gone are left out.
 export function unseen(state, p = state.turn) {
   const left = {};
-  for (const t of fullBag(state.lang)) left[t] = (left[t] || 0) + 1;
+  for (const t of fullBag(state.lang, state.board)) left[t] = (left[t] || 0) + 1;
   for (const x of state.cells) if (x) left[x.blank ? BLANK : x.ch]--;
   for (const t of state.racks[p]) left[t]--;
   const order = [...letterSet(state.lang).letters].sort((a, b) => a.localeCompare(b, state.lang)).concat(BLANK);

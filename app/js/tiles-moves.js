@@ -157,6 +157,26 @@ export function hint(state, dict) {
   return moves.length ? moves.reduce((a, b) => b.score > a.score ? b : a) : null;
 }
 
+// Hints in three levels (owner, 2026-09-25), each a move { placed, word, score } or null:
+// small - the best move whose words are all common ones (the words the Normal computer knows): easy to see, still
+//   worth a lot - and when the best move of all is made of simple words, it is that one;
+// big - the move that scores the most;
+// master - the best move looking ahead, as Expert plays: what it leaves on the rack, what the next player could answer.
+// `rankOf(word)` as for computerMove. Master takes the longest (~0.1-0.4 s on a PC).
+export function hintLevels(state, dict, rankOf = () => 0, rand = Math.random) {
+  const moves = findMoves(state, dict).sort((x, y) => y.score - x.score);
+  if (!moves.length) return { small: null, big: null, master: null };
+  const common = m => wordsMade(state, m.placed).words.every(x => rankOf(x.w) < LEVELS.normal.known);
+  const rack = state.racks[state.turn];
+  const valued = moves.map(m => ({ ...m, value: m.score + (state.bag.length ? leaveValue(state.lang, rest(rack, m.placed)) : 0) }))
+    .sort((x, y) => y.value - x.value);
+  const master = simulated(state, dict, valued.slice(0, 6), rand).sort((x, y) => y.value - x.value)[0].m;
+  return { small: moves.find(common) ?? null, big: moves[0], master: { placed: master.placed, word: master.word, score: master.score } };
+}
+// the same move? (the same tiles on the same squares)
+export const sameMove = (a, b) => !!a && !!b && JSON.stringify([...a.placed].sort((x, y) => x.r - y.r || x.c - y.c))
+  === JSON.stringify([...b.placed].sort((x, y) => x.r - y.r || x.c - y.c));
+
 // ── The computer ─────────────────────────────────────────────────────────────────────────────────
 // A level is how many words the computer knows and how hard it tries. `known`: only words whose base word is
 // among that many of the most common (the word list is most-common-first; the same measure as Connect's

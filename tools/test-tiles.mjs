@@ -21,12 +21,14 @@ const seeded = seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul
 
 // ── boards ──
 const tally = rows => [...rows.join('')].reduce((o, ch) => (ch === '.' ? o : { ...o, [ch]: (o[ch] || 0) + 1 }), {});
-check('two boards, both full size (the Quick board dropped: owner, 2026-09-25)', Object.keys(BOARDS), ['classic', 'bonus']);
+check('four boards: three full size, and Quick (back in 0.37.0, owner)', Object.keys(BOARDS), ['classic', 'bonus', 'romb', 'quick']);
 check('classic: 8 T, 17 D, 12 t, 24 d', tally(BOARDS.classic), { T: 8, d: 24, D: 17, t: 12 });
 check('bonus: 8 T, 12 D, 16 t, 28 d', tally(BOARDS.bonus), { t: 16, d: 28, D: 12, T: 8 });
+check('romb: 4 T, 21 D, 12 t, 28 d', tally(BOARDS.romb), { t: 12, d: 28, T: 4, D: 21 });
+check('quick: 4 T, 9 D, 8 t, 16 d', tally(BOARDS.quick), { T: 4, d: 16, D: 9, t: 8 });
 for (const [id, b] of Object.entries(BOARDS)) {
   const n = b.length, at = (r, c) => b[r][c];
-  check(`${id}: 15 x 15`, b.every(row => row.length === n) && n === 15, true);
+  check(`${id}: ${id === 'quick' ? 11 : 15} x ${id === 'quick' ? 11 : 15}`, b.every(row => row.length === n) && n === (id === 'quick' ? 11 : 15), true);
   let sym = true;
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
     const v = at(r, c);
@@ -42,6 +44,17 @@ check('classic: the original layout, row 0', BOARDS.classic[0], 'T..d...T...d..T
 for (const lang of ['pl', 'en']) {
   check(`${lang}: 100 tiles`, fullBag(lang).length, 100);
   check(`${lang}: two blanks`, fullBag(lang).filter(t => t === BLANK).length, 2);
+}
+// the Quick board's own tiles: about half, one blank, the letters that are hard to place left out (owner, 2026-09-25)
+const vowels = { pl: 'aąeęioóuy', en: 'aeiou' };
+for (const [lang, size, out] of [['pl', 53, 'ćńźóf'], ['en', 50, 'qzv']]) {
+  const bag = fullBag(lang, 'quick'), letters = bag.filter(t => t !== BLANK);
+  check(`${lang} quick: ${size} tiles, one blank`, [bag.length, bag.length - letters.length], [size, 1]);
+  check(`${lang} quick: none of ${out}`, letters.filter(t => out.includes(t)), []);
+  const share = letters.filter(t => vowels[lang].includes(t)).length / letters.length;
+  const full = fullBag(lang).filter(t => t !== BLANK), fullShare = full.filter(t => vowels[lang].includes(t)).length / full.length;
+  check(`${lang} quick: about the full set's share of vowels`, Math.abs(share - fullShare) < 0.03, true);
+  check(`${lang} quick: a game starts with it`, (() => { const g = newGame({ lang, board: 'quick', players: [{}, {}], seed: 3 }); return g.bag.length + g.racks.flat().length; })(), size);
 }
 check('pl: 32 letters', letterSet('pl').letters.length, 32);
 check('pl values', ['a', 'y', 'ł', 'ó', 'ć', 'ń', 'ź'].map(ch => letterSet('pl').values[ch]), [1, 2, 3, 5, 6, 7, 9]);
@@ -421,6 +434,22 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   check('undo again: back to the start, and no further', [again.cells, again.racks[0], again.scores, T.undo(again, isWord)], [start.cells, start.racks[0], start.scores, null]);
   const after = cpuMove(again);
   check('after an undo the game goes on - and the look-back skips the shuffles', [after.moves.length, lookBack(after, dicts.pl).length], [1, 1]);
+}
+
+// ── hints in three levels (owner, 2026-09-25): Small, Big, Master ──
+{
+  const { hintLevels, sameMove } = await import('../app/js/tiles-moves.js');
+  const isWord = w => has(dicts.pl, w), rand = seeded(21);
+  let s = newGame({ lang: 'pl', players: [{ name: 'Ada' }, { cpu: 'normal' }], first: 0, seed: 21, words: dicts.pl.tag });
+  for (let k = 0; k < 4; k++) s = apply(s, computerMove(s, dicts.pl, 'hard', rankOf('pl'), rand), isWord);
+  const lv = hintLevels(s, dicts.pl, rankOf('pl'), rand), all = findMoves(s, dicts.pl);
+  check('hint Big: the move that scores the most', lv.big.score, Math.max(...all.map(m => m.score)));
+  check('hint Small: every word it makes is a common one', lv.small && wordsMade(s, lv.small.placed).words.every(x => rankOf('pl')(x.w) < LEVELS.normal.known), true);
+  check('hint Small: never more points than Big', lv.small.score <= lv.big.score, true);
+  check('hint Master: a legal move', checkMove(s, lv.master.placed, isWord).error, undefined);
+  check('the same move, in any order of its tiles', [sameMove(lv.big, { placed: [...lv.big.placed].reverse() }), sameMove(lv.big, null)], [true, false]);
+  const none = hintLevels({ ...s, racks: s.racks.map((r, p) => p === s.turn ? ['ź', 'ź'] : r) }, dicts.pl, rankOf('pl'), rand);
+  check('no move: all three levels empty', none, { small: null, big: null, master: null });
 }
 
 console.log(`all ${passed} Tiles tests passed`);

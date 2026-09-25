@@ -6,6 +6,28 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.37.0 — 2026-09-25 23:19: Kafelki: two more boards, hints in three levels, +points, everyone's tiles
+*(not packaged)*
+
+- **Two more boards** - four now:
+  - **Romb / Diamond**: full size (15 × 15, 100 tiles), the bonus squares on diamond rings round the centre, triple
+    words at the middle of each edge.
+  - **Szybka / Quick** is back: 11 × 11 with its own letters - about half, one blank, the hard ones left out
+    (Polish ć ń ź ó f, English q z v): 53 tiles in Polish, 50 in English. A game takes about half as long.
+- **Hints in three levels**: tap Podpowiedź, then **Mała** (a good move of common words - easy to see),
+  **Duża** (the most points) or **Mistrzowska** (the best, looking ahead). The move goes straight onto the board, in
+  its place, with its points - no more "squares first". A level that would give the same move as a smaller one is
+  faded, and tapping it says so. Each counts as one hint.
+- **"+points" beside each score**: what that player's last turn brought (+23, or +0 for a pass or exchange).
+- **Everyone's tiles** (a rule on New game, two people or more): the other people's tiles are always shown under
+  the scores, so a friend can think while you move; no "pass the device" card then. The computer's stay hidden.
+- **How to play** is closed every time, in all four games.
+- **No "Losowy / Random" level** in Litery and Połącz either (games saved with it still show it).
+- Tile counts in Polish with the right form: "100 płytek", "53 płytki".
+- Checked in headless Edge at 320 and 480 px: the four boards, a Quick game with all three hint levels (and a
+  faded one explaining itself), +points after each turn, two people with everyone's tiles; computer games on Romb
+  and Quick to the end in both languages. 258 Tiles tests (20 new), 264 Letters, 286 Connect.
+
 ## 0.36.0 — 2026-09-25 22:16: Kafelki: who starts, hints off, undo, coloured tiles; the blank fixed
 *(not packaged)*
 

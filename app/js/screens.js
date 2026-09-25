@@ -5,7 +5,7 @@ import { settings, saveSettings, stats, listSaves, getSave, putSave, deleteSave,
 import { load, loadWords, preload, resolve, pickSecret, lengthStats } from './engine.js';
 import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js';
 import { makePuzzle, RANGE, RING_MIN, RING_MAX, visible, isDone } from './connect.js';
-import { BOARDS, STANDARD, LEVEL_ORDER, PLAYERS_MAX, newGame as tilesGame, loadTileWords, valueOf } from './tiles.js';
+import { BOARDS, STANDARD, LEVEL_ORDER, PLAYERS_MAX, newGame as tilesGame, loadTileWords, valueOf, fullBag } from './tiles.js';
 import { nameOf, topics, LABEL } from './tiles-game.js';
 import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYPH, modeTag, TILE, squares } from './ui.js';
 import { fitAll } from './fit.js';
@@ -228,29 +228,15 @@ function rename(el, game, refresh) {
   input.addEventListener('blur', () => finish(true));
 }
 
-// ── How to play (owner, 2026-09-25) ── a card under the New game title that opens and closes: open until a
-// game of that kind has been finished, closed after that - and once the player opens or closes it, as they left it.
-// Tiles' card is closed every time (owner, 2026-09-25: "collapsed every time") - its topics are long.
+// ── How to play (owner, 2026-09-25) ── a card under the New game title that opens and closes - closed every time the
+// screen opens (owner, 2026-09-25: "collapsed every time"; until 0.36.0 it was open until the first finished game).
 const HOWTO = { guess: () => t('howto.guess'), letters: () => t('howto.letters'), connect: () => t('howto.connect'), tiles: () => t('howto.tiles') };
 const tilesPlayed = () => Object.values(stats.tl ?? {}).reduce((a, s) => a + s.played, 0);
-const FINISHED = { guess: () => stats.won + stats.givenUp, letters: () => stats.lt.won + stats.lt.lost + stats.lt.givenUp,
-  connect: () => stats.cn.solved + stats.cn.givenUp };
-const howTo = mode => `<details class="card howto" data-mode="${mode}"${mode !== 'tiles' && (settings.howTo?.[mode] ?? !FINISHED[mode]()) ? ' open' : ''}>
+const howTo = mode => `<details class="card howto" data-mode="${mode}">
       <summary><span class="eyebrow">${t('howto.title')}</span><span class="arrow" aria-hidden="true">›</span></summary>
       ${HOWTO[mode]().split('\n').map(line => `<p class="help"><span class="arrow">→</span> ${line}</p>`).join('')}
       ${mode === 'tiles' ? topics() : ''}
     </details>`;
-// remember an open / close the player made (not the one the page makes as it draws the card)
-function wireHowTo(root) {
-  const el = root.querySelector('.howto');
-  let shown = el.open;
-  el.addEventListener('toggle', () => {
-    if (el.open === shown) return;
-    shown = el.open;
-    settings.howTo = { ...settings.howTo, [el.dataset.mode]: el.open };
-    saveSettings();
-  });
-}
 
 // Every game starts from the same footing - the settings of the last one are rarely what you want for
 // the next. The language is the exception: that is a preference, not a per-game choice.
@@ -306,7 +292,6 @@ export function newGameScreen(root, _, refresh) {
     </form>
   </main>
 </div>`;
-  wireHowTo(root);
   const $ = sel => root.querySelector(sel);
   const err = $('#new-err'), toggle = $('.toggle'), secret = $('input[type=password]');
   const sync = () => {
@@ -376,7 +361,7 @@ export function newGameScreen(root, _, refresh) {
 
 // ── Letters: new game (design: handoff-letters/new-game-letters.html) ─────────────────────────────
 // Same footing rule as above: every game starts from these; the language and "Allow Polish letters" carry over.
-const LT_NEW = { cat: 'all', len: 5, anyLen: false, tries: 6, unlimited: false, diff: 'normal', diffRandom: false };
+const LT_NEW = { cat: 'all', len: 5, anyLen: false, tries: 6, unlimited: false, diff: 'normal' };
 let ltPending = null;
 
 export function lettersNewScreen(root, _, refresh) {
@@ -420,7 +405,6 @@ export function lettersNewScreen(root, _, refresh) {
         <span class="eyebrow">${t('new.diff')}</span>
         <div class="tries">
           <div class="seg" role="radiogroup" id="diff">${DIFFS.map(d => `<button type="button" data-k="diff" data-v="${d}">${t('diff.' + d)}</button>`).join('')}</div>
-          <button type="button" class="chip" role="switch" id="random-diff"><span class="num">?</span>${t('diff.random')}</button>
         </div>
         <p class="help"><span class="arrow">→</span> ${t('lt.diffHelp')}</p>
       </div>
@@ -439,22 +423,16 @@ export function lettersNewScreen(root, _, refresh) {
     </form>
   </main>
 </div>`;
-  wireHowTo(root);
   const $ = sel => root.querySelector(sel);
-  const form = $('form'), err = $('#new-err'), start = $('[type=submit]'), toggle = $('#polish .toggle'), unlimited = $('#unlimited'), anyLen = $('#any-len'), randomDiff = $('#random-diff');
+  const form = $('form'), err = $('#new-err'), start = $('[type=submit]'), toggle = $('#polish .toggle'), unlimited = $('#unlimited'), anyLen = $('#any-len');
   // Polish letters are a Polish-only choice; an English word never has them to begin with
   const marks = () => o.lang === 'pl' && o.marks;
-  const choice = () => ({ cat: o.cat, diff: o.diffRandom ? 'random' : o.diff, marks: o.lang !== 'pl' || o.marks });
+  const choice = () => ({ cat: o.cat, diff: o.diff, marks: o.lang !== 'pl' || o.marks });
 
   const sync = () => {
     root.querySelectorAll('[data-k]').forEach(b => b.classList.toggle('on', String(o[b.dataset.k]) === b.dataset.v));
     // a category means a noun (except Verbs) - said here rather than discovered in the game
     $('#cat-about').textContent = t('about.' + o.cat) + (o.cat === 'all' || o.cat === 'verbs' ? '' : ' ' + t('lt.catNouns'));
-    // Random: the game draws one of the four levels when it starts and keeps it to itself
-    $('#diff').classList.toggle('off', o.diffRandom);
-    if (o.diffRandom) $('#diff').querySelectorAll('button').forEach(b => b.classList.remove('on'));
-    randomDiff.classList.toggle('on', o.diffRandom);
-    randomDiff.setAttribute('aria-checked', o.diffRandom);
     const [shorter, longer] = $('#len').querySelectorAll('button');
     // "any" = the game picks: a random word of any length, so lengths come up as often as words of them do
     $('#len').classList.toggle('off', o.anyLen);
@@ -477,7 +455,7 @@ export function lettersNewScreen(root, _, refresh) {
     $('#polish-help').innerHTML = t(o.marks ? 'lt.polishOn' : 'lt.polishOff');
     $('.summary').innerHTML = [LANG_NAMES[o.lang], t('cat.' + o.cat), o.anyLen ? t('lt.anyLenLong') : `${o.len} ${plural(o.len, 'lt.letters')}`,
       o.unlimited ? `∞ ${plural(0, 'lt.triesUnit')}` : `${o.tries} ${plural(o.tries, 'lt.triesUnit')}`,
-      t('diff.' + (o.diffRandom ? 'random' : o.diff)), marks() && t('lt.marksShort')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
+      t('diff.' + o.diff), marks() && t('lt.marksShort')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
     counts();
     fitAll(root);
   };
@@ -512,7 +490,6 @@ export function lettersNewScreen(root, _, refresh) {
   sync();
   root.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => {
     o[b.dataset.k] = b.dataset.v;
-    if (b.dataset.k === 'diff') o.diffRandom = false;   // choosing a level is choosing not to leave it to chance
     if (b.dataset.k === 'lang') {          // the interface follows, unless the player has chosen one
       settings.newGame = { lang: o.lang };
       saveSettings();
@@ -541,27 +518,25 @@ export function lettersNewScreen(root, _, refresh) {
   });
   unlimited.addEventListener('click', () => { o.unlimited = !o.unlimited; sync(); });
   anyLen.addEventListener('click', () => { o.anyLen = !o.anyLen; sync(); });
-  randomDiff.addEventListener('click', () => { o.diffRandom = !o.diffRandom; sync(); });
   toggle.addEventListener('click', () => { o.marks = !o.marks; settings.polish = { ...settings.polish, letters: o.marks }; saveSettings(); sync(); });
 
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const m = await loadWords(o.lang);
-    // Random draws one of the four levels now; the game keeps it for the score and shows only "Random"
-    const diff = o.diffRandom ? DIFFS[Math.floor(Math.random() * DIFFS.length)] : o.diff;
-    const idx = pick(m, { len: o.anyLen ? null : o.len, ...choice(), diff });
+    const idx = pick(m, { len: o.anyLen ? null : o.len, ...choice() });
     if (idx < 0) { err.hidden = false; return; }
     settings.newGame = { lang: o.lang };
     saveSettings();
     const game = newGame({ mode: 'letters', lang: o.lang, cat: o.cat, len: [...m.words[idx]].length, tries: o.unlimited ? 0 : o.tries,
-      diff, diffRandom: o.diffRandom, marks: marks(), secret: m.words[idx] });
+      diff: o.diff, marks: marks(), secret: m.words[idx] });
     location.replace('#/game/' + game.id);   // Back from the game goes to the picker, not to this form
   });
 }
 
 // ── Connect: new game (design v4, "Lexling Connect" 2) ─────────────────────────────────────────────
-// The Letters controls, rebuilt: letters in the circle, the level (+ Random), the Polish-letters card.
-const CN_NEW = { letters: 6, diff: 'normal', diffRandom: false };
+// The Letters controls, rebuilt: letters in the circle, the level, the Polish-letters card. (No "Random" level since
+// 0.37.0, here and in Letters - owner.)
+const CN_NEW = { letters: 6, diff: 'normal' };
 let cnPending = null;
 
 export function connectNewScreen(root, _, refresh) {
@@ -586,7 +561,6 @@ export function connectNewScreen(root, _, refresh) {
         <div class="field-head"><span class="eyebrow">${t('cn.level')}</span><span class="help">${t('cn.levelWhat')}</span></div>
         <div class="tries">
           <div class="seg" role="radiogroup" id="diff">${DIFFS.map(d => `<button type="button" data-k="diff" data-v="${d}">${t('diff.' + d)}</button>`).join('')}</div>
-          <button type="button" class="chip" role="switch" id="random-diff"><span class="num">?</span>${t('diff.random')}</button>
         </div>
         <p class="help"><span class="arrow">→</span> <span id="level-help"></span></p>
       </div>
@@ -605,29 +579,24 @@ export function connectNewScreen(root, _, refresh) {
     </form>
   </main>
 </div>`;
-  wireHowTo(root);
   const $ = sel => root.querySelector(sel);
-  const form = $('form'), err = $('#new-err'), toggle = $('#polish .toggle'), randomDiff = $('#random-diff');
+  const form = $('form'), err = $('#new-err'), toggle = $('#polish .toggle');
   const marks = () => o.lang === 'pl' && o.marks;
   const sync = () => {
     root.querySelectorAll('[data-k]').forEach(b => b.classList.toggle('on', String(o[b.dataset.k]) === b.dataset.v));
-    $('#diff').classList.toggle('off', o.diffRandom);
-    if (o.diffRandom) $('#diff').querySelectorAll('button').forEach(b => b.classList.remove('on'));
-    randomDiff.classList.toggle('on', o.diffRandom);
-    randomDiff.setAttribute('aria-checked', o.diffRandom);
     const [fewer, more] = $('#letters').querySelectorAll('button');
     $('#letters output').innerHTML = `<span class="num">${o.letters}</span><span class="help">${plural(o.letters, 'lt.letters')}</span>`;
     fewer.disabled = o.letters <= RING_MIN;
     more.disabled = o.letters >= RING_MAX;
     // how many words a circle of this size usually gives
     $('#range').innerHTML = `<span class="num">${RANGE[o.letters].join('–')}</span><span class="help">${t('cn.readout')}</span>`;
-    $('#level-help').textContent = t('cn.lv.' + (o.diffRandom ? 'random' : o.diff));
+    $('#level-help').textContent = t('cn.lv.' + o.diff);
     $('#polish').hidden = o.lang !== 'pl';
     toggle.classList.toggle('on', o.marks);
     toggle.setAttribute('aria-checked', o.marks);
     $('#polish-help').textContent = t(o.marks ? 'cn.polishOn' : 'cn.polishOff');
     $('.summary').innerHTML = [LANG_NAMES[o.lang], `${o.letters} ${plural(o.letters, 'lt.letters')}`,
-      t('diff.' + (o.diffRandom ? 'random' : o.diff)), marks() && t('lt.marksShort')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
+      t('diff.' + o.diff), marks() && t('lt.marksShort')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
     err.hidden = true;
     fitAll(root);
   };
@@ -635,7 +604,6 @@ export function connectNewScreen(root, _, refresh) {
   loadWords(o.lang).catch(() => {});      // the word data, ready by the time Start is pressed
   root.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => {
     o[b.dataset.k] = b.dataset.v;
-    if (b.dataset.k === 'diff') o.diffRandom = false;
     if (b.dataset.k === 'lang') {
       settings.newGame = { lang: o.lang };
       saveSettings();
@@ -650,19 +618,17 @@ export function connectNewScreen(root, _, refresh) {
     const step = +e.target.closest('[data-step]')?.dataset.step;
     if (step) { o.letters = Math.min(RING_MAX, Math.max(RING_MIN, o.letters + step)); sync(); }
   });
-  randomDiff.addEventListener('click', () => { o.diffRandom = !o.diffRandom; sync(); });
   toggle.addEventListener('click', () => { o.marks = !o.marks; settings.polish = { ...settings.polish, connect: o.marks }; saveSettings(); sync(); });
 
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const m = await loadWords(o.lang);
-    // Random draws one of the four levels now; the game shows only "Random"
-    const diff = o.diffRandom ? DIFFS[Math.floor(Math.random() * DIFFS.length)] : o.diff;
+    const diff = o.diff;
     const puzzle = makePuzzle(m, { letters: o.letters, diff, marks: o.lang !== 'pl' || o.marks });
     if (!puzzle) { err.textContent = t('cn.errNone'); err.hidden = false; return; }
     settings.newGame = { lang: o.lang };
     saveSettings();
-    const game = newGame({ mode: 'connect', lang: o.lang, letters: o.letters, diff, diffRandom: o.diffRandom, marks: marks(),
+    const game = newGame({ mode: 'connect', lang: o.lang, letters: o.letters, diff, marks: marks(),
       ring: puzzle.ring, key: puzzle.key, board: puzzle.board, found: [], shown: [], bonus: [], hints: 0 });
     location.replace('#/game/' + game.id);   // Back from the game goes to the list, not to this form
   });
@@ -675,7 +641,7 @@ export function connectNewScreen(root, _, refresh) {
 const TL_NEW = () => ({ board: 'classic', players: [{ name: '', cpu: null }, { name: '', cpu: 'normal' }], first: null, rules: { ...STANDARD }, rulesOpen: false });
 const TL_TIMES = { move: [30, 60, 120, 180], game: [600, 1200, 1500, 1800] };   // seconds: per move, per game
 const TL_RULES = [['premiums', ['once', 'always']], ['check', ['auto', 'challenge']], ['exchange', ['bag7', 'always']], ['bingo', [50, 0]],
-  ['hints', [true, false]], ['undo', [false, true]]];
+  ['hints', [true, false]], ['undo', [false, true]], ['open', [false, true]]];
 let tlPending = null;
 
 const boardCard = b => {
@@ -685,8 +651,8 @@ const boardCard = b => {
     const cls = r === mid && c === mid ? 'st' : LABEL[k];
     if (cls) cells += `<i class="${cls}" style="grid-row:${r + 1};grid-column:${c + 1}"></i>`;
   }));
-  return `<button type="button" class="tl-bcard" data-board="${b}" role="radio"><span class="tl-mini" style="--n:${n};--m:5px" aria-hidden="true">${cells}</span><span><strong>${t('tiles.board.' + b)}</strong><span class="help">${
-    t(`tiles.board.${b}.what`)}</span><span class="meta">${n} × ${n} ${DOT} ${t('tiles.tilesN', { n: 100 })}</span></span></button>`;
+  return `<button type="button" class="tl-bcard" data-board="${b}" role="radio"><span class="tl-mini" style="--n:${n};--m:${Math.round(75 / n)}px" aria-hidden="true">${cells}</span><span><strong>${t('tiles.board.' + b)}</strong><span class="help">${
+    t(`tiles.board.${b}.what`)}</span><span class="meta"></span></span></button>`;
 };
 
 export function tilesNewScreen(root, _, refresh) {
@@ -752,9 +718,11 @@ export function tilesNewScreen(root, _, refresh) {
     const r = o.rules, per = r.time?.per ?? 'none';
     // Undo only when one person plays against the computer (owner, 2026-09-25)
     const vsCpu = o.players.filter(x => !x.cpu).length === 1 && o.players.some(x => x.cpu);
+    // everyone's tiles: only with two people or more (owner, 2026-09-25: "play with your friend")
+    const friends = o.players.filter(x => !x.cpu).length > 1;
     const seg = (key, vals, label) => `<div class="seg">${vals.map(v => `<button type="button" data-rule="${key}" data-v="${v}" class="${on(String(r[key]) === String(v))}">${label(v)}</button>`).join('')}</div>`;
-    $('.rules-body').innerHTML = TL_RULES.filter(([k]) => k !== 'undo' || vsCpu).map(([k, vals]) => `<div class="rule"><span class="eyebrow">${t('tiles.r.' + k)}</span>${seg(k, vals, v => t(`tiles.r.${k}.${v}`))}${
-      k === 'check' || k === 'undo' ? `<p class="help">${t(`tiles.r.${k}Help`)}</p>` : ''}</div>`).join('')
+    $('.rules-body').innerHTML = TL_RULES.filter(([k]) => (k !== 'undo' || vsCpu) && (k !== 'open' || friends)).map(([k, vals]) => `<div class="rule"><span class="eyebrow">${t('tiles.r.' + k)}</span>${seg(k, vals, v => t(`tiles.r.${k}.${v}`))}${
+      ['check', 'undo', 'open'].includes(k) ? `<p class="help">${t(`tiles.r.${k}Help`)}</p>` : ''}</div>`).join('')
       + `<div class="rule"><span class="eyebrow">${t('tiles.r.time')}</span><div class="seg">${['none', 'move', 'game'].map(v =>
         `<button type="button" data-time="${v}" class="${on(per === v)}">${t('tiles.r.time.' + v)}</button>`).join('')}</div>${per === 'none' ? '' : `<div class="seg">${TL_TIMES[per].map(s =>
         `<button type="button" data-secs="${s}" class="${on(r.time.seconds === s)}">${s < 60 ? t('tiles.sec', { n: s }) : t('tiles.min', { n: s / 60 })}</button>`).join('')}</div><p class="help">${t('tiles.r.timeHelp.' + per)}</p>`}</div>`;
@@ -768,7 +736,13 @@ export function tilesNewScreen(root, _, refresh) {
   }
   const sync = () => {
     root.querySelectorAll('[data-lang]').forEach(b => b.classList.toggle('on', b.dataset.lang === o.lang));
-    root.querySelectorAll('[data-board]').forEach(b => { b.classList.toggle('on', b.dataset.board === o.board); b.setAttribute('aria-checked', b.dataset.board === o.board); });
+    root.querySelectorAll('[data-board]').forEach(b => {
+      b.classList.toggle('on', b.dataset.board === o.board);
+      b.setAttribute('aria-checked', b.dataset.board === o.board);
+      // the size, and how many tiles in this language (Quick has its own set)
+      const n = BOARDS[b.dataset.board].length, tiles = fullBag(o.lang, b.dataset.board).length;
+      b.querySelector('.meta').innerHTML = `${n} × ${n} ${DOT} ${tiles} ${plural(tiles, 'tiles.tilesN')}`;
+    });
     // the same switch as in Settings and in the game (owner, 2026-09-25: "also on the setup")
     const colours = $('#colours .toggle'), own = settings.tilesColours !== false;
     colours.classList.toggle('on', own);
@@ -836,8 +810,9 @@ export function tilesNewScreen(root, _, refresh) {
     settings.newGame = { lang: o.lang };
     saveSettings();
     const players = o.players.map(x => ({ name: x.name.trim(), cpu: x.cpu })), first = o.players.indexOf(o.first);
-    const vsCpu = players.filter(x => !x.cpu).length === 1 && players.some(x => x.cpu);
-    const state = tilesGame({ lang: o.lang, board: o.board, players, first: first >= 0 ? first : undefined, words: dict.tag, rules: { ...o.rules, undo: vsCpu && o.rules.undo } });
+    const humans = players.filter(x => !x.cpu).length, vsCpu = humans === 1 && players.some(x => x.cpu);
+    const state = tilesGame({ lang: o.lang, board: o.board, players, first: first >= 0 ? first : undefined, words: dict.tag,
+      rules: { ...o.rules, undo: vsCpu && o.rules.undo, open: humans > 1 && o.rules.open } });
     const game = newGame({ mode: 'tiles', lang: o.lang, state, firstSet: first >= 0, order: [], turnMs: 0 });
     location.replace('#/game/' + game.id);   // Back from the game goes to the list, not to this form
   });
