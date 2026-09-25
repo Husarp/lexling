@@ -392,6 +392,12 @@ Measured on the lists the app has (`ac.txt` + `extra.txt`): 458 306 Polish words
   ~173 000 words, what Words With Friends started with). Both would go into the word graph file, built ahead of
   time; download size to measure. The computer's levels would still use our frequency list to decide which
   words it "knows".
+- [x] **Design, round 1** arrived 2026-09-25 (`design/v5/`, `LexlingTilesDesing.zip`) - made from the first brief: one person vs
+      the computer, three boards, a one-step hint. Kept: the classic bonus hues (owner), yellow tiles with dark ink,
+      labelled buttons, auto-zoom + pinch, the merged history / letters-left panel.
+- [ ] **Design, round 2**: `notes/tiles-design-fixes-prompt.md` - no Quick board, no top accent line, the two-step hint,
+      2-5 players and the hand-over, check a word, rule options, Expert, How to play + "?", look-back, statistics,
+      credits, the who-played switch in the game. Waiting for the owner to send it.
 - [x] Owner: download and use them? - **yes**. 0.31.0: 3.2 million Polish words (2.8 MB), 168 000 English
       (0.8 MB), every form of a slur or vulgar word left out; the README credits them. The credit line in the
       app comes with the Tiles screens (design prompt; see also M5 "Credits in About").
