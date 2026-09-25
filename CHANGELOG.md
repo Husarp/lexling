@@ -7,7 +7,7 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 ---
 
 ## 0.18.3 — 2026-09-25 02:38: Android ID com.husarp.lexling
-*(not packaged)*
+*(debug APK built and installed on the phone 2026-09-25 02:41 — as a new app next to the old WordGuess; not released)*
 
 - The owner chose `com.husarp.<name>` as the form for every app's ID, shorter than
   `io.github.husarp.<name>`. Lexling's ID from 0.18.0 had never been built or installed anywhere, so it
