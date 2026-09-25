@@ -6,6 +6,22 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.42.2 — 2026-09-26 01:52: Kafelki: the rating under the board, a smaller Small hint, taking a blank back
+*(not packaged)*
+
+- **The move rating has its own line, directly under the board** (owner); the message with the word played and its
+  points is the line below it, the word and its points further apart.
+- **The Small hint is small now** (owner: "how is a seven-tile 84 a small hint?", "Small often gives super good
+  words"): an easy move - everyday words, four tiles at most, about half the best there is. It used to be the best
+  move made of common words, often the best move of all, which faded Big and Master. Now about 47 % of Big on
+  average, and never the same move.
+- **A placed blank can be taken back alone** (owner): its letter menu has **"Zdejmij" / "Take back"** beside Cancel
+  (Backspace or Delete on a keyboard) - before, only Recall took it off, with the whole word.
+- **Settings on a phone**: every row's choices fill the width (they stopped at 320 px with empty space beside them),
+  and "Kolory graczy" and "Pola premiowe" have short explanations (owner: "so stretched out").
+- Checked in headless Edge at 320 and 480 px (the blank with real touch taps); the hint levels over 30 positions.
+  262 Tiles tests.
+
 ## 0.42.1 — 2026-09-26 01:44: Kafelki: raised tiles in true 3D
 *(not packaged)*
 

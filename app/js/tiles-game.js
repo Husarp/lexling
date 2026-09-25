@@ -162,6 +162,7 @@ export async function tilesGameScreen(root, id) {
   <main class="main"><div class="tl-play">
     <div class="status"></div>
     <div class="tl-bwrap"><div class="tl-board"><div class="tb"></div></div></div>
+    <p class="tl-rate" role="status"></p>
     <p class="say" role="status"></p>
     <div class="tl-rack"></div>
     <div class="tl-dock"></div>
@@ -171,10 +172,10 @@ export async function tilesGameScreen(root, id) {
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main'), play = app.querySelector('.tl-play');
   wireGear(root, [['tilesRate', t('tiles.rate.setting'), t('tiles.rate.settingHelp')], ['tilesColours', t('tiles.colours'), t('tiles.coloursHelp'), COLOUR_LOOKS.map(([v, k]) => [v, t('tiles.colours.' + k)])], ['tiles3d', t('tiles.raised'), t('tiles.raisedHelp')], ['tilesBonus', t('tiles.bonus'), t('tiles.bonusHelp'), BONUS_LOOKS.map(([v, k]) => [v, t('tiles.bonus.' + k)])]],
-    () => { if (S.over) return; paintStatus(); paintBoard(); paintMore(); });
+    () => { if (S.over) return; paintStatus(); paintRate(); paintBoard(); paintMore(); });
   const $ = s => play.querySelector(s);
   const status = $('.status'), boardEl = $('.tl-board'), tb = $('.tb'), say = $('.say'), rackEl = $('.tl-rack'), dock = $('.tl-dock');
-  const more = $('.tl-more'), over = $('.tl-over');
+  const more = $('.tl-more'), over = $('.tl-over'), rateEl = $('.tl-rate');
   const refit = () => fitAll(root);
 
   // the board's two colour switches (Settings, New game, the game): players' tiles tinted; bonus squares coloured
@@ -413,8 +414,8 @@ export async function tilesGameScreen(root, id) {
     let html = '';
     if (blankFor >= 0) {
       const cur = draft[blankFor]?.ch;
-      html += `<div class="tl-scrim" data-act="pickCancel"></div><div class="tl-pick" role="dialog"><div class="tl-pick-head"><strong>${t('tiles.blank.title')}</strong><button class="btn btn-ghost" type="button" data-act="pickCancel">${
-        t('tiles.cancel')}</button></div><div class="abc">${abc.map(ch => `<button type="button" data-ch="${ch}" class="${ch === cur ? 'on' : ''}">${ch}</button>`).join('')}</div><p class="help">${t('tiles.blank.help')}</p></div>`;
+      html += `<div class="tl-scrim" data-act="pickCancel"></div><div class="tl-pick" role="dialog"><div class="tl-pick-head"><strong>${t('tiles.blank.title')}</strong><span class="acts"><button class="btn btn-ghost" type="button" data-act="pickRemove">${
+        t('tiles.blank.remove')}</button><button class="btn btn-ghost" type="button" data-act="pickCancel">${t('tiles.cancel')}</button></span></div><div class="abc">${abc.map(ch => `<button type="button" data-ch="${ch}" class="${ch === cur ? 'on' : ''}">${ch}</button>`).join('')}</div><p class="help">${t('tiles.blank.help')}</p></div>`;
     }
     if (toast) {
       const first = S.start.first;
@@ -430,7 +431,7 @@ export async function tilesGameScreen(root, id) {
   }
 
   const paintTurn = () => { paintBoard(); paintSay(); paintRack(); paintDock(); };
-  const paintAll = () => { paintStatus(); paintTurn(); paintMore(); paintOver(); };
+  const paintAll = () => { paintStatus(); paintRate(); paintTurn(); paintMore(); paintOver(); };
 
   // ── turns ──
   function resetTurn() {
@@ -465,10 +466,11 @@ export async function tilesGameScreen(root, id) {
   }
   function report(action, p, ev) {
     const name = esc(nameOf(S, p)), m = S.moves.at(-1);
-    // a person's own turn, rated (the setting): it stays on the line while the computer answers
-    const rate = !cpu(p) && settings.tilesRate !== false && ev?.best > 0 ? rated(action.type === 'place' ? m.score : 0, ev) : '';
-    if (action.type === 'place') return { html: `${t('tiles.say.played', { name })} ${wordsLine(m.words, m.score, m.bingo)}${rate}`, keep: !!rate };
-    if (rate && (action.type === 'exchange' || action.type === 'pass')) return { html: `${t(action.type === 'exchange' ? 'tiles.say.swapped' : 'tiles.say.passed', { name, n: action.tiles?.length })}${rate}`, keep: true };
+    // a person's own turn, rated (the setting): on its own line under the board (owner, 2026-09-26), until their next move
+    if (!cpu(p) && ['place', 'exchange', 'pass', 'timeout'].includes(action.type)) {
+      rating = settings.tilesRate !== false && ev?.best > 0 ? (people.length > 1 ? `<b>${name}:</b> ` : '') + rated(action.type === 'place' ? m.score : 0, ev) : '';
+    }
+    if (action.type === 'place') return { html: `${t('tiles.say.played', { name })} ${wordsLine(m.words, m.score, m.bingo)}` };
     if (action.type === 'exchange') return { html: t('tiles.say.swapped', { name, n: action.tiles.length }) };
     if (action.type === 'pass') return { html: t('tiles.say.passed', { name }) };
     if (action.type === 'timeout') return { html: t('tiles.say.timeout'), keep: true };
@@ -479,7 +481,9 @@ export async function tilesGameScreen(root, id) {
     }
     return null;
   }
-  const rated = (played, ev) => ` ${played ? rateBadge(played, ev.best) : ''}${played < ev.best ? ` <small class="best-was">${t('tiles.rate.bestWas', { w: esc(ev.word.toUpperCase()), n: ev.best })}</small>` : ''}`;
+  const rated = (played, ev) => `${played ? rateBadge(played, ev.best) : ''}${played < ev.best ? ` <span class="best-was">${t('tiles.rate.bestWas', { w: `<b>${esc(ev.word.toUpperCase())}</b>`, n: ev.best })}</span>` : ''}`;
+  let rating = '';          // the line under the board: how good the last person's move was
+  const paintRate = () => { rateEl.innerHTML = settings.tilesRate !== false && !S.over ? rating : ''; };
   // Whose turn now: a computer thinks; between people the device changes hands first, the rack hidden.
   function next() {
     if (S.over) return;
@@ -586,6 +590,7 @@ export async function tilesGameScreen(root, id) {
       thinking = false;
       resetTurn();
       msg = { html: t('tiles.say.undone') };
+      rating = '';
       putSave(game);
       next();
     },
@@ -594,6 +599,13 @@ export async function tilesGameScreen(root, id) {
     show() { handOver = false; shown = S.turn; paintAll(); },
     pickCancel() {
       if (draft[blankFor] && !draft[blankFor].ch) draft.splice(blankFor, 1);   // a blank with no letter goes back
+      blankFor = -1;
+      paintOver();
+      paintTurn();
+    },
+    // the blank alone back to the rack (owner, 2026-09-26: tapping it on the board opens its letters - no other way back)
+    pickRemove() {
+      if (draft[blankFor]) draft.splice(blankFor, 1);
       blankFor = -1;
       paintOver();
       paintTurn();
@@ -844,6 +856,7 @@ export async function tilesGameScreen(root, id) {
     const ch = e.key.length === 1 ? e.key.toLowerCase() : '';
     if (blankFor >= 0) {
       if (letterSet(lang).values[ch]) { e.preventDefault(); pickLetter(ch); } else if (e.key === 'Escape') { e.preventDefault(); TOOLS.pickCancel(); }
+      else if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); TOOLS.pickRemove(); }
       return;
     }
     if (e.key === 'Escape') {

@@ -444,7 +444,8 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   for (let k = 0; k < 4; k++) s = apply(s, computerMove(s, dicts.pl, 'hard', rankOf('pl'), rand), isWord);
   const lv = hintLevels(s, dicts.pl, rankOf('pl'), rand), all = findMoves(s, dicts.pl);
   check('hint Big: the move that scores the most', lv.big.score, Math.max(...all.map(m => m.score)));
-  check('hint Small: every word it makes is a common one', lv.small && wordsMade(s, lv.small.placed).words.every(x => rankOf('pl')(x.w) < LEVELS.normal.known), true);
+  check('hint Small: every word it makes is an everyday one', lv.small && wordsMade(s, lv.small.placed).words.every(x => rankOf('pl')(x.w) < LEVELS.easy.known), true);
+  check('hint Small: four tiles at most, and never the best move when the best takes more', [lv.small.placed.length <= 4, lv.big.placed.length <= 4 || !sameMove(lv.small, lv.big)], [true, true]);
   check('hint Small: never more points than Big', lv.small.score <= lv.big.score, true);
   check('hint Master: a legal move', checkMove(s, lv.master.placed, isWord).error, undefined);
   check('the same move, in any order of its tiles', [sameMove(lv.big, { placed: [...lv.big.placed].reverse() }), sameMove(lv.big, null)], [true, false]);

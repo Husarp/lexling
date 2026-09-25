@@ -480,7 +480,9 @@ are in `screens.js`.
   a move that uses the last tiles.
 - **Hints in three levels** (0.37.0, owner; the two steps of 0.35.0 went - "the squares alone are too hard, the word
   alone too easy"): Hint turns the tool row into Mała / Duża / Mistrzowska (Small / Big / Master) and Cancel.
-  Small = the best move whose words are all common (the ones the Normal computer knows), Big = the most points,
+  Small = an easy move - everyday words (the ones the Easy computer knows), four tiles at most, about half the best
+  there is (0.42.2, owner: "how is a seven-tile 84 a small hint?" - it had been the best common-word move, often the
+  best move of all; now ~47 % of Big on average, never the same move), Big = the most points,
   Master = the best looking ahead (Expert's way: the tiles kept, the next player's answers). The move goes straight
   onto the board as dashed tiles in its place, with its points - Play plays it, Recall takes it back; one hint
   counted. A level that would show the same move as a smaller one is faded; tapped, it says so ("Master would show
@@ -548,6 +550,8 @@ name gives way in the top bar (to the gear, or Kafelki's "?") - it is on the sav
   In the gear, New game and Settings; the 🎨 button and History's switches are gone (owner).
 
 ### Kafelki: ratings and looks (0.41.0, owner, 2026-09-26)
+- **The rating has a line of its own, directly under the board** (0.42.2, owner), until that person's next move; the
+  move's message is the line below it. On a phone the board sits at the bottom of its space, so nothing comes between.
 - **How good a move was**: its points against the best move there was on that board with that rack (the move finder)
   - the best, excellent (85 %+), good (65 %+), fair (40 %+), weak. "Oceniaj moje ruchy / Rate my moves" (on at first;
   the gear, Settings) shows it after each of your moves on the message line, where it stays while the computer answers,
