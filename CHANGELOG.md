@@ -6,6 +6,22 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.22.4 — 2026-09-25 04:29: An Android signing key of Lexling's own
+*(not packaged)*
+
+- **Release builds are now signed with Lexling's own key** (`build-android.ps1 -Release` →
+  `build\Lexling-release.apk`, installable). Until now every APK was signed with the debug key
+  Android Studio makes on this PC by itself: Android installs an update only over an app signed with
+  the same key, so losing that one (a new PC, a reinstall) would have forced everyone to uninstall
+  Lexling — and lose their saves — to update. Debug builds are also not meant for handing out.
+- The key (holder "Husarp", 27 years) lives **outside the repository**; `android/keystore.properties`
+  says where it is and holds its password. Both are git-ignored (so are any `*.jks` / `*.keystore`).
+  Without that file a release build is left unsigned, as before.
+- Checked without packaging: Gradle picks the key up and its own signing check opens it with the
+  stored password.
+- Not changed yet: the debug APK is still what the build makes by default and what releases carry.
+  Moving to the release APK means one uninstall on every phone that has the debug one.
+
 ## 0.22.3 — 2026-09-25 04:19: Android shows the real version number
 *(not packaged)*
 

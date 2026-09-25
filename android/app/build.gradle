@@ -5,6 +5,12 @@ apply plugin: 'com.android.application'
 def appVersion = (file('../../app/js/version.js').text =~ /VERSION\s*=\s*'([^']+)'/)[0][1]
 def (major, minor, patch) = appVersion.tokenize('.').collect { it as int }
 
+// Release signing: android/keystore.properties (git-ignored) says where the key is and its password.
+// The key stays outside the repository. Without the file a release build is left unsigned, as before.
+def signing = new Properties()
+def signingFile = rootProject.file('keystore.properties')
+if (signingFile.exists()) signingFile.withInputStream { signing.load(it) }
+
 android {
     namespace "com.husarp.lexling"
     compileSdk rootProject.ext.compileSdkVersion
@@ -21,8 +27,17 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (signing.storeFile) release {
+            storeFile file(signing.storeFile)
+            storePassword signing.storePassword
+            keyAlias signing.keyAlias
+            keyPassword signing.keyPassword
+        }
+    }
     buildTypes {
         release {
+            if (signing.storeFile) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

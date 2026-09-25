@@ -98,7 +98,15 @@ is one, otherwise the Car Crash project's.
 ```powershell
 & ".\scripts\build-android.ps1"           # build\Lexling-debug.apk
 & ".\scripts\build-android.ps1" -Install  # …and push it to a connected phone
+& ".\scripts\build-android.ps1" -Release  # build\Lexling-release.apk, signed with the release key
 ```
+
+**The release key.** A release build is signed with Lexling's own key, which lives outside the
+repository; `android/keystore.properties` (git-ignored, never commit it) says where it is and holds its
+password. **Back up both the key file and the password.** Android installs an update only over an app
+signed with the same key: without them no update can ever be signed again, and every player would
+have to uninstall — losing their saves — to move to a newly signed Lexling. Without the file a release
+build is left unsigned.
 
 Needs the Android SDK (`%LOCALAPPDATA%\Android\Sdk`) and Android Studio's bundled JDK 21 — the script
 points at both, so neither has to be on PATH — plus `npm install` once for the Capacitor CLI. The APK

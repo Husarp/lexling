@@ -15,6 +15,10 @@ android/local.properties
 android/app/src/main/assets/public/
 android/app/src/main/assets/capacitor.config.json
 android/capacitor-cordova-android-plugins/
+# the release signing key and its password - private, and irreplaceable (see README, Android)
+android/keystore.properties
+*.jks
+*.keystore
 
 # ── Not part of the program ───────────────────────────────────────────────────────────────────────
 # This repository is PUBLIC. Anything not listed here is published the moment it is committed, so
