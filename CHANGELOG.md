@@ -7,7 +7,7 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 ---
 
 ## 0.22.5 — 2026-09-25 04:36: The Android APK is signed with Lexling's own key
-*(not packaged)*
+*(released 2026-09-25 as v0.22.5 — Windows installer + the signed Android APK, Lexling-release.apk)*
 
 - **`build-android.ps1` now makes the signed APK** (`build\Lexling-release.apk`) by default, and
   releases carry it instead of `Lexling-debug.apk` (the owner's choice, knowing the cost below). The
