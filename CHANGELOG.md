@@ -6,6 +6,18 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.28.1 — 2026-09-25 14:39: Letters' keys colour in with their tiles, letter by letter
+*(not packaged)*
+
+- **The keyboard follows the row** (owner): as the tiles of a guess turn green / yellow / grey one after another, each
+  letter's key takes its colour at the same moment as its tile - no longer all together once the row has finished.
+  Never before its tile, so the keys still give nothing away.
+- **A key that changes gives a small bounce** (owner's choice, option B): up to 1.12× and back in 0.18 s, as the
+  tiles do. Only keys that learnt something bounce. "Reduce motion" in the system settings turns it off, as all motion.
+- `keyStates` (letters.js) can now stop part-way through the newest guess; 4 new tests, 264 in all.
+- Decided the same day: all-letter words that are inflected forms (STALI from LISTA) stay bonus words in Connect
+  (the owner: option C, leave it).
+
 ## 0.28.0 — 2026-09-25 14:32: Connect circles of up to 10 letters
 *(not packaged)*
 

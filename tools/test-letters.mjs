@@ -70,6 +70,12 @@ check('keys: SHEET has two green E - E is known to be in STEEL twice', keys.coun
 check('keys: PALMA against KASZA - two green A', keyStates(['palma'], 'kasza').count.a, 2);
 check('keys: once green, a letter stays green', keyStates(['tacos', 'stack'], 'steal').state.t, 'hit');
 check('keys: a letter only ever grey counts nothing', keyStates(['crane'], 'steel').count.c, undefined);
+// letter by letter, in step with the row's tiles (owner, 2026-09-25): only the newest guess is partial
+const half = keyStates(['crane', 'sheet'], 'steel', 1);   // SHEET's S and H have turned, the rest not yet
+check('keys, part-way: S and H of the new row have their colours', [half.state.s, half.state.h], ['hit', 'miss']);
+check('keys, part-way: E is still what CRANE said - yellow, once', [half.state.e, half.count.e], ['near', 1]);
+check('keys, part-way: an older guess always counts in full', keyStates(['crane', 'sheet'], 'steel', 0).state.c, 'miss');
+check('keys, all turned: the same as no limit', keyStates(['crane', 'sheet'], 'steel', 4), keyStates(['crane', 'sheet'], 'steel'));
 
 // ── which words can be hidden — against the real word data ──────────────────────────────────────
 const ROOT = new URL('../app/', import.meta.url);

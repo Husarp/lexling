@@ -171,16 +171,19 @@ export function eraseLetter(row, sel) {
 // What the guesses so far say about each letter, for its key: 'hit' if it has been in the right
 // place, 'near' if only in the word, 'miss' if not in it. `count` = how many times the letter is known
 // to be in the word - the most times it was green or yellow within one guess (shown from 2 up).
-export function keyStates(guesses, answer) {
+// `upto`: only the newest guess's letters up to this one count - the keys colour in letter by letter,
+// in step with the row's tiles (owner, 2026-09-25).
+export function keyStates(guesses, answer, upto = Infinity) {
   const state = {}, count = {}, rank = { miss: 1, near: 2, hit: 3 }, name = { green: 'hit', yellow: 'near', grey: 'miss' };
-  for (const w of guesses) {
+  guesses.forEach((w, g) => {
     const marks = feedback(w, answer).map(f => name[f]), inWord = {};
     [...w.toLowerCase()].forEach((ch, i) => {
+      if (g === guesses.length - 1 && i > upto) return;
       if (!state[ch] || rank[marks[i]] > rank[state[ch]]) state[ch] = marks[i];
       if (marks[i] !== 'miss') inWord[ch] = (inWord[ch] || 0) + 1;
     });
     for (const [ch, k] of Object.entries(inWord)) count[ch] = Math.max(count[ch] || 0, k);
-  }
+  });
   return { state, count };
 }
 

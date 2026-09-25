@@ -589,6 +589,9 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
 .key svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 /* Enter wakes up when the row is full — as the Guess button did (outline → primary) */
 .key.enter.go{--kbg:var(--accent);--kfg:var(--on-accent)}
+/* a key that learns something bounces as it takes its colour - together with its tile, letter by letter (owner, 2026-09-25) */
+@keyframes key-pop{0%,100%{transform:none}50%{transform:scale(1.12)}}
+.key.pop{animation:key-pop 180ms var(--ease)}
 /* the Polish row: always there in a Polish game (guesses may use them even when the word can't) */
 .kb-row.pl{padding-bottom:6px;border-bottom:1px solid var(--line-soft)}
 [data-theme=light] .kb-row.pl{border-bottom-color:var(--lt-edge)}

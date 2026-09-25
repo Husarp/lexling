@@ -72,14 +72,21 @@ export async function lettersGameScreen(root, id) {
   }
 
   // What the game has learnt about each letter, on its key (letters.js, keyStates): the tile colours,
-  // and a small count when the letter is known to be in the word more than once.
-  function paintKeys(guesses = game.guesses) {
-    const { state, count } = keyStates(guesses, game.secret);
+  // and a small count when the letter is known to be in the word more than once. `upto` = only the
+  // newest guess's letters up to this one; a key that changes gives a small bounce (app.css .key.pop).
+  function paintKeys(guesses = game.guesses, upto = Infinity) {
+    const { state, count } = keyStates(guesses, game.secret, upto);
     kb.querySelectorAll('[data-k]').forEach(key => {
-      const ch = key.dataset.k;
+      const ch = key.dataset.k, was = key.className + key.innerHTML;
       key.classList.remove('hit', 'near', 'miss');
       if (state[ch]) key.classList.add(state[ch]);
       key.innerHTML = esc(ch) + (count[ch] > 1 ? `<span class="n">${count[ch]}</span>` : '');
+      if (upto !== Infinity && key.className + key.innerHTML !== was) {
+        key.classList.remove('pop');
+        void key.offsetWidth;                 // restart the bounce if it is already running
+        key.classList.add('pop');
+        setTimeout(() => key.classList.remove('pop'), 200);
+      }
     });
   }
 
@@ -278,9 +285,10 @@ export async function lettersGameScreen(root, id) {
     paintBoard(true);
     keepDown();
     refit();
-    // the keys take their colours once the row has finished colouring in (a 150 ms fade, app.css),
-    // so the keyboard never gives a result away before the tiles do
-    setTimeout(() => { if (kb.isConnected) paintKeys(); }, revealMs);
+    // Each key takes its colour together with its tile, letter by letter as the row colours in (owner,
+    // 2026-09-25) - never before its tile, so the keyboard gives nothing away - with a small bounce.
+    const step = Math.min(30, 300 / n);     // = the row's reveal, tile after tile (app.css .lt-row.reveal)
+    for (let i = 0; i < n; i++) setTimeout(() => { if (kb.isConnected) paintKeys(game.guesses, i); }, i * step);
     if (won || out) finish(game.status, true);
   }
 

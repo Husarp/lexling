@@ -463,7 +463,7 @@ The recommendation below was accepted:
 - [ ] **Obscure dictionary words** reach the pool from a web corpus - *screen* (Polish rank 8 220), *nec*,
       *ren*. Connect's levels now go by frequency rank, which keeps the rarest off Normal; a curation pass
       with the stoplist would catch the rest.
-- [ ] **Open (owner, 2026-09-25): all-letter words that are inflected forms** (STALI from LISTA, HATED from DEATH)
+- [x] **Decided (owner, 2026-09-25): C - leave it.** All-letter words that are inflected forms (STALI from LISTA, HATED from DEATH)
       are bonus words - the board takes base forms only. Options put to the owner: (a) allow them on the board,
       (b) avoid circles that have one, (c) leave as is. Base all-letter words are always on the board since 0.27.2.
 - [ ] **Guess: leaving a game while its word data loads** can put it back on screen over the newer one (found by
