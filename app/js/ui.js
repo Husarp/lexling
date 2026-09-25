@@ -11,6 +11,12 @@ export const GLYPH = { guess: '<span class="glyph guess" aria-hidden="true"></sp
   letters: '<span class="glyph letters" aria-hidden="true"><i></i><i></i><i></i></span>' };
 export const modeTag = mode => `<span class="mode-tag">${GLYPH[mode]}${t('mode.' + mode)}</span>`;
 
+// How a game ended, first thing on its end screen and the same in every mode (design v2:
+// handoff-letters/game-letters-end.html, game-guess-end.html): a banner in the success or error colour
+// saying only what happened, with the guess count on the right.
+export const outcome = (won, what, count, unit) => `<div class="outcome ${won ? 'won' : 'lost'}" role="status"><span class="mark" aria-hidden="true">${
+  won ? '✓' : '✕'}</span><span class="what">${what}</span><span class="count">${count}<small>${unit}</small></span></div>`;
+
 // Letters feedback (letters.js) -> the tile classes: hit = right place, near = elsewhere, miss = not in it.
 export const TILE = { green: 'hit', yellow: 'near', grey: 'miss' };
 // A row of mini squares, blank or lettered: the saved-game card, the menu cue, the how-to legend.

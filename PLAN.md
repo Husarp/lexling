@@ -146,7 +146,11 @@ Ported 1:1 in 0.16.0.
       for the tries to come; a new row is added per guess and grows in, left to right, quickly. 0.19.0.
 - [x] **A guess colours in as fast as a new row appears** (0.3 s for 5 letters). 0.19.1.
 - [x] **Giving up shows the word as a green row** in the grid, growing in like a new row. 0.19.2.
-- [ ] Open: should running out of tries show that row too? Only Give up was asked for.
+- [x] Running out of tries shows that row too (owner: yes). 0.20.0.
+- [x] **End screens v2, both games** (owner's second design handoff): a green ✓ / red ✕ outcome banner,
+      then a card with the word; wording Zgadłeś / Guessed correctly, Koniec prób, Poddałeś się. 0.20.0.
+- [ ] The owner asked whether the other end texts should change as well — the design's versions are in
+      (Koniec prób / Out of tries, Poddałeś się / You gave up); waiting to hear if they want others.
 
 ### Left to do after 0.16.0
 - [ ] **Play it on a real phone.** Tested here in a browser at 320 px, with the keyboard simulated;

@@ -4,7 +4,7 @@ import { t, plural, esc, num, decimal } from './i18n.js';
 import { stats, saveStats, getSave, putSave, gameName, recordLettersEnd, playClock } from './store.js';
 import { loadWords, resolve } from './engine.js';
 import { feedback, score, points, MULTIPLIER, MARKED } from './letters.js';
-import { topbar, modeTag, confirmClick, TILE, squares } from './ui.js';
+import { topbar, modeTag, confirmClick, TILE, squares, outcome } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 
@@ -38,9 +38,9 @@ export async function lettersGameScreen(root, id) {
   function paintBoard(reveal = false) {
     const rows = game.guesses.map((w, i) => past(w, reveal && i === game.guesses.length - 1));
     if (playing()) rows.push(`<div class="lt-row now grow" style="--n:${n}">${tiles(blank())}</div>`);
-    // Giving up shows the word where it would have gone: one more row, all green, growing in like a
-    // new row does (owner, 2026-09-25).
-    if (game.status === 'gaveup') rows.push(`<div class="lt-row grow" style="--n:${n}" aria-label="${esc(game.secret)}">${
+    // A game that ends without the word shows it where it would have gone - given up or out of tries:
+    // one more row, all green, growing in like a new row does (owner, 2026-09-25).
+    if (game.status === 'gaveup' || game.status === 'lost') rows.push(`<div class="lt-row grow" style="--n:${n}" aria-label="${esc(game.secret)}">${
       tiles(Array(n).fill('hit'), [...game.secret])}</div>`);
     board.innerHTML = rows.join('');
     if (playing()) paintNow();
@@ -195,36 +195,31 @@ export async function lettersGameScreen(root, id) {
   }
 
   function paintEnd(pts) {
-    const won = game.status === 'won', g = game.guesses.length;
-    const actions = `<div class="win-actions"><a class="btn btn-primary" href="#/new/letters">${t('lt.again')} <span class="arrow">→</span></a><a class="btn btn-ghost" href="#/">${t('menu')}</a></div>`;
-    // the category the game was played in, next to the word it hid; each card keeps its own dot
-    const tally = dot => `<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span>${dot}<span><b>${g}</b> / ${tries} ${plural(g, 'n.guesses')}</span>`;
-    let card;
+    const won = game.status === 'won', g = game.guesses.length, dot = '<span class="dot">·</span>';
+    // first the banner - what happened, big, in green or red - then the word and the numbers in a card
+    const head = outcome(won, t(won ? 'end.won' : game.status === 'lost' ? 'end.lost' : 'end.gaveUp'),
+      `${won ? g : 'X'}/${tries}`, t('lt.tries'));
+    // the category the game was played in, next to the word it hid
+    const facts = [`<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span>`,
+      `<span><b>${g}</b> ${plural(g, 'n.guesses')}</span>`, `<span>${t('lt.score')} <b>${num(pts)}</b></span>`];
+    let calc = '';
     if (won) {
       // the sum written out, so the score is never a mystery: 7 letters (ż ó ł count ×2) ÷ 3 guesses × 100 × 1.25
       const marked = [...new Set([...game.secret].filter(ch => MARKED.test(ch)))];
-      const calc = t('lt.calc', { p: points(game.secret), g, guesses: plural(g, 'n.guesses'),
+      calc = `<p class="calc">${t('lt.calc', { p: points(game.secret), g, guesses: plural(g, 'n.guesses'),
         double: marked.length ? ' ' + plural(marked.length, 'lt.double').replace('{l}', marked.join(' ')) : '',
-        m: decimal(MULTIPLIER[game.diff]), diff: t('diff.' + game.diff) });
-      const best = stats.lt.bestScore;
-      card = `<div class="win">
-      <span class="eyebrow">${t('lt.won')}</span>
-      <p class="display">${esc(game.secret)}</p>
-      <div class="win-stats">${tally('<span>·</span>')}<span>·</span><span>${t('lt.score')} <b>${num(pts)}</b></span>${
-        best > pts ? `<span>·</span><span>${t('lt.best')} <b>${num(best)}</b></span>` : ''}</div>
-      <p class="calc">${calc}</p>
-      ${actions}
-    </div>`;
-    } else {
-      card = `<div class="lose">
-      <span class="eyebrow">${t(game.status === 'lost' ? 'lt.lost' : 'lt.gaveUp')}</span>
-      <p class="display">${esc(game.secret)}</p>
-      <div class="win-stats muted">${tally('<span class="dot">·</span>')}<span class="dot">·</span><span>${t('lt.score')} <b>0</b></span></div>
-      ${actions}
-    </div>`;
+        m: decimal(MULTIPLIER[game.diff]), diff: t('diff.' + game.diff) })}</p>`;
+      if (stats.lt.bestScore > pts) facts.push(`<span>${t('lt.best')} <b>${num(stats.lt.bestScore)}</b></span>`);
     }
+    const card = `<div class="card result ${won ? 'won' : 'lost'}">
+      <span class="eyebrow">${t(won ? 'end.wordWon' : 'end.wordLost')}</span>
+      <p class="display">${esc(game.secret)}</p>
+      <div class="result-stats">${facts.join(dot)}</div>
+      ${calc}
+      <div class="result-actions"><a class="btn btn-primary" href="#/new/letters">${t('lt.again')} <span class="arrow">→</span></a><a class="btn btn-ghost" href="#/">${t('menu')}</a></div>
+    </div>`;
     app.classList.remove('fit');
-    main.innerHTML = `${card}<div class="lt-board" role="grid" aria-label="${t('game.guesses')}"></div>`;
+    main.innerHTML = `${head}${card}<div class="lt-board" role="grid" aria-label="${t('game.guesses')}"></div>`;
     board = $('.lt-board');
     paintBoard();
     window.scrollTo({ top: 0, behavior: 'smooth' });

@@ -308,7 +308,9 @@ third mode slots in): the menu has **one card per mode** instead of Play; since 
 **that mode's own list of games in progress** (owner: never one mixed list), with its own New game;
 the stats screen has a **tab per mode**. Routes: `#/games/guess`, `#/games/letters`, `#/new` Guess,
 `#/new/letters` Letters, `#/game/<id>` takes the mode from the save. The end screen of both games
-names the category the game was played in. **Every button has a frame** — the design's text-only
+names the category the game was played in. Since 0.20.0 both games end the same way (design v2): a
+full-width outcome banner — ✓ on green for a win, ✕ on red for out of tries or giving up, the guess count on
+the right — and under it a plain card edged in the same colour with the word, the numbers and the buttons. **Every button has a frame** — the design's text-only
 "ghost" buttons read as plain text, so they got one (0.17.0).
 
 ### Letters screens (design: `design/letters/handoff/`)

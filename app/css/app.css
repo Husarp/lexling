@@ -171,14 +171,6 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=game] .empty h2{font:700 clamp(22px,5vw,28px)/1.05 var(--font-display);text-transform:uppercase;letter-spacing:-.02em}
 [data-screen=game] .legend{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--space-3);font-size:12px;color:var(--text-muted)}
 [data-screen=game] .ramp{height:8px;border-radius:var(--radius-sm);background:linear-gradient(90deg,var(--fill-cold),var(--fill-warm),var(--fill-mid),var(--fill-hot))}
-[data-screen=game] .win{display:grid;gap:var(--space-4);padding:var(--space-6) var(--space-5);background:var(--accent);color:#fff;border-radius:var(--radius-md)}
-[data-screen=game] .win .eyebrow{color:rgba(255,255,255,.8)}
-[data-screen=game] .win .display{font-size:clamp(44px,12vw,80px)}
-[data-screen=game] .win-stats{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-4);font-size:15px}
-[data-screen=game] .win-stats b{font:800 1.2em/1 var(--font-display)}
-[data-screen=game] .win-actions{display:flex;flex-wrap:wrap;gap:var(--space-2)}
-[data-screen=game] .win .btn-outline{border-color:#fff;color:#fff}[data-screen=game] .win .btn-outline:hover{background:#fff;color:var(--accent)}
-[data-screen=game] .win .btn-primary{background:#000;border-color:#000}[data-screen=game] .win .btn-primary:hover{background:#1A1A1A;border-color:#1A1A1A}
 
 /* achievements.html */
 [data-screen=stats] .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:var(--space-2)}
@@ -426,19 +418,6 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-kb] [data-screen=letters] .lt-row{--max:48px}
 [data-kb] [data-screen=letters] .entry .btn{min-height:44px}
 /* game-letters-end.html */
-[data-screen=letters] .win{display:grid;gap:var(--space-4);padding:var(--space-6) var(--space-5);background:var(--accent);color:#fff;border-radius:var(--radius-md)}
-[data-screen=letters] .win .eyebrow{color:rgba(255,255,255,.8)}
-[data-screen=letters] .win .display{font-size:clamp(44px,12vw,80px)}
-[data-screen=letters] .win-stats{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-4);font-size:15px}
-[data-screen=letters] .win-stats b{font:800 1.2em/1 var(--font-display)}
-[data-screen=letters] .win-actions{display:flex;flex-wrap:wrap;gap:var(--space-2)}
-[data-screen=letters] .win .btn-outline{border-color:#fff;color:#fff}[data-screen=letters] .win .btn-outline:hover{background:#fff;color:var(--accent)}
-[data-screen=letters] .win .btn-primary{background:#000;border-color:#000}[data-screen=letters] .win .btn-primary:hover{background:#1A1A1A;border-color:#1A1A1A}
-[data-screen=letters] .win .btn-ghost{color:#fff}[data-screen=letters] .win .btn-ghost:hover{background:rgba(255,255,255,.16);color:#fff}
-[data-screen=letters] .win .calc{font-size:13px;opacity:.85}
-[data-screen=letters] .lose{display:grid;gap:var(--space-4);padding:var(--space-6) var(--space-5);background:var(--surface);border:1px solid var(--line-soft);border-left:3px solid var(--accent);border-radius:var(--radius-md)}
-[data-screen=letters] .lose .display{font-size:clamp(44px,12vw,80px)}
-[data-screen=letters] .lose .win-stats b{color:var(--text)}
 /* game-picker.html */
 [data-screen=games] .save-last{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-2) var(--space-3);font-size:13px;color:var(--text-muted)}
 [data-screen=games] .save-last .num{color:var(--text);font-size:15px}
@@ -475,8 +454,6 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .btn-ghost{border-color:var(--text-dim)}
 .btn-ghost:hover{border-color:var(--accent)}
 .btn-ghost.btn-danger{border-color:var(--error)}
-[data-screen=letters] .win .btn-ghost{border-color:rgba(255,255,255,.6)}
-[data-screen=letters] .win .btn-ghost:hover{border-color:#fff}
 
 /* ═══ STATUS ROW — asked 2026-09-25, both games ═══
    The numbers (guesses, length, category, language, time) share the whole first row, spread edge to
@@ -498,3 +475,29 @@ html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;g
    second, a 13-letter one in under half */
 @keyframes lt-grow{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
 .lt-row.grow .lt{animation:lt-grow 180ms var(--ease) backwards;animation-delay:calc(var(--i) * min(30ms, 300ms / var(--n)))}
+
+/* ═══ END OF A GAME, v2 — the owner's design, 2026-09-25 (design/letters/handoff-v2/game-*-end.html) ═══
+   Replaces the orange .win panel and the grey .lose card in both games, so it is clear at a glance
+   whether the game was won, given up or ran out of tries. Ported verbatim; the design's comment: */
+/* ── Outcome: the first thing on an ended game, the same in every mode ──
+   A full-width banner that says only what happened, in the success/error colours, big enough to read
+   across the room. Everything else (the word, the numbers, the actions) sits in a plain card under it,
+   so the banner never has to carry small text on a coloured ground. Won green is --success darkened
+   18 % so white headline ink clears 4:1; lost / gave up use --error as is (5.4:1). */
+.outcome{display:flex;align-items:center;gap:var(--space-4);min-height:clamp(96px,18vw,132px);padding:var(--space-4) var(--space-5);border-radius:var(--radius-md);color:#fff}
+.outcome.won{background:color-mix(in srgb,var(--success) 82%,#000)}
+.outcome.lost{background:var(--error)}
+.outcome .mark{flex:none;width:clamp(48px,11vw,72px);aspect-ratio:1;display:grid;place-items:center;border-radius:50%;border:3px solid #fff;font:800 clamp(28px,6vw,40px)/1 var(--font-display)}
+.outcome .what{flex:1;min-width:0;font:800 clamp(36px,10vw,72px)/.9 var(--font-display);letter-spacing:-.02em;text-transform:uppercase;overflow-wrap:anywhere}
+.outcome .count{flex:none;text-align:right;font:800 clamp(28px,7vw,48px)/1 var(--font-display);font-variant-numeric:tabular-nums}
+.outcome .count small{display:block;margin-top:4px;font:600 11px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase}
+@media (max-width:360px){.outcome{gap:var(--space-3);padding:var(--space-4)}}
+.result{display:grid;gap:var(--space-4);padding:var(--space-5);border-left:3px solid var(--tone)}
+.result.won{--tone:var(--success)}.result.lost{--tone:var(--error)}
+.result .display{font-size:clamp(40px,11vw,72px);overflow-wrap:anywhere}
+.result-stats{display:flex;flex-wrap:wrap;gap:var(--space-1) var(--space-3);font-size:15px;color:var(--text-muted)}
+.result-stats b{font:800 1.25em/1 var(--font-display);color:var(--text)}
+.result .calc{font-size:13px;color:var(--text-muted)}
+.result-actions{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+/* Guess keeps both in #entry (repainted as one): let them sit in .main's column as the design has them */
+#entry.ended{display:contents}

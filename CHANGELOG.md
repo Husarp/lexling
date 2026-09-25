@@ -6,6 +6,28 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.20.0 — 2026-09-25 03:22: A new ending for every game — clear at a glance how it went
+*(not packaged)*
+
+From the owner's second design handoff (`design/letters/handoff-v2/`), in both games:
+- **An outcome banner comes first**, full width: **✓ on green** for a win, **✕ on red** for out of tries
+  or giving up, with the guess count on the right (`3/6`, `X/6`, `11/∞`; in Znaczenie the number of
+  guesses). Under it a plain card edged in the same colour holds the word, the numbers and the
+  buttons. It replaces the orange panel (a win) and the grey card (a loss), which looked alike.
+- **New wording**, the owner's for a win and the design's for the rest: **Zgadłeś / Guessed correctly**
+  (was Udało się / You got it), **Koniec prób / Out of tries**, **Poddałeś się / You gave up**; the card
+  labels the word **Słowo / The word**, **Szukane słowo to / The word was**, and in Znaczenie
+  **Sekretne słowo / Secret word**.
+- **Znaczenie** keeps its status row above the banner. Giving up there now names the closest guess
+  ("najbliżej: pies, pozycja 46 857"); a win shows the best win so far.
+- **Out of tries shows the word in the grid too**, as a green row growing in — like giving up (0.19.2).
+- Left out of the design on purpose: its **Copy result** button and clipboard card (removed in 0.17.2 at
+  the owner's request). Kept although the design has not got it: the **category** on the numbers line
+  (asked for in 0.17.0).
+
+Checked in the browser: every ending of both games, in Polish and English, at 412 and 320 px — "GUESSED
+CORRECTLY" wraps to two lines inside the banner at 320, nothing scrolls sideways, no console errors.
+
 ## 0.19.2 — 2026-09-25 03:07: Giving up shows the word in the grid
 *(debug APK built and installed on the phone — not released)*
 

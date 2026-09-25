@@ -75,7 +75,7 @@ const STR = {
     'game.emptyText': 'The number you get back is a <strong style="color:var(--text)">rank</strong> — how many words are closer in meaning to the secret. <strong style="color:var(--text)">1</strong> means nothing is closer. Thousands means change direction.',
     'game.far': 'far', 'game.close': 'close', 'game.formsHint': 'Typed <em>{a}</em>? It counts as <em>{b}</em> — forms collapse to the base word.',
     'game.latest': 'latest', 'game.secret': 'secret', 'game.all': 'All guesses', 'game.topAria': 'Top 5 closest guesses', 'game.latestAria': 'Latest guess',
-    'game.won': 'You got it', 'game.gaveUp': 'The word was', 'game.inGame': 'in game', 'game.endCat': 'category', 'game.bestWin': 'best win',
+    'game.inGame': 'in game', 'game.endCat': 'category', 'game.bestWin': 'best win',
     'game.unknown': 'I don\'t know the word “{w}”.', 'game.already': '“{w}” was already guessed — rank {r}.',
     'pos.noun': 'noun', 'pos.adj': 'adjective', 'pos.verb': 'verb', 'pos.adv': 'adverb', 'pos.other': '',
 
@@ -128,7 +128,9 @@ const STR = {
     'lt.howTitle': 'Find the word letter by letter',
     'lt.hit': 'Right letter, right place', 'lt.near': 'In the word, somewhere else', 'lt.miss': 'Not in the word',
     'lt.howNote': 'Nothing is sent until you press Enter or Guess. Every guess stays on screen, so the dead letters can be read straight off it.',
-    'lt.won': 'You got it', 'lt.lost': 'Out of tries — the word was', 'lt.gaveUp': 'You gave up — the word was',
+    // how a game ended (both modes): the banner, then the card's label for the word
+    'end.won': 'Guessed correctly', 'end.lost': 'Out of tries', 'end.gaveUp': 'You gave up',
+    'end.wordWon': 'The word', 'end.wordLost': 'The word was', 'end.guessWordWon': 'Secret word', 'end.closest': 'closest: {w}, rank',
     'lt.score': 'score', 'lt.best': 'best', 'lt.again': 'Play again',
     'lt.calc': '{p} letters{double} ÷ {g} {guesses} × 100 × {m} {diff}', 'lt.double': ['({l} counts ×2)', '({l} count ×2)'],
     'games.triesOf': '{g} / {t} tries', 'games.notStarted': 'no guesses yet',
@@ -212,7 +214,7 @@ const STR = {
     'game.emptyText': 'Liczba, którą dostajesz, to <strong style="color:var(--text)">pozycja</strong> — ile słów jest bliżej znaczeniowo sekretu. <strong style="color:var(--text)">1</strong> oznacza, że nic nie jest bliżej. Tysiące — zmień kierunek.',
     'game.far': 'daleko', 'game.close': 'blisko', 'game.formsHint': 'Wpisujesz <em>{a}</em>? Liczy się jako <em>{b}</em> — formy sprowadzamy do słowa podstawowego.',
     'game.latest': 'ostatnia', 'game.secret': 'sekret', 'game.all': 'Wszystkie próby', 'game.topAria': '5 najbliższych prób', 'game.latestAria': 'Ostatnia próba',
-    'game.won': 'Udało się', 'game.gaveUp': 'Szukane słowo to', 'game.inGame': 'w grze', 'game.endCat': 'kategoria', 'game.bestWin': 'najlepsza wygrana',
+    'game.inGame': 'w grze', 'game.endCat': 'kategoria', 'game.bestWin': 'najlepsza wygrana',
     'game.unknown': 'Nie znam słowa „{w}”.', 'game.already': 'Słowo „{w}” już było — pozycja {r}.',
     'pos.noun': 'rzeczownik', 'pos.adj': 'przymiotnik', 'pos.verb': 'czasownik', 'pos.adv': 'przysłówek', 'pos.other': '',
 
@@ -265,7 +267,8 @@ const STR = {
     'lt.howTitle': 'Znajdź słowo litera po literze',
     'lt.hit': 'Dobra litera, dobre miejsce', 'lt.near': 'Jest w słowie, ale gdzie indziej', 'lt.miss': 'Nie ma jej w słowie',
     'lt.howNote': 'Nic nie idzie, dopóki nie naciśniesz Enter albo Zgadnij. Każda próba zostaje na ekranie — martwe litery odczytasz od razu.',
-    'lt.won': 'Udało się', 'lt.lost': 'Koniec prób — szukane słowo to', 'lt.gaveUp': 'Poddałeś się — szukane słowo to',
+    'end.won': 'Zgadłeś', 'end.lost': 'Koniec prób', 'end.gaveUp': 'Poddałeś się',
+    'end.wordWon': 'Słowo', 'end.wordLost': 'Szukane słowo to', 'end.guessWordWon': 'Sekretne słowo', 'end.closest': 'najbliżej: {w}, pozycja',
     'lt.score': 'wynik', 'lt.best': 'najlepszy', 'lt.again': 'Zagraj jeszcze',
     'lt.calc': '{p} pkt za litery{double} ÷ {g} {guesses} × 100 × {m} {diff}',
     'lt.double': ['({l} liczy się ×2)', '({l} liczą się ×2)', '({l} liczą się ×2)'],

@@ -1,8 +1,8 @@
 // The game screen - markup from design/handoff/game.html (states: 0 guesses / mid-game / won).
 import { t, plural, esc, num, clock } from './i18n.js';
-import { settings, getSave, putSave, recordGuess, recordEnd, gameName, playClock } from './store.js';
+import { settings, stats, getSave, putSave, recordGuess, recordEnd, gameName, playClock } from './store.js';
 import { load, resolve, suggest, rankAll, pct, hint, HINT_FLOOR } from './engine.js';
-import { topbar, fillColor, confirmClick } from './ui.js';
+import { topbar, fillColor, confirmClick, outcome } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 
@@ -42,12 +42,22 @@ export async function gameScreen(root, id) {
 
   function paintEntry() {
     if (!playing()) {
-      const won = game.status === 'won';
-      $('#entry').outerHTML = `<div class="win" id="entry">
-      <span class="eyebrow">${t(won ? 'game.won' : 'game.gaveUp')}</span>
-      <p class="display">${esc(game.secret)}</p>
-      <div class="win-stats">${game.friend ? '' : `<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span><span>·</span>`}<span><b>${num(realGuesses())}</b> ${plural(realGuesses(), 'n.guesses')}</span><span>·</span><span><b>${clock(game.timeMs)}</b> ${t('game.inGame')}</span></div>
-      <div class="win-actions"><a class="btn btn-primary" href="#/new">${t('games.new')} <span class="arrow">→</span></a><a class="btn btn-outline" href="#/">${t('menu')}</a></div>
+      // design v2: the outcome banner first, then the word and the numbers in a card - the same ending
+      // as Letters. Giving up names the closest the player got; a win, their best win so far.
+      const won = game.status === 'won', n = realGuesses(), dot = '<span class="dot">·</span>';
+      const closest = game.guesses.filter(g => !g.hint).reduce((b, g) => !b || g.rank < b.rank ? g : b, null);
+      const facts = [!game.friend && `<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span>`,
+        `<span><b>${num(n)}</b> ${plural(n, 'n.guesses')}</span>`, `<span><b>${clock(game.timeMs)}</b> ${t('game.inGame')}</span>`,
+        won && stats.bestWin && `<span>${t('game.bestWin')} <b>${num(stats.bestWin)}</b></span>`,
+        !won && closest && `<span>${t('end.closest', { w: esc(closest.w) })} <b>${num(closest.rank)}</b></span>`];
+      $('#entry').outerHTML = `<div id="entry" class="ended">
+      ${outcome(won, t(won ? 'end.won' : 'end.gaveUp'), num(n), plural(n, 'n.guesses'))}
+      <div class="card result ${won ? 'won' : 'lost'}">
+        <span class="eyebrow">${t(won ? 'end.guessWordWon' : 'end.wordLost')}</span>
+        <p class="display">${esc(game.secret)}</p>
+        <div class="result-stats">${facts.filter(Boolean).join(dot)}</div>
+        <div class="result-actions"><a class="btn btn-primary" href="#/new">${t('games.new')} <span class="arrow">→</span></a><a class="btn btn-outline" href="#/">${t('menu')}</a></div>
+      </div>
     </div>`;
       return;
     }
