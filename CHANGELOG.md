@@ -6,6 +6,19 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.40.0 — 2026-09-26 00:29: What a word means - one tap to the dictionary
+*(not packaged)*
+
+- **"Co znaczy? ↗" / "What it means ↗"** (owner: "don't download - open the browser"): a word opens its meaning in
+  the phone's browser - **sjp.pl** for Polish (every form, and the word it comes from), **Wiktionary** for English.
+  - **Kafelki**: under the answer of Check a word, and every word in History (tap it).
+  - **Znaczenie**: every guessed word (dotted underline; typing carries on) and the secret word on the end card.
+  - **Litery**: the secret word on the end card, and every row once the game is over.
+  - **Połącz**: all the board's words on the end card ("Co znaczą słowa").
+- **Kafelki's ⚙** also has its two colour switches: "Koloruj płytki według gracza" and "Kolorowe premie".
+- Checked in headless Edge in all four games at 320 and 480 px: each link opens the right address (the browser
+  itself was not opened), nothing overflows, no console errors.
+
 ## 0.39.0 — 2026-09-26 00:18: A settings gear in every game
 *(not packaged)*
 

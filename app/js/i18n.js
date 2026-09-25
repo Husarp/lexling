@@ -2,7 +2,7 @@
 // Arrays are plural forms: en [one, other] · pl [one, few, many]  (1 próba · 2 próby · 5 prób).
 const STR = {
   en: {
-    'back.menu': '← Menu', 'back.games': '← Games', 'menu': 'Menu', 'sure': 'Sure?', 'save': 'Save',
+    'back.menu': '← Menu', 'back.games': '← Games', 'menu': 'Menu', 'meaning': 'What it means', 'meaning.words': 'What the words mean', 'sure': 'Sure?', 'save': 'Save',
     'menu.eyebrow': 'Word games', 'menu.offline': 'offline',
     'menu.h1': 'Play with <span style="color:var(--accent)">words</span>',
     'menu.tagline': 'Four word games. A new puzzle every time — offline, for as long as you like.', 'menu.soon': 'soon',
@@ -363,7 +363,7 @@ const STR = {
     'stats.byLen': 'Wins by word length',
   },
   pl: {
-    'back.menu': '← Menu', 'back.games': '← Gry', 'menu': 'Menu', 'sure': 'Na pewno?', 'save': 'Zapisz',
+    'back.menu': '← Menu', 'back.games': '← Gry', 'menu': 'Menu', 'meaning': 'Co znaczy?', 'meaning.words': 'Co znaczą słowa', 'sure': 'Na pewno?', 'save': 'Zapisz',
     'menu.eyebrow': 'Gry słowne', 'menu.offline': 'offline',
     'menu.h1': 'Graj <span style="color:var(--accent)">słowami</span>',
     'menu.tagline': 'Cztery gry w słowa. Za każdym razem nowa zagadka — offline i bez limitu.', 'menu.soon': 'wkrótce',

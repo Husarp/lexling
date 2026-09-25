@@ -1186,3 +1186,12 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .topbar .gs-open,.topbar .tl-q{flex:none}
 @media (max-width:374px){.topbar .side.end:has(.gs-open)>.eyebrow{display:none}}
 @media (max-width:459px){[data-screen=tiles] .topbar .side.end:has(.gs-open)>.eyebrow{display:none}}
+/* 0.40.0: what a word means (owner, 2026-09-26) - a button under a word, or the word itself as a link, opening the
+   browser (sjp.pl, Wiktionary) */
+.btn.mean svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.mw{font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;text-decoration:underline dotted;text-decoration-thickness:1.5px;text-underline-offset:3px;text-decoration-color:var(--text-dim)}
+.mw:hover{text-decoration-color:currentColor}
+.lt-row[data-mean]{cursor:pointer}
+.mean-words{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;font:700 17px/1.35 var(--font-display);text-transform:uppercase}
+.mean-words .eyebrow{flex-basis:100%;font-family:var(--font-body)}
+.tl-check .mean-slot:empty{display:none}

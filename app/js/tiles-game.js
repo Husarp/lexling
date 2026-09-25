@@ -8,7 +8,7 @@ import { has } from './dawg.js';
 import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, checkMove, apply, canExchange, hinted,
   unseen, undo, loadTileWords, checkWord, fullBag, BLANK } from './tiles.js';
 import { hintLevels, sameMove, computerMove, lookBack, LEVELS } from './tiles-moves.js';
-import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear } from './ui.js';
+import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 
@@ -56,7 +56,7 @@ export function topics(rules = null) {
 
 // Check a word (owner, 2026-09-25: any time) - the Check tab of a game's panel.
 const checkHtml = () => `<div class="tl-check"><form novalidate><input class="input" type="text" maxlength="20" placeholder="${t('tiles.check.ph')}" aria-label="${
-  t('tiles.check')}" autocomplete="off" autocapitalize="none" spellcheck="false"><button class="btn btn-outline" type="submit">${t('tiles.checkTab')}</button></form><p class="res" role="status"></p></div>`;
+  t('tiles.check')}" autocomplete="off" autocapitalize="none" spellcheck="false"><button class="btn btn-outline" type="submit">${t('tiles.checkTab')}</button></form><p class="res" role="status"></p><div class="mean-slot"></div></div>`;
 function wireCheck(box, langOf) {
   const input = box.querySelector('input'), res = box.querySelector('.res');
   box.querySelector('form').addEventListener('submit', async e => {
@@ -65,6 +65,8 @@ function wireCheck(box, langOf) {
     const lang = langOf(), r = checkWord(await loadTileWords(lang), lang, input.value);
     res.className = 'res ' + (r.ok ? 'ok' : 'no');
     res.textContent = t(r.ok ? 'tiles.check.ok' : 'tiles.check.' + r.why, { w: r.word.toUpperCase() });
+    // what it means - in the browser (owner, 2026-09-26); a word too short or with a letter no tile has, never
+    box.querySelector('.mean-slot').innerHTML = r.why === 'short' || r.why === 'letters' ? '' : meaningButton(r.word, lang);
   });
 }
 
@@ -152,7 +154,8 @@ export async function tilesGameScreen(root, id) {
   </div></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main'), play = app.querySelector('.tl-play');
-  wireGear(root);
+  wireGear(root, [['tilesColours', t('tiles.colours'), ''], ['tilesBonus', t('tiles.bonus'), t('tiles.bonusHelp')]],
+    () => { if (S.over) return; paintStatus(); paintBoard(); paintMore(); });
   const $ = s => play.querySelector(s);
   const status = $('.status'), boardEl = $('.tl-board'), tb = $('.tb'), say = $('.say'), rackEl = $('.tl-rack'), dock = $('.tl-dock');
   const more = $('.tl-more'), over = $('.tl-over');
@@ -308,7 +311,7 @@ export async function tilesGameScreen(root, id) {
 
   // the panel: history, letters left, check a word - or the guide
   function histHtml() {
-    const words = m => m.words.map(x => esc(x.w)).join(', ');
+    const words = m => m.words.map(x => wordLink(x.w, lang)).join(', ');
     const rows = S.moves.map((m, i) => {
       const quiet = m.kind !== 'play';
       const w = m.kind === 'play' ? words(m) + (m.bingo && S.rules.bingo ? `<small> +${S.rules.bingo}</small>` : '')
@@ -333,7 +336,7 @@ export async function tilesGameScreen(root, id) {
   }
   function paintMore() {
     const input = more.querySelector('.tl-check input'), res = more.querySelector('.tl-check .res');
-    const kept = input && { value: input.value, cls: res.className, text: res.textContent };
+    const kept = input && { value: input.value, cls: res.className, text: res.textContent, mean: more.querySelector('.tl-check .mean-slot').innerHTML };
     const which = panel ?? (wide ? 'hist' : null);
     let html = '';
     if (which === 'guide') {
@@ -348,7 +351,7 @@ export async function tilesGameScreen(root, id) {
     const box = more.querySelector('.tl-check');
     if (box) {
       wireCheck(box, () => lang);
-      if (kept) { box.querySelector('input').value = kept.value; box.querySelector('.res').className = kept.cls; box.querySelector('.res').textContent = kept.text; }
+      if (kept) { box.querySelector('input').value = kept.value; box.querySelector('.res').className = kept.cls; box.querySelector('.res').textContent = kept.text; box.querySelector('.mean-slot').innerHTML = kept.mean; }
     }
     refit();
   }

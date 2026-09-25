@@ -5,7 +5,7 @@ import { t, plural, esc } from './i18n.js';
 import { settings, stats, saveStats, getSave, putSave, gameName, recordLettersEnd, playClock } from './store.js';
 import { loadWords, resolve } from './engine.js';
 import { feedback, typeLetter, eraseLetter, skipTile, keyStates, MARKED } from './letters.js';
-import { topbar, modeTag, confirmClick, TILE, outcome, gearButton, wireGear } from './ui.js';
+import { topbar, modeTag, confirmClick, TILE, outcome, gearButton, wireGear, meaningButton } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 import { offensive } from './offensive.js';
@@ -47,7 +47,9 @@ export async function lettersGameScreen(root, id) {
 
   // ── rows ──
   const tiles = (cls, letters = []) => cls.map((c, i) => `<span class="lt ${c}" style="--i:${i}">${esc(letters[i] ?? '')}</span>`).join('');
-  const past = (w, reveal) => `<div class="lt-row${reveal ? ' reveal' : ''}" style="--n:${n}" aria-label="${esc(w)}">${
+  // once the game is over, a tap on a row opens what its word means (during the game a tap belongs to typing)
+  const mean = w => playing() ? '' : ` data-mean="${esc(w)}" data-lang="${game.lang}" title="${t('meaning')}"`;
+  const past = (w, reveal) => `<div class="lt-row${reveal ? ' reveal' : ''}" style="--n:${n}" aria-label="${esc(w)}"${mean(w)}>${
     tiles(feedback(w, game.secret).map(f => TILE[f]), [...w])}</div>`;
   const blank = () => Array(n).fill('');
 
@@ -59,7 +61,7 @@ export async function lettersGameScreen(root, id) {
     if (playing()) rows.push(`<div class="lt-row now grow" style="--n:${n}">${tiles(blank())}</div>`);
     // A game that ends without the word shows it where it would have gone - given up or out of tries:
     // one more row, all green, growing in like a new row does (owner, 2026-09-25).
-    if (game.status === 'gaveup' || game.status === 'lost') rows.push(`<div class="lt-row grow" style="--n:${n}" aria-label="${esc(game.secret)}">${
+    if (game.status === 'gaveup' || game.status === 'lost') rows.push(`<div class="lt-row grow" style="--n:${n}" aria-label="${esc(game.secret)}"${mean(game.secret)}>${
       tiles(Array(n).fill('hit'), [...game.secret])}</div>`);
     board.innerHTML = rows.join('');
     if (playing()) paintNow();
@@ -341,7 +343,7 @@ export async function lettersGameScreen(root, id) {
       <span class="eyebrow">${t(won ? 'end.wordWon' : 'end.wordLost')}</span>
       <p class="display">${esc(game.secret)}</p>
       <div class="result-stats">${facts.join(dot)}</div>
-      <div class="result-actions"><a class="btn btn-primary" href="#/new/letters">${t('lt.again')} <span class="arrow">→</span></a><a class="btn btn-ghost" href="#/">${t('menu')}</a></div>
+      <div class="result-actions"><a class="btn btn-primary" href="#/new/letters">${t('lt.again')} <span class="arrow">→</span></a><a class="btn btn-ghost" href="#/">${t('menu')}</a>${meaningButton(game.secret, game.lang)}</div>
     </div>`;
     app.classList.remove('fit', 'kbon');
     main.innerHTML = `${head}${card}<div class="lt-board" role="grid" aria-label="${t('game.guesses')}"></div>`;

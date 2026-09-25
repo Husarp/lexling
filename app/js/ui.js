@@ -1,15 +1,37 @@
 import { settings, saveSettings } from './store.js';
-import { t } from './i18n.js';
+import { t, esc } from './i18n.js';
 import { click } from './sound.js';
+
+// A word's meaning (owner, 2026-09-26: no dictionary inside the app - too big - "open the browser with the word"): sjp.pl
+// for Polish (it knows every form, and says which word it comes from), Wiktionary for English. In the phone's own
+// browser - the desktop wrapper through its bridge, Android and a browser through the ordinary way.
+export const meaningUrl = (word, lang) => lang === 'pl' ? `https://sjp.pl/${encodeURIComponent(word)}`
+  : `https://en.wiktionary.org/wiki/${encodeURIComponent(word)}#English`;
+export function openExternal(url) {
+  const api = window.pywebview?.api;
+  if (api?.open_url) api.open_url(url);
+  else window.open(url, '_blank', 'noopener');
+}
+const BOOK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>';
+// a button under a word ("What it means ↗"), or the word itself as a link (dotted underline) in a list
+export const meaningButton = (word, lang) => `<button type="button" class="btn btn-ghost mean" data-mean="${esc(word)}" data-lang="${lang}">${BOOK}${t('meaning')} <span class="arrow">↗</span></button>`;
+export const wordLink = (word, lang, text = word) => `<button type="button" class="mw" data-mean="${esc(word)}" data-lang="${lang}" title="${t('meaning')}">${esc(text)}</button>`;
+document.addEventListener('click', e => {
+  const el = e.target.closest?.('[data-mean]');
+  if (el) openExternal(meaningUrl(el.dataset.mean, el.dataset.lang));
+});
+// a word link takes no focus: typing stays in the game's field (Znaczenie)
+document.addEventListener('pointerdown', e => { if (e.target.closest?.('.mw')) e.preventDefault(); });
 
 // The gear in every game's top bar (owner, 2026-09-26: "a settings button, the usual icon only"): the settings that
 // matter while playing, in a small window over the game - Sound for now. The keys go to the window alone while it
 // is open (a game would otherwise type into itself, and Esc would leave the screen).
 const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
 export const gearButton = () => `<button class="btn btn-ghost gs-open" type="button" aria-label="${t('set.title')}" title="${t('set.title')}">${GEAR}</button>`;
-export function wireGear(root) {
+// `extra` = the game's own settings, [[key, label, help]]; `onChange()` repaints what they change.
+export function wireGear(root, extra = [], onChange = () => {}) {
   root.querySelector('.gs-open')?.addEventListener('click', () => {
-    const items = [['sound', t('set.sound'), t('set.soundDesc')]];
+    const items = [['sound', t('set.sound'), t('set.soundDesc')], ...extra];
     const dlg = document.createElement('dialog');
     dlg.className = 'card game-settings';
     dlg.innerHTML = `<div class="gs-head"><span class="eyebrow">${t('set.title')}</span><button class="btn btn-ghost gs-close" type="button" aria-label="${t('tiles.close')}">✕</button></div>${
@@ -28,7 +50,7 @@ export function wireGear(root) {
         saveSettings();
         toggle.classList.toggle('on', settings[key]);
         toggle.setAttribute('aria-checked', settings[key]);
-        if (key === 'sound') click();
+        if (key === 'sound') click(); else onChange(key);
       } else if (e.target === dlg || e.target.closest('.gs-close')) close();   // the backdrop, or ✕
     });
     document.body.append(dlg);

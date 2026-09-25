@@ -4,7 +4,7 @@ import { t, esc } from './i18n.js';
 import { getSave, putSave, gameName, recordConnectEnd, playClock } from './store.js';
 import { loadWords } from './engine.js';
 import { WORD_MIN, cellsOf, visible, isDone, nextHint, judge } from './connect.js';
-import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear } from './ui.js';
+import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear, wordLink } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 
@@ -386,6 +386,7 @@ export async function connectGameScreen(root, id) {
       <span class="eyebrow">${t(won ? 'cn.allLetters' : 'cn.left')}</span>
       ${won ? `<p class="display">${esc(game.key)}</p>` : `<p class="left-words">${left.map(x => `<span>${esc(x.w)}</span>`).join('')}</p>`}
       <div class="result-stats"><span><b>${count}</b> ${t('cn.wordsLow')}</span>${DOT}<span><b>${game.bonus.length}</b> ${t('cn.bonusLow')}</span>${DOT}<span><b>${game.hints}</b> ${t('cn.hintsLow')}</span></div>
+      <p class="mean-words"><span class="eyebrow">${t('meaning.words')}</span>${board.words.map(x => wordLink(x.w, game.lang)).join('')}</p>
       <div class="result-actions"><a class="btn btn-primary" href="#/new/connect">${t('lt.again')} <span class="arrow">→</span></a><a class="btn btn-ghost" href="#/">${t('menu')}</a></div>
     </div>`;
     app.classList.remove('fit');

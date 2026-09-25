@@ -500,11 +500,10 @@ Order: the game itself first, then these; all of them are in the design prompt, 
       New game and the game; a palette button beside the magnifier turns the player colours on and off. 0.38.0
 - [x] **The message line adds up**: "KOT 5 + TOK 6 = 11" instead of dots (owner). 0.38.0
 - [x] **A settings gear in every game** (owner: "the usual icon only"): Sound. 0.39.0
-- [ ] More in the gear? - asked: Litery's phone keyboard, Znaczenie's spelling mistakes ("Literówki"), Kafelki's two
-      colour switches.
-- [ ] **Word meanings** (owner, 2026-09-26: "if you have a meaning for every word, show it when checking a word or
-      when a word is played - all games"): we have none. Proposal sent: Polish from the Polish Wiktionary (kaikki.org
-      extraction, CC BY-SA), English from Open English WordNet (CC BY 4.0); waiting for a yes to download.
+- [x] Kafelki's gear also holds its two colour switches (owner). 0.40.0
+- [x] **Word meanings** (owner, 2026-09-26) - not downloaded ("too much"): a word opens its meaning in the browser,
+      sjp.pl for Polish, Wiktionary for English - Check a word and History in Kafelki, the guesses in Znaczenie, the
+      end cards of every game. 0.40.0
 - [ ] Tune the levels by playing.
 
 ## Litery: hints and the "what you know" strip — DONE 2026-09-25 (0.28.2)

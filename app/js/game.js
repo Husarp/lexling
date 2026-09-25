@@ -2,7 +2,7 @@
 import { t, plural, esc, num, clock } from './i18n.js';
 import { settings, stats, getSave, putSave, recordGuess, recordEnd, gameName, playClock } from './store.js';
 import { load, resolve, suggest, rankAll, pct, hint, HINT_FLOOR } from './engine.js';
-import { topbar, fillColor, confirmClick, outcome, gearButton, wireGear } from './ui.js';
+import { topbar, fillColor, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 
@@ -57,7 +57,7 @@ export async function gameScreen(root, id) {
         <span class="eyebrow">${t(won ? 'end.guessWordWon' : 'end.wordLost')}</span>
         <p class="display">${esc(game.secret)}</p>
         <div class="result-stats">${facts.filter(Boolean).join(dot)}</div>
-        <div class="result-actions"><a class="btn btn-primary" href="#/new">${t('games.new')} <span class="arrow">→</span></a><a class="btn btn-outline" href="#/">${t('menu')}</a></div>
+        <div class="result-actions"><a class="btn btn-primary" href="#/new">${t('games.new')} <span class="arrow">→</span></a><a class="btn btn-outline" href="#/">${t('menu')}</a>${meaningButton(game.secret, game.lang)}</div>
       </div>
     </div>`;
       return;
@@ -197,7 +197,7 @@ export async function gameScreen(root, id) {
     const secret = g.rank === 0;
     return `<li class="guess ${latest ? 'new' : ''} ${secret ? 'secret' : ''} ${g.hint ? 'tip' : ''} ${fresh ? 'enter' : ''}" data-w="${esc(g.w)}">
   <span class="fill" style="--pct:${fresh ? 0 : g.pct}%;--fill:${secret ? 'var(--fill-hot)' : fillColor(g.pct)}" data-pct="${g.pct}"></span>
-  <span class="word">${esc(g.w)}${g.typed ? `<span class="form">${esc(g.typed)} → ${esc(g.w)}</span>` : ''}</span>
+  <span class="word">${wordLink(g.w, game.lang)}${g.typed ? `<span class="form">${esc(g.typed)} → ${esc(g.w)}</span>` : ''}</span>
   <span class="rank">${secret ? '✓' : num(g.rank)}${secret ? `<small>${t('game.secret')}</small>` : g.hint ? `<small>${t('game.hintMark')}</small>` : latest ? `<small>${t('game.latest')}</small>` : ''}</span>
 </li>`;
   };

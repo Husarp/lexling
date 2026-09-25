@@ -528,10 +528,19 @@ are in `screens.js`.
 
 ### Settings inside a game (0.39.0, owner: "a settings button, the usual icon only")
 A gear at the right of every game's top bar (ui.js `gearButton` / `wireGear`) opens a small window over the game
-(a native modal dialog, centred) with the settings that matter while playing - Sound for now. While it is open the
+(a native modal dialog, centred) with the settings that matter while playing - Sound; in Kafelki also its two
+colour switches (0.40.0). While it is open the
 keys belong to it alone (a game would otherwise type into itself, and Esc would leave the screen): Esc, ✕ or a tap
 outside closes it. On a narrow phone the game's name gives way in the top bar (under 375 px; Kafelki, which also has
 its "?", under 460 px) - the name is on the saved-games list anyway.
+
+### What a word means (0.40.0, owner: "don't download - too much; open the browser")
+The app holds no definitions (a Polish dictionary would be 126 MB to fetch and tens of MB in the app). A word opens
+its meaning in the phone's own browser instead (ui.js `meaningUrl`, `openExternal`): **sjp.pl** for Polish - it
+knows every form and names the word it comes from - and **Wiktionary** for English. Where: Kafelki - under the
+answer of Check a word ("Co znaczy? ↗"), and every word in History; Znaczenie - every guessed word (a dotted underline;
+a tap keeps the typing field) and the secret on the end card; Litery - the secret on the end card, and each row once
+the game is over (during the game a tap belongs to typing); Połącz - every word of the board on the end card.
 
 ### How to play (0.33.0, owner)
 Every New game screen has a card under the title: "Jak grać / How to play", 4-5 short lines, opened and closed
