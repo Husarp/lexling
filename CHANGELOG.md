@@ -7,6 +7,7 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 ---
 
 ## 0.22.2 — 2026-09-25 04:10: + at 20 tries goes on to unlimited
+*(released 2026-09-25 as v0.22.2 — Windows installer + Android APK, the first release as Lexling, so it carries 0.18.0–0.22.1 too; the APK is also on the phone)*
 
 - **The tries stepper runs 1 … 20 → ∞**: + at 20 switches Unlimited on, and − from ∞ goes back to 20.
   The Unlimited button stays, for getting there (and back to your number) in one tap. The ∞ is no
