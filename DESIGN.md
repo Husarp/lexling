@@ -426,6 +426,12 @@ the right — and under it a plain card edged in the same colour with the word, 
   common, Hard all) and how hard it tries (the move nearest 50 / 70 / 85 / 100 % of the best it can see).
   With nothing it can play, it swaps its whole rack while it may, else passes. First values, for tuning.
 
+### How to play (0.33.0, owner)
+Every New game screen has a card under the title: "Jak grać / How to play", 4-5 short lines, opened and closed
+with a tap (a native details element - works with a finger, a mouse, the keyboard and a screen reader). Open until
+a game of that kind has been finished, closed after that; once the player opens or closes it, it stays as they left
+it (settings.howTo). Kafelki's will hold topics that open one at a time, and open from a "?" in the game too.
+
 ## 4a. Rendering quality & responsiveness (hard requirements)
 
 Lockdown's loading glitches are the anti-goal. Rules from day one:

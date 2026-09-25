@@ -6,6 +6,18 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.33.0 — 2026-09-25 17:53: How to play on every New game screen
+*(not packaged)*
+
+- **"Jak grać / How to play"** (owner: "each game has a card that says how to play"): a card under the New game title
+  of Znaczenie, Litery and Połącz - 4-5 short lines: what the game is, what the colours / numbers mean, the keys,
+  Polish letters, hints. A tap opens or closes it. It is open until you have finished a game of that kind, closed
+  after that - and once you open or close it yourself, it stays as you left it, per game.
+- Kafelki's will be the long one, with topics that open one at a time, and a "?" in the game (owner: yes) - in its
+  design prompt.
+- Checked in headless Edge: open at first, a tap remembered after a reload, every screen still fits at 320-480 px
+  in both languages.
+
 ## 0.32.1 — 2026-09-25 17:36: Litery's hint limit counts green letters too
 *(not packaged)*
 

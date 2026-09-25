@@ -203,6 +203,27 @@ function rename(el, game, refresh) {
   input.addEventListener('blur', () => finish(true));
 }
 
+// ── How to play (owner, 2026-09-25) ── a card under the New game title that opens and closes: open until a
+// game of that kind has been finished, closed after that - and once the player opens or closes it, as they left it.
+const HOWTO = { guess: () => t('howto.guess'), letters: () => t('howto.letters'), connect: () => t('howto.connect') };
+const FINISHED = { guess: () => stats.won + stats.givenUp, letters: () => stats.lt.won + stats.lt.lost + stats.lt.givenUp,
+  connect: () => stats.cn.solved + stats.cn.givenUp };
+const howTo = mode => `<details class="card howto" data-mode="${mode}"${settings.howTo?.[mode] ?? !FINISHED[mode]() ? ' open' : ''}>
+      <summary><span class="eyebrow">${t('howto.title')}</span><span class="arrow" aria-hidden="true">›</span></summary>
+      ${HOWTO[mode]().split('\n').map(line => `<p class="help"><span class="arrow">→</span> ${line}</p>`).join('')}
+    </details>`;
+// remember an open / close the player made (not the one the page makes as it draws the card)
+function wireHowTo(root) {
+  const el = root.querySelector('.howto');
+  let shown = el.open;
+  el.addEventListener('toggle', () => {
+    if (el.open === shown) return;
+    shown = el.open;
+    settings.howTo = { ...settings.howTo, [el.dataset.mode]: el.open };
+    saveSettings();
+  });
+}
+
 // Every game starts from the same footing - the settings of the last one are rarely what you want for
 // the next. The language is the exception: that is a preference, not a per-game choice.
 const NEW_GAME = { cat: 'all', band: 'any', diff: 'normal', friend: false };
@@ -215,6 +236,7 @@ export function newGameScreen(root, _, refresh) {
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.guess}">${t('back.games')}</a>`, right: modeTag('guess') })}
   <main class="main">
     <h1 class="title">${t('new.title')}</h1>
+    ${howTo('guess')}
     <form class="form" novalidate>
       <div class="field">
         <span class="eyebrow">${t('new.lang')}</span>
@@ -256,6 +278,7 @@ export function newGameScreen(root, _, refresh) {
     </form>
   </main>
 </div>`;
+  wireHowTo(root);
   const $ = sel => root.querySelector(sel);
   const err = $('#new-err'), toggle = $('.toggle'), secret = $('input[type=password]');
   const sync = () => {
@@ -337,6 +360,7 @@ export function lettersNewScreen(root, _, refresh) {
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.letters}">${t('back.games')}</a>`, right: modeTag('letters') })}
   <main class="main">
     <h1 class="title">${t('new.title')}</h1>
+    ${howTo('letters')}
     <form class="form" novalidate>
       <div class="field">
         <span class="eyebrow">${t('new.lang')}</span>
@@ -387,6 +411,7 @@ export function lettersNewScreen(root, _, refresh) {
     </form>
   </main>
 </div>`;
+  wireHowTo(root);
   const $ = sel => root.querySelector(sel);
   const form = $('form'), err = $('#new-err'), start = $('[type=submit]'), toggle = $('#polish .toggle'), unlimited = $('#unlimited'), anyLen = $('#any-len'), randomDiff = $('#random-diff');
   // Polish letters are a Polish-only choice; an English word never has them to begin with
@@ -518,6 +543,7 @@ export function connectNewScreen(root, _, refresh) {
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.connect}">${t('back.games')}</a>`, right: modeTag('connect') })}
   <main class="main">
     <h1 class="title">${t('new.title')}</h1>
+    ${howTo('connect')}
     <form class="form" novalidate>
       <div class="field">
         <span class="eyebrow">${t('new.lang')}</span>
@@ -551,6 +577,7 @@ export function connectNewScreen(root, _, refresh) {
     </form>
   </main>
 </div>`;
+  wireHowTo(root);
   const $ = sel => root.querySelector(sel);
   const form = $('form'), err = $('#new-err'), toggle = $('#polish .toggle'), randomDiff = $('#random-diff');
   const marks = () => o.lang === 'pl' && o.marks;

@@ -83,6 +83,10 @@ const STR = {
     'game.hintNone': 'You are one word away — no hint left to give.',
     'game.hintFail': 'No hint to give here.',
 
+    'howto.title': 'How to play',
+    'howto.guess': 'Guess the secret word by its meaning.\nType any word you know: the number you get is its <strong style="color:var(--text)">rank</strong> — how many words are closer in meaning to the secret. <strong style="color:var(--text)">1</strong> means nothing is closer.\nSmall numbers: you are close. Thousands: try another direction.\nWord forms count as their base word (cats → cat). Stuck? A hint gives a word closer than your best guess.',
+    'howto.letters': 'Guess the hidden word: type a word of the same length and press Enter.\n<strong style="color:var(--lt-hit)">Green</strong> — the right letter in the right place. <strong style="color:var(--lt-near)">Yellow</strong> — in the word, but elsewhere. <strong style="color:var(--lt-miss)">Grey</strong> — not in the word.\nTap a tile to change its letter; Space leaves a tile empty; ← → move along the row.\nPolish letters are letters of their own: ż is not z.\nA hint shows one letter in its place, in grey in every row — until half the word shows.',
+    'howto.connect': 'Drag across the letters in the circle and let go: a real word lands in the crossword. Find every word.\nWords of 3 letters or more; each letter of the circle once per word.\nOther real words are bonus words — counted, never needed.\nShuffle moves the letters round. A hint shows a random letter — until half a word shows. On a computer you can type the letters too.',
     'new.title': 'New game', 'new.lang': 'Language', 'new.cat': 'Category', 'new.catHint': 'limits the secret word only',
     'new.len': 'Secret length', 'new.lenAria': 'Secret length band', 'new.diff': 'Difficulty',
     'band.short': 'Short', 'band.medium': 'Medium', 'band.long': 'Long', 'band.any': 'Any',
@@ -236,6 +240,10 @@ const STR = {
     'game.hintNone': 'Jesteś o jedno słowo od celu — nie ma już czego podpowiadać.',
     'game.hintFail': 'Brak podpowiedzi w tym miejscu.',
 
+    'howto.title': 'Jak grać',
+    'howto.guess': 'Zgadnij sekretne słowo po znaczeniu.\nWpisz dowolne znane ci słowo: liczba, którą dostajesz, to <strong style="color:var(--text)">pozycja</strong> — ile słów jest bliżej znaczeniowo sekretu. <strong style="color:var(--text)">1</strong> — bliżej już nic nie ma.\nMałe liczby: jesteś blisko. Tysiące: spróbuj z innej strony.\nFormy odmienione liczą się jak słowo podstawowe (kotami → kot). Utknąłeś? Podpowiedź daje słowo bliższe niż twoja najlepsza próba.',
+    'howto.letters': 'Zgadnij ukryte słowo: wpisz słowo tej samej długości i naciśnij Enter.\n<strong style="color:var(--lt-hit)">Zielony</strong> — dobra litera na dobrym miejscu. <strong style="color:var(--lt-near)">Żółty</strong> — jest w słowie, ale gdzie indziej. <strong style="color:var(--lt-miss)">Szary</strong> — nie ma jej w słowie.\nStuknij kafelek, by zmienić jego literę; Spacja zostawia kafelek pusty; ← → przesuwają po rzędzie.\nPolskie litery to osobne litery: ż to nie z.\nPodpowiedź pokazuje jedną literę na jej miejscu, na szaro w każdym rzędzie — dopóki nie widać połowy słowa.',
+    'howto.connect': 'Przeciągnij palcem po literach w kole i puść: prawdziwe słowo trafia do krzyżówki. Znajdź wszystkie słowa.\nSłowa od 3 liter; każda litera z koła raz na słowo.\nInne prawdziwe słowa to słowa bonusowe — liczą się, ale nie są potrzebne.\nTasuj przestawia litery. Podpowiedź odkrywa losową literę — dopóki w słowie nie widać połowy liter. Na komputerze możesz też pisać.',
     'new.title': 'Nowa gra', 'new.lang': 'Język', 'new.cat': 'Kategoria', 'new.catHint': 'ogranicza tylko sekretne słowo',
     'new.len': 'Długość słowa', 'new.lenAria': 'Zakres długości sekretnego słowa', 'new.diff': 'Poziom trudności',
     'band.short': 'Krótkie', 'band.medium': 'Średnie', 'band.long': 'Długie', 'band.any': 'Dowolne',

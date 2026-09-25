@@ -126,6 +126,14 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=new] .readout .num{font-size:28px;color:var(--accent)}
 [data-screen=new] .friend{display:grid;gap:var(--space-4);padding:var(--space-5);border-left:3px solid var(--accent);border-radius:var(--radius-lg)}
 [data-screen=new] .friend .row{padding:0;border:0}
+/* How to play (owner, 2026-09-25): a card under the title that opens and closes - the Guess history's summary row */
+[data-screen=new] .howto{padding:0 var(--space-4)}
+[data-screen=new] .howto summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);min-height:48px;cursor:pointer}
+[data-screen=new] .howto summary::-webkit-details-marker{display:none}
+[data-screen=new] .howto summary .arrow{display:inline-grid;place-items:center;width:24px;height:24px;font-size:20px;line-height:1;color:var(--text-muted);transition:transform var(--dur) var(--ease)}
+[data-screen=new] .howto[open] summary .arrow{transform:rotate(90deg)}
+[data-screen=new] .howto .help{margin:0 0 var(--space-2)}
+[data-screen=new] .howto .help:last-child{margin-bottom:var(--space-4)}
 [data-screen=new] .summary{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;font:700 clamp(18px,3.5vw,22px)/1 var(--font-display);text-transform:uppercase;letter-spacing:-.01em}
 [data-screen=new] .cta{display:grid;gap:var(--space-3)}
 

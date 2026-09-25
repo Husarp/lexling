@@ -44,6 +44,7 @@ Playable in **Polish and English** (both the UI and the word libraries).
   every row you type: type over it or leave it), and its own statistics.
 - **Connect mode** (Połącz): drag across a circle of 4–10 letters to fill a small crossword; other real
   words are bonus words; free hints, a random letter at a time, at most half of any word. Its own statistics.
+- **How to play** on every New game screen: a short card that opens and closes (open until your first finished game).
 - **No scores anywhere** (since 0.29.0): the games are for fun; statistics show how you are doing,
   hints used included.
 - **Tiles** (Kafelki), a Scrabble-like game for 2–5 players - people passing one device and/or the
