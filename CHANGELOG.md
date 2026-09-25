@@ -6,6 +6,15 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.27.5 — 2026-09-25 14:30: Letters never hides or accepts a slur; "13,3" in Polish
+*(not packaged)*
+
+- **Letters uses the offensive-word list too** (owner: yes): no slur or vulgar word can be the hidden word -
+  *mineta*, which the data's stoplist missed, included - and one typed as a guess gets the same answer as a
+  word the game does not know. Inflected forms are caught through their base word; innocent look-alikes
+  (CYGARO, SUKNIA, KUREK, RUCH) are not. 5 new tests, 260 in all.
+- **The Guess tab's average win** is written the Polish way in Polish: 13,3, not 13.3 (the Letters tab already was).
+
 ## 0.27.4 — 2026-09-25 14:29: Connect hints are random letters, never more than half a word; a cleaner icon
 *(not packaged)*
 

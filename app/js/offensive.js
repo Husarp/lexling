@@ -1,5 +1,6 @@
-// Words Connect never puts on its board and never accepts as a bonus word: slurs and vulgar words
-// (owner, 2026-09-25: "slurs shouldn't be in crosswords - in bonus too"). Not the data's stoplist
+// Slurs and vulgar words: Connect never puts one on its board or accepts one as a bonus word (owner,
+// 2026-09-25: "slurs shouldn't be in crosswords - in bonus too"), and Letters never hides one or takes
+// one as a guess (owner, the same day). Not the data's stoplist
 // (NEVER_SECRET in tools/seeds.mjs): that one also holds everyday words that must not be *hidden* -
 // "then", "here", "jak" - which are perfectly good bonus words.
 //
@@ -25,10 +26,16 @@ const ROOTS = {
 };
 const sets = {};
 
+// the word itself, as written: on the list or built on a vulgar root (enough for base words - the pools)
+export function offensiveWord(lang, word) {
+  const set = sets[lang] ??= new Set(WORDS[lang].split(' '));
+  return set.has(word) || ROOTS[lang].test(word);
+}
+
+// anything typed: also an inflected form of a word on the list (BITCHES -> BITCH), through its base word
 export function offensive(m, word) {
   const lang = m.lang === 'pl' ? 'pl' : 'en';
-  const set = sets[lang] ??= new Set(WORDS[lang].split(' '));
-  if (set.has(word) || ROOTS[lang].test(word)) return true;
+  if (offensiveWord(lang, word)) return true;
   const base = resolve(m, word);
-  return base !== null && set.has(m.words[base.idx]);
+  return base !== null && offensiveWord(lang, m.words[base.idx]);
 }

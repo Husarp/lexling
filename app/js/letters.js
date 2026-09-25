@@ -1,5 +1,6 @@
 // Letters mode - the rules, with no screen attached (PLAN.md M12).
 import { DIFFS } from './engine.js';
+import { offensiveWord } from './offensive.js';
 
 // Polish letters with marks are separate letters here: ó is not o, so `zolw` is simply wrong for
 // `żółw`. When the player allows them they are worth two in the score.
@@ -21,7 +22,8 @@ function prepare(m) {
   const skip = new Set([...(m.blocked || []), ...(m.formOf || [])]);
   const words = [];
   for (let i = 0; i < Math.min(POOL_WITHIN, m.count); i++) {
-    if (KINDS.has(m.posNames[m.pos[i]]) && !skip.has(i)) words.push(i);
+    // never a slur or a vulgar word either - the data's stoplist missed some (mineta): offensive.js
+    if (KINDS.has(m.posNames[m.pos[i]]) && !skip.has(i) && !offensiveWord(m.lang === 'pl' ? 'pl' : 'en', m.words[i])) words.push(i);
   }
 
   // Difficulty here is not the main mode's. That one measures how isolated a word is in MEANING,

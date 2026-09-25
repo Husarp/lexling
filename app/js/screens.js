@@ -645,7 +645,7 @@ export function statsScreen(root, _, refresh) {
       ${card(t('stats.letters'), num(s.letters))}
       ${card(t('stats.time'), `${clock(s.timeMs, true)}<span class="muted" style="font:500 13px var(--font-body)"> h</span>`, t('stats.timeSub'))}
       ${card(t('stats.bestWin'), s.bestWin ? num(s.bestWin) : '—', s.bestWin ? plural(s.bestWin, 'n.guesses') : '')}
-      ${card(t('stats.avgWin'), s.wonRated ? (s.wonGuesses / s.wonRated).toFixed(1) : '—', t('stats.perWon'))}
+      ${card(t('stats.avgWin'), s.wonRated ? decimal((s.wonGuesses / s.wonRated).toFixed(1)) : '—', t('stats.perWon'))}
       ${card(t('stats.hardest'), s.hardest ? `<span style="font-size:.7em">${esc(s.hardest.w)}</span>` : '—',
     s.hardest ? t('stats.hardestSub', { n: s.hardest.score }) : '')}
       ${card(t('stats.hardWins'), num(s.hardWins ?? 0), t('stats.hardWinsSub', { n: HARD_WIN }))}

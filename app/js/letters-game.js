@@ -8,6 +8,7 @@ import { feedback, score, points, MULTIPLIER, MARKED, triesFactor, bestRow, loss
 import { topbar, modeTag, confirmClick, TILE, outcome } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
+import { offensive } from './offensive.js';
 
 const ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
 const PL_ROW = 'ąćęłńóśźż';   // a row of its own in Polish games: guesses may use them even when the word cannot
@@ -254,7 +255,8 @@ export async function lettersGameScreen(root, id) {
       return say(t('lt.needN', { n, letters: plural(n, 'lt.letters'), k }), true);
     }
     // a word the list places under a base word, or a stand-alone dictionary form (pasę, poszedłem)
-    if (!resolve(m, word) && !m.extra.has(word)) { paintNow(); return say(t('lt.unknown', { w: word }), true); }
+    // ...and never a slur or a vulgar word (owner, 2026-09-25): those get the same answer as a non-word
+    if ((!resolve(m, word) && !m.extra.has(word)) || offensive(m, word)) { paintNow(); return say(t('lt.unknown', { w: word }), true); }
     if (game.guesses.includes(word)) {
       cur = blank();
       sink.value = '';

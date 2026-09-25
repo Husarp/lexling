@@ -78,6 +78,7 @@ globalThis.fetch = async url => { const b = readFileSync(new URL(url, ROOT));
     arrayBuffer: async () => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) }; };
 const { loadWords: load } = await import('../app/js/engine.js');   // what Letters loads: no vectors
 const { pool, difficulty } = await import('../app/js/letters.js');
+const { offensiveWord, offensive } = await import('../app/js/offensive.js');
 const has = (m, p, w) => p.some(i => m.words[i] === w);
 
 for (const lang of ['pl', 'en']) {
@@ -92,6 +93,8 @@ for (const lang of ['pl', 'en']) {
   const blocked = new Set(m.blocked), formOf = new Set(m.formOf);
   check(`${lang}: nothing on the stoplist is ever hidden`, all.some(i => blocked.has(i)), false);
   check(`${lang}: no inflected form posing as a word is ever hidden`, all.some(i => formOf.has(i)), false);
+  // slurs and vulgar words, the data's stoplist or not (owner, 2026-09-25): offensive.js
+  check(`${lang}: no slur or vulgar word is ever hidden`, all.some(i => offensiveWord(lang, m.words[i])), false);
   check(`${lang}: difficulty is 0-100`, all.every(i => difficulty(m, i) >= 0 && difficulty(m, i) <= 100), true);
 
   const avg = p => p.reduce((s, i) => s + difficulty(m, i), 0) / p.length;
@@ -123,6 +126,9 @@ check('Polish letters on: they can appear', pool(pl, { len: 5 }).some(i => MARKS
 const pl5 = [4, 5].flatMap(len => ['relaxed', 'easy', 'normal', 'hard'].flatMap(diff => pool(pl, { len, diff })));
 check('ptaki, stara, kota are inflected forms, never hidden', ['ptaki', 'stara', 'kota'].some(w => has(pl, pl5, w)), false);
 check('ptak and stary, their bases, can still be hidden', ['ptak', 'stary'].every(w => has(pl, pl5, w)), true);
+check('mineta - missing from the data\'s stoplist - is never hidden', [6].some(len => ['relaxed', 'easy', 'normal', 'hard'].some(diff => has(pl, pool(pl, { len, diff }), 'mineta'))), false);
+check('a slur typed as a guess is refused, its forms too', ['kurwa', 'kurwy', 'czarnuch', 'czarnuchy'].every(w => offensive(pl, w)), true);
+check('an innocent word is not caught by a vulgar root', ['kurek', 'ruch', 'suknia', 'cygaro'].some(w => offensive(pl, w)), false);
 check('zajebisty is on the stoplist, never hidden',
   ['relaxed', 'easy', 'normal', 'hard'].some(diff => has(pl, pool(pl, { len: 9, diff }), 'zajebisty')), false);
 
