@@ -38,13 +38,11 @@ const NEW_OF = { guess: '#/new', letters: '#/new/letters', connect: '#/new/conne
 const LIST_OF = { guess: '#/games/guess', letters: '#/games/letters', connect: '#/games/connect' };
 
 export function menu(root, _, refresh) {
-  const saves = listSaves();
   // One compact row per game, all the same size and weight - only the icon differs. Four of the old
-  // big cards pushed Statistics and Settings off a phone's first screen.
+  // big cards pushed Statistics and Settings off a phone's first screen. No count of games in progress
+  // (owner, 2026-09-25) - only "soon" for a game not built yet.
   const row = key => {
-    const going = saves.filter(g => g.mode === key).length;
-    const live = !READY.has(key) ? `<span class="g-live">${t('menu.soon')}</span>`
-      : going ? `<span class="g-live">${t('mode.inProgress', { n: `<b>${going}</b>` })}</span>` : '';
+    const live = READY.has(key) ? '' : `<span class="g-live">${t('menu.soon')}</span>`;
     const inner = `<span class="cue4" aria-hidden="true">${CUE[key]()}</span>
           <span class="g-text"><span class="g-head"><span class="g-name">${t('mode.' + key)}</span>${live}</span><span class="g-desc">${t(`mode.${key}.d`)}</span></span>`;
     return READY.has(key) ? `<a class="game" href="${LIST_OF[key]}">${inner}<span class="arrow" aria-hidden="true">→</span></a>`

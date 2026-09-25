@@ -40,7 +40,6 @@ const STR = {
     'mode.letters.d': 'Guess the word letter by letter: green, yellow, grey.',
     'mode.connect.d': 'Join letters on a circle to fill a small crossword.',
     'mode.tiles.d': 'Lay words on a board against the computer.',
-    'mode.inProgress': '{n} in progress',
     'foot.rights': 'All rights reserved',
 
     'games.title': 'Your games', 'games.new': 'New game', 'games.resume': 'Resume', 'games.rename': 'Rename', 'games.delete': 'Delete',
@@ -195,7 +194,6 @@ const STR = {
     'mode.letters.d': 'Zgaduj słowo litera po literze: zielone, żółte, szare.',
     'mode.connect.d': 'Łącz litery z koła i wypełniaj małą krzyżówkę.',
     'mode.tiles.d': 'Układaj słowa na planszy przeciw komputerowi.',
-    'mode.inProgress': '{n} w toku',
     'foot.rights': 'Wszelkie prawa zastrzeżone',
 
     'games.title': 'Twoje gry', 'games.new': 'Nowa gra', 'games.resume': 'Wznów', 'games.rename': 'Zmień nazwę', 'games.delete': 'Usuń',

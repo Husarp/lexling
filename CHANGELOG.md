@@ -6,6 +6,12 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.29.2 — 2026-09-25 15:03: No "in progress" count on the menu
+*(not packaged)*
+
+- The menu rows no longer say "2 w toku" / "2 in progress" (owner). Each game's own list still shows its saved
+  games; Tiles keeps "wkrótce" / "soon".
+
 ## 0.29.1 — 2026-09-25 14:57: "Allow Polish letters" - clearer, and in Letters off means off
 *(not packaged)*
 
