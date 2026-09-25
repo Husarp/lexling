@@ -6,6 +6,51 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.27.1 — 2026-09-25 13:59: Fixes from a review of the new game screens
+*(not packaged)*
+
+A second pair of eyes (a reviewer agent) read the Connect and Letters game screens line by line, since they
+could not be run in a browser in this session. No crash on the normal path; these were fixed:
+- **Enter / Space pressed a button clicked earlier** instead of playing: a mouse click left the focus on
+  Hint, Shuffle, the bonus counter or Give up, so Enter spent a hint (or gave the game up) rather than check
+  the word. Those buttons no longer take the focus from the pointer (Tab still reaches them).
+- **A word chosen for a hint stayed outlined** after a crossing word finished it - it now lets go once done.
+- **Shuffle left the typed word showing** under the board.
+- **Giving up during the 240 ms "not a word" shake** threw an error when the shake ended.
+- **Letters: a key could stay pressed-looking** when the mouse slid off it before letting go; and each press
+  left a listener behind on the key.
+- **A second finger on the circle** restarted the word; the word is now the first finger's only. And nothing
+  is judged once the game is over.
+- **Leaving a game while its word data loaded** could put that game back on screen over the newer one (Letters
+  and Connect; Guess has the same old race - noted in PLAN.md).
+
+## 0.27.0 — 2026-09-25 13:51: Connect is playable
+*(release APK built and installed on the owner's phone 2026-09-25 — before the review fixes in 0.27.1)*
+
+The third game, Połącz / Connect, with the screens from the owner's design handoff v4 ("Lexling Connect").
+- **The menu row opens it** (it said "soon" since 0.24.0) — its own list of games in progress, New game.
+- **New game**: language, letters in the circle (4–7, with the usual number of words: 3–5 … 6–10), the
+  level (Relaxed / Easy / Normal / Hard, or Random — drawn at the start, shown only as "Random"), and for
+  Polish the Polish-letters card. If no puzzle comes out of the settings, it says so instead of starting.
+- **The game**: the status row (words done / on the board, letters, level, language, Save & exit, Give up);
+  the crossword, its tiles sized to the space left; one slot that shows the word being dragged and then the
+  answer; the circle — drag across the letters (a line follows the finger; back onto the previous letter
+  takes the last one off), let go to check. A board word fills in, tile by tile; one already there flashes;
+  another real word flies into the **bonus** counter (tap it for the list); anything else goes red and the
+  letters shake. **Shuffle** moves the letters round the circle. **Hint** shows one more letter of one word —
+  tap a word on the board to choose which. On a computer the letters can be typed: Enter checks, Backspace
+  takes one off, Space shuffles, Esc lets go.
+- **The end**: the banner (✓ Ułożone / Solved, ✕ Poddałeś się / You gave up, words done / on the board), the
+  card with the word that uses every letter — or, after giving up, the words that were left, in red — and
+  the words, bonus words and hints; then the full board with a key: found (green), shown by a hint (dashed),
+  left (red outline).
+- **The saved-game card**: settings, "4 / 7 words · 2 bonus words", one square per board word.
+- **Statistics**: a Connect tab — played, solved, words found, bonus words, and the longest word found drawn
+  in green tiles; "All games" now counts Connect too.
+- Checked: the rules by `tools/test-connect.mjs` (162) and `tools/test-letters.mjs` (255); the menu, the list,
+  the new-game screen and the statistics rendered in Node in Polish and English; the game screen reviewed line
+  by line (it could not be run in a browser in this session - see PLAN.md).
+
 ## 0.26.0 — 2026-09-25 13:43: Connect's rules (no screen yet)
 *(not packaged)*
 

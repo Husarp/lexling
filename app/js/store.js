@@ -30,6 +30,8 @@ export const stats = read('wg.stats', {
   // Letters keeps its own numbers: everything above except letters, timeMs and gameNo is the Guess
   // mode's. wonLen = word length -> wins, for the wins-by-length strip.
   lt: { played: 0, won: 0, lost: 0, givenUp: 0, streak: 0, bestStreak: 0, bestScore: 0, wonTries: 0, wonLen: {} },
+  // Connect's own numbers: words = board words the player found, longest = { w, game, at } of any word found
+  cn: { played: 0, solved: 0, givenUp: 0, words: 0, bonus: 0, hints: 0, longest: null },
 });
 const unique = new Set(stats.unique);
 export const saveStats = () => { stats.unique = [...unique]; write('wg.stats', stats); };
@@ -64,7 +66,9 @@ export const gameName = g => g.name || t('games.defaultName', { n: g.auto ?? 1 }
 // `fields` is the game's own settings: Guess { lang, cat, band, diff, friend, secret },
 // Letters { mode: 'letters', lang, cat, len, tries (0 = unlimited), diff, marks, secret }.
 export function newGame(fields) {
-  if (fields.mode === 'letters') stats.lt.played++; else stats.played++;
+  if (fields.mode === 'letters') stats.lt.played++;
+  else if (fields.mode === 'connect') stats.cn.played++;
+  else stats.played++;
   stats.gameNo++;
   saveStats();
   const game = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), auto: stats.gameNo, name: '',
@@ -129,6 +133,20 @@ export function recordLettersEnd(game, points) {
     if (game.status === 'lost') s.lost++; else s.givenUp++;
     s.streak = 0;
   }
+  saveStats();
+  deleteSave(game.id);
+}
+
+// A Connect game ends solved ('won') or given up. Its words, bonus words and hints add to the totals;
+// the longest word found - on the board or a bonus - is kept with the game's name and when.
+export function recordConnectEnd(game) {
+  const s = stats.cn;
+  if (game.status === 'won') s.solved++; else s.givenUp++;
+  s.words += game.found.length;
+  s.bonus += game.bonus.length;
+  s.hints += game.hints;
+  const longest = [...game.found, ...game.bonus].reduce((a, w) => [...w].length > [...a].length ? w : a, '');
+  if (longest && (!s.longest || [...longest].length > [...s.longest.w].length)) s.longest = { w: longest, game: gameName(game), at: Date.now() };
   saveStats();
   deleteSave(game.id);
 }

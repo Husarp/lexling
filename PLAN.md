@@ -439,17 +439,31 @@ The recommendation below was accepted:
       0.23.0; what only a badge showed stays as a plain statistic.
 
 ### Designs — prompts written 2026-09-25
-- [ ] **Main menu for four games** — four big cards do not fit a phone: `notes/menu-four-games-design-prompt.md`.
-- [ ] **Connect's screens** (new game, game, end, saved-game card, statistics): `notes/connect-design-prompt.md`.
+- [x] **Main menu for four games** — four big cards do not fit a phone: `notes/menu-four-games-design-prompt.md`.
+      Design v4 arrived 2026-09-25 (`design/v4/`); built in 0.24.0.
+- [x] **Connect's screens** (new game, game, end, saved-game card, statistics): `notes/connect-design-prompt.md`.
+      Design v4; built in 0.27.0.
 
 ### To build — after the owner agrees and the designs arrive
-- [ ] Letter-set chooser + word finder (reuse Letters' pool; ~23 ms Polish, measured above).
-- [ ] **Crossword layout generator** — new, the largest piece; tests: crossings agree, every board
-      word is valid, the all-letters word is on the board.
-- [ ] The circle: drag with a path line, shake, shuffle; typing on a PC.
-- [ ] Board, bonus words, hints, give up, the end card.
-- [ ] New-game screen, saves, the games-list section, the statistics tab, Polish and English strings.
-- [ ] The four-game menu.
+- [x] Letter-set chooser + word finder (reuse Letters' pool) — 0.26.0, 1–9 ms a puzzle.
+- [x] **Crossword layout generator** — 0.26.0; `tools/test-connect.mjs` checks every board cell by cell.
+- [x] The circle: drag with a path line, shake, shuffle; typing on a PC. 0.27.0
+- [x] Board, bonus words, hints, give up, the end card. 0.27.0
+- [x] New-game screen, saves, the games-list section, the statistics tab, Polish and English strings. 0.27.0
+- [x] The four-game menu. 0.24.0
+
+### Found while building it (2026-09-25)
+- [ ] **The stoplist misses a vulgar word**: a Hard Polish board used *mineta*. Letters can hide it on
+      Hard too - it is one pool. Add it (and a pass for others) to `NEVER_SECRET` in `tools/seeds.mjs`,
+      then rebuild the word data (`node tools/build-data.mjs`, ~8 min).
+- [ ] **Obscure dictionary words** reach the pool from a web corpus - *screen* (Polish rank 8 220), *nec*,
+      *ren*. Connect's levels now go by frequency rank, which keeps the rarest off Normal; a curation pass
+      with the stoplist would catch the rest.
+- [ ] **Guess: leaving a game while its word data loads** can put it back on screen over the newer one (found by
+      the 0.27.1 review; Letters and Connect guard against it now, `game.js` does not yet).
+- [ ] **Not checked in a real browser yet**: the preview pane stayed tied to the old folder name for the
+      rest of the session in which these were built. Rules are tested; screens were rendered in Node.
+      A first look on the phone / in a new session is the check still owed.
 
 ## Rename to Lexling — DONE 2026-09-25 (0.18.0)
 Asked 2026-09-25: rename the app "in GitHub and everywhere (folder name)", with the Android ID

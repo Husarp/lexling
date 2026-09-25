@@ -38,9 +38,13 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - Multiple games at once: save, resume, rename, give up (reveals the word).
 - Statistics for each game (no achievements, since 0.23.0).
 - Polish + English, switchable.
-- **Letters mode**: one box per letter, the phone's own keyboard, a score of letters ÷ guesses used
+- **Letters mode**: one box per letter, its own on-screen keyboard (keys coloured by what the guesses
+  showed; tap a tile to edit it; the phone's keyboard as an option), a score of letters ÷ guesses used
   × 100 × difficulty × 6 ÷ tries allowed (a Polish letter counts double; unlimited tries count as
   20; running out of tries still pays a little from your best row), and its own statistics.
+- **Connect mode** (Połącz): drag across a circle of 4–7 letters to fill a small crossword; other real
+  words are bonus words; free, unlimited hints, one letter at a time; no points. Its own statistics.
+- **Tiles** (Kafelki), a Scrabble-like game against the computer, is planned: the menu shows it as "soon".
 
 ## Run it (development)
 

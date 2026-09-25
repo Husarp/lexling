@@ -17,6 +17,7 @@ export async function lettersGameScreen(root, id) {
   const game = getSave(id);
   const m = game && await loadWords(game.lang);
   if (!m) { location.replace('#/games/letters'); return; }
+  if (location.hash !== '#/game/' + id) return;   // left while the word data loaded: a newer screen is up
   const n = game.len;
   const tries = game.tries || '∞';           // 0 = unlimited
   const playing = () => game.status === 'playing';
@@ -101,6 +102,7 @@ export async function lettersGameScreen(root, id) {
       + stat(t('game.language'), game.lang.toUpperCase())
       + `<div class="status-actions"><a class="btn btn-ghost" href="#/games/letters">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button></div>`;
     confirmClick($('#give-up'), () => playing() && finish('gaveup'), refit);
+    $('#give-up').addEventListener('pointerdown', e => e.preventDefault());
   }
 
   // ── typing: the keys on screen, a computer's keyboard, and (with the setting) the phone's own ──
@@ -164,9 +166,8 @@ export async function lettersGameScreen(root, id) {
       if (!keyEl) return;
       e.preventDefault();
       keyEl.classList.add('down');
-      const up = () => setTimeout(() => keyEl.classList.remove('down'), 90);
-      keyEl.addEventListener('pointerup', up, { once: true });
-      keyEl.addEventListener('pointercancel', up, { once: true });
+      keyEl.setPointerCapture(e.pointerId);
+      keyEl.addEventListener('lostpointercapture', () => setTimeout(() => keyEl.classList.remove('down'), 90), { once: true });
       act(keyEl);
     });
     // a key reached with Tab and pressed with Enter / Space arrives as a click with no pointer

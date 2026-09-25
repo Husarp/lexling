@@ -339,6 +339,26 @@ the right — and under it a plain card edged in the same colour with the word, 
 - **No "Copy result"** — the design had a button that copied a 🟩🟨⬛ summary for sharing; built in
   0.16.0, removed in 0.17.2 at the owner's request (it looked bad and was not wanted).
 
+### Connect screens (design: `design/v4/`, "Lexling Connect")
+- **The puzzle** (`app/js/connect.js`): the circle is one common word's letters, shuffled (4–7); the board is a
+  crossword of the common words they make - 3–5 words for 4 letters, 4–7, 5–8, 6–10 for 7 - always with the word
+  that uses every letter. Board words come from the Letters pool (base forms, no stoplist, no inflected forms
+  posing as words); any other real word, every Polish form included, is a **bonus word**: counted, never needed.
+- **The crossword**: every word crosses one already there; no word touches another side by side or end to end,
+  so no accidental words form; most crossings and the smallest board win; at most 10 across and 8 down, kept
+  wider than tall because a phone runs out of height first.
+- **Levels go by frequency rank**, not by Letters' difficulty (which also weighs how rare the letters are - no
+  help to anyone when the circle hands the letters over): Relaxed 5 000 most common words, Easy 8 000, Normal
+  12 000, Hard 20 000.
+- **Hints are free and unlimited** (owner: nobody should stay stuck). A press shows one more letter of one word:
+  the one tapped on the board, or the unfinished one showing the most letters (the shortest on a tie), from
+  its start, skipping letters already showing through a crossing word. A word whose letters all show counts
+  as found but keeps the dashed "hinted" look.
+- **No points and no achievements** (owner, 2026-09-25): the result is solved or given up, words, bonus words,
+  hints. Statistics: played, solved, words found, bonus words, the longest word found.
+- Screen: the status row, the board (tiles sized by width and height), one slot for the word being dragged
+  and the game's answer, the circle with Shuffle, Hint and the bonus counter. Motion times are the design's.
+
 ## 4a. Rendering quality & responsiveness (hard requirements)
 
 Lockdown's loading glitches are the anti-goal. Rules from day one:

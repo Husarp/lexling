@@ -4,6 +4,7 @@ import { t, plural, esc, num, decimal, clock, ago, dateTime, setLang, getLang, L
 import { settings, saveSettings, stats, listSaves, getSave, putSave, deleteSave, newGame, gameName, HARD_WIN } from './store.js';
 import { load, loadWords, preload, resolve, pickSecret, lengthStats } from './engine.js';
 import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js';
+import { makePuzzle, RANGE, RING_MIN, RING_MAX, visible, isDone } from './connect.js';
 import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYPH, modeTag, TILE, squares } from './ui.js';
 import { fitAll } from './fit.js';
 import { click } from './sound.js';
@@ -31,9 +32,9 @@ const CUE = {
 };
 // A game that is not built yet has its row, saying "soon", but does not open.
 const GAMES = ['guess', 'letters', 'connect', 'tiles'];
-const READY = new Set(['guess', 'letters']);
-const NEW_OF = { guess: '#/new', letters: '#/new/letters' };
-const LIST_OF = { guess: '#/games/guess', letters: '#/games/letters' };
+const READY = new Set(['guess', 'letters', 'connect']);
+const NEW_OF = { guess: '#/new', letters: '#/new/letters', connect: '#/new/connect' };
+const LIST_OF = { guess: '#/games/guess', letters: '#/games/letters', connect: '#/games/connect' };
 
 export function menu(root, _, refresh) {
   const saves = listSaves();
@@ -101,11 +102,18 @@ function lettersMeta(g) {
 
 // Each mode has its own list of games in progress, reached from its card on the menu - never one
 // mixed list (owner, 2026-09-25). New game on it starts that mode's game.
+// A Connect card shows the words found of the board's, the bonus words, and one square per board word:
+// green found, dashed finished by hints, empty still to find (design v4).
+function connectMeta(g) {
+  return [LANG_NAMES[g.lang], `${g.letters} ${plural(g.letters, 'lt.letters')}`, t('diff.' + (g.diffRandom ? 'random' : g.diff)),
+    g.marks && t('cn.marksShort'), ago(g.updated)].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
+}
+
 export function games(root, mode, refresh) {
-  if (mode !== 'letters') mode = 'guess';
+  if (!['letters', 'connect'].includes(mode)) mode = 'guess';
   const saves = listSaves().filter(g => g.mode === mode);
   // most likely the game about to be resumed
-  if (saves.length) (mode === 'letters' ? loadWords(saves[0].lang).catch(() => {}) : preload(saves[0].lang));
+  if (saves.length) (mode === 'guess' ? preload(saves[0].lang) : loadWords(saves[0].lang).catch(() => {}));
   const actions = g => `<div class="save-actions">
     <a class="btn btn-primary" href="#/game/${g.id}">${t('games.resume')}</a>
     <button class="btn btn-ghost" type="button" data-act="rename">${t('games.rename')}</button>
@@ -138,12 +146,28 @@ export function games(root, mode, refresh) {
     : `<span><span>${t('games.notStarted')}</span></span>`}</div>
 </article>`;
   };
+  const connectCard = g => {
+    const vis = visible(g.board, g.found, g.shown);
+    const marks = g.board.words.map(x => g.found.includes(x.w) ? 'hit' : isDone(x, g.found, vis) ? 'hintd' : '');
+    const done = marks.filter(Boolean).length;
+    return `<article class="card save" data-id="${g.id}">
+  <div>
+    <h2 class="save-name">${esc(gameName(g))}</h2>
+    <div class="save-meta">${connectMeta(g)}</div>
+  </div>
+  ${actions(g)}
+  <div class="save-last">${done || g.bonus.length
+    ? `<span><b class="num">${done}</b> / ${g.board.words.length} ${t('cn.wordsLow')}${DOT}<b class="num">${g.bonus.length}</b> ${t('cn.bonusLow')}</span>`
+    : `<span>${t('cn.noWords')}</span>`}${squares(marks, 14)}</div>
+</article>`;
+  };
+  const card = { guess: guessCard, letters: lettersCard, connect: connectCard }[mode];
   const start = big => `<a class="btn btn-primary${big ? ' btn-lg' : ''}" href="${NEW_OF[mode]}">${t('games.new')} <span class="arrow">→</span></a>`;
   root.innerHTML = `<div class="app" data-screen="games">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>`, right: modeTag(mode) })}
   <main class="main">
     <div class="head"><h1 class="title">${t('games.title')}</h1>${saves.length ? start() : ''}</div>
-    ${saves.length ? `<div class="saves">${saves.map(mode === 'letters' ? lettersCard : guessCard).join('')}</div>` : `<div class="card empty">
+    ${saves.length ? `<div class="saves">${saves.map(card).join('')}</div>` : `<div class="card empty">
       <p class="display">${t('games.emptyTitle')}</p>
       <p class="help" style="max-width:36ch">${t('games.emptyText')}</p>
       ${start(true)}
@@ -483,15 +507,123 @@ export function lettersNewScreen(root, _, refresh) {
   });
 }
 
+// ── Connect: new game (design v4, "Lexling Connect" 2) ─────────────────────────────────────────────
+// The Letters controls, rebuilt: letters in the circle, the level (+ Random), the Polish-letters card.
+const CN_NEW = { letters: 6, diff: 'normal', diffRandom: false, marks: false };
+let cnPending = null;
+
+export function connectNewScreen(root, _, refresh) {
+  const o = cnPending ?? { ...CN_NEW, lang: settings.newGame.lang || settings.lang };
+  cnPending = null;
+  root.innerHTML = `<div class="app" data-screen="new">
+  ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.connect}">${t('back.games')}</a>`, right: modeTag('connect') })}
+  <main class="main">
+    <h1 class="title">${t('new.title')}</h1>
+    <form class="form" novalidate>
+      <div class="field">
+        <span class="eyebrow">${t('new.lang')}</span>
+        <div class="seg" role="radiogroup">${['pl', 'en'].map(l => `<button type="button" data-k="lang" data-v="${l}">${LANG_NAMES[l]}</button>`).join('')}</div>
+      </div>
+      <div class="field" style="gap:var(--space-4)">
+        <span class="eyebrow">${t('cn.count')}</span>
+        <div class="stepper" id="letters"><button type="button" data-step="-1" aria-label="−">−</button><output></output><button type="button" data-step="1" aria-label="+">+</button></div>
+        <div class="readout" id="range"></div>
+      </div>
+      <div class="field">
+        <div class="field-head"><span class="eyebrow">${t('cn.level')}</span><span class="help">${t('cn.levelWhat')}</span></div>
+        <div class="tries">
+          <div class="seg" role="radiogroup" id="diff">${DIFFS.map(d => `<button type="button" data-k="diff" data-v="${d}">${t('diff.' + d)}</button>`).join('')}</div>
+          <button type="button" class="chip" role="switch" id="random-diff"><span class="num">?</span>${t('diff.random')}</button>
+        </div>
+        <p class="help"><span class="arrow">→</span> <span id="level-help"></span></p>
+      </div>
+      <div class="card polish" id="polish">
+        <div class="row">
+          <div class="row-text"><strong>${t('cn.polish')}</strong><span class="marks">ą ć ę ł ń ó ś ź ż</span></div>
+          <button type="button" class="toggle" role="switch" aria-label="${t('cn.polish')}"></button>
+        </div>
+        <p class="help"><span class="arrow">→</span> <span id="polish-help"></span></p>
+      </div>
+      <div class="cta">
+        <p class="summary"></p>
+        <p class="help err" id="new-err" role="alert" hidden></p>
+        <button class="btn btn-primary btn-lg btn-block" type="submit">${t('new.start')} <span class="arrow">→</span></button>
+      </div>
+    </form>
+  </main>
+</div>`;
+  const $ = sel => root.querySelector(sel);
+  const form = $('form'), err = $('#new-err'), toggle = $('#polish .toggle'), randomDiff = $('#random-diff');
+  const marks = () => o.lang === 'pl' && o.marks;
+  const sync = () => {
+    root.querySelectorAll('[data-k]').forEach(b => b.classList.toggle('on', String(o[b.dataset.k]) === b.dataset.v));
+    $('#diff').classList.toggle('off', o.diffRandom);
+    if (o.diffRandom) $('#diff').querySelectorAll('button').forEach(b => b.classList.remove('on'));
+    randomDiff.classList.toggle('on', o.diffRandom);
+    randomDiff.setAttribute('aria-checked', o.diffRandom);
+    const [fewer, more] = $('#letters').querySelectorAll('button');
+    $('#letters output').innerHTML = `<span class="num">${o.letters}</span><span class="help">${plural(o.letters, 'lt.letters')}</span>`;
+    fewer.disabled = o.letters <= RING_MIN;
+    more.disabled = o.letters >= RING_MAX;
+    // how many words a circle of this size usually gives
+    $('#range').innerHTML = `<span class="num">${RANGE[o.letters].join('–')}</span><span class="help">${t('cn.readout')}</span>`;
+    $('#level-help').textContent = t('cn.lv.' + (o.diffRandom ? 'random' : o.diff));
+    $('#polish').hidden = o.lang !== 'pl';
+    toggle.classList.toggle('on', o.marks);
+    toggle.setAttribute('aria-checked', o.marks);
+    $('#polish-help').textContent = t(o.marks ? 'cn.polishOn' : 'cn.polishOff');
+    $('.summary').innerHTML = [LANG_NAMES[o.lang], `${o.letters} ${plural(o.letters, 'lt.letters')}`,
+      t('diff.' + (o.diffRandom ? 'random' : o.diff)), marks() && t('cn.marksShort')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
+    err.hidden = true;
+    fitAll(root);
+  };
+  sync();
+  loadWords(o.lang).catch(() => {});      // the word data, ready by the time Start is pressed
+  root.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => {
+    o[b.dataset.k] = b.dataset.v;
+    if (b.dataset.k === 'diff') o.diffRandom = false;
+    if (b.dataset.k === 'lang') {
+      settings.newGame = { lang: o.lang };
+      saveSettings();
+      cnPending = o;
+      if (switchLang(b.dataset.v, refresh, false)) return;
+      cnPending = null;
+      loadWords(o.lang).catch(() => {});
+    }
+    sync();
+  }));
+  $('#letters').addEventListener('click', e => {
+    const step = +e.target.closest('[data-step]')?.dataset.step;
+    if (step) { o.letters = Math.min(RING_MAX, Math.max(RING_MIN, o.letters + step)); sync(); }
+  });
+  randomDiff.addEventListener('click', () => { o.diffRandom = !o.diffRandom; sync(); });
+  toggle.addEventListener('click', () => { o.marks = !o.marks; sync(); });
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const m = await loadWords(o.lang);
+    // Random draws one of the four levels now; the game shows only "Random"
+    const diff = o.diffRandom ? DIFFS[Math.floor(Math.random() * DIFFS.length)] : o.diff;
+    const puzzle = makePuzzle(m, { letters: o.letters, diff, marks: o.lang !== 'pl' || o.marks });
+    if (!puzzle) { err.textContent = t('cn.errNone'); err.hidden = false; return; }
+    settings.newGame = { lang: o.lang };
+    saveSettings();
+    const game = newGame({ mode: 'connect', lang: o.lang, letters: o.letters, diff, diffRandom: o.diffRandom, marks: marks(),
+      ring: puzzle.ring, key: puzzle.key, board: puzzle.board, found: [], shown: [], bonus: [], hints: 0 });
+    location.replace('#/game/' + game.id);   // Back from the game goes to the list, not to this form
+  });
+}
+
 let statsTab = 'guess';   // which game the stats screen shows, kept while the app is open
 // one tab per game that exists (design v4): Tiles gets its tab when it is built
-const STAT_TABS = ['guess', 'letters'];
+const STAT_TABS = ['guess', 'letters', 'connect'];
 
 export function statsScreen(root, _, refresh) {
   const s = stats, lt = s.lt;
   if (!STAT_TABS.includes(statsTab)) statsTab = 'guess';
   // a game not played yet says so, above its numbers - which show in dim ink
-  const none = { guess: !s.played, letters: !lt.played }[statsTab];
+  const cn = s.cn;
+  const none = { guess: !s.played, letters: !lt.played, connect: !cn.played }[statsTab];
   const card = (label, value, sub = '') => `<div class="card stat-card${none ? ' dim' : ''}"><span class="eyebrow">${label}</span><span class="num">${value}</span>${sub && `<span class="sub">${sub}</span>`}</div>`;
   // Each game's one "shape" card (design v4): how many tries its wins took, the commonest bar in the
   // game's colour. Counted from 0.24.0 on - older wins were only ever kept as a total.
@@ -537,6 +669,15 @@ export function statsScreen(root, _, refresh) {
     [...['1', '2', '3', '4', '5', '6'].map(k => [k, ld[k] || 0]), ...(ld['7+'] ? [['7+', ld['7+']]] : []), ['✕', lLost]]) : ''}
       <h2 class="title">${t('stats.byLen')}</h2>
       ${lengthsStrip}`;
+  // Connect: its numbers, then the longest word found drawn in green tiles (design v4)
+  const connectPanel = () => `<div class="stats">
+        ${card(t('stats.played'), num(cn.played))}
+        ${card(t('stats.solved'), num(cn.solved), cn.played ? Math.round(cn.solved / cn.played * 100) + ' %' : '')}
+        ${card(t('stats.wordsFound'), num(cn.words))}
+        ${card(t('stats.bonusWords'), num(cn.bonus))}
+      </div>
+      ${cn.longest ? `<div class="card best"><span class="eyebrow">${t('stats.longest')}</span>${squares(Array([...cn.longest.w].length).fill('hit'), 32, [...cn.longest.w])}
+        <p class="help">${t('stats.longestSub', { n: [...cn.longest.w].length, letters: plural([...cn.longest.w].length, 'lt.letters'), g: esc(cn.longest.game), ago: ago(cn.longest.at) })}</p></div>` : ''}`;
   root.innerHTML = `<div class="app" data-screen="stats">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
   <main class="main">
@@ -545,8 +686,8 @@ export function statsScreen(root, _, refresh) {
     `<button type="button" role="tab" data-tab="${m}" class="${on(statsTab === m)}" aria-selected="${statsTab === m}">${GLYPH[m]}${t('mode.' + m)}</button>`).join('')}</div>
     <section class="section" role="tabpanel">
       ${none ? `<div class="none"><strong>${t('stats.none', { g: t('mode.' + statsTab) })}</strong><p class="help">${t('stats.noneHelp')}</p></div>` : ''}
-      ${statsTab === 'letters' ? lettersPanel() : guessPanel()}
-      <div class="shared"><span>${t('stats.allGames')} <b>${num(s.played + lt.played)}</b></span>${DOT}<span><b>${clock(s.timeMs, true)}</b> ${t('stats.hours')}</span></div>
+      ${{ letters: lettersPanel, connect: connectPanel }[statsTab]?.() ?? guessPanel()}
+      <div class="shared"><span>${t('stats.allGames')} <b>${num(s.played + lt.played + cn.played)}</b></span>${DOT}<span><b>${clock(s.timeMs, true)}</b> ${t('stats.hours')}</span></div>
     </section>
   </main>
 </div>`;
