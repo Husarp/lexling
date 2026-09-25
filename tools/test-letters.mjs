@@ -149,7 +149,14 @@ check('every Polish word Letters may hide is in the word-game dictionary (sjp.pl
   try { const sjp = new Set(readFileSync(new URL('raw/tiles/slowa.txt', import.meta.url), 'utf8').split(/\r?\n/)); return plAll.filter(i => !sjp.has(pl.words[i])).map(i => pl.words[i]); }
   catch { return []; }                    // the raw list is not in git: checked where it was downloaded
 })(), []);
+// Znaczenie's secrets go through the same list (owner, 2026-09-25)
+const { secretPool } = await import('../app/js/engine.js');
+const guessPl = new Set(['relaxed', 'easy', 'normal', 'hard'].flatMap(diff => secretPool(pl, { cat: 'all', band: 'any', diff })).map(i => pl.words[i]));
+check('Znaczenie never hides them either', ['szer', 'video', 'nokia', 'reebok', 'toshiba', 'download'].filter(w => guessPl.has(w)), []);
+check('...but long real words stay (the word-game list stops at 15 letters)', ['odpowiedzialność', 'przedsiębiorstwo'].filter(w => !guessPl.has(w) && pl.secret.some(i => pl.words[i] === w)), []);
 const en = await load('en'), enAll = pool(en, { diff: 'random' });
+const guessEn = new Set(['relaxed', 'easy', 'normal', 'hard'].flatMap(diff => secretPool(en, { cat: 'all', band: 'any', diff })).map(i => en.words[i]));
+check('Znaczenie never hides a slur or a vulgar word', ['bullshit', 'clit'].filter(w => guessEn.has(w)), []);
 check('English: abbreviations and numerals never hidden, everyday new words stay',
   [['asap', 'pct', 'vii', 'kinda', 'clit'].filter(w => has(en, enAll, w)), ['email', 'website', 'blog'].filter(w => !has(en, enAll, w))], [[], []]);
 

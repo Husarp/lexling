@@ -131,7 +131,10 @@ A category with too few words in a band falls back to the **20 easiest it has** 
 Tools Relaxed is *butelka, szczotka, łańcuch* — and the new-game readout always shows the real count,
 so the choice is informed: *"3–9 letters · 23 words this game can hide"*.
 
-### Words Letters and Connect never hide (0.33.1, owner: "SZER on Normal?")
+### Words no game hides - Letters, Connect and, since 0.33.3, Guess (0.33.1, owner: "SZER on Normal?")
+Guess's secrets (its own list, every category) go through the same pool.json: its brands (reebok, toshiba), and the
+English slurs and vulgar words its data still held (bullshit, prick). The word-game list stops at 15 letters, so only
+words up to 15 letters are checked against it - odpowiedzialność is not missing, just long.
 `app/data/<lang>/pool.json` (tools/build-pool-fix.mjs) lists words kept out on top of the rules below. Polish:
 every word sjp.pl's word-game list does not know (119: English words, brands, abbreviations, fragments - video,
 nokia, ppłk, owy), and by hand 184 it knows but nobody would guess: plain English riding on English web text

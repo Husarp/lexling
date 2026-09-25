@@ -145,7 +145,7 @@ two word-game lists by `node tools/build-tiles-words.mjs` (~20 s). It needs, in 
 `enable1.txt` (https://raw.githubusercontent.com/dolph/dictionary/master/enable1.txt), plus the LibreOffice
 dictionaries above (to leave out every form of a slur or vulgar word).
 
-`app/data/<lang>/pool.json` - the words Litery and Połącz never hide (not in the word-game list, plain English,
+`app/data/<lang>/pool.json` - the words Litery, Połącz and Znaczenie never hide (not in the word-game list, plain English,
 abbreviations riding on a real word) and the words let back in (gra, muzyka) - is built by
 `node tools/build-pool-fix.mjs` from the same `slowa.txt`, sjp.pl's inflection list `tools/raw/tiles/odm.txt`
 (https://sjp.pl/sl/odmiany/ - unzip `sjp-odm-YYYYMMDD.zip`) and `tools/raw/cc.pl.tokens.txt`.

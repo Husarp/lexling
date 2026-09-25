@@ -1,5 +1,5 @@
-// Builds app/data/<lang>/pool.json: words Litery and Połącz must never hide, on top of the rules in letters.js
-// (owner, 2026-09-25: "some words are not intuitive - SZER on Normal? - rule out weird words").
+// Builds app/data/<lang>/pool.json: words Litery, Połącz and Znaczenie must never hide, on top of their own rules
+// (owner, 2026-09-25: "some words are not intuitive - SZER on Normal? - rule out weird words"; Znaczenie too: yes).
 // Run: node tools/build-pool-fix.mjs   (needs tools/raw/tiles/slowa.txt - see tools/build-tiles-words.mjs)
 //
 // Polish: every word the word-game list (sjp.pl) does not know - English words, brands, abbreviations, fragments
@@ -23,6 +23,7 @@ globalThis.fetch = async url => { const b = readFileSync(new URL(url, ROOT));
     arrayBuffer: async () => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) }; };
 const { loadWords } = await import('../app/js/engine.js');
 const { pool } = await import('../app/js/letters.js');
+const { offensiveWord } = await import('../app/js/offensive.js');
 
 const USED = 60000;
 // by hand, the other way: its own forms are used, but its spelling mostly means something else (cech - cecha)
@@ -42,19 +43,25 @@ const HAND = {
     + 'networking controlling consulting booking publishing sampling boyfriend '
     // the count belongs to something else: an abbreviation (szer. = szerokość, bryg. = brygada), a set phrase (wodzić
     // rej), a particle or a prefix; and inflected forms taken for base words
-    + 'szer rej kard spid czyż mikro bryg causa staje wali żarty tam września osi ucha dań badan',
+    + 'szer rej kard spid czyż mikro bryg causa staje wali żarty tam września osi ucha dań badan '
+    // Znaczenie's own list: brands and a fragment
+    + 'retriever reebok torx acer toshiba boeing stradivarius ować',
   en: 'non kinda asap corp cred pct inst vii viii kph bps bpm meg bbl ftp cert choc google christian fab',
 };
 
 for (const lang of ['pl', 'en']) {
   const m = await loadWords(lang);
-  // start from the pool as the rules alone make it
-  const all = pool({ ...m, poolFix: undefined }, { diff: 'random', marks: true }).map(i => m.words[i]);
+  // start from what the rules alone let each game hide: Litery's pool (Połącz uses the same), and Znaczenie's secrets
+  const all = [...new Set([...pool({ ...m, poolFix: undefined }, { diff: 'random', marks: true }),
+    ...m.secret, ...Object.values(m.cats).flat()].map(i => m.words[i]))];
   const drop = new Set(HAND[lang].split(' '));
+  // never a slur or a vulgar word (offensive.js) - Litery and Połącz check that themselves, Znaczenie did not
+  for (const w of all) if (offensiveWord(lang, w)) drop.add(w);
   if (lang === 'pl') {
     if (!existsSync(new URL('slowa.txt', RAW))) throw new Error('tools/raw/tiles/slowa.txt is missing - see tools/build-tiles-words.mjs');
     const known = new Set(readFileSync(new URL('slowa.txt', RAW), 'utf8').split(/\r?\n/));
-    for (const w of all) if (!known.has(w)) drop.add(w);
+    // the word-game list stops at 15 letters (a board's width): longer words (odpowiedzialność) are not missing from it
+    for (const w of all) if ([...w].length <= 15 && !known.has(w)) drop.add(w);
   }
   const restore = lang === 'pl' ? wordsInTheirOwnRight(m) : [];
   const words = [...drop].filter(w => all.includes(w) || restore.includes(w)).sort((a, b) => a.localeCompare(b, lang));

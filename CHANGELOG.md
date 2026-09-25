@@ -6,6 +6,18 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.33.3 — 2026-09-25 19:01: Znaczenie gets the same word cleanup
+*(packaged for the owner's phone)*
+
+- **Znaczenie never picks the words the other games never hide** (owner: yes): no English words, abbreviations or
+  brands as the secret - and its own list had a few more brands and a fragment (reebok, toshiba, acer, boeing, torx,
+  "ować"), now out as well.
+- **English Znaczenie could still pick a vulgar word or a slur as the secret** (bullshit, prick, bollocks and two
+  slurs) - the slur filter covered only Litery and Połącz. Now it covers all three.
+- Long real words stay: the word-game list stops at 15 letters, so longer ones (odpowiedzialność) are not checked
+  against it.
+- 270 Letters tests (3 new: Znaczenie never hides those, keeps long words, never hides a slur).
+
 ## 0.33.2 — 2026-09-25 18:36: Good words back in Litery and Połącz (gra, muzyka, droga...)
 *(not packaged)*
 

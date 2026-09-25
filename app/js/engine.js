@@ -195,7 +195,8 @@ const letters = w => [...w].length;
 export const BANDS = { short: [3, 5], medium: [6, 8], long: [9, Infinity], any: [0, Infinity] };
 export const HIST_FROM = 3, HIST_TO = 12;      // last bar counts everything from 12 letters up
 
-const candidates = (m, cat) => cat === 'all' ? m.secret : m.cats[cat] || [];
+// ...never one of the words no game here hides (pool.json: not a word, plain English, a brand, a slur - owner, 2026-09-25)
+const candidates = (m, cat) => (cat === 'all' ? m.secret : m.cats[cat] || []).filter(i => !m.poolFix?.drop.has(m.words[i]));
 
 // Bars for the length histogram over the words this language + category + difficulty can hide, plus
 // what the chosen band holds: { bars: [{ len, last, count, on }], count, share, from, to }. The

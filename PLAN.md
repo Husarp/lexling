@@ -492,7 +492,8 @@ Order: the game itself first, then these; all of them are in the design prompt, 
       kino, złoto, przyjaźń, szachy, spodnie... (each is also a form of something else: gra of grać, muzyka of muzyk). The
       Hunspell dictionary cannot tell them apart; sjp.pl's inflection list (sjp-odm-*.zip, 12.7 MB, same licence) can - it
       starts every line with the base form. Asked the owner to allow the download.
-- [ ] Znaczenie (Guess) hides from its own list; the same drop list could apply there too - asked again with more context.
+- [x] Znaczenie (Guess) hides from its own list - the same cleanup now applies there too (owner: yes), 0.33.3. It also
+      caught English slurs and vulgar words Znaczenie could still pick (bullshit, prick, bollocks...).
 - [x] **How to play, on every New game screen** (owner, 2026-09-25: "a card that says how to play - which
       letters are used and things like that"; for Kafelki, long, "maybe an expandable section"). Owner: yes, and
       yes to the "?" in Kafelki's game screen. Built for Znaczenie, Litery, Połącz in 0.33.0: one collapsible card under the title (open until the first game of that kind is
