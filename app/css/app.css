@@ -1157,7 +1157,15 @@ input,textarea{-webkit-user-select:text;user-select:text}
 @container (max-width:480px){[data-screen=tiles] .status-actions .tl-find{min-width:36px}}
 /* on the narrowest phones the row stays one line - the labels give up their tracking first (fit.js) - unless Undo is there too */
 @container (max-width:360px){
-  [data-screen=tiles] .status-actions:not(:has([data-act=undo])){flex-wrap:nowrap;gap:var(--space-2)}
+  [data-screen=tiles] .status-actions:not(:has([data-act=undo])){flex-wrap:nowrap;gap:6px;min-width:0}
   [data-screen=tiles] .status-actions:not(:has([data-act=undo])) .btn{min-width:0;padding:0 var(--space-2)}
   [data-screen=tiles] .status-actions .tl-find{flex:none;min-width:36px}
 }
+/* 0.38.0: bonus squares without their colours (a setting): one quiet grey, the label kept - so the players' colours
+   are the only strong ones on the board (owner, 2026-09-25: "too many colours") */
+:root{--tb-mono:#383838;--tb-mono-ink:#CFCFCF}
+[data-theme=light]{--tb-mono:#DADDE5;--tb-mono-ink:#3A3F4B}
+.tb.mono .q:is(.l2,.l3,.w2,.w3){background:var(--tb-mono);color:var(--tb-mono-ink)}
+/* the palette beside the magnifier: player colours on / off in one tap; lit while they are on */
+[data-screen=tiles] .status-actions .tl-find+.tl-find{margin-left:0}
+.tl-paint.on{color:var(--accent)}

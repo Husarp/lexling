@@ -502,6 +502,12 @@ are in `screens.js`.
   colour-blind eyes too. The dot beside a name is the same hue, darker. No ring round the last move any more, and
   no points bubble on the board after a move (owner) - the message line says what was played. The switch: New
   game, the game's History panel, Settings (one setting).
+- **Fewer colours, when wanted** (0.38.0, owner: "with the player colours on the board, the bonus squares' colours
+  get too much"): a second switch, "Kolorowe premie / Coloured bonus squares" - off, every bonus square is one quiet
+  grey with only its label (2L, 3L, 2S, 3S). Both switches are in Settings, on New game and in the game (History);
+  the player colours also have a one-tap palette button beside the magnifier, lit while they are on.
+- **The message line adds up** (0.38.0, owner): one word "KOT 5"; several words (or the seven-tile bonus) "KOT 5 +
+  TOK 6 = 11", not dots between them.
 - **Who starts** (0.36.0, owner): chosen on New game, or drawn at random ("Drawn at random" shows only then); the
   players list is the order of play, ↑ ↓ move a player.
 - **Hints off** (0.36.0): a rule - no Hint tool in that game.

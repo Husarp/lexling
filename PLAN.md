@@ -496,6 +496,11 @@ Order: the game itself first, then these; all of them are in the design prompt, 
 - [x] **How to play closed every time**, in all four games; **no Random level** in Litery and Połącz either. 0.37.0
 - [x] **No tabs** (owner): the scores open History, the bag Letters left, a small magnifier beside Save & exit /
       Give up opens Check a word. 0.37.1
+- [x] **Too many colours** (owner): "Kolorowe premie" - bonus squares one quiet grey with their labels - in Settings,
+      New game and the game; a palette button beside the magnifier turns the player colours on and off. 0.38.0
+- [x] **The message line adds up**: "KOT 5 + TOK 6 = 11" instead of dots (owner). 0.38.0
+- [ ] Other settings in the game too? (owner asked, 2026-09-26) - proposal sent: sound in every game, Letters' phone
+      keyboard in Litery, spelling mistakes in Znaczenie.
 - [ ] Tune the levels by playing.
 
 ## Litery: hints and the "what you know" strip — DONE 2026-09-25 (0.28.2)

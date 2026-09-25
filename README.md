@@ -52,7 +52,8 @@ Playable in **Polish and English** (both the UI and the word libraries).
   drawn. Four boards (Classic, Bonus, Diamond; Quick - 11 × 11 with about half the tiles), the
   full 100-tile sets, sjp.pl / ENABLE word lists. Place tiles by dragging, by tapping, or by typing on a PC;
   the board zooms in on a phone (and pinches). Hints in three levels (Small, Big, Master), exchange, pass, a
-  letters-left list, check any word, each player's tiles in their colour (switchable), rule options
+  letters-left list, check any word, each player's tiles in their colour and coloured bonus squares (both
+  switchable, also mid-game), rule options
   (bonus squares every time, challenges, exchanges always, no seven-tile bonus, a clock per move or per game,
   hints off, undo against the computer, everyone's tiles shown between friends), each score's "+points" of the
   last turn,

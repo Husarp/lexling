@@ -20,6 +20,9 @@ export const settings = read('wg.settings', {
   polish: { letters: true, connect: true },
   // Tiles: each player's letters in their own colour (design v5) - also switched in a game's History panel
   tilesColours: true,
+  // Tiles: the bonus squares in their colours - off: one quiet grey with the labels only (owner, 2026-09-25: "too many
+  // colours on the board")
+  tilesBonus: true,
   // Only the language carries over between games; everything else starts from NEW_GAME each time.
   newGame: { lang: null },
 });

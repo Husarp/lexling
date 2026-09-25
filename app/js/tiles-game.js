@@ -26,6 +26,7 @@ const ICON = {
 const CHEV = '<svg class="tl-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>';
 const ZOOM_OUT = svg('<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path><path d="M8 11h6"></path>');
 const CLOSE = svg('<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>');
+const PAINT = svg('<circle cx="13.5" cy="6.5" r="1"></circle><circle cx="17.5" cy="10.5" r="1"></circle><circle cx="8.5" cy="7.5" r="1"></circle><circle cx="6.5" cy="12.5" r="1"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.65-.75 1.65-1.69 0-.44-.18-.84-.44-1.13-.29-.29-.44-.65-.44-1.13a1.64 1.64 0 0 1 1.67-1.67h2c3.05 0 5.55-2.5 5.55-5.55C21.97 6.01 17.46 2 12 2z"></path>');
 const FIND = svg('<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>');
 const DOT = '<span class="dot">·</span>';
 const ERR = { line: 'tiles.err.line', gap: 'tiles.err.gap', alone: 'tiles.err.touch', centre: 'tiles.err.centre', single: 'tiles.err.single' };
@@ -156,6 +157,8 @@ export async function tilesGameScreen(root, id) {
   const more = $('.tl-more'), over = $('.tl-over');
   const refit = () => fitAll(root);
 
+  // the board's two colour switches (Settings, New game, the game): players' tiles tinted; bonus squares coloured
+  const looks = () => (settings.tilesColours !== false ? ' own' : '') + (settings.tilesBonus === false ? ' mono' : '');
   const myTurn = () => !S.over && !thinking && !toast && !handOver && !cpu(S.turn) && shown === S.turn;
   // The rack in the order its player arranged it (reorder, shuffle): the saved order, then any tiles new to it.
   const rackOf = p => {
@@ -177,11 +180,12 @@ export async function tilesGameScreen(root, id) {
     const out = placed.length === S.racks[S.turn].length && !S.bag.length;
     return S.rules.check === 'challenge' && !out ? wordsMade(S, placed) : checkMove(S, placed, isWord);
   }
-  // the words a move makes, each with its points when there are several, and the total
+  // the words a move makes and the points: one word "KOT 5"; several (or the seven-tile bonus) added up -
+  // "KOT 5 + TOK 6 = 11" (owner, 2026-09-25)
   const wordsLine = (words, score, all) => {
-    const bonus = all && S.rules.bingo;
-    return words.map(x => `<b>${esc(x.w)}</b>${words.length > 1 || bonus ? ' ' + x.score : ''}`).join(' · ')
-      + (bonus ? ` · +${S.rules.bingo}` : '') + ` <span class="pts">${score}</span>`;
+    const bonus = all && S.rules.bingo, sum = words.length > 1 || bonus;
+    return words.map(x => `<b>${esc(x.w)}</b>${sum ? ' ' + x.score : ''}`).join(' + ')
+      + (bonus ? ` + ${S.rules.bingo}` : '') + (sum ? ' =' : '') + ` <span class="pts">${score}</span>`;
   };
 
   // ── painting ──
@@ -196,7 +200,7 @@ export async function tilesGameScreen(root, id) {
       ${S.rules.time ? `<div class="tl-clock"><span class="eyebrow">${t('tiles.r.time')}</span><span class="num"></span></div>` : ''}
       ${open ? othersHtml() : ''}
       <div class="status-actions"><a class="btn btn-ghost" href="#/games/tiles">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button>${
-        canUndo ? `<button class="btn btn-ghost" type="button" data-act="undo"${undo(S, isWord, 0) ? '' : ' disabled'}>${t('tiles.undo')}</button>` : ''}<button class="btn btn-ghost tl-find" type="button" data-open="check" aria-label="${t('tiles.check')}" title="${t('tiles.check')}">${FIND}</button></div>`;
+        canUndo ? `<button class="btn btn-ghost" type="button" data-act="undo"${undo(S, isWord, 0) ? '' : ' disabled'}>${t('tiles.undo')}</button>` : ''}<button class="btn btn-ghost tl-find tl-paint${settings.tilesColours !== false ? ' on' : ''}" type="button" data-act="colours" aria-pressed="${settings.tilesColours !== false}" aria-label="${t('tiles.colours')}" title="${t('tiles.colours')}">${PAINT}</button><button class="btn btn-ghost tl-find" type="button" data-open="check" aria-label="${t('tiles.check')}" title="${t('tiles.check')}">${FIND}</button></div>`;
     confirmClick(status.querySelector('#give-up'), giveUp, refit);
     paintClock();
   }
@@ -217,7 +221,7 @@ export async function tilesGameScreen(root, id) {
     const shownDraft = draft.filter((_, i) => i !== lifted);
     const bubble = res && !res.error ? { ...lastTile(draft), pts: res.score, cls: draft[0].hint ? 'hint' : '' }
       : null;
-    tb.className = `tb n${n}${zoom.z > 1 ? ' zoom' : ''}${settings.tilesColours !== false ? ' own' : ''}`;
+    tb.className = `tb n${n}${zoom.z > 1 ? ' zoom' : ''}${looks()}`;
     tb.innerHTML = boardInner(S, { draft: shownDraft, bad: !!res?.error, cursor: myTurn() && mode === 'play' ? cursor : null, drop: dropAt, bubble });
     applyZoom(!!(pinch || press?.drag));
     // tiles that just came down settle in, 150 ms each, 60 apart (design: motion)
@@ -312,9 +316,10 @@ export async function tilesGameScreen(root, id) {
             : t(m.ok ? 'tiles.hist.challengeWon' : 'tiles.hist.challengeLost');
       return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${i + 1}</span><span class="who" title="${esc(nameOf(S, m.p))}"></span><span class="w">${w}</span><span class="r">${quiet ? '–' : m.score}</span></li>`;
     }).reverse();
-    const own = settings.tilesColours !== false;
+    const own = settings.tilesColours !== false, bonus = settings.tilesBonus !== false;
     return (rows.length ? `<ol class="tl-hist">${rows.join('')}</ol>` : `<p class="help">${t('tiles.hist.empty')}</p>`)
-      + `<div class="tl-row"><span>${t('tiles.colours')}</span><button type="button" class="toggle${own ? ' on' : ''}" role="switch" aria-checked="${own}" data-act="colours" aria-label="${t('tiles.colours')}"></button></div>`;
+      + `<div class="tl-row"><span>${t('tiles.colours')}</span><button type="button" class="toggle${own ? ' on' : ''}" role="switch" aria-checked="${own}" data-act="colours" aria-label="${t('tiles.colours')}"></button></div>`
+      + `<div class="tl-row"><span>${t('tiles.bonus')}</span><button type="button" class="toggle${bonus ? ' on' : ''}" role="switch" aria-checked="${bonus}" data-act="bonus" aria-label="${t('tiles.bonus')}"></button></div>`;
   }
   function unseenHtml() {
     // as the player on screen sees it; with nobody's rack on screen, every tile not on the board
@@ -520,7 +525,8 @@ export async function tilesGameScreen(root, id) {
     },
     guide() { if (!S.over) { panel = panel === 'guide' ? null : 'guide'; paintMore(); } },
     close() { panel = null; paintMore(); },
-    colours() { settings.tilesColours = settings.tilesColours === false; saveSettings(); paintBoard(); paintMore(); },
+    colours() { settings.tilesColours = settings.tilesColours === false; saveSettings(); paintStatus(); paintBoard(); paintMore(); },
+    bonus() { settings.tilesBonus = settings.tilesBonus === false; saveSettings(); paintBoard(); paintMore(); },
     zoomout() { zoomOut(); applyZoom(); },
     show() { handOver = false; shown = S.turn; paintAll(); },
     pickCancel() {
@@ -842,7 +848,7 @@ export async function tilesGameScreen(root, id) {
       <div class="result-stats"><span><b>${bingos}</b> ${plural(bingos, 'tiles.end.bingos')}</span>${DOT}<span><b>${hints}</b> ${plural(hints, 'tiles.end.hints')}</span>${DOT}<span>${[t('tiles.board.' + S.board), levels].filter(Boolean).join(' · ')}</span></div>
       <div class="result-actions"><a class="btn btn-primary" href="#/new/tiles">${t('lt.again')} <span class="arrow">→</span></a><a class="btn btn-ghost" href="#/">${t('menu')}</a></div>
     </div>
-    <div class="tl-final"><div class="tl-board"><div class="tb n${n}${settings.tilesColours !== false ? ' own' : ''}" style="--n:${n}">${boardInner(S)}</div></div></div>
+    <div class="tl-final"><div class="tl-board"><div class="tb n${n}${looks()}" style="--n:${n}">${boardInner(S)}</div></div></div>
     <div class="card tl-look" hidden></div>`;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     refit();

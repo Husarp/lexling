@@ -682,6 +682,11 @@ export function tilesNewScreen(root, _, refresh) {
           <button type="button" class="toggle" role="switch" aria-label="${t('tiles.colours')}"></button>
         </div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.coloursHelp')}</p>
+        <div class="row" id="bonus">
+          <div class="row-text"><strong>${t('tiles.bonus')}</strong></div>
+          <button type="button" class="toggle" role="switch" aria-label="${t('tiles.bonus')}"></button>
+        </div>
+        <p class="help"><span class="arrow">→</span> ${t('tiles.bonusHelp')}</p>
       </div>
       <details class="card tl-rules"${o.rulesOpen ? ' open' : ''}>
         <summary><span class="eyebrow">${t('tiles.rules')} <span class="muted"></span></span><span class="arrow" aria-hidden="true">›</span></summary>
@@ -744,9 +749,10 @@ export function tilesNewScreen(root, _, refresh) {
       b.querySelector('.meta').innerHTML = `${n} × ${n} ${DOT} ${tiles} ${plural(tiles, 'tiles.tilesN')}`;
     });
     // the same switch as in Settings and in the game (owner, 2026-09-25: "also on the setup")
-    const colours = $('#colours .toggle'), own = settings.tilesColours !== false;
-    colours.classList.toggle('on', own);
-    colours.setAttribute('aria-checked', own);
+    for (const [el, value] of [[$('#colours > .row .toggle'), settings.tilesColours !== false], [$('#bonus .toggle'), settings.tilesBonus !== false]]) {
+      el.classList.toggle('on', value);
+      el.setAttribute('aria-checked', value);
+    }
     paintPlayers();
     paintRules();
     paintSummary();
@@ -766,7 +772,8 @@ export function tilesNewScreen(root, _, refresh) {
     sync();
   }));
   root.querySelectorAll('[data-board]').forEach(b => b.addEventListener('click', () => { o.board = b.dataset.board; sync(); }));
-  $('#colours .toggle').addEventListener('click', () => { settings.tilesColours = settings.tilesColours === false; saveSettings(); sync(); });
+  $('#colours > .row .toggle').addEventListener('click', () => { settings.tilesColours = settings.tilesColours === false; saveSettings(); sync(); });
+  $('#bonus .toggle').addEventListener('click', () => { settings.tilesBonus = settings.tilesBonus === false; saveSettings(); sync(); });
   $('.tl-rules').addEventListener('toggle', e => { o.rulesOpen = e.target.open; });
   $('.tl-players').addEventListener('input', e => {
     const p = e.target.dataset.name;
@@ -967,6 +974,7 @@ export async function settingsScreen(root, _, refresh) {
     <section class="group">
       <h2 class="title">${t('set.tiles')}</h2>
       <div class="row"><div class="row-text"><strong>${t('tiles.colours')}</strong><span>${t('set.tilesColoursDesc')}</span></div><button type="button" class="toggle ${on(settings.tilesColours)}" data-toggle="tilesColours" role="switch" aria-checked="${settings.tilesColours}" aria-label="${t('tiles.colours')}"></button></div>
+      <div class="row"><div class="row-text"><strong>${t('tiles.bonus')}</strong><span>${t('tiles.bonusHelp')}</span></div><button type="button" class="toggle ${on(settings.tilesBonus)}" data-toggle="tilesBonus" role="switch" aria-checked="${settings.tilesBonus}" aria-label="${t('tiles.bonus')}"></button></div>
     </section>
     <section class="group">
       <h2 class="title">${t('set.updates')}</h2>

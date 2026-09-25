@@ -6,6 +6,21 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.38.0 — 2026-09-26 00:04: Kafelki: fewer colours when you want, and the points added up
+*(not packaged)*
+
+- **"Kolorowe premie" / "Coloured bonus squares"** (owner: "too many colours on the board"): off, every bonus
+  square turns one quiet grey and keeps only its label (2L, 3L, 2S, 3S). In Settings → Kafelki, on New game, and
+  in the game (tap the scores → History).
+- **A palette button 🎨** beside the magnifier turns the player colours on and off in one tap, mid-game; it is lit
+  while they are on.
+- **The message line adds up** (owner): "Komputer: WINNI 7 + IN 4 + MI 3 = 14" instead of dots between the words;
+  a single word stays "KOT 5".
+- On the narrowest phones (320-360 px) the Save & exit / Give up row, now with two small buttons, stays on one line
+  and inside the screen (before this fix it ran past the right edge).
+- Checked in headless Edge at 320 and 480 px: both switches in the game, New game and Settings; a move of three
+  words; no overflow, no console errors.
+
 ## 0.37.1 — 2026-09-25 23:56: Kafelki: no tabs - check a word from a magnifier
 *(not packaged)*
 
