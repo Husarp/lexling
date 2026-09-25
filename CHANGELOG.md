@@ -6,6 +6,16 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.22.3 — 2026-09-25 04:19: Android shows the real version number
+*(not packaged)*
+
+- **Android's App info said version 1.0** for every build: the Android project had its own number, set
+  once and never changed. It now reads the version from `app/js/version.js` — the one place it is
+  written, as the Windows build already does — so App info shows e.g. 0.22.3. The build number Android
+  uses to tell a newer APK from an older one follows it: X × 10000 + Y × 100 + Z (0.22.3 → 2203), so
+  it grows with every version. Checked without packaging: Gradle computes 0.22.2 / 2202 from 0.22.2.
+
+
 ## 0.22.2 — 2026-09-25 04:10: + at 20 tries goes on to unlimited
 *(released 2026-09-25 as v0.22.2 — Windows installer + Android APK, the first release as Lexling, so it carries 0.18.0–0.22.1 too; the APK is also on the phone)*
 

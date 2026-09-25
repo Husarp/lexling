@@ -1,5 +1,10 @@
 apply plugin: 'com.android.application'
 
+// The version comes from app/js/version.js, the one place it is written - as for the Windows build.
+// versionCode must grow with every release or Android refuses the update: 0.22.3 → 2203, 1.0.0 → 10000.
+def appVersion = (file('../../app/js/version.js').text =~ /VERSION\s*=\s*'([^']+)'/)[0][1]
+def (major, minor, patch) = appVersion.tokenize('.').collect { it as int }
+
 android {
     namespace "com.husarp.lexling"
     compileSdk rootProject.ext.compileSdkVersion
@@ -7,8 +12,8 @@ android {
         applicationId "com.husarp.lexling"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode major * 10000 + minor * 100 + patch
+        versionName appVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
