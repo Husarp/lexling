@@ -360,7 +360,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-kb] [data-screen=letters].app{height:var(--vvh,100dvh);min-height:0}
 [data-kb] [data-screen=letters] .topbar,[data-kb] [data-screen=letters] .status{display:none}
 [data-kb] [data-screen=letters] .main{min-height:0;padding-top:var(--space-2);padding-bottom:var(--space-2);gap:var(--space-2)}
-[data-kb] [data-screen=letters] .play{flex:1;min-height:0;grid-template-rows:auto minmax(0,1fr) auto;gap:var(--space-2)}
+[data-kb] [data-screen=letters] .play{flex:1;min-height:0;grid-template-rows:auto auto minmax(0,1fr) auto;gap:var(--space-2)}
 [data-kb] [data-screen=letters] .lt-board{overflow-y:auto;align-content:start;overscroll-behavior:contain}
 [data-kb] [data-screen=letters] .lt-row{--max:48px}
 /* game-letters-end.html */
@@ -415,7 +415,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
    applies (Guess at the bottom, next to the keyboard). The end screen is an ordinary page again. */
 [data-screen=letters].app.fit{height:var(--vvh,100dvh);min-height:0}
 [data-screen=letters].fit .main{min-height:0}
-html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;grid-template-rows:auto minmax(0,1fr) auto}
+html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;grid-template-rows:auto auto minmax(0,1fr) auto}
 [data-screen=letters].fit .lt-board{overflow-y:auto;align-content:start;overscroll-behavior:contain;padding:4px 0}   /* room for the 4px lift of the reveal */
 /* a new row grows in, tile by tile from the left - quick: a 5-letter row is done in under a third of a
    second, a 13-letter one in under half */
@@ -562,7 +562,7 @@ html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;g
    board's padding — budget 14px for them so the last tile is never cut off */
 [data-screen=letters].fit .lt-row{--box:min(var(--max,60px),calc((100cqi - 14px - (var(--n) - 1) * var(--gap)) / var(--n)))}
 [data-screen=letters].kbon .lt-row{--max:48px}
-html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:var(--space-2)}
+html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-height:0;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:var(--space-2)}
 [data-screen=letters].kbon .lt-board{overflow-y:auto;align-content:start;overscroll-behavior:contain;padding:4px}
 /* the grid only ever scrolls up and down; a thin, quiet bar in the app's greys (no arrows, no track) */
 [data-screen=letters].fit .lt-board{overflow-x:hidden;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
@@ -743,3 +743,17 @@ html{-webkit-tap-highlight-color:transparent}
 /* Nothing on screen selects as text on a long press (buttons, labels, tiles) - only what is typed into */
 body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 input,textarea{-webkit-user-select:text;user-select:text}
+
+/* ── Letters: what you know (owner, 2026-09-25) ── above the grid, a box per letter: green where a guess had
+   the right letter, dashed where a hint showed it; then, in yellow, the letters known to be in the word that
+   no box holds yet. It learns from a guess once the row has coloured in. */
+[data-screen=letters] .known{display:flex;align-items:center;gap:var(--space-3)}
+[data-screen=letters] .known-slots{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px var(--space-4)}
+[data-screen=letters] .known .mt-row{flex-wrap:wrap;gap:4px}
+/* Hint sits at the end of the strip it fills: Connect's bulb, a quiet ghost button */
+[data-screen=letters] .lt-hint{flex:none;min-height:36px;padding:0 var(--space-2);color:var(--text)}
+[data-screen=letters] .lt-hint svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+@media (hover:none){[data-screen=letters] .lt-hint:hover{color:var(--text)}}
+[data-screen=letters] .known .mt{font-weight:700}
+[data-screen=letters] .known .mt.hintd{color:var(--text-muted)}
+[data-screen=letters] .known .mt.new-hint{animation:cw-hint 150ms var(--ease)}

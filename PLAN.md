@@ -362,6 +362,11 @@ Starting it before the letters mode exists is how a project ends up with three h
 - [x] **Its name: Kafelki / Tiles** — chosen by the owner 2026-09-25 (also offered: Pojedynek / Duel,
       Mistrz słów / Wordsmith, Letterex; not "Literaki", a well-known Polish online game of this kind).
 
+## Litery: hints and the "what you know" strip — DONE 2026-09-25 (0.28.2)
+- [x] Hint = one letter in its right place, free (counted only), at most half the word; the strip above the grid
+      shows the letters in place and the yellow ones still to place. Owner's idea.
+- [ ] Open: should a hint lower the score? (it does not yet)
+
 ## M14 — The third game: Połącz / Connect — PLANNED 2026-09-25, designs requested
 The owner's description: you get a few letters **arranged in a circle**. You draw a word by dragging
 through the letters with a finger (or the mouse held down) — a line follows the path — and **letting

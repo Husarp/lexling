@@ -187,5 +187,34 @@ export function keyStates(guesses, answer, upto = Infinity) {
   return { state, count };
 }
 
+// ── What the player knows, and hints (owner, 2026-09-25) ─────────────────────────────────────────
+// `hinted` = the positions a hint has shown (0-based). A hint shows one letter in its right place and
+// costs nothing but being counted; at most half the word (rounded down) may come from hints, as in Connect.
+
+// The overview beside the grid: one slot per letter - 'hit' where some guess had the right letter there,
+// 'hint' where a hint showed it, '' where nothing is known - and `loose`: the letters known to be in the
+// word that no slot holds yet (the yellows still to place), once for each time they are still missing.
+export function known(guesses, answer, hinted = []) {
+  const a = [...answer.toLowerCase()];
+  const slots = a.map((ch, i) => guesses.some(g => [...g.toLowerCase()][i] === ch) ? { ch, how: 'hit' }
+    : hinted.includes(i) ? { ch, how: 'hint' } : { ch: '', how: '' });
+  const { count } = keyStates(guesses, answer);
+  const loose = [];
+  for (const [ch, k] of Object.entries(count)) {
+    const placed = slots.filter(s => s.ch === ch).length;
+    for (let i = placed; i < k; i++) loose.push(ch);
+  }
+  return { slots, loose };
+}
+
+// The next hint: a random position whose letter is not known yet - or -1 when every letter is known,
+// or -2 when half the word already came from hints.
+export function hintAt(guesses, answer, hinted = [], rand = Math.random) {
+  const open = known(guesses, answer, hinted).slots.map((s, i) => s.how ? -1 : i).filter(i => i >= 0);
+  if (!open.length) return -1;
+  if (hinted.length >= Math.floor([...answer].length / 2)) return -2;
+  return open[Math.floor(rand() * open.length)];
+}
+
 // the "letters" of the score: żółw is 2+2+2+1 = 7
 export const points = answer => [...answer.toLowerCase()].reduce((n, ch) => n + (MARKED.test(ch) ? 2 : 1), 0);

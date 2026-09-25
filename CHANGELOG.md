@@ -6,6 +6,22 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.28.2 — 2026-09-25 14:45: Litery gets hints, and a strip of what you already know
+*(not packaged)*
+
+The owner's idea, the owner's rules:
+- **A strip above the grid: what you know.** One box per letter of the word - green with its letter where a guess
+  had the right letter in that place (any guess, not only the last), dashed where a hint showed it - and then, in
+  yellow, the letters known to be in the word that no box holds yet (as many times as they are still missing). So
+  the whole game so far reads in one line: "this and this letter here, and I still have to place that one". It
+  learns from a guess once the row has coloured in, like the keys.
+- **Hint** - the bulb at the end of that strip: shows **one letter in its right place**, a random one not known
+  yet. **It costs no try** (owner: it is a fun game) - it is only counted, and the end card says how many hints were
+  used. At most half the word (rounded down) can come from hints, as in Connect; then the game says so, and also
+  when every letter's place is already known. The status row keeps just Save & exit and Give up.
+- The score is not changed by hints (asked of the owner).
+- Rules in `letters.js` (`known`, `hintAt`); 8 new tests, 272 in all.
+
 ## 0.28.1 — 2026-09-25 14:39: Letters' keys colour in with their tiles, letter by letter
 *(not packaged)*
 
