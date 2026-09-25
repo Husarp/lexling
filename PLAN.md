@@ -395,9 +395,9 @@ Measured on the lists the app has (`ac.txt` + `extra.txt`): 458 306 Polish words
 - [x] **Design, round 1** arrived 2026-09-25 (`design/v5/`, `LexlingTilesDesing.zip`) - made from the first brief: one person vs
       the computer, three boards, a one-step hint. Kept: the classic bonus hues (owner), yellow tiles with dark ink,
       labelled buttons, auto-zoom + pinch, the merged history / letters-left panel.
-- [ ] **Design, round 2**: `notes/tiles-design-fixes-prompt.md` - no Quick board, no top accent line, the two-step hint,
-      2-5 players and the hand-over, check a word, rule options, Expert, How to play + "?", look-back, statistics,
-      credits, the who-played switch in the game. Waiting for the owner to send it.
+- [x] ~~**Design, round 2**~~ - not needed (owner, 2026-09-25: "I gave you the whole design - build it"): what
+      round 1 did not draw (2-5 players and the hand-over, the two-step hint, check a word, rule options, Expert,
+      the "?" guide, look-back, statistics, credits, the colours switch) was built in its style. 0.35.0
 - [x] Owner: download and use them? - **yes**. 0.31.0: 3.2 million Polish words (2.8 MB), 168 000 English
       (0.8 MB), every form of a slur or vulgar word left out; the README credits them. The credit line in the
       app comes with the Tiles screens (design prompt; see also M5 "Credits in About").
@@ -454,17 +454,18 @@ Order: the game itself first, then these; all of them are in the design prompt, 
       hassle"); the game log that rebuilds a game is only what the look-back needs.
 - ~~New game on the last settings in one tap; a daily puzzle; an anagram trainer~~ - dropped (owner).
 - [ ] Bigger text - maybe (owner: "could be it").
-- [ ] **The owner's own new idea (2026-09-25): who put which tile** - a switch in the game, on and off at any
-      moment: a frame in each player's colour round the tiles they put down (the computer too). Core: every
-      square keeps its player (0.31.2); in the design prompt.
+- [x] **The owner's own new idea (2026-09-25): who put which tile** - a switch in the game, on and off at any
+      moment. Built the design's way: each player's letters in their own colour, and a ring round each player's
+      last move; the switch is in the game's History panel and in Settings. 0.35.0
 - [x] **Statistics with several people** - yes (owner: "it's the phone's statistics"): every game counts;
       the computer's own moves never do. In the design prompt.
 - [ ] Later: games over the local network (PC ↔ Android), then Bluetooth (Android ↔ Android).
 
 ### To build — after the owner's answers and the design
 - [x] The word graph file per language (a tool that builds it from the chosen list) and its loading. 0.31.0
-- [ ] The screens, from the design; the computer's turn off the main thread if it ever needs to be.
-- [ ] Saves, the games list, statistics; the menu row stops saying "soon".
+- [x] The screens, from the design (0.35.0). The computer still thinks on the main thread - under the 900 ms
+      "thinking" pause even at Expert on a PC; to watch on a phone.
+- [x] Saves, the games list (with check a word), statistics; the menu row stops saying "soon". 0.35.0
 - [ ] Tune the levels by playing.
 
 ## Litery: hints and the "what you know" strip — DONE 2026-09-25 (0.28.2)

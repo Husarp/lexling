@@ -5,6 +5,8 @@ import { settings, saveSettings, stats, listSaves, getSave, putSave, deleteSave,
 import { load, loadWords, preload, resolve, pickSecret, lengthStats } from './engine.js';
 import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js';
 import { makePuzzle, RANGE, RING_MIN, RING_MAX, visible, isDone } from './connect.js';
+import { BOARDS, STANDARD, LEVEL_ORDER, PLAYERS_MAX, newGame as tilesGame, loadTileWords, valueOf } from './tiles.js';
+import { nameOf, topics, checkHtml, wireCheck, LABEL } from './tiles-game.js';
 import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYPH, modeTag, TILE, squares } from './ui.js';
 import { fitAll } from './fit.js';
 import { click } from './sound.js';
@@ -33,9 +35,9 @@ const CUE = {
 };
 // A game that is not built yet has its row, saying "soon", but does not open.
 const GAMES = ['guess', 'letters', 'connect', 'tiles'];
-const READY = new Set(['guess', 'letters', 'connect']);
-const NEW_OF = { guess: '#/new', letters: '#/new/letters', connect: '#/new/connect' };
-const LIST_OF = { guess: '#/games/guess', letters: '#/games/letters', connect: '#/games/connect' };
+const READY = new Set(['guess', 'letters', 'connect', 'tiles']);
+const NEW_OF = { guess: '#/new', letters: '#/new/letters', connect: '#/new/connect', tiles: '#/new/tiles' };
+const LIST_OF = { guess: '#/games/guess', letters: '#/games/letters', connect: '#/games/connect', tiles: '#/games/tiles' };
 
 export function menu(root, _, refresh) {
   // One compact row per game, all the same size and weight - only the icon differs. Four of the old
@@ -108,8 +110,17 @@ function connectMeta(g) {
     g.marks && t('lt.marksShort'), ago(g.updated)].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
 }
 
+// A Tiles card (design v5): language, board, the computers' levels; the scores with each player's colour, the bag,
+// and whose turn it is.
+function tilesMeta(g) {
+  const s = g.state, levels = s.players.map((x, p) => x.cpu && t('diff.' + (g.random?.[p] ? 'random' : x.cpu))).filter(Boolean);
+  return [LANG_NAMES[g.lang], t('tiles.board.' + s.board), levels.length ? [...new Set(levels)].join(', ') : t('stats.tiles.people'), ago(g.updated)]
+    .map(v => `<span>${v}</span>`).join(DOT);
+}
+let checkLang = null;   // the language of "check a word" on the Tiles list, while the app is open
+
 export function games(root, mode, refresh) {
-  if (!['letters', 'connect'].includes(mode)) mode = 'guess';
+  if (!['letters', 'connect', 'tiles'].includes(mode)) mode = 'guess';
   const saves = listSaves().filter(g => g.mode === mode);
   // most likely the game about to be resumed
   if (saves.length) (mode === 'guess' ? preload(saves[0].lang) : loadWords(saves[0].lang).catch(() => {}));
@@ -160,7 +171,30 @@ export function games(root, mode, refresh) {
     : `<span>${t('cn.noWords')}</span>`}${squares(marks, 14)}</div>
 </article>`;
   };
-  const card = { guess: guessCard, letters: lettersCard, connect: connectCard }[mode];
+  const tilesCard = g => {
+    const s = g.state, np = s.players.length, alone = s.players.filter(x => !x.cpu).length === 1;
+    const vs = np === 2
+      ? `<span class="vs"><i class="pc0"></i>${esc(nameOf(s, 0))} <b class="num">${s.scores[0]}</b> : <b class="num">${s.scores[1]}</b> ${esc(nameOf(s, 1))}<i class="pc1"></i></span>`
+      : `<span class="vs">${s.players.map((_, p) => `<i class="pc${p}"></i>${esc(nameOf(s, p))} <b class="num">${s.scores[p]}</b>`).join(' ')}</span>`;
+    const turn = alone && !s.players[s.turn].cpu ? t('tiles.save.yourTurn') : t('tiles.save.turn', { name: esc(nameOf(s, s.turn)) });
+    return `<article class="card save" data-id="${g.id}">
+  <div>
+    <h2 class="save-name">${esc(gameName(g))}</h2>
+    <div class="save-meta">${tilesMeta(g)}</div>
+  </div>
+  ${actions(g)}
+  <div class="save-last">${vs}<span><b class="num">${s.bag.length}</b> ${t('tiles.inBag')}<span class="dot"> · </span>${turn}</span></div>
+</article>`;
+  };
+  const card = { guess: guessCard, letters: lettersCard, connect: connectCard, tiles: tilesCard }[mode];
+  checkLang ??= settings.newGame.lang || settings.lang;
+  // Tiles: check whether a word is allowed, any time (owner, 2026-09-25)
+  const check = mode !== 'tiles' ? '' : `<div class="card tl-check-card">
+      <span class="eyebrow">${t('tiles.check')}</span>
+      <div class="field-head"><span class="help">${t('tiles.check.lang')}</span><div class="seg" role="radiogroup" id="check-lang">${['pl', 'en'].map(l =>
+    `<button type="button" data-cl="${l}" class="${on(checkLang === l)}">${LANG_NAMES[l]}</button>`).join('')}</div></div>
+      ${checkHtml()}
+    </div>`;
   const start = big => `<a class="btn btn-primary${big ? ' btn-lg' : ''}" href="${NEW_OF[mode]}">${t('games.new')} <span class="arrow">→</span></a>`;
   root.innerHTML = `<div class="app" data-screen="games">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>`, right: modeTag(mode) })}
@@ -171,8 +205,18 @@ export function games(root, mode, refresh) {
       <p class="help" style="max-width:36ch">${t('games.emptyText')}</p>
       ${start(true)}
     </div>`}
+    ${check}
   </main>
 </div>`;
+  const box = root.querySelector('.tl-check-card .tl-check');
+  if (box) {
+    wireCheck(box, () => checkLang);
+    root.querySelectorAll('[data-cl]').forEach(b => b.addEventListener('click', () => {
+      checkLang = b.dataset.cl;
+      root.querySelectorAll('[data-cl]').forEach(x => x.classList.toggle('on', x === b));
+      loadTileWords(checkLang).catch(() => {});
+    }));
+  }
   root.querySelectorAll('.save').forEach(el => {
     const id = el.dataset.id;
     confirmClick(el.querySelector('[data-act=delete]'), () => { deleteSave(id); refresh(); }, () => fitAll(el));
@@ -205,12 +249,14 @@ function rename(el, game, refresh) {
 
 // ── How to play (owner, 2026-09-25) ── a card under the New game title that opens and closes: open until a
 // game of that kind has been finished, closed after that - and once the player opens or closes it, as they left it.
-const HOWTO = { guess: () => t('howto.guess'), letters: () => t('howto.letters'), connect: () => t('howto.connect') };
+const HOWTO = { guess: () => t('howto.guess'), letters: () => t('howto.letters'), connect: () => t('howto.connect'), tiles: () => t('howto.tiles') };
+const tilesPlayed = () => Object.values(stats.tl ?? {}).reduce((a, s) => a + s.played, 0);
 const FINISHED = { guess: () => stats.won + stats.givenUp, letters: () => stats.lt.won + stats.lt.lost + stats.lt.givenUp,
-  connect: () => stats.cn.solved + stats.cn.givenUp };
+  connect: () => stats.cn.solved + stats.cn.givenUp, tiles: tilesPlayed };
 const howTo = mode => `<details class="card howto" data-mode="${mode}"${settings.howTo?.[mode] ?? !FINISHED[mode]() ? ' open' : ''}>
       <summary><span class="eyebrow">${t('howto.title')}</span><span class="arrow" aria-hidden="true">›</span></summary>
       ${HOWTO[mode]().split('\n').map(line => `<p class="help"><span class="arrow">→</span> ${line}</p>`).join('')}
+      ${mode === 'tiles' ? topics() : ''}
     </details>`;
 // remember an open / close the player made (not the one the page makes as it draws the card)
 function wireHowTo(root) {
@@ -640,16 +686,161 @@ export function connectNewScreen(root, _, refresh) {
   });
 }
 
+// ── Tiles: New game (design v5, and the owner's additions) ── the language, the board (a tiny map of its bonus
+// squares), 2-5 players - each a person or a computer with its level - and the rules, folded away.
+const TL_NEW = () => ({ board: 'classic', players: [{ name: '', cpu: null }, { name: '', cpu: 'normal' }], rules: { ...STANDARD }, rulesOpen: false });
+const TL_TIMES = { move: [30, 60, 120, 180], game: [600, 1200, 1500, 1800] };   // seconds: per move, per game
+const TL_RULES = [['premiums', ['once', 'always']], ['check', ['auto', 'challenge']], ['exchange', ['bag7', 'always']], ['bingo', [50, 0]]];
+let tlPending = null;
+
+const boardCard = b => {
+  const rows = BOARDS[b], n = rows.length, mid = (n - 1) / 2;
+  let cells = '';
+  rows.forEach((row, r) => [...row].forEach((k, c) => {
+    const cls = r === mid && c === mid ? 'st' : LABEL[k];
+    if (cls) cells += `<i class="${cls}" style="grid-row:${r + 1};grid-column:${c + 1}"></i>`;
+  }));
+  return `<button type="button" class="tl-bcard" data-board="${b}" role="radio"><span class="tl-mini" style="--n:${n};--m:5px" aria-hidden="true">${cells}</span><span><strong>${t('tiles.board.' + b)}</strong><span class="help">${
+    t(`tiles.board.${b}.what`)}</span><span class="meta">${n} × ${n} ${DOT} ${t('tiles.tilesN', { n: 100 })}</span></span></button>`;
+};
+
+export function tilesNewScreen(root, _, refresh) {
+  const o = tlPending ?? { ...TL_NEW(), lang: settings.newGame.lang || settings.lang };
+  tlPending = null;
+  root.innerHTML = `<div class="app" data-screen="new">
+  ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.tiles}">${t('back.games')}</a>`, right: modeTag('tiles') })}
+  <main class="main">
+    <h1 class="title">${t('new.title')}</h1>
+    ${howTo('tiles')}
+    <form class="form" novalidate>
+      <div class="field">
+        <span class="eyebrow">${t('new.lang')}</span>
+        <div class="seg" role="radiogroup">${['pl', 'en'].map(l => `<button type="button" data-lang="${l}">${LANG_NAMES[l]}</button>`).join('')}</div>
+      </div>
+      <div class="field">
+        <span class="eyebrow">${t('tiles.new.board')}</span>
+        <div class="tl-boards" role="radiogroup">${Object.keys(BOARDS).map(boardCard).join('')}</div>
+      </div>
+      <div class="field">
+        <div class="field-head"><span class="eyebrow">${t('tiles.new.players')}</span><span class="help">${t('tiles.new.playersWhat')}</span></div>
+        <div class="tl-players"></div>
+      </div>
+      <details class="card tl-rules"${o.rulesOpen ? ' open' : ''}>
+        <summary><span class="eyebrow">${t('tiles.rules')} <span class="muted"></span></span><span class="arrow" aria-hidden="true">›</span></summary>
+        <div class="rules-body"></div>
+      </details>
+      <div class="cta">
+        <p class="summary"></p>
+        <button class="btn btn-primary btn-lg btn-block" type="submit">${t('new.start')} <span class="arrow">→</span></button>
+      </div>
+    </form>
+  </main>
+</div>`;
+  wireHowTo(root);
+  const $ = sel => root.querySelector(sel);
+  const list = () => ({ players: o.players.map(x => ({ name: '', cpu: x.cpu })) });   // for the default names
+  const standard = () => Object.keys(STANDARD).every(k => JSON.stringify(o.rules[k]) === JSON.stringify(STANDARD[k]));
+
+  function paintPlayers() {
+    $('.tl-players').innerHTML = o.players.map((x, p) => `<div class="tl-prow pc${p}">
+        <div class="top"><i class="dot-p" aria-hidden="true"></i><input class="input" type="text" maxlength="16" data-name="${p}" value="${esc(x.name)}" placeholder="${esc(nameOf(list(), p))}" aria-label="${t('tiles.nameAria', { n: p + 1 })}">${
+      o.players.length > 2 ? `<button type="button" class="btn btn-ghost rm" data-rm="${p}" aria-label="${esc(t('tiles.remove', { name: x.name || nameOf(list(), p) }))}">✕</button>` : ''}</div>
+        <div class="kind"><div class="seg">${['person', 'cpu'].map(k => `<button type="button" data-kind="${k}" data-p="${p}" class="${on((k === 'cpu') === !!x.cpu)}">${t(k === 'cpu' ? 'tiles.cpu' : 'tiles.person')}</button>`).join('')}</div></div>
+        ${x.cpu ? `<div class="lv">${[...LEVEL_ORDER, 'random'].map(l => `<button type="button" class="chip ${on(x.cpu === l)}" data-lv="${l}" data-p="${p}">${t('diff.' + l)}</button>`).join('')}</div>
+        <p class="help"><span class="arrow">→</span> ${t('tiles.lvHelp.' + x.cpu)}</p>` : ''}
+      </div>`).join('') + (o.players.length < PLAYERS_MAX ? `<button type="button" class="btn btn-outline" data-add>${t('tiles.addPlayer')} +</button>` : '');
+  }
+  function paintRules() {
+    const r = o.rules, per = r.time?.per ?? 'none';
+    const seg = (key, vals, label) => `<div class="seg">${vals.map(v => `<button type="button" data-rule="${key}" data-v="${v}" class="${on(String(r[key]) === String(v))}">${label(v)}</button>`).join('')}</div>`;
+    $('.rules-body').innerHTML = TL_RULES.map(([k, vals]) => `<div class="rule"><span class="eyebrow">${t('tiles.r.' + k)}</span>${seg(k, vals, v => t(`tiles.r.${k}.${v}`))}${
+      k === 'check' ? `<p class="help">${t('tiles.r.checkHelp')}</p>` : ''}</div>`).join('')
+      + `<div class="rule"><span class="eyebrow">${t('tiles.r.time')}</span><div class="seg">${['none', 'move', 'game'].map(v =>
+        `<button type="button" data-time="${v}" class="${on(per === v)}">${t('tiles.r.time.' + v)}</button>`).join('')}</div>${per === 'none' ? '' : `<div class="seg">${TL_TIMES[per].map(s =>
+        `<button type="button" data-secs="${s}" class="${on(r.time.seconds === s)}">${s < 60 ? t('tiles.sec', { n: s }) : t('tiles.min', { n: s / 60 })}</button>`).join('')}</div><p class="help">${t('tiles.r.timeHelp.' + per)}</p>`}</div>`;
+    $('.tl-rules .muted').textContent = t(standard() ? 'tiles.rules.standard' : 'tiles.rules.own');
+  }
+  function paintSummary() {
+    const who = o.players.map((x, p) => esc(x.name.trim() || nameOf(list(), p)) + (x.cpu ? ` (${t('diff.' + x.cpu)})` : '')).join(', ');
+    $('.summary').innerHTML = [LANG_NAMES[o.lang], t('tiles.board.' + o.board), who, !standard() && t('tiles.rules.own')]
+      .filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
+  }
+  const sync = () => {
+    root.querySelectorAll('[data-lang]').forEach(b => b.classList.toggle('on', b.dataset.lang === o.lang));
+    root.querySelectorAll('[data-board]').forEach(b => { b.classList.toggle('on', b.dataset.board === o.board); b.setAttribute('aria-checked', b.dataset.board === o.board); });
+    paintPlayers();
+    paintRules();
+    paintSummary();
+    fitAll(root);
+  };
+  sync();
+  loadTileWords(o.lang).catch(() => {});      // the word list, ready by the time Start is pressed
+
+  root.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => {
+    o.lang = b.dataset.lang;
+    settings.newGame = { lang: o.lang };
+    saveSettings();
+    tlPending = o;
+    if (switchLang(o.lang, refresh, false)) return;
+    tlPending = null;
+    loadTileWords(o.lang).catch(() => {});
+    sync();
+  }));
+  root.querySelectorAll('[data-board]').forEach(b => b.addEventListener('click', () => { o.board = b.dataset.board; sync(); }));
+  $('.tl-rules').addEventListener('toggle', e => { o.rulesOpen = e.target.open; });
+  $('.tl-players').addEventListener('input', e => {
+    const p = e.target.dataset.name;
+    if (p === undefined) return;
+    o.players[+p].name = e.target.value;
+    paintSummary();
+  });
+  $('.tl-players').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const p = +b.dataset.p;
+    if (b.dataset.kind) o.players[p].cpu = b.dataset.kind === 'cpu' ? o.players[p].cpu || 'normal' : null;
+    else if (b.dataset.lv) o.players[p].cpu = b.dataset.lv;
+    else if (b.dataset.rm) o.players.splice(+b.dataset.rm, 1);
+    else if (b.dataset.add !== undefined) o.players.push({ name: '', cpu: 'normal' });
+    else return;
+    sync();
+  });
+  $('.rules-body').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.rule) o.rules[b.dataset.rule] = b.dataset.rule === 'bingo' ? +b.dataset.v : b.dataset.v;
+    else if (b.dataset.time) o.rules.time = b.dataset.time === 'none' ? null : { per: b.dataset.time, seconds: b.dataset.time === 'move' ? 60 : 1500 };
+    else if (b.dataset.secs) o.rules.time = { ...o.rules.time, seconds: +b.dataset.secs };
+    else return;
+    paintRules();
+    paintSummary();
+    fitAll(root);
+  });
+
+  $('form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const dict = await loadTileWords(o.lang);
+    settings.newGame = { lang: o.lang };
+    saveSettings();
+    // Random draws one of the five levels now; the saved game shows "Random" until it ends
+    const players = o.players.map(x => ({ name: x.name.trim(), cpu: x.cpu === 'random' ? LEVEL_ORDER[Math.floor(Math.random() * LEVEL_ORDER.length)] : x.cpu }));
+    const state = tilesGame({ lang: o.lang, board: o.board, players, words: dict.tag, rules: o.rules });
+    const game = newGame({ mode: 'tiles', lang: o.lang, state, random: o.players.map(x => x.cpu === 'random'), order: [], turnMs: 0 });
+    location.replace('#/game/' + game.id);   // Back from the game goes to the list, not to this form
+  });
+}
+
 let statsTab = 'guess';   // which game the stats screen shows, kept while the app is open
-// one tab per game that exists (design v4): Tiles gets its tab when it is built
-const STAT_TABS = ['guess', 'letters', 'connect'];
+// one tab per game (design v4)
+const STAT_TABS = ['guess', 'letters', 'connect', 'tiles'];
+let tlLang = 'all', tlLevel = 'all';   // the Tiles tab's filters, kept while the app is open
 
 export function statsScreen(root, _, refresh) {
   const s = stats, lt = s.lt;
   if (!STAT_TABS.includes(statsTab)) statsTab = 'guess';
   // a game not played yet says so, above its numbers - which show in dim ink
-  const cn = s.cn;
-  const none = { guess: !s.played, letters: !lt.played, connect: !cn.played }[statsTab];
+  const cn = s.cn, tlPlayed = tilesPlayed();
+  const none = { guess: !s.played, letters: !lt.played, connect: !cn.played, tiles: !tlPlayed }[statsTab];
   const card = (label, value, sub = '') => `<div class="card stat-card${none ? ' dim' : ''}"><span class="eyebrow">${label}</span><span class="num">${value}</span>${sub && `<span class="sub">${sub}</span>`}</div>`;
   // Each game's one "shape" card (design v4): how many tries its wins took, the commonest bar in the
   // game's colour. Counted from 0.24.0 on - older wins were only ever kept as a total.
@@ -707,6 +898,35 @@ export function statsScreen(root, _, refresh) {
       </div>
       ${cn.longest ? `<div class="card best"><span class="eyebrow">${t('stats.longest')}</span>${squares(Array([...cn.longest.w].length).fill('hit'), 32, [...cn.longest.w])}
         <p class="help">${t('stats.longestSub', { n: [...cn.longest.w].length, letters: plural([...cn.longest.w].length, 'lt.letters'), g: esc(cn.longest.game), ago: ago(cn.longest.at) })}</p></div>` : ''}`;
+  // Tiles: every game on this device, several people included (owner, 2026-09-25), by language and by level -
+  // the strongest computer in a game, or "People only" (store.js recordTilesEnd)
+  const tlRows = Object.entries(s.tl ?? {}).filter(([k]) => {
+    const [l, lv] = k.split('|');
+    return (tlLang === 'all' || l === tlLang) && (tlLevel === 'all' || lv === tlLevel);
+  }).map(([k, v]) => ({ ...v, lang: k.split('|')[0] }));
+  const tsum = k => tlRows.reduce((a, v) => a + (v[k] || 0), 0);
+  const tilesPanel = () => {
+    const games = tsum('games'), vsCpu = tsum('vsCpu'), moves = tsum('moves');
+    const best = tlRows.reduce((a, v) => v.bestGame !== null && v.bestGame > a ? v.bestGame : a, -1);
+    const bm = tlRows.reduce((a, v) => v.bestMove && (!a || v.bestMove.score > a.score) ? { ...v.bestMove, lang: v.lang } : a, null);
+    return `<div class="tl-filters">
+        <div class="seg" role="radiogroup">${['all', 'pl', 'en'].map(l => `<button type="button" data-tl-lang="${l}" class="${on(tlLang === l)}">${l === 'all' ? t('stats.tiles.bothLangs') : LANG_NAMES[l]}</button>`).join('')}</div>
+        <div class="chips">${['all', ...LEVEL_ORDER, 'people'].map(l => `<button type="button" class="chip ${on(tlLevel === l)}" data-tl-level="${l}">${
+      l === 'all' ? t('stats.tiles.allLevels') : l === 'people' ? t('stats.tiles.people') : t('diff.' + l)}</button>`).join('')}</div>
+      </div>
+      <div class="stats">
+        ${card(t('stats.played'), num(tsum('played')))}
+        ${card(t('stats.tiles.won'), num(tsum('won')), vsCpu ? Math.round(tsum('won') / vsCpu * 100) + ' %' : '')}
+        ${card(t('stats.tiles.best'), best >= 0 ? num(best) : '—')}
+        ${card(t('stats.tiles.avg'), games ? num(Math.round(tsum('points') / games)) : '—')}
+        ${card(t('stats.tiles.perMove'), moves ? decimal((tsum('movePoints') / moves).toFixed(1)) : '—')}
+        ${card(t('stats.tiles.bingos'), num(tsum('bingos')))}
+        ${hintCard(tsum('hints'), games)}
+        ${card(t('stats.tiles.passes'), num(tsum('passes')))}
+      </div>
+      ${bm ? `<div class="card best"><span class="eyebrow">${t('stats.tiles.bestMove')}</span><div class="tl-best"><span class="mt-row">${[...bm.w].map(ch =>
+      `<i class="mtl" style="--s:36px">${esc(ch)}<i class="p">${valueOf(bm.lang, ch) ?? ''}</i></i>`).join('')}</span><span class="num">${bm.score}</span></div></div>` : ''}`;
+  };
   root.innerHTML = `<div class="app" data-screen="stats">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
   <main class="main">
@@ -715,12 +935,14 @@ export function statsScreen(root, _, refresh) {
     `<button type="button" role="tab" data-tab="${m}" class="${on(statsTab === m)}" aria-selected="${statsTab === m}">${GLYPH[m]}${t('mode.' + m)}</button>`).join('')}</div>
     <section class="section" role="tabpanel">
       ${none ? `<div class="none"><strong>${t('stats.none', { g: t('mode.' + statsTab) })}</strong><p class="help">${t('stats.noneHelp')}</p></div>` : ''}
-      ${{ letters: lettersPanel, connect: connectPanel }[statsTab]?.() ?? guessPanel()}
-      <div class="shared"><span>${t('stats.allGames')} <b>${num(s.played + lt.played + cn.played)}</b></span>${DOT}<span><b>${clock(s.timeMs, true)}</b> ${t('stats.hours')}</span></div>
+      ${{ letters: lettersPanel, connect: connectPanel, tiles: tilesPanel }[statsTab]?.() ?? guessPanel()}
+      <div class="shared"><span>${t('stats.allGames')} <b>${num(s.played + lt.played + cn.played + tlPlayed)}</b></span>${DOT}<span><b>${clock(s.timeMs, true)}</b> ${t('stats.hours')}</span></div>
     </section>
   </main>
 </div>`;
   root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { statsTab = b.dataset.tab; refresh(); }));
+  root.querySelectorAll('[data-tl-lang]').forEach(b => b.addEventListener('click', () => { tlLang = b.dataset.tlLang; refresh(); }));
+  root.querySelectorAll('[data-tl-level]').forEach(b => b.addEventListener('click', () => { tlLevel = b.dataset.tlLevel; refresh(); }));
 }
 
 let dataIndex;
@@ -755,6 +977,10 @@ export async function settingsScreen(root, _, refresh) {
       <div class="row"><div class="row-text"><strong>${t('set.phoneKb')}</strong><span>${t('set.phoneKbDesc')}</span></div><button type="button" class="toggle ${on(settings.phoneKb)}" data-toggle="phoneKb" role="switch" aria-checked="${settings.phoneKb}" aria-label="${t('set.phoneKb')}"></button></div>
     </section>
     <section class="group">
+      <h2 class="title">${t('set.tiles')}</h2>
+      <div class="row"><div class="row-text"><strong>${t('tiles.colours')}</strong><span>${t('set.tilesColoursDesc')}</span></div><button type="button" class="toggle ${on(settings.tilesColours)}" data-toggle="tilesColours" role="switch" aria-checked="${settings.tilesColours}" aria-label="${t('tiles.colours')}"></button></div>
+    </section>
+    <section class="group">
       <h2 class="title">${t('set.updates')}</h2>
       <div class="row"><div class="row-text"><strong>${t('set.version', { v: VERSION })}</strong><span id="update-line">${updateLine}</span></div>
         <div class="row-actions">${waiting
@@ -770,6 +996,7 @@ export async function settingsScreen(root, _, refresh) {
           <dt>${t('set.vocab')}</dt><dd>${t('set.vocabText', { pl: num(dataIndex.counts.pl), en: num(dataIndex.counts.en) })}</dd>
           <dt>${t('set.vectors')}</dt><dd>${t('set.vectorsReal', { d: dataIndex.dims })}</dd>
           <dt>${t('set.saves')}</dt><dd>${t('set.savesText')}</dd>
+          <dt>${t('set.tiles')}</dt><dd>${t('set.credits')}</dd>
         </dl>
       </div>
     </section>

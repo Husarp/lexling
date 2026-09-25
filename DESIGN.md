@@ -405,7 +405,7 @@ the right — and under it a plain card edged in the same colour with the word, 
 - Screen: the status row, the board (tiles sized by width and height), one slot for the word being dragged
   and the game's answer, the circle with Shuffle, Hint and the bonus counter. Motion times are the design's.
 
-### Tiles (Kafelki) - the rules, no screens yet (0.30.0-0.31.0; PLAN.md M13)
+### Tiles (Kafelki) - the rules (0.30.0-0.32.0; PLAN.md M13)
 - **2-5 players on one device** (0.31.0, owner): each seat a person or the computer at its own level, in any mix.
   People pass the device; a hand-over screen hides the rack between them (design). Giving up ends the game.
 - **An engine of actions with a seed** (0.31.0, from the owner's own plan): `apply(state, action)` for place /
@@ -454,6 +454,37 @@ the right — and under it a plain card edged in the same colour with the word, 
 - **The computer's levels** = how many words it knows (base word among the 5 000 / 8 000 / 20 000 most
   common, Hard all) and how hard it tries (the move nearest 50 / 70 / 85 / 100 % of the best it can see).
   With nothing it can play, it swaps its whole rack while it may, else passes. First values, for tuning.
+
+### Tiles screens (0.35.0; design: `design/v5/lexling-tiles/`, "Lexling Tiles")
+The design's markup and CSS as given (the handoff-only `.tl-finger` left out); what it did not draw is built in
+its style (the second block in app.css). `app/js/tiles-game.js`; New game, the games list and the statistics tab
+are in `screens.js`.
+- **One grid, two layouts**: a phone - status, board, message line, rack, tools; from 900 px the board on the
+  left and a 360 px column with the History / Letters left / Check panel always open and the keys line.
+- **Placing**: drag a rack tile onto a square (it rides above the finger, the square under it outlined), or tap
+  a tile then a square; a tile of this move can be dragged elsewhere, or tapped back (a blank reopens its letter
+  picker). A computer: click a square (again, or an arrow key: across / down), type from the rack, the cursor
+  skips tiles already down; Backspace, Enter, Esc. The rack reorders by dragging along it.
+- **Zoom** (phone): the first tile down zooms the board 2× when its squares are under 32 px and follows the word;
+  pinch 1-2.5×, one finger pans, no double-tap zoom; out on Play, Recall or the − in the corner.
+- **The move as it is built**: its words and points on the message line, a bubble at its last tile, Play with the
+  points - or red tiles and the reason. With challenges on, the words are not checked (that is the rule) - except
+  a move that uses the last tiles.
+- **Hint in two steps**: the squares, then the word as dashed tiles (Play plays it, Recall takes it back);
+  counted once. **Exchange** turns the rack into a picker; off below 7 in the bag, but still says why when tapped.
+  **Pass** asks first. **Challenge** appears among the tools while a move waits for one.
+- **Between people** (0.35.0): when the turn passes from one person to another, a card - "Ala - your turn" -
+  hides the rack until its player taps "Show my tiles". One person against computers never sees it.
+- **Names**: typed on New game, or "You" / "Computer" when there is one of the kind, "Player 2" / "Computer 2"
+  when there are several - in the interface's language.
+- **The message line keeps a note** of a challenge's outcome or a turn lost to the clock while the next player
+  moves, so it is not lost under the computer's reply.
+- **Give up** ends the game for everyone (the rules): the person to move gives up. A game of computers only is
+  allowed - it plays itself.
+- **The clock**: counts only while it is a person's turn on screen, the hand-over card down.
+- **The end**: won / lost / draw (grey "=") / gave up - or "X wins" with several people; the final scores (a
+  places list from three players), what the leftover tiles did, the best word in tiles, seven-tile moves and
+  hints, the final board, and the look-back (each of the people's turns next to the best move there was).
 
 ### How to play (0.33.0, owner)
 Every New game screen has a card under the title: "Jak grać / How to play", 4-5 short lines, opened and closed

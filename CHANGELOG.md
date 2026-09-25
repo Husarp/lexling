@@ -6,6 +6,36 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.35.0 — 2026-09-25 21:42: Kafelki / Tiles is playable
+*(not packaged)*
+
+- **Tiles (Kafelki) opens from the menu** - no more "soon". Built from the design (design v5) plus everything
+  agreed since, in the same style (owner: "I gave you the whole design - build it"):
+  - **New game**: language, board (Classic / Bonus, with a small map of the bonus squares), **2-5 players** - each
+    a person or the computer at its level (Relaxed, Easy, Normal, Hard, Expert or Random), names optional - and
+    the **rules**, folded away: bonus squares once / every time, words checked at once / challenges, exchanges
+    with 7+ in the bag / always, +50 for all seven tiles or not, no clock / per move / per game. How to play with
+    its topics.
+  - **The game**: scores for every player and the bag (tap: history / letters left), Save & exit, Give up; the
+    board with its bonus squares; drag a tile, or tap it and then a square, or on a PC click a square and type;
+    the board zooms in on a phone while you place (pinch too); the move's words and points as you build it, or
+    why it cannot be played; Shuffle / Recall, Exchange, Pass, a **two-step Hint** (where, then the word), Play.
+  - Blanks ask for their letter; the computer "thinks" for a moment, then its tiles land and show their points;
+    between people a card hides the rack until its player taps; who starts is drawn and shown.
+  - A panel with **History**, **Letters left** and **Check** (is a word allowed - any time); each player's letters
+    in their colour, switchable in the panel and in Settings; challenges and the clock when the rules have them;
+    a "?" with the rules, topic by topic.
+  - **The end**: won / lost / draw / gave up (or "X wins"), the final scores, what the leftover tiles did, the best
+    word, the final board, and a **look-back**: each of your moves next to the best move there was.
+- **Games list**: Tiles saves (scores, bag, whose turn) and a "Check a word" card, Polish or English.
+- **Statistics**: a Tiles tab - played, won against the computer, best and average score, points per move,
+  seven-tile moves, hints, passes, the best move in tiles - for both languages or one, any level or one.
+- **Settings**: Tiles - "Colour letters by player"; About credits the word lists (SJP.PL, CC BY 4.0; ENABLE).
+- Checked in headless Edge at 320-480 px and 1280 px, dark and light, Polish and English: a whole game to the end,
+  placing by tap and by drag, hints, exchange, pass, a blank, four players with the hand-over, challenges, the
+  clock running out, the end and the statistics - every label fits, no console errors. 231 Tiles tests,
+  264 Letters, 286 Connect.
+
 ## 0.34.1 — 2026-09-25 20:57: "Check manually" beside "Check for updates"
 *(not packaged)*
 

@@ -20,6 +20,8 @@ export const settings = read('wg.settings', {
   // "Allow Polish letters" on the new-game screens: on at first, then whatever the player chose last - each
   // game its own choice (owner, 2026-09-25)
   polish: { letters: true, connect: true },
+  // Tiles: each player's letters in their own colour (design v5) - also switched in a game's History panel
+  tilesColours: true,
   // Only the language carries over between games; everything else starts from NEW_GAME each time.
   newGame: { lang: null },
 });
@@ -75,11 +77,13 @@ export function deleteSave(id) {
 export const gameName = g => g.name || t('games.defaultName', { n: g.auto ?? 1 });
 
 // `fields` is the game's own settings: Guess { lang, cat, band, diff, friend, secret },
-// Letters { mode: 'letters', lang, cat, len, tries (0 = unlimited), diff, marks, secret }.
+// Letters { mode: 'letters', lang, cat, len, tries (0 = unlimited), diff, marks, secret },
+// Tiles { mode: 'tiles', lang, state (tiles.js), random (per player: its level was drawn), order (each rack as
+// arranged), turnMs (time of the turn under way) }.
 export function newGame(fields) {
   if (fields.mode === 'letters') stats.lt.played++;
   else if (fields.mode === 'connect') stats.cn.played++;
-  else stats.played++;
+  else if (fields.mode !== 'tiles') stats.played++;     // a Tiles game is counted when it ends (recordTilesEnd)
   stats.gameNo++;
   saveStats();
   const game = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), auto: stats.gameNo, name: '',

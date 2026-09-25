@@ -759,3 +759,373 @@ html{-webkit-tap-highlight-color:transparent}
 body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 input,textarea{-webkit-user-select:text;user-select:text}
 
+
+/* ═══ KAFELKI / TILES — new CSS, goes below the shared block, the Letters block and menu.css
+   (menu.css carries .glyph.tiles). Reuses from the app: .topbar, .mode-tag, .btn, .seg, .tries, .chip,
+   .summary, .cta, .outcome, .result, .save, the stats cards, and the .key look of keyboard.css. ═══ */
+
+/* ── colours ──
+   Bonus squares in the classic word-game hues, by the owner's wish (2026-09-25): light blue / blue for
+   letters, orange / red for words. Light vs dark inside each pair, blue vs warm between the pairs, so
+   the four stay apart for red–green colour blindness too, and every empty bonus square carries a label.
+   Tiles are the Letters yellow (the menu glyph's "placed tiles"), with DARK ink: white on yellow is
+   1.7:1, unreadable on a 19px square. Who played a tile is its letter colour (owner, 2026-09-25): dark
+   green = you, dark blue = the computer (5.2:1 and 6.5:1 on the yellow; green vs blue stays apart for
+   red–green colour blindness). A setting turns it off: then every letter is the plain dark ink. The theme colour still only outlines (this turn's tiles, cursor). */
+:root{
+  --tb-2l:#8CC8EA;--tb-2l-ink:#0B2B3D;--tb-3l:#2F6FBF;--tb-3l-ink:#FFFFFF;
+  --tb-2w:#F29B55;--tb-2w-ink:#3B1600;--tb-3w:#D23B35;--tb-3w-ink:#FFFFFF;
+  --tb-sq:#1F1F1F;--tb-grid:#3A3A3A;--tb-lbl:#707070;
+  --tl-tile:#F3C237;--tl-ink:#1A1A1A;--tl-blank:#F9E4A6;
+  --tl-you:#245A0C;--tl-cpu:#1C3A8A;
+}
+[data-theme=light]{--tb-sq:#FBFCFF;--tb-grid:#D3D8E3;--tb-lbl:#9AA1B2}
+
+/* ── the screen fits the window while playing (as Letters / Connect .fit) ── */
+[data-screen=tiles].app{container-type:inline-size}
+[data-screen=tiles].app.fit{height:var(--vvh,100dvh);min-height:0}
+[data-screen=tiles].fit .main{min-height:0;padding-top:var(--space-3);padding-bottom:calc(var(--space-3) + var(--safe-b));gap:var(--space-2)}
+/* one grid, two layouts: phone = a column (status, board, message, rack, buttons);
+   from 900px the board on the left and everything else in a 360px column beside it */
+[data-screen=tiles] .tl-play{flex:1;min-height:0;position:relative;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto auto;grid-template-areas:"status" "board" "say" "rack" "dock";gap:var(--space-2)}
+@container (min-width:900px){
+  [data-screen=tiles] .main{max-width:1180px}
+  [data-screen=tiles].fit .main{padding-top:var(--space-6);padding-bottom:var(--space-6)}
+  [data-screen=tiles] .tl-play{grid-template-columns:minmax(0,1fr) 360px;grid-template-rows:auto auto auto auto minmax(0,1fr) auto;grid-template-areas:"board status" "board say" "board rack" "board dock" "board panel" "board keys";column-gap:var(--space-8);row-gap:var(--space-3)}
+}
+
+/* ── status row: both scores (one framed button → history), the bag (framed button → letters left),
+   then Save & exit / Give up on their own row as in every game ── */
+[data-screen=tiles] .status{grid-area:status;display:flex;flex-wrap:wrap;align-items:stretch;gap:var(--space-2);padding-bottom:var(--space-3);border-bottom:1px solid var(--line-soft)}
+[data-screen=tiles] .status-actions{flex-basis:100%;display:flex;flex-wrap:wrap;gap:var(--space-3)}
+[data-screen=tiles] .status-actions .btn{min-height:40px;padding:0 var(--space-3)}
+.tl-score,.tl-bag{position:relative;border:1.5px solid var(--text-dim);border-radius:var(--radius-md);text-align:left;overflow:hidden;transition:border-color var(--dur) var(--ease)}
+.tl-score:hover,.tl-bag:hover{border-color:var(--accent)}
+.tl-score{flex:1 1 0;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.tl-side{position:relative;display:grid;gap:2px;padding:6px 7px 8px;min-width:0}
+.tl-side+.tl-side{border-left:1px solid var(--line-soft)}
+/* "KOMPUTER" + its dot has to fit a ~100px side at 320px, so the tracking is tighter than .eyebrow's */
+.tl-side .eyebrow{display:flex;align-items:center;gap:5px;letter-spacing:.04em;white-space:nowrap;overflow:hidden}
+.tl-side .eyebrow i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--mk)}
+.tl-side.you{--mk:var(--tl-you)}.tl-side.cpu{--mk:var(--tl-cpu)}
+.tl-side .num,.tl-bag .num{font-size:clamp(24px,6cqi,32px);display:flex;align-items:baseline;gap:6px}
+/* whose turn: the side to move gets the theme tint and a 3px bar, like the tab that is on */
+.tl-side.on{background:var(--accent-soft)}
+.tl-side.on::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--accent)}
+.tl-side.on .eyebrow{color:var(--text)}
+.tl-bag{flex:none;display:grid;gap:2px;padding:6px 20px 8px 9px}
+.tl-bag .eyebrow{letter-spacing:.04em}
+.tl-chev{position:absolute;bottom:9px;right:5px;width:11px;height:11px;fill:none;stroke:var(--text-muted);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+@keyframes tl-dot{0%,100%{opacity:.25}50%{opacity:1}}
+.tl-dots{display:inline-flex;gap:3px;align-self:center}
+.tl-dots i{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:tl-dot 900ms var(--ease) infinite}
+.tl-dots i:nth-child(2){animation-delay:150ms}.tl-dots i:nth-child(3){animation-delay:300ms}
+
+/* ── the board ──
+   Plain empty squares are the grid's own background (square fill + a subtle 1px grid at the cell pitch), so
+   only bonus / start / cursor squares and tiles are elements: ~60 + tiles on a 15 × 15, not 225.
+   .tl-bwrap takes whatever room the layout leaves; the board is the largest square that fits it.
+   .tb is the grid; zoom is ONE transform on it (scale, then translate in % of the board), so tiles,
+   labels and the score bubble all grow together and stay sharp. 200ms in and out. */
+.tl-bwrap{grid-area:board;min-width:0;min-height:0;container-type:size;display:grid;place-items:start center}
+.tl-board{position:relative;width:min(100cqw,100cqh);aspect-ratio:1;overflow:hidden;border-radius:8px;background:var(--tb-grid);container-type:inline-size;touch-action:none;user-select:none;-webkit-user-select:none}
+.tb{--g:1px;--cs:calc((100cqi - (var(--n) - 1) * var(--g)) / var(--n));position:absolute;inset:0;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));grid-template-rows:repeat(var(--n),minmax(0,1fr));gap:var(--g);--pitch:calc((100% + 1px) / var(--n));background-color:var(--tb-sq);background-image:repeating-linear-gradient(90deg,transparent 0 calc(var(--pitch) - 1px),var(--tb-grid) calc(var(--pitch) - 1px) var(--pitch)),repeating-linear-gradient(180deg,transparent 0 calc(var(--pitch) - 1px),var(--tb-grid) calc(var(--pitch) - 1px) var(--pitch));transform-origin:0 0;transform:scale(var(--z,1)) translate(var(--tx,0%),var(--ty,0%));transition:transform 200ms var(--ease)}
+.q{position:relative;min-width:0;min-height:0;display:grid;place-items:center;background:var(--tb-sq);border-radius:calc(var(--cs) * .1);font:700 max(7px,calc(var(--cs) * .34))/1 var(--font-body);letter-spacing:-.02em;color:var(--tb-lbl)}
+.q.l2{background:var(--tb-2l);color:var(--tb-2l-ink)}
+.q.l3{background:var(--tb-3l);color:var(--tb-3l-ink)}
+.q.w2{background:var(--tb-2w);color:var(--tb-2w-ink)}
+.q.w3{background:var(--tb-3w);color:var(--tb-3w-ink)}
+/* the start square: a four-point star (on Classic it is also a double word, so it stays orange) */
+/* star and cursor are pinned to the square's exact centre (absolute + margin:auto), so a label or empty
+   text node in the grid cell can never push them off */
+.q.st::before{content:"";position:absolute;inset:0;margin:auto;width:calc(var(--cs) * .62);height:calc(var(--cs) * .62);background:currentColor;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%)}
+/* a tile: its own item in the board grid, on the same row / column as its square (so a square is one
+   plain element and only squares with a tile cost a second one) */
+.t{position:relative;min-width:0;min-height:0;z-index:1;display:grid;place-items:center;border-radius:calc(var(--cs) * .14);background:var(--tl-tile);color:var(--tl-ink);font:700 calc(var(--cs) * .62)/1 var(--font-body);font-style:normal;text-transform:uppercase}
+.t .p{position:absolute;right:9%;bottom:12%;font:700 calc(var(--cs) * .25)/1 var(--font-body);font-style:normal}
+.t .p:empty{display:none}
+/* 15 squares under ~24px: the points are unreadable, so they go until the board zooms in */
+@container (max-width:380px){.tb.n15:not(.zoom) .t .p{display:none}}
+/* a blank once down: paler, dashed ring, its letter and no points */
+.t.bl{background:var(--tl-blank);box-shadow:inset 0 0 0 var(--rw) var(--ring);border:calc(var(--cs) * .06) dashed rgba(26,26,26,.5)}
+.t.bl .p{display:none}
+/* who played it: the letter colour (setting on, the default) */
+.tb.own .t.y{color:var(--tl-you)}
+.tb.own .t.c{color:var(--tl-cpu)}
+/* rings are inset shadows, so they follow the rounded corners exactly: nothing pokes out */
+.t{--ring:transparent;--rw:0px;box-shadow:inset 0 0 0 var(--rw) var(--ring),inset 0 calc(var(--cs) * -.07) 0 rgba(0,0,0,.2)}
+/* each side's last move: a thin ring in that side's colour, until its next move */
+.t.last.y{--ring:var(--tl-you);--rw:calc(var(--cs) * .08)}
+.t.last.c{--ring:var(--tl-cpu);--rw:calc(var(--cs) * .08)}
+/* this turn's tiles: a theme-colour ring; red when the move can't be played */
+.t.new{--ring:var(--accent);--rw:calc(var(--cs) * .1)}
+.t.new.bad{--ring:var(--error)}
+/* a hint: the look every Lexling hint has — no fill, dashed edge, muted letter */
+.t.hint{background:var(--surface);color:var(--text-muted);box-shadow:none;border:calc(var(--cs) * .07) dashed var(--text-muted)}
+.t.hint .p{color:var(--text-muted)}
+/* dragging: the square under the finger */
+.q.drop{z-index:2;box-shadow:inset 0 0 0 calc(var(--cs) * .12) var(--accent);background:var(--accent-soft)}
+/* typing: the cursor square and its direction */
+.q.cur{z-index:2;box-shadow:inset 0 0 0 calc(var(--cs) * .1) var(--accent);color:var(--accent);background:var(--accent-soft)}
+.q.cur::after{content:"";position:absolute;inset:0;margin:auto;width:calc(var(--cs) * .6);height:calc(var(--cs) * .6);background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M12.5 5.5 19 12l-6.5 6.5'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M12.5 5.5 19 12l-6.5 6.5'/%3E%3C/svg%3E") center/contain no-repeat}
+.q.cur.dn::after{rotate:90deg}
+/* the score bubble: at the last tile of the move, grows with the board */
+.bub{position:absolute;z-index:3;left:calc(var(--c) * 100% / var(--n));top:calc(var(--r) * 100% / var(--n));width:calc(100% / var(--n));height:calc(100% / var(--n));pointer-events:none}
+.bub b{position:absolute;left:58%;bottom:58%;min-width:calc(var(--cs) * 1);height:calc(var(--cs) * .82);padding:0 calc(var(--cs) * .22);border-radius:var(--radius-pill);display:grid;place-items:center;background:var(--accent);color:var(--on-accent);font:800 calc(var(--cs) * .56)/1 var(--font-display);white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.bub.flip b{left:auto;right:58%}
+.bub.low b{bottom:auto;top:58%}
+.bub.you b{background:var(--tl-you);color:#fff}
+.bub.cpu b{background:var(--tl-cpu);color:#fff}
+.bub.hint b{background:var(--surface);color:var(--text);box-shadow:0 0 0 1.5px var(--text-muted)}
+/* zoomed in: a way back out that doesn't need two fingers */
+.tl-zoomout{position:absolute;right:6px;top:6px;z-index:4;width:40px;height:40px;display:grid;place-items:center;border-radius:10px;background:var(--surface);border:1.5px solid var(--text-dim);color:var(--text)}
+.tl-zoomout svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+/* the tile being dragged: lifted above the finger at rack size, so the finger never hides it */
+.tl-drag{position:absolute;z-index:5;left:var(--x);top:var(--y);width:52px;height:52px;translate:-50% -125%;rotate:-4deg;display:grid;place-items:center;border-radius:8px;background:var(--tl-tile);color:var(--tl-ink);box-shadow:inset 0 -4px 0 rgba(0,0,0,.2),var(--shadow-md);font:700 30px/1 var(--font-body);text-transform:uppercase;pointer-events:none}
+.tl-drag i{position:absolute;right:5px;bottom:6px;font:700 12px/1 var(--font-body);font-style:normal}
+
+/* ── the message line: the move's words + points, or why it can't be played ── */
+[data-screen=tiles] .say{grid-area:say;min-height:24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:0 6px;text-align:center;font-size:14px;line-height:1.3;color:var(--text-muted)}
+[data-screen=tiles] .say b{color:var(--text);font-weight:600;text-transform:uppercase}
+[data-screen=tiles] .say .pts{font:800 20px/1 var(--font-display);color:var(--accent)}
+[data-screen=tiles] .say.err{color:var(--error)}
+[data-screen=tiles] .say.err b{color:var(--error)}
+
+/* ── the rack ── */
+.tl-rack{grid-area:rack;container-type:inline-size;display:flex;justify-content:center;gap:6px;padding-top:6px}
+.rt{--rs:min(50px,calc((100cqi - 36px) / 7));flex:none;position:relative;width:var(--rs);height:var(--rs);display:grid;place-items:center;border-radius:calc(var(--rs) * .16);background:var(--tl-tile);color:var(--tl-ink);box-shadow:inset 0 calc(var(--rs) * -.07) 0 rgba(0,0,0,.2);font:700 calc(var(--rs) * .56)/1 var(--font-body);text-transform:uppercase;touch-action:none;cursor:grab;transition:transform 120ms var(--ease),opacity 120ms var(--ease)}
+.rt .p{position:absolute;right:8%;bottom:10%;font:700 calc(var(--rs) * .26)/1 var(--font-body);font-style:normal}
+.rt.sel{transform:translateY(-6px);outline:3px solid var(--accent);outline-offset:2px}
+/* reordering: hold ~150 ms, the tile lifts and follows the finger along the rack; the others slide apart (120 ms) */
+.rt.lift{z-index:2;transform:translateY(-12px) scale(1.12);box-shadow:inset 0 calc(var(--rs) * -.07) 0 rgba(0,0,0,.2),var(--shadow-md);transition:none}
+.rt.gap{background:transparent;box-shadow:none;border:1.5px dashed var(--line);color:transparent}
+.rt.used{opacity:.35}
+.rt.pick{transform:translateY(-6px);outline:3px solid var(--accent);outline-offset:2px}
+.rt .ck{position:absolute;top:-8px;right:-8px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--on-accent);font:700 12px/1 var(--font-body);font-style:normal}
+[data-theme=light] .rt.gap{border-color:#C4C9D6}
+
+/* ── the buttons: four labelled tools in a row, Play under them at full width. Labels always show:
+   icons alone did not say what Exchange and Pass are (owner, 2026-09-25) ── */
+.tl-dock{grid-area:dock;container-type:inline-size;display:flex;flex-wrap:wrap;gap:6px;align-items:stretch}
+.tl-tool{flex:1 1 0;min-width:0;min-height:50px;padding:5px 2px;border-radius:var(--radius-md);color:var(--text);flex-direction:column;gap:4px}
+.tl-tool svg{flex:none;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tl-tool .lbl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:10px;letter-spacing:.04em}
+/* off: faded, but Exchange stays tappable so it can say why */
+.tl-tool.off{opacity:.4}
+.tl-dock .play{flex:1 1 100%;min-width:0;min-height:48px;padding:0 var(--space-3);letter-spacing:.06em;gap:var(--space-2)}
+.tl-dock .play .num{font-size:22px;letter-spacing:0}
+/* a move that can't be played never looks playable: no fill, no points */
+.tl-dock .play.off{background:transparent;border-color:var(--line);color:var(--text-dim);pointer-events:none}
+.tl-dock .btn-ghost.wide{flex:1 1 0}
+@container (min-width:420px){.tl-tool .lbl{letter-spacing:.08em}}
+@container (min-width:900px){[data-screen=tiles] .tl-dock .play{order:-1;min-height:56px}}
+/* confirm rows (exchange / pass): two equal buttons */
+.tl-dock .btn-ghost.wide+.play{flex:1 1 0}
+
+/* ── history / letters left: one panel, two tabs. Phone: over the board (tap outside or × to close).
+   Computer: always there, in the side column ── */
+.tl-panel{grid-area:board;z-index:5;align-self:start;max-height:100%;min-height:0;overflow:auto;display:grid;gap:var(--space-3);align-content:start;padding:var(--space-3);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:var(--shadow-md);scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.tl-panel-head{display:flex;gap:var(--space-2);align-items:center}
+.tl-panel-head .seg{flex:1;min-width:0}
+.tl-x{width:44px;min-width:44px;padding:0}
+.tl-x svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+@container (min-width:900px){.tl-panel{grid-area:panel;align-self:stretch;box-shadow:none;border-color:var(--line-soft)}.tl-x{display:none}}
+.tl-hist{list-style:none;padding:0;display:grid}
+.tl-hist li{display:grid;grid-template-columns:2.5ch auto minmax(0,1fr) auto;align-items:center;gap:var(--space-3);min-height:40px;padding:var(--space-1) 0;border-bottom:1px solid var(--line-soft);font-size:14px}
+.tl-hist .i{color:var(--text-dim);font-variant-numeric:tabular-nums}
+.tl-hist .who{width:10px;height:10px;border-radius:50%;background:var(--tl-you)}
+.tl-hist .cpu .who{background:var(--tl-cpu)}
+.tl-hist .w{font:700 17px/1.1 var(--font-display);text-transform:uppercase;letter-spacing:-.01em;overflow-wrap:anywhere}
+.tl-hist .w small{font:500 12px/1 var(--font-body);text-transform:none;letter-spacing:0;color:var(--accent)}
+.tl-hist .quiet .w{font:500 14px/1.2 var(--font-body);text-transform:none;color:var(--text-muted)}
+.tl-hist .r{font:800 18px/1 var(--font-display);font-variant-numeric:tabular-nums;text-align:right}
+.tl-hist .quiet .r{color:var(--text-dim)}
+.tl-unseen{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:6px}
+.us{display:grid;justify-items:center;gap:3px}
+.us b{width:34px;height:34px;display:grid;place-items:center;border-radius:6px;background:var(--tl-tile);color:var(--tl-ink);font:700 17px/1 var(--font-body);text-transform:uppercase;box-shadow:inset 0 -3px 0 rgba(0,0,0,.2)}
+.us em{font:700 13px/1 var(--font-display);font-style:normal;color:var(--text)}
+.us.none b{background:transparent;box-shadow:none;border:1.5px dashed var(--line);color:var(--text-dim)}
+.us.none em{color:var(--text-dim)}
+.us.blank b{background:var(--tl-blank)}
+
+/* ── the blank's letter picker: a sheet from the bottom on a phone (keys ≥ 41 × 44), centred on a computer ── */
+.tl-scrim{grid-area:1/1/-1/-1;z-index:6;margin:calc(var(--space-3) * -1) calc(var(--gutter) * -1);background:rgba(0,0,0,.5)}
+[data-theme=light] .tl-scrim{background:rgba(0,0,0,.25)}
+.tl-pick{grid-area:1/1/-1/-1;z-index:7;align-self:end;display:grid;gap:var(--space-3);padding:var(--space-4) var(--space-3);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-md)}
+.tl-pick-head{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3)}
+.tl-pick-head strong{font:700 22px/1.05 var(--font-display);text-transform:uppercase;letter-spacing:-.01em}
+.tl-pick .abc{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.tl-pick .abc button{height:44px;border-radius:6px;background:var(--surface-2);color:var(--text);font:600 19px/1 var(--font-body);text-transform:uppercase}
+[data-theme=light] .tl-pick .abc button{background:var(--lt-edge);color:#000}
+.tl-pick .abc button.on{background:var(--tl-tile);color:var(--tl-ink);box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--accent)}
+@container (min-width:420px){.tl-pick .abc{grid-template-columns:repeat(8,minmax(0,1fr))}}
+@container (min-width:900px){.tl-pick{grid-area:board;align-self:center;justify-self:center;width:min(440px,90%)}.tl-scrim{margin:0;border-radius:8px;grid-area:board}}
+
+/* ── who starts: a card over the board as the game opens (1.2s, or the first tap) ── */
+.tl-toast{grid-area:board;z-index:4;align-self:center;justify-self:center;display:grid;justify-items:center;gap:6px;padding:var(--space-4) var(--space-6);background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:var(--radius-md);box-shadow:var(--shadow-md);text-align:center}
+.tl-toast strong{font:800 30px/1 var(--font-display);text-transform:uppercase;letter-spacing:-.02em}
+/* computer only: the keys, one line */
+.tl-keys{grid-area:keys;font-size:12px;line-height:1.5;color:var(--text-dim)}
+.tl-keys kbd{font:600 11px/1 var(--font-body);padding:2px 5px;border:1px solid var(--line);border-radius:4px;color:var(--text-muted)}
+
+/* ── new game: the three boards, each with a tiny map of its bonus squares ── */
+.tl-boards{display:grid;gap:var(--space-2);container-type:inline-size}
+.tl-bcard{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:var(--space-4);padding:var(--space-3);border:1.5px solid var(--line);border-radius:var(--radius-md);text-align:left;transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease)}
+.tl-bcard:hover{border-color:var(--text)}
+.tl-bcard.on{border-color:var(--accent);background:var(--accent-soft)}
+.tl-bcard strong{display:block;font:700 22px/1 var(--font-display);text-transform:uppercase;letter-spacing:-.01em}
+.tl-bcard .help{display:block;margin-top:4px;line-height:1.4}
+.tl-bcard .meta{display:block;margin-top:4px;font-size:12px;color:var(--text-dim)}
+@container (min-width:600px){.tl-boards{grid-template-columns:repeat(3,minmax(0,1fr))}.tl-bcard{grid-template-columns:1fr;align-content:start;justify-items:start}}
+.tl-mini{display:grid;grid-template-columns:repeat(var(--n),var(--m));grid-template-rows:repeat(var(--n),var(--m));gap:1px;border:3px solid var(--tb-grid);border-radius:4px;background-color:var(--tb-sq);background-image:linear-gradient(90deg,var(--tb-grid) 1px,transparent 1px),linear-gradient(var(--tb-grid) 1px,transparent 1px);background-size:calc(var(--m) + 1px) calc(var(--m) + 1px);background-position:-1px -1px}
+.tl-mini i{background:var(--tb-sq);border-radius:1px}
+.tl-mini i.l2{background:var(--tb-2l)}.tl-mini i.l3{background:var(--tb-3l)}.tl-mini i.w2{background:var(--tb-2w)}.tl-mini i.w3{background:var(--tb-3w)}
+.tl-mini i.st{background:var(--text)}
+
+/* ── the end ── */
+.outcome.draw{background:#4A4A4A}
+.result.draw{--tone:var(--text-muted)}
+.tl-fs{display:flex;align-items:flex-end;flex-wrap:wrap;gap:var(--space-2) var(--space-4)}
+.tl-fs span{display:grid;gap:4px}
+.tl-fs b{font:800 clamp(44px,11cqi,68px)/.9 var(--font-display);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.tl-fs .colon{font:800 clamp(32px,8cqi,48px)/1 var(--font-display);color:var(--text-dim);padding-bottom:4px}
+.tl-fs .lose b{color:var(--text-muted)}
+.tl-best{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2) var(--space-4)}
+.tl-best .mt-row{flex-wrap:wrap;gap:4px}
+.tl-best .num{font-size:28px;color:var(--accent)}
+.mtl{--s:32px;position:relative;flex:none;width:var(--s);height:var(--s);display:grid;place-items:center;border-radius:calc(var(--s) * .16);background:var(--tl-tile);color:var(--tl-ink);box-shadow:inset 0 calc(var(--s) * -.08) 0 rgba(0,0,0,.2);font:700 calc(var(--s) * .56)/1 var(--font-body);font-style:normal;text-transform:uppercase}
+.mtl .p{position:absolute;right:8%;bottom:10%;font:700 calc(var(--s) * .27)/1 var(--font-body);font-style:normal}
+.tl-final{container-type:inline-size;display:grid;justify-items:center}
+.tl-final .tl-board{width:min(100%,560px)}
+/* saved-game card: the score line */
+[data-screen=games] .save-last .vs{display:inline-flex;align-items:center;gap:6px}
+[data-screen=games] .save-last .vs i{width:8px;height:8px;border-radius:50%;background:var(--tl-you)}
+[data-screen=games] .save-last .vs i.c{background:var(--tl-cpu)}
+
+/* ── a phone: every pixel of height goes to the board (target: board ≥ 280px at 320 × 640) ── */
+@container (max-width:480px){
+  [data-screen=tiles].fit .main{padding-top:var(--space-2);gap:6px}
+  [data-screen=tiles] .tl-play{gap:6px}
+  [data-screen=tiles] .status{padding-bottom:var(--space-2);gap:6px}
+  [data-screen=tiles] .status-actions .btn{min-height:36px}
+  .tl-side{padding:4px 7px 5px}
+  .tl-bag{padding:4px 20px 5px 9px}
+  .tl-side .num,.tl-bag .num{font-size:24px}
+  .tl-chev{bottom:7px}
+  [data-screen=tiles] .say{min-height:20px;font-size:13px}
+  [data-screen=tiles] .say .pts{font-size:18px}
+  .tl-rack{padding-top:4px}
+  .tl-tool{min-height:46px;gap:3px;padding:4px 2px}
+  .tl-tool svg{width:20px;height:20px}
+  .tl-dock .play{min-height:44px}
+}
+/* points are hidden on the small unzoomed board, so the letter can take more of the square */
+@container (max-width:380px){.tb.n15:not(.zoom) .t{font-size:calc(var(--cs) * .68)}}
+/* "PODPOWIEDŹ" is the longest label: Hint gets a wider share, and the labels lose their tracking on a phone */
+.tl-dock .tl-tool:nth-child(4){flex-grow:1.35}
+@container (max-width:360px){.tl-tool .lbl{font-size:9.5px;letter-spacing:0}}
+
+/* ═══ KAFELKI / TILES — what the first design did not draw, built in its style (0.35.0): up to five players,
+   the hand-over between people, hints in two steps, check a word, rules, the clock, the look-back, the guide. ═══ */
+/* five player colours, dark enough on the yellow tile (≥ 4.5:1) and apart from each other and the bonus squares:
+   the design's green (seat 1) and blue (seat 2), then red, violet and teal */
+:root{--tl-p0:#245A0C;--tl-p1:#1C3A8A;--tl-p2:#8A1C1C;--tl-p3:#5B1C8A;--tl-p4:#0F5A5A}
+.t.p0,.tl-side.p0,.bub.p0,.pc0{--pc:var(--tl-p0)}.t.p1,.tl-side.p1,.bub.p1,.pc1{--pc:var(--tl-p1)}.t.p2,.tl-side.p2,.bub.p2,.pc2{--pc:var(--tl-p2)}
+.t.p3,.tl-side.p3,.bub.p3,.pc3{--pc:var(--tl-p3)}.t.p4,.tl-side.p4,.bub.p4,.pc4{--pc:var(--tl-p4)}
+.tb.own .t{color:var(--pc,var(--tl-ink))}
+.tb.own .t.new{color:var(--tl-ink)}.tb.own .t.hint{color:var(--text-muted)}
+.t.last{--ring:var(--pc);--rw:calc(var(--cs) * .08)}
+.tl-side{--mk:var(--pc)}
+.bub.pl b{background:var(--pc);color:#fff}
+/* the scores: a side per player (2-5), sharing the framed button */
+.tl-score{grid-template-columns:repeat(var(--np,2),minmax(0,1fr))}
+.tl-side .eyebrow span{overflow:hidden;text-overflow:ellipsis}
+@container (max-width:480px){.tl-score.many .tl-side{padding:4px 5px 5px}.tl-score.many .tl-side .num{font-size:20px}.tl-score.many .tl-side .eyebrow{font-size:9px}}
+/* the clock, when a game has one: beside the bag */
+.tl-clock{flex:none;display:grid;gap:2px;padding:6px 9px 8px;border:1.5px solid var(--text-dim);border-radius:var(--radius-md)}
+.tl-clock .num{font-size:clamp(20px,5cqi,26px);font-variant-numeric:tabular-nums}
+.tl-clock.low .num{color:var(--error)}
+@container (max-width:480px){.tl-clock{padding:4px 7px 5px}.tl-clock .num{font-size:20px}}
+/* hint, step one: the squares where the best move goes, marked without letters (a dashed ring, the hint look) */
+.q.hs::after{content:"";position:absolute;inset:6%;border:calc(var(--cs) * .08) dashed var(--text-muted);border-radius:calc(var(--cs) * .12)}
+.q.hs{z-index:1;background:var(--accent-soft)}
+/* the hand-over between people: the rack stays hidden until its player taps */
+.tl-hand{grid-area:1/1/-1/-1;z-index:6;align-self:center;justify-self:center;width:min(360px,92%);display:grid;justify-items:center;gap:var(--space-3);padding:var(--space-6) var(--space-5);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);text-align:center}
+.tl-hand strong{font:800 clamp(26px,7cqi,34px)/1.05 var(--font-display);text-transform:uppercase;letter-spacing:-.02em}
+.tl-hand .dot-big{width:14px;height:14px;border-radius:50%;background:var(--pc)}
+.tl-hidden .tl-rack{visibility:hidden}
+/* a tool that is only there sometimes (Challenge) keeps the row's size */
+.tl-tool.chal{color:var(--accent)}
+/* the panel's third tab: check a word, any time */
+.tl-check{display:grid;gap:var(--space-2)}
+.tl-check form{display:flex;gap:var(--space-2)}
+.tl-check .input{min-height:44px;text-transform:lowercase}
+.tl-check .res{font-size:14px;min-height:20px}
+.tl-check .res.ok{color:var(--success,#79B851)}.tl-check .res.no{color:var(--error)}
+.tl-row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);font-size:14px}
+/* the guide: the same topics as on New game, from the "?" in the top bar */
+.tl-q{min-width:36px;min-height:36px;padding:0;font:700 16px/1 var(--font-body)}
+.tl-topics{display:grid;gap:var(--space-2)}
+.tl-topics details{border-top:1px solid var(--line-soft);padding-top:var(--space-2)}
+.tl-topics summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);min-height:40px;cursor:pointer;font-weight:600}
+.tl-topics summary::-webkit-details-marker{display:none}
+.tl-topics summary .arrow{display:inline-grid;place-items:center;width:24px;height:24px;font-size:20px;line-height:1;color:var(--text-muted);transition:transform var(--dur) var(--ease)}
+.tl-topics details[open] summary .arrow{transform:rotate(90deg)}
+.tl-topics details .help{margin:0 0 var(--space-2)}
+.tl-legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--text-muted)}
+.tl-legend i{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:3px;font:700 9px/1 var(--font-body);font-style:normal;vertical-align:middle;margin-right:4px}
+/* new game: the players, 2-5 rows - a colour dot, the name, Person / Computer, and a computer's level */
+.tl-players{display:grid;gap:var(--space-2)}
+.tl-prow{display:grid;gap:var(--space-2);padding:var(--space-3);border:1.5px solid var(--line);border-radius:var(--radius-md)}
+.tl-prow .top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--space-2)}
+.tl-prow .dot-p{width:12px;height:12px;border-radius:50%;background:var(--pc)}
+.tl-prow .input{min-height:40px;padding:0 var(--space-3)}
+.tl-prow .seg button{min-height:36px;padding:0 var(--space-2);font-size:11px}
+.tl-prow .lv{display:flex;flex-wrap:wrap;gap:6px}
+.tl-prow .lv .chip{min-height:34px;padding:0 var(--space-3);font-size:12px}
+.tl-prow .rm{min-height:36px;padding:0 var(--space-2)}
+.tl-prow .kind{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-2)}
+/* the rules, folded away */
+.tl-rules summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);min-height:48px;cursor:pointer}
+.tl-rules summary::-webkit-details-marker{display:none}
+.tl-rules summary .arrow{display:inline-grid;place-items:center;width:24px;height:24px;font-size:20px;line-height:1;color:var(--text-muted);transition:transform var(--dur) var(--ease)}
+.tl-rules[open] summary .arrow{transform:rotate(90deg)}
+.tl-rules{padding:0 var(--space-4)}
+.tl-rules .rule{display:grid;gap:6px;padding:var(--space-2) 0 var(--space-3)}
+.tl-rules .rule .seg button{font-size:11px}
+.tl-rules .muted{color:var(--text-dim);font-weight:500;text-transform:none;letter-spacing:0}
+/* the end: several people - one line per player, in place order */
+.tl-places{list-style:none;padding:0;margin:0;display:grid;gap:6px}
+.tl-places li{display:grid;grid-template-columns:2ch 12px minmax(0,1fr) auto;align-items:center;gap:var(--space-2);font-size:15px}
+.tl-places li i{width:10px;height:10px;border-radius:50%;background:var(--pc)}
+.tl-places li b{font:800 22px/1 var(--font-display);font-variant-numeric:tabular-nums}
+.tl-places li.first b{color:var(--accent)}
+/* the look-back after the game */
+.tl-look{display:grid;gap:var(--space-2)}
+.tl-look ol{list-style:none;padding:0;margin:0;display:grid}
+.tl-look li{display:grid;grid-template-columns:2.5ch minmax(0,1fr) minmax(0,1fr);gap:var(--space-3);align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:14px}
+.tl-look .i{color:var(--text-dim);font-variant-numeric:tabular-nums}
+.tl-look .w{font:700 16px/1.15 var(--font-display);text-transform:uppercase;overflow-wrap:anywhere}
+.tl-look .w small{font:500 12px/1 var(--font-body);text-transform:none;color:var(--text-muted)}
+.tl-look .best .w{color:var(--text-muted)}
+.tl-look li.same .best .w{color:var(--lt-hit)}
+.tl-look .head{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim)}
+/* check a word from the games list */
+[data-screen=games] .tl-check{margin-top:var(--space-2)}
+/* the game screen's wiring (0.35.0): the panel and the overlays sit in .tl-play's grid through these wrappers */
+.tl-more,.tl-over{display:contents}
+.tl-panel-head .grow{flex:1;min-width:0}
+[data-screen=tiles] .topbar .side.end .eyebrow{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* a player's colour on the history dot, the saved card and a blank in the best word */
+.tl-hist li[class*=pc] .who{background:var(--pc)}
+[data-screen=games] .save-last .vs{flex-wrap:wrap}
+[data-screen=games] .save-last .vs i[class*=pc]{background:var(--pc)}
+.mtl.bl{background:var(--tl-blank)}
+/* statistics: language and level filters above the Tiles numbers */
+.tl-filters{display:grid;gap:var(--space-2)}
+.tl-filters .chips{display:flex;flex-wrap:wrap;gap:6px}
+.tl-check-card{display:grid;gap:var(--space-2)}
+.tl-look,.tl-check-card{padding:var(--space-4) var(--space-5)}
+.tl-check form .input{flex:1;min-width:0}
+.tl-check form .btn{flex:none}
+.tl-prow .kind .seg{flex:1 1 220px}

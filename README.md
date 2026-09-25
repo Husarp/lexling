@@ -47,9 +47,14 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - **How to play** on every New game screen: a short card that opens and closes (open until your first finished game).
 - **No scores anywhere** (since 0.29.0): the games are for fun; statistics show how you are doing,
   hints used included.
-- **Tiles** (Kafelki), a Scrabble-like game for 2–5 players - people passing one device and/or the
-  computer - is being built: its rules, boards, word lists and computer player exist (0.30.0–0.31.0), its
-  screens wait for the design; the menu shows it as "soon". Points stay in this one - scoring is the game.
+- **Tiles mode** (Kafelki, since 0.35.0), the classic crossword-tile game for 2–5 players - people passing
+  one device and/or the computer (five levels, Relaxed to Expert, or Random). Two boards (Classic, Bonus), the
+  full 100-tile sets, sjp.pl / ENABLE word lists. Place tiles by dragging, by tapping, or by typing on a PC;
+  the board zooms in on a phone (and pinches). A two-step hint (where, then the word), exchange, pass, a
+  letters-left list, check any word, each player's letters in their colour (switchable), rule options
+  (bonus squares every time, challenges, exchanges always, no seven-tile bonus, a clock per move or per game),
+  a look-back after the game (your move next to the best there was) and its own statistics by language and
+  level. Points stay in this one - scoring is the game.
 
 ## Run it (development)
 
@@ -188,6 +193,8 @@ app/                the game itself — single-page app, no build step, no depen
   js/letters.js     Letters rules: feedback, the keyboard, which words can be hidden and how hard
   js/tiles.js       Tiles rules: the boards, letter sets, bag and racks, checking and scoring a move, the end
   js/tiles-moves.js Tiles move finder (every legal move for a rack) and the computer player's levels
+  js/tiles-game.js  the Tiles game screen: board, rack, zoom, placing, the computer's turns, the hand-over
+                    between people, the history / letters-left / check panel, the end and the look-back
   js/dawg.js        the word graph Tiles looks words up in (build, save to bytes, load, walk)
   data/<lang>/tiles.bin  Tiles' word graphs (tools/build-tiles-words.mjs)
   js/engine.js      word data loading, rank scoring, form→lemma, autocomplete, secret picking
