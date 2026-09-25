@@ -557,8 +557,10 @@ name gives way in the top bar (to the gear, or Kafelki's "?") - it is on the sav
   there was over all their turns, then every turn - who, what, its rating, the best move (`lookBack(state, dict, true)`).
 - **Bonus squares, three looks** ("Pola premiowe"): colour; labels only (a plain square, the label in its colour -
   brighter on dark, deeper on light); grey. In the gear, History, New game and Settings.
-- **Raised tiles** ("Wypukłe płytki", off at first): the board's tiles get a light top edge, a deep bottom edge and a
-  shadow, lifted a little - easier to see.
+- **Raised tiles** ("Wypukłe płytki", off at first): true 3D since 0.42.1 (owner: "over the tiles above, the letter
+  centred") - the face lifted a sixth of a square, over the square above; below it the tile's thickness in its own
+  colour, darker, down to its square; its shadow on the board; the letter centred on the face. Lower rows are drawn
+  over upper ones, as real tiles seen from the front.
 - **What is under a tile**: a tap on a tile on the board fades it for 1.5 s and shows its square.
 - **No points on the board at all**: not after a move, not while one is built - the message line and Play show them.
 - **The message line is much bigger** (18 px text, words 22 px, points 30 px; a little less on a phone).

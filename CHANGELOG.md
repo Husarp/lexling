@@ -6,6 +6,14 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.42.1 — 2026-09-26 01:44: Kafelki: raised tiles in true 3D
+*(not packaged)*
+
+- **"Wypukłe płytki" / "Raised tiles"** now look like real pieces (owner): each tile's face stands up over the square
+  above it, its thickness shows below in its own colour, darker, and the letter is centred on the face. Tiles lower on
+  the board are drawn over the ones above, as seen from the front.
+- Checked in headless Edge, dark with tinted tiles and light with coloured letters.
+
 ## 0.42.0 — 2026-09-26 01:35: Kafelki: the new scores row, and player colours three ways
 *(not packaged)*
 

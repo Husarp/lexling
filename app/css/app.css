@@ -1221,10 +1221,16 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-row.col,.gs-row.col{flex-direction:column;align-items:stretch;gap:var(--space-2)}
 .gs-row .seg button,.tl-row .seg button{min-height:38px;font-size:11px}
 #bonus{margin-top:var(--space-2)}
-/* raised tiles (a setting, owner 2026-09-26): a light top edge, a deep bottom edge and a shadow on the board, the tile
-   lifted a little - they read as solid pieces standing on the board. The ring of this turn's tiles stays on top. */
-.tb.raised .t:not(.hint){translate:0 calc(var(--cs) * -.05);box-shadow:inset 0 0 0 var(--rw) var(--ring),inset 0 calc(var(--cs) * .07) 0 rgba(255,255,255,.4),inset 0 calc(var(--cs) * -.17) 0 rgba(0,0,0,.3),0 calc(var(--cs) * .09) calc(var(--cs) * .12) rgba(0,0,0,.55)}
-.tb.raised .t:not(.hint) .p{bottom:18%}
+/* raised tiles (a setting, owner 2026-09-26: "true 3D - over the tiles above, the letter centred"): the tile's face is
+   lifted a sixth of a square, over the square above; below it the tile's thickness - its own colour, darker - fills down
+   to its square, then its shadow on the board. The face is the whole box, so the letter sits centred on it. Lower rows
+   are drawn over upper ones (a z-index per row, tiles-game.js), as real tiles seen from the front. The ring of this
+   turn's tiles stays on the face. */
+.tb.raised .t:not(.hint){--face:var(--tl-tile);--side:color-mix(in srgb,var(--face) 60%,#000);translate:0 calc(var(--cs) * -.16);
+  box-shadow:inset 0 0 0 var(--rw) var(--ring),inset 0 calc(var(--cs) * .06) 0 rgba(255,255,255,.45),inset 0 calc(var(--cs) * -.03) 0 rgba(0,0,0,.12),
+    0 calc(var(--cs) * .16) 0 var(--side),0 calc(var(--cs) * .2) calc(var(--cs) * .14) rgba(0,0,0,.5)}
+.tb.raised .t.bl:not(.hint){--face:var(--tl-blank)}
+.tb.raised.own .t:is(.p0,.p1,.p2,.p3,.p4):not(.hint){--face:var(--pt)}
 /* the panel over the board has the board's own corners (8 px), so no sliver of a square shows past its top corners
    (owner, 2026-09-26: "orange in both top corners" - a zoomed-in 2S square behind a rounder corner) */
 [data-screen=tiles] .tl-panel{border-radius:8px}

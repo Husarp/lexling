@@ -106,7 +106,8 @@ function boardInner(S, { draft = [], bad = false, cursor = null, drop = -1, hint
     html += `<span class="q ${cls.join(' ')}" style="${at(i)}">${label}</span>`;
   }
   // who put a tile down: its class pN tints it in that player's colour (owner, 2026-09-25: coloured tiles, no frames)
-  const tile = (i, ch, blank, cls) => `<b class="t ${cls}${blank ? ' bl' : ''}" data-i="${i}" style="${at(i)}">${esc(ch)}<i class="p">${blank || !ch ? '' : valueOf(S.lang, ch)}</i></b>`;
+  // each row above the one before it, so a raised tile's face goes over the tile above (css .tb.raised)
+  const tile = (i, ch, blank, cls) => `<b class="t ${cls}${blank ? ' bl' : ''}" data-i="${i}" style="${at(i)};z-index:${2 + Math.floor(i / n)}">${esc(ch)}<i class="p">${blank || !ch ? '' : valueOf(S.lang, ch)}</i></b>`;
   S.cells.forEach((x, i) => { if (x) html += tile(i, x.ch, x.blank, (hinted.has(i) ? 'hint' : 'p' + x.by) + (i === peek ? ' peek' : '')); });
   for (const [i, d] of fresh) html += tile(i, d.ch, d.blank, d.hint ? 'hint' : bad ? 'new bad' : 'new');
   return html;

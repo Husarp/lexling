@@ -510,6 +510,7 @@ Order: the game itself first, then these; all of them are in the design prompt, 
 - [x] **The new scores row** (design "Lexling Tiles Scores", owner's pick: on top): badges, the player to move ringed,
       the bag dashed; from three players the row scrolls sideways and follows the turn. 0.42.0
 - [x] **Player colours: tiles / letters / off** - in the gear, New game and Settings; no 🎨 button any more. 0.42.0
+- [x] Raised tiles in true 3D: over the tiles above, the thickness below, the letter centred (owner). 0.42.1
 - [x] **Word meanings** (owner, 2026-09-26) - not downloaded ("too much"): a word opens its meaning in the browser,
       sjp.pl for Polish, Wiktionary for English - Check a word and History in Kafelki, the guesses in Znaczenie, the
       end cards of every game. 0.40.0
