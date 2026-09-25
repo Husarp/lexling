@@ -187,7 +187,7 @@ export async function lettersGameScreen(root, id) {
     if (status === 'won') chime();
     if (!afterReveal) return paintEnd(pts);
     revealing = true;
-    setTimeout(() => { if (app.isConnected) paintEnd(pts); }, Math.min(120, 1000 / n) * (n - 1) + 360);
+    setTimeout(() => { if (app.isConnected) paintEnd(pts); }, Math.min(30, 300 / n) * (n - 1) + 180);   // = the reveal (app.css)
   }
 
   function paintEnd(pts) {

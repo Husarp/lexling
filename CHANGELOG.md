@@ -6,6 +6,13 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.19.1 — 2026-09-25 03:04: A guess colours in as fast as a new row appears
+*(debug APK built and installed on the phone — not released)*
+
+- The colour reveal of a guessed row took 360 ms a tile, 120 ms apart (0.84 s for 5 letters, ~1.4 s for
+  13). It now matches the new row growing in: 180 ms a tile, 30 ms apart — 0.3 s for 5 letters, under
+  half a second for 13. The pause before the win / loss card follows it (it waits for the last tile).
+
 ## 0.19.0 — 2026-09-25 02:55: Letters fits the screen, however many tries
 *(debug APK built and installed on the phone 2026-09-25 03:01 — not released)*
 

@@ -337,9 +337,9 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-theme=light] .lt.caret{border-color:var(--accent)}
 [data-theme=light] .lt-row.bad .lt{border-color:var(--error)}
 /* reveal: each box takes its colour in turn with a 4px lift — the brand's fade + small translate, no flip.
-   Stagger shrinks with length so a 13-letter row still lands in under a second and a half. */
+   Owner, 2026-09-25: as quick as a new row growing in - 180 ms a box, 30 ms apart (0.3 s for 5 letters). */
 @keyframes lt-reveal{0%{background:var(--lt-empty);border-color:var(--text-muted);color:var(--text);transform:none}40%{transform:translateY(-4px)}100%{transform:none}}
-.lt-row.reveal .lt{animation:lt-reveal 360ms var(--ease) backwards;animation-delay:calc(var(--i) * min(120ms, 1000ms / var(--n)))}
+.lt-row.reveal .lt{animation:lt-reveal 180ms var(--ease) backwards;animation-delay:calc(var(--i) * min(30ms, 300ms / var(--n)))}
 /* mini squares: legend, saved-game card, menu cue */
 .mt-row{display:flex;gap:3px}
 .mt{flex:none;width:var(--s,18px);height:var(--s,18px);border-radius:3px;display:grid;place-items:center;font:600 calc(var(--s,18px) * .52)/1 var(--font-body);text-transform:uppercase;border:1.5px solid var(--lt-edge)}
