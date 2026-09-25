@@ -12,7 +12,7 @@ const STR = {
     'mode.guess.d': 'Find the word by meaning. Every guess gets a rank — 1 is the nearest neighbour.',
     'mode.letters.d': 'Find the word letter by letter. Green, yellow and grey tell you what stays.',
     'mode.inProgress': '{n} in progress',
-    'foot.vocab': 'Polish + English vocab bundled', 'foot.offline': 'No account, no network', 'foot.rights': 'All rights reserved',
+    'foot.rights': 'All rights reserved',
 
     'games.title': 'Your games', 'games.new': 'New game', 'games.resume': 'Resume', 'games.rename': 'Rename', 'games.delete': 'Delete',
     'games.emptyTitle': 'No saved games',
@@ -156,7 +156,7 @@ const STR = {
     'mode.guess.d': 'Szukaj słowa po znaczeniu. Każda próba dostaje pozycję — 1 to najbliższy sąsiad.',
     'mode.letters.d': 'Szukaj słowa litera po literze. Zielone, żółte i szare mówią, co zostaje.',
     'mode.inProgress': 'w toku: {n}',
-    'foot.vocab': 'Słowniki polski + angielski w zestawie', 'foot.offline': 'Bez konta, bez sieci', 'foot.rights': 'Wszelkie prawa zastrzeżone',
+    'foot.rights': 'Wszelkie prawa zastrzeżone',
 
     'games.title': 'Twoje gry', 'games.new': 'Nowa gra', 'games.resume': 'Wznów', 'games.rename': 'Zmień nazwę', 'games.delete': 'Usuń',
     'games.emptyTitle': 'Brak zapisanych gier',

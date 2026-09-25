@@ -6,6 +6,15 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.22.6 — 2026-09-25 11:53: The start screen's bottom bar shows only the version
+*(not packaged)*
+
+- The bar at the bottom of the start screen read `v0.22.5 · Polish + English vocab bundled · No account,
+  no network`. It now shows only the version, and the thin line above it is gone (owner). Windows and
+  Android alike - both run the same app. The Settings screen's bar (© 2026 Husarp · All rights reserved)
+  is unchanged. The two texts nothing shows any more were removed from the strings.
+
+
 ## 0.22.5 — 2026-09-25 04:36: The Android APK is signed with Lexling's own key
 *(released 2026-09-25 as v0.22.5 — Windows installer + the signed Android APK, Lexling-release.apk)*
 

@@ -59,7 +59,7 @@ export function menu(root, _, refresh) {
       </nav>
     </div>
   </section>
-  <footer class="footer"><span>v${VERSION}</span>${DOT}<span>${t('foot.vocab')}</span>${DOT}<span>${t('foot.offline')}</span></footer>
+  <footer class="footer"><span>v${VERSION}</span></footer>
 </div>`;
   root.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => switchLang(b.dataset.lang, refresh)));
 }
