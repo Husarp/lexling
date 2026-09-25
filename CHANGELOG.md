@@ -6,6 +6,28 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.26.0 — 2026-09-25 13:43: Connect's rules (no screen yet)
+*(not packaged)*
+
+The third game, Połącz / Connect (PLAN.md M14, design v4), without its screens: `app/js/connect.js`.
+- **A puzzle**: the circle is a common word's letters, shuffled (4–7, the player's choice); the board is a
+  small crossword of the common words those letters make — 3–5 words for 4 letters up to 6–10 for 7 (the
+  design's ranges) — always including the word that uses every letter. Board words are Letters' hidden
+  words (base forms, no stoplist words, no inflected forms posing as words); any other real word, every Polish
+  form included, is a **bonus word**.
+- **The crossword**: each word crosses one already placed, never touches another side by side or end to end,
+  so no accidental words form; the most crossings and the smallest board win; at most 10 across and 8 down,
+  kept wider than tall, because on a phone the height runs out first.
+- **Levels = how common the words are**, by their place in the frequency list: Relaxed the 5 000 most common,
+  Easy 8 000, Normal 12 000, Hard 20 000. Not Letters' difficulty, which also weighs how rare a word's letters
+  are - that matters for guessing letters, not when the circle hands them over. (Relaxed started at 3 000: four
+  Polish letters then failed to make a board in 1 game of 15.)
+- **Hints, as agreed**: each press shows the next letter that is not showing yet of one unfinished word - the
+  chosen one, or the one showing the most letters (the shortest on a tie); a word whose letters all show counts.
+- **Tests**: `tools/test-connect.mjs`, 162 of them - 25 puzzles for every language, circle size, level and
+  Polish-letters setting, each checked cell by cell (crossings agree, nothing accidental, one piece, every word
+  from the circle); the hint and judging rules. A puzzle takes 1–9 ms.
+
 ## 0.25.0 — 2026-09-25 13:38: Letters has its own keyboard
 *(not packaged)*
 

@@ -57,7 +57,8 @@ from `file://`.)
 > on the real word data (60 000 Polish + 41 158 English words), with a **Windows installer** and an
 > **Android APK**. What is still open is in [PLAN.md](PLAN.md).
 
-The Letters rules and word pool have tests against the real data: `node tools/test-letters.mjs`.
+The Letters and Connect rules have tests against the real data: `node tools/test-letters.mjs` and
+`node tools/test-connect.mjs`.
 
 **Size:** Windows installer 52 MB, 65 MB installed; Android APK 34.5 MB (40 MB of it is the
 game, 39 MB word data).
