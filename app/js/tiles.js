@@ -117,7 +117,9 @@ export function checkWord(dict, lang, text) {
 // bingo: the bonus for all seven tiles, 50 (the standard) or 0.
 // time: null (the standard) or { per: 'move' | 'game', seconds } - per move, running out is a pass (the
 //   'timeout' action); per game, every started minute over costs 10 points at the end (the tournament rule).
-export const STANDARD = { premiums: 'once', check: 'auto', exchange: 'bag7', bingo: BINGO, time: null };
+// hints: the Hint tool there (the standard) or not (owner, 2026-09-25: "allow turning hints off") - the screen's rule.
+// undo: moves can be taken back - one person against the computer only (owner, 2026-09-25) - see undo() below.
+export const STANDARD = { premiums: 'once', check: 'auto', exchange: 'bag7', bingo: BINGO, time: null, hints: true, undo: false };
 const OVERTIME = 10;
 
 // ── A game ───────────────────────────────────────────────────────────────────────────────────────
@@ -247,14 +249,15 @@ export function checkMove(state, placed, isWord) {
 // The engine as one function (the owner's plan: "apply(state, action) -> state"). Everything that happens in a
 // game is one of these, and goes into `log`, so a game can be rebuilt from its start (replay):
 // { type: 'place', placed } | { type: 'exchange', tiles } | { type: 'pass' } | { type: 'challenge' }
-// | { type: 'timeout' } | { type: 'resign', p }. Any of them may carry `ms`, the time the player took.
+// | { type: 'timeout' } | { type: 'resign', p } | { type: 'shuffle', seed } (the bag shuffled again: undo() below).
+// Any of them may carry `ms`, the time the player took.
 // An action that is not allowed throws, and the state stays as it was. Each returns a new state.
 export function apply(state, action, isWord) {
   if (state.over) throw new Error('the game is over');
   if (action.type === 'challenge' && !state.pending) throw new Error('nothing to challenge');
   let s = state;
-  // any other action accepts the move waiting for a challenge
-  if (s.pending && action.type !== 'challenge') s = { ...s, pending: null };
+  // any other action accepts the move waiting for a challenge (shuffling the bag is no move)
+  if (s.pending && action.type !== 'challenge' && action.type !== 'shuffle') s = { ...s, pending: null };
   if (action.ms) s = { ...s, clock: s.clock.map((t, p) => p === s.turn ? t + action.ms : t) };
   s = { ...s, log: [...s.log, action] };
   const after = action.type === 'place' ? place(s, action.placed, isWord)
@@ -263,6 +266,7 @@ export function apply(state, action, isWord) {
     : action.type === 'timeout' ? scoreless(s, { p: s.turn, kind: 'timeout' })
     : action.type === 'challenge' ? challenge(s, isWord)
     : action.type === 'resign' ? finish(s, 'resign', -1, action.p ?? s.turn)
+    : action.type === 'shuffle' ? reshuffle(s, action.seed)
     : null;
   if (!after) throw new Error('no such action: ' + action.type);
   return after;
@@ -359,6 +363,22 @@ export function replay(state, isWord) {
   for (const a of state.log) out.push(s = apply(s, a, isWord));
   return out;
 }
+
+// Undo (owner, 2026-09-25: "undo all the moves, even the computer's, back to the start - only against the computer"):
+// back to the last turn a person took, before it - their move and every move after it come off - or null when there
+// is none. The bag is then shuffled again from `seed` (owner: "the draws will be random"), so the next tiles are not
+// the ones that came before; the shuffle is an action of its own, so the game still replays. Hints stay counted.
+export function undo(state, isWord, seed = Math.floor(Math.random() * 2 ** 32)) {
+  if (state.over) return null;
+  const states = replay(state, isWord);
+  for (let i = state.log.length - 1; i >= 0; i--) {
+    const before = states[i];
+    if (state.log[i].type === 'shuffle' || before.players[before.turn].cpu) continue;
+    return { ...apply(before, { type: 'shuffle', seed }), hints: state.hints };
+  }
+  return null;
+}
+const reshuffle = (state, seed) => { const { list, seed: s } = shuffle(state.bag, seed); return { ...state, bag: list, seed: s }; };
 
 // A hint was shown to the player whose turn it is (the move itself: hint() in tiles-moves.js). Counted, as in
 // the other games.

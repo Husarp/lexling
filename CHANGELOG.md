@@ -6,6 +6,28 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.36.0 — 2026-09-25 22:16: Kafelki: who starts, hints off, undo, coloured tiles; the blank fixed
+*(not packaged)*
+
+- **Fixed: a blank's letters closed at once on a phone** - the tap that put the blank down also counted as a tap
+  on the letters' dark backdrop, which means Cancel. Now the letters stay until you pick one.
+- **Coloured tiles instead of frames** (owner: "no frames for players - use colours"): each player's tiles on the
+  board are tinted - green, purple, pink, grey, yellow - never the bonus squares' blue / orange / red; the letters
+  stay dark. The ring round each player's last move is gone.
+- **No points bubble on the board after a move** (owner) - the message line under the board says what was played.
+- **New game**:
+  - **Who starts**: "Losowo / Random" or any player; the players list is the order of play, with ↑ ↓ to move a player.
+  - **"Koloruj płytki według gracza" / "Colour tiles by player"** - the same switch as in Settings and in the game
+    (tap the scores → History).
+  - Rules: **Hints on / off**, and **Undo** (one person against the computer only): "Wstecz / Undo" beside Give
+    up takes your move and the computer's answer back, as far as the start; the bag is shuffled again each time, so
+    the next tiles are new.
+  - No "Random" level any more; "How to play" is closed every time.
+- **Games list**: the "Check a word" card is gone - it is in the game (tap the scores → Check).
+- Checked in headless Edge with real touch taps (the blank bug came back with the fix switched off, and went with
+  it on), undo twice back to the start and playing on, hints off, who starts and the order, at 320 and 480 px.
+  238 Tiles tests (7 new, for undo).
+
 ## 0.35.0 — 2026-09-25 21:42: Kafelki / Tiles is playable
 *(not packaged)*
 

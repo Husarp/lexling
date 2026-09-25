@@ -78,7 +78,7 @@ export const gameName = g => g.name || t('games.defaultName', { n: g.auto ?? 1 }
 
 // `fields` is the game's own settings: Guess { lang, cat, band, diff, friend, secret },
 // Letters { mode: 'letters', lang, cat, len, tries (0 = unlimited), diff, marks, secret },
-// Tiles { mode: 'tiles', lang, state (tiles.js), random (per player: its level was drawn), order (each rack as
+// Tiles { mode: 'tiles', lang, state (tiles.js), firstSet (who starts was chosen, not drawn), order (each rack as
 // arranged), turnMs (time of the turn under way) }.
 export function newGame(fields) {
   if (fields.mode === 'letters') stats.lt.played++;

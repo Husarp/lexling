@@ -443,7 +443,8 @@ Order: the game itself first, then these; all of them are in the design prompt, 
 - [x] **Hints, the owner's way**: the first press marks where the best word goes, the second shows the word.
       (In place of the plan's four hint types.) Core: hint() 0.31.0; the two steps are the screen's.
 - [x] **"Check a word" - any time** (owner: not as a hint - "you just want to check if they are possible"),
-      in the game and from the games list. Core: checkWord 0.31.2.
+      in the game (the Check tab). Core: checkWord 0.31.2. The card on the games list went in 0.36.0 (owner: "it
+      does not make sense there - it should be inside the game").
 - [x] Rule options: bonus squares once (standard) / always; automatic checking / challenges with a penalty (the
       challenger loses the turn); exchanges only with 7+ in the bag / always; the seven-tile bonus on / off; a time
       limit per move (a pass) / per game (10 points per started minute over). Core 0.32.0; screens with the design.
@@ -455,8 +456,9 @@ Order: the game itself first, then these; all of them are in the design prompt, 
 - ~~New game on the last settings in one tap; a daily puzzle; an anagram trainer~~ - dropped (owner).
 - [ ] Bigger text - maybe (owner: "could be it").
 - [x] **The owner's own new idea (2026-09-25): who put which tile** - a switch in the game, on and off at any
-      moment. Built the design's way: each player's letters in their own colour, and a ring round each player's
-      last move; the switch is in the game's History panel and in Settings. 0.35.0
+      moment. 0.35.0 the design's way (letters in each player's colour, a ring round the last move); 0.36.0 the
+      owner's: no frames - each player's tiles tinted in their colour. The switch: New game, the game's History
+      panel, Settings.
 - [x] **Statistics with several people** - yes (owner: "it's the phone's statistics"): every game counts;
       the computer's own moves never do. In the design prompt.
 - [ ] Later: games over the local network (PC ↔ Android), then Bluetooth (Android ↔ Android).
@@ -465,7 +467,25 @@ Order: the game itself first, then these; all of them are in the design prompt, 
 - [x] The word graph file per language (a tool that builds it from the chosen list) and its loading. 0.31.0
 - [x] The screens, from the design (0.35.0). The computer still thinks on the main thread - under the 900 ms
       "thinking" pause even at Expert on a PC; to watch on a phone.
-- [x] Saves, the games list (with check a word), statistics; the menu row stops saying "soon". 0.35.0
+- [x] Saves, the games list, statistics; the menu row stops saying "soon". 0.35.0
+
+### The owner's first round on the playable game (2026-09-25, after 0.35.0)
+- [x] No "check a word" card on the games list - it is in the game. 0.36.0
+- [x] How to play on Kafelki's New game: closed every time (its topics are long). 0.36.0
+- [x] No "Random" level in Kafelki. 0.36.0
+- [x] **Who starts**: a player chosen on New game, or drawn at random; the list is the order of play (↑ ↓). 0.36.0
+- [x] **Bug: the blank's letters closed at once on a phone** (the tap that put the blank down also landed on the
+      letters' backdrop, which means Cancel). Fixed; checked with real touch taps. 0.36.0
+- [x] **No frames for players - coloured tiles**: each player's tiles tinted (green, purple, pink, grey, yellow),
+      none of them the bonus squares' hues; the colours switch also on New game. 0.36.0
+- [x] No points bubble on the board after a move - the message line says it. 0.36.0
+- [x] **Hints on / off** - a rule on New game. 0.36.0
+- [x] **Undo** - a rule on New game, one person against the computer only: back a turn at a time, the computer's
+      replies too, as far as the start; the bag is shuffled again each time, so the next tiles are new. 0.36.0
+- [ ] A third board: the third one was Quick (11 × 11, half the tiles), dropped at the owner's wish - asked whether
+      to design a new 15 × 15 one.
+- [ ] "+points" beside each score (the last turn per player, or this round) - proposal sent, waiting.
+- [ ] Hint levels (a smaller hint, the best move, the best move looking ahead) - proposal sent, waiting.
 - [ ] Tune the levels by playing.
 
 ## Litery: hints and the "what you know" strip — DONE 2026-09-25 (0.28.2)

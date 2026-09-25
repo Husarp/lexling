@@ -400,4 +400,27 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   check('results: people only - level "people", no win against the computer', [people.level, people.vsCpu, people.won, people.games], ['people', 0, 0, 2]);
 }
 
+// ── undo (owner, 2026-09-25): one person against the computer takes moves back, the bag shuffled again ──
+{
+  const isWord = w => has(dicts.pl, w), rand = seeded(7);
+  const cpuMove = s => apply(s, computerMove(s, dicts.pl, 'hard', rankOf('pl'), rand), isWord);
+  let s = newGame({ lang: 'pl', players: [{ name: 'Ada' }, { cpu: 'normal' }], first: 0, seed: 7, words: dicts.pl.tag, rules: { undo: true } });
+  check('undo: nothing to take back before the person has moved', T.undo(s, isWord), null);
+  const start = s;
+  s = cpuMove(s);          // the person (playing like Hard)
+  s = cpuMove(s);          // the computer
+  const mid = s;
+  s = hinted(cpuMove(cpuMove(s)));
+  const back = T.undo(s, isWord, 123);
+  check('undo: back to the person\'s last turn - their rack, board and scores as they were', [back.turn, back.racks[0], back.cells, back.scores, back.moves],
+    [mid.turn, mid.racks[0], mid.cells, mid.scores, mid.moves]);
+  check('undo: the same tiles in the bag, in a new order', [[...back.bag].sort(), back.bag.join('') !== mid.bag.join('')], [[...mid.bag].sort(), true]);
+  check('undo: hints used stay counted', back.hints, s.hints);
+  check('undo: the shuffle goes into the log, so the game still replays', [back.log.at(-1).type, replay(back, isWord).at(-1).bag], ['shuffle', back.bag]);
+  const again = T.undo(back, isWord, 5);
+  check('undo again: back to the start, and no further', [again.cells, again.racks[0], again.scores, T.undo(again, isWord)], [start.cells, start.racks[0], start.scores, null]);
+  const after = cpuMove(again);
+  check('after an undo the game goes on - and the look-back skips the shuffles', [after.moves.length, lookBack(after, dicts.pl).length], [1, 1]);
+}
+
 console.log(`all ${passed} Tiles tests passed`);

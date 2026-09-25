@@ -48,11 +48,13 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - **No scores anywhere** (since 0.29.0): the games are for fun; statistics show how you are doing,
   hints used included.
 - **Tiles mode** (Kafelki, since 0.35.0), the classic crossword-tile game for 2–5 players - people passing
-  one device and/or the computer (five levels, Relaxed to Expert, or Random). Two boards (Classic, Bonus), the
+  one device and/or the computer (five levels, Relaxed to Expert), in the order you set, the first chosen or
+  drawn. Two boards (Classic, Bonus), the
   full 100-tile sets, sjp.pl / ENABLE word lists. Place tiles by dragging, by tapping, or by typing on a PC;
   the board zooms in on a phone (and pinches). A two-step hint (where, then the word), exchange, pass, a
-  letters-left list, check any word, each player's letters in their colour (switchable), rule options
-  (bonus squares every time, challenges, exchanges always, no seven-tile bonus, a clock per move or per game),
+  letters-left list, check any word, each player's tiles in their colour (switchable), rule options
+  (bonus squares every time, challenges, exchanges always, no seven-tile bonus, a clock per move or per game,
+  hints off, undo against the computer),
   a look-back after the game (your move next to the best there was) and its own statistics by language and
   level. Points stay in this one - scoring is the game.
 

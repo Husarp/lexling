@@ -1027,16 +1027,17 @@ input,textarea{-webkit-user-select:text;user-select:text}
 
 /* ═══ KAFELKI / TILES — what the first design did not draw, built in its style (0.35.0): up to five players,
    the hand-over between people, hints in two steps, check a word, rules, the clock, the look-back, the guide. ═══ */
-/* five player colours, dark enough on the yellow tile (≥ 4.5:1) and apart from each other and the bonus squares:
-   the design's green (seat 1) and blue (seat 2), then red, violet and teal */
-:root{--tl-p0:#245A0C;--tl-p1:#1C3A8A;--tl-p2:#8A1C1C;--tl-p3:#5B1C8A;--tl-p4:#0F5A5A}
-.t.p0,.tl-side.p0,.bub.p0,.pc0{--pc:var(--tl-p0)}.t.p1,.tl-side.p1,.bub.p1,.pc1{--pc:var(--tl-p1)}.t.p2,.tl-side.p2,.bub.p2,.pc2{--pc:var(--tl-p2)}
-.t.p3,.tl-side.p3,.bub.p3,.pc3{--pc:var(--tl-p3)}.t.p4,.tl-side.p4,.bub.p4,.pc4{--pc:var(--tl-p4)}
-.tb.own .t{color:var(--pc,var(--tl-ink))}
-.tb.own .t.new{color:var(--tl-ink)}.tb.own .t.hint{color:var(--text-muted)}
-.t.last{--ring:var(--pc);--rw:calc(var(--cs) * .08)}
+/* Who put a tile down (0.36.0, owner: "no frames for players - colour the tiles"): the tile itself in that player's
+   colour, the letter always dark ink. Five light tints, none of them the bonus squares' hues (light blue, blue, orange,
+   red): green, purple, pink, grey and the usual yellow - green and purple for the first two, apart for colour-blind
+   eyes too. --tl-pN is the same hue, darker: the key dot beside a name, the hand-over card. */
+:root{--tl-t0:#A8DA8F;--tl-t1:#D3B6F5;--tl-t2:#F6AFCE;--tl-t3:#CDD3DC;--tl-t4:#F3C237;
+  --tl-p0:#3E8E1F;--tl-p1:#7A45C8;--tl-p2:#C0376F;--tl-p3:#667085;--tl-p4:#A67C00}
+.t.p0,.tl-side.p0,.pc0{--pc:var(--tl-p0);--pt:var(--tl-t0)}.t.p1,.tl-side.p1,.pc1{--pc:var(--tl-p1);--pt:var(--tl-t1)}
+.t.p2,.tl-side.p2,.pc2{--pc:var(--tl-p2);--pt:var(--tl-t2)}.t.p3,.tl-side.p3,.pc3{--pc:var(--tl-p3);--pt:var(--tl-t3)}
+.t.p4,.tl-side.p4,.pc4{--pc:var(--tl-p4);--pt:var(--tl-t4)}
+.tb.own .t:is(.p0,.p1,.p2,.p3,.p4){background:var(--pt)}
 .tl-side{--mk:var(--pc)}
-.bub.pl b{background:var(--pc);color:#fff}
 /* the scores: a side per player (2-5), sharing the framed button */
 .tl-score{grid-template-columns:repeat(var(--np,2),minmax(0,1fr))}
 .tl-side .eyebrow span{overflow:hidden;text-overflow:ellipsis}
@@ -1111,7 +1112,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-look li.same .best .w{color:var(--lt-hit)}
 .tl-look .head{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim)}
 /* check a word from the games list */
-[data-screen=games] .tl-check{margin-top:var(--space-2)}
 /* the game screen's wiring (0.35.0): the panel and the overlays sit in .tl-play's grid through these wrappers */
 .tl-more,.tl-over{display:contents}
 .tl-panel-head .grow{flex:1;min-width:0}
@@ -1124,8 +1124,14 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* statistics: language and level filters above the Tiles numbers */
 .tl-filters{display:grid;gap:var(--space-2)}
 .tl-filters .chips{display:flex;flex-wrap:wrap;gap:6px}
-.tl-check-card{display:grid;gap:var(--space-2)}
-.tl-look,.tl-check-card{padding:var(--space-4) var(--space-5)}
+.tl-look{padding:var(--space-4) var(--space-5)}
 .tl-check form .input{flex:1;min-width:0}
 .tl-check form .btn{flex:none}
 .tl-prow .kind .seg{flex:1 1 220px}
+/* new game: move a player up / down the order of play; who starts (0.36.0, owner) */
+.tl-prow .acts{display:flex;gap:4px}
+.tl-prow .mv{min-height:36px;min-width:36px;padding:0}
+.tl-first{display:grid;gap:6px;margin-top:var(--space-2)}
+.tl-first .chips{display:flex;flex-wrap:wrap;gap:6px}
+.tl-first .chip{display:inline-flex;align-items:center;gap:6px}
+.tl-first .dot-p{flex:none;display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--pc)}

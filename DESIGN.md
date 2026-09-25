@@ -427,7 +427,7 @@ the right — and under it a plain card edged in the same colour with the word, 
   0.31.2): first the squares where it goes, then the word as a preview - each press a hint.
 - **Check a word** (0.31.2, owner: any time): `checkWord` - allowed, or why not (too short / too long / a
   letter with no tile / not a word). **Who put each tile**: every square remembers its player (`by`), for the
-  frames in each player's colour the owner can switch on and off during a game.
+  tiles in each player's colour that the owner can switch on and off during a game.
   **Letters not yet seen** (0.31.0): the full set minus the board and your own rack.
 - **The classic crossword-tile game**, never called by the trademarked name. Official
   rules: a rack of 7, the first word across the centre, one line, joined to what is down, every word made must
@@ -477,6 +477,21 @@ are in `screens.js`.
   hides the rack until its player taps "Show my tiles". One person against computers never sees it.
 - **Names**: typed on New game, or "You" / "Computer" when there is one of the kind, "Player 2" / "Computer 2"
   when there are several - in the interface's language.
+- **Each player's colour on their tiles** (0.36.0, owner: "no frames for players - use colours"): a player's
+  tiles are tinted - green, purple, pink, grey, the usual yellow, in seat order - with the letter in the same dark
+  ink. None is a bonus square's hue (light blue, blue, orange, red); green and purple, the first two, stay apart for
+  colour-blind eyes too. The dot beside a name is the same hue, darker. No ring round the last move any more, and
+  no points bubble on the board after a move (owner) - the message line says what was played. The switch: New
+  game, the game's History panel, Settings (one setting).
+- **Who starts** (0.36.0, owner): chosen on New game, or drawn at random ("Drawn at random" shows only then); the
+  players list is the order of play, ↑ ↓ move a player.
+- **Hints off** (0.36.0): a rule - no Hint tool in that game.
+- **Undo** (0.36.0, owner): a rule, one person against the computer only - "Wstecz / Undo" beside Give up goes
+  back to the person's previous turn (their move and the computer's reply come off), as far as their first turn,
+  also while the computer thinks. The bag is then shuffled again, so the tiles drawn next are not the ones that
+  came before (tiles.js `undo`: a { type: 'shuffle', seed } action, so the game still replays).
+- **A phone's tap is also a click**: the tap that puts a blank down arrives a moment later as a click - right on
+  the letter picker that has just opened (its backdrop = Cancel). Clicks on the picker are ignored for 600 ms.
 - **The message line keeps a note** of a challenge's outcome or a turn lost to the clock while the next player
   moves, so it is not lost under the computer's reply.
 - **Give up** ends the game for everyone (the rules): the person to move gives up. A game of computers only is
@@ -490,7 +505,8 @@ are in `screens.js`.
 Every New game screen has a card under the title: "Jak grać / How to play", 4-5 short lines, opened and closed
 with a tap (a native details element - works with a finger, a mouse, the keyboard and a screen reader). Open until
 a game of that kind has been finished, closed after that; once the player opens or closes it, it stays as they left
-it (settings.howTo). Kafelki's will hold topics that open one at a time, and open from a "?" in the game too.
+it (settings.howTo). Kafelki's holds topics that open one at a time, and opens from a "?" in the game too; it is
+closed every time (0.36.0, owner: "collapsed every time").
 
 ## 4a. Rendering quality & responsiveness (hard requirements)
 
