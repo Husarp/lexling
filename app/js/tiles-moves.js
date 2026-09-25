@@ -142,6 +142,13 @@ export function findMoves(state, dict, rack = state.racks[state.turn]) {
   }
 }
 
+// A hint (owner, 2026-09-25: yes): the best move for the rack of the player whose turn it is - the screen lays
+// it on the board as a preview, to play or take back - or null when there is none. Count it: hinted() in tiles.js.
+export function hint(state, dict) {
+  const moves = findMoves(state, dict);
+  return moves.length ? moves.reduce((a, b) => b.score > a.score ? b : a) : null;
+}
+
 // ── The computer ─────────────────────────────────────────────────────────────────────────────────
 // A level is how many words the computer knows and how hard it tries. `known`: only words whose base word is
 // among that many of the most common (the word list is most-common-first; the same measure as Connect's
@@ -154,7 +161,8 @@ export const LEVELS = {
   hard: { known: Infinity, aim: 1 },
 };
 
-// The computer's turn: { kind: 'play', placed } or { kind: 'swap', tiles } or { kind: 'pass' }.
+// The computer's turn, as an action for apply() in tiles.js: { type: 'place', placed }, { type: 'exchange',
+// tiles } or { type: 'pass' }.
 // `rankOf(word)` = the place of the word's base word in the frequency list, or Infinity when unknown.
 // With nothing it knows to play, it swaps its whole rack while it may, and passes when it may not.
 export function computerMove(state, dict, level = 'normal', rankOf = () => 0, rand = Math.random) {
@@ -163,11 +171,11 @@ export function computerMove(state, dict, level = 'normal', rankOf = () => 0, ra
   const knows = m => known === Infinity || wordsMade(state, m.placed).words.every(x => rankOf(x.w) < known);
   const moves = findMoves(state, dict).sort((x, y) => y.score - x.score);
   const top = moves.find(knows);
-  if (!top) return state.bag.length >= RACK ? { kind: 'swap', tiles: [...state.racks[state.turn]] } : { kind: 'pass' };
+  if (!top) return state.bag.length >= RACK ? { type: 'exchange', tiles: [...state.racks[state.turn]] } : { type: 'pass' };
   const want = top.score * aim, gaps = new Map();
   for (const m of moves) { const g = Math.abs(m.score - want); gaps.set(g, [...gaps.get(g) ?? [], m]); }
   for (const g of [...gaps.keys()].sort((x, y) => x - y)) {
     const near = gaps.get(g).filter(knows);
-    if (near.length) return { kind: 'play', placed: near[Math.floor(rand() * near.length)].placed };
+    if (near.length) return { type: 'place', placed: near[Math.floor(rand() * near.length)].placed };
   }
 }

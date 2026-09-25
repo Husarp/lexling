@@ -39,16 +39,15 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - Statistics for each game (no achievements, since 0.23.0).
 - Polish + English, switchable.
 - **Letters mode**: one box per letter, its own on-screen keyboard (keys coloured by what the guesses
-  showed; tap a tile to edit it; the phone's keyboard as an option), a strip of what you already know
-  (letters in place, yellow letters still to place), free hints (one letter in its place, at most half
-  the word), and its own statistics.
+  showed; tap a tile to edit it; Space leaves a tile empty, ← → move along the row; the phone's keyboard
+  as an option), free hints (one letter in its place, at most half the word), and its own statistics.
 - **Connect mode** (Połącz): drag across a circle of 4–10 letters to fill a small crossword; other real
   words are bonus words; free hints, a random letter at a time, at most half of any word. Its own statistics.
 - **No scores anywhere** (since 0.29.0): the games are for fun; statistics show how you are doing,
   hints used included.
-- **Tiles** (Kafelki), a Scrabble-like game against the computer, is being built: its rules, boards and
-  computer player exist (0.30.0), its screens wait for the design; the menu shows it as "soon". Points stay
-  in this one - scoring against the computer is the game.
+- **Tiles** (Kafelki), a Scrabble-like game for 2–5 players - people passing one device and/or the
+  computer - is being built: its rules, boards, word lists and computer player exist (0.30.0–0.31.0), its
+  screens wait for the design; the menu shows it as "soon". Points stay in this one - scoring is the game.
 
 ## Run it (development)
 
@@ -138,6 +137,12 @@ words, sanity checks such as *pies → kot close, śruba far*). It needs:
 - LibreOffice installed with the Polish and English dictionaries (default location
   `C:/Program Files/LibreOffice/share/extensions/`, override with the `WG_DICTS` variable).
 
+Tiles has word files of its own, `app/data/<lang>/tiles.bin` (a word graph, `app/js/dawg.js`), built from
+two word-game lists by `node tools/build-tiles-words.mjs` (~20 s). It needs, in `tools/raw/tiles/` (git-ignored):
+`slowa.txt` from sjp.pl's "słownik do gier" (https://sjp.pl/sl/growy/ - unzip `sjp-YYYYMMDD.zip`) and
+`enable1.txt` (https://raw.githubusercontent.com/dolph/dictionary/master/enable1.txt), plus the LibreOffice
+dictionaries above (to leave out every form of a slur or vulgar word).
+
 ## Data sources & licences
 
 The shipped word data is *derived from* these sources — keep this list in the game's credits
@@ -149,6 +154,8 @@ when it is distributed (to-do in PLAN.md M5). Not legal advice; check the terms 
 | sjp.pl Polish Hunspell dictionary (M. Futrega) | Polish words + inflection | GPL / LGPL / MPL / Apache 2.0 / CC SA (your choice) |
 | SCOWL `en_US` Hunspell dictionary | English words + inflection | permissive (BSD-like), attribution |
 | WordNet-based LibreOffice thesaurus | English parts of speech | WordNet licence (permissive, attribution) |
+| SJP.PL "słownik do gier" (sjp.pl) | Tiles: Polish words (`app/data/pl/tiles.bin`; changed: slurs and vulgar words left out) | GPL 2 or CC BY 4.0 — we use CC BY 4.0: attribution |
+| ENABLE word list | Tiles: English words (`app/data/en/tiles.bin`) | public domain |
 | Barlow Condensed, Inter | fonts | SIL OFL (licence files in `app/fonts/`) |
 
 ## Licence
@@ -156,7 +163,8 @@ when it is distributed (to-do in PLAN.md M5). Not legal advice; check the terms 
 **All rights reserved** — © 2026 Husarp. The code is public to read, and the releases are free to
 download and play, but the game may not be copied, changed, shared, sold or built upon without
 written permission. The exceptions are the third-party parts above, which keep their own licences:
-the word data derived from fastText stays under CC BY-SA 3.0, and the fonts under the SIL OFL. Full
+the word data derived from fastText stays under CC BY-SA 3.0, the Polish Tiles word file derived from
+SJP.PL under CC BY 4.0, and the fonts under the SIL OFL. Full
 terms in [LICENSE](LICENSE).
 
 ## Project layout
@@ -173,6 +181,7 @@ app/                the game itself — single-page app, no build step, no depen
   js/tiles.js       Tiles rules: the boards, letter sets, bag and racks, checking and scoring a move, the end
   js/tiles-moves.js Tiles move finder (every legal move for a rack) and the computer player's levels
   js/dawg.js        the word graph Tiles looks words up in (build, save to bytes, load, walk)
+  data/<lang>/tiles.bin  Tiles' word graphs (tools/build-tiles-words.mjs)
   js/engine.js      word data loading, rank scoring, form→lemma, autocomplete, secret picking
   js/store.js       settings, saved games, lifetime stats (localStorage)
   js/i18n.js        every UI string in EN + PL, plural rules, number/time formatting

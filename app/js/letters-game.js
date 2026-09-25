@@ -4,7 +4,7 @@
 import { t, plural, esc } from './i18n.js';
 import { settings, stats, saveStats, getSave, putSave, gameName, recordLettersEnd, playClock } from './store.js';
 import { loadWords, resolve } from './engine.js';
-import { feedback, typeLetter, eraseLetter, keyStates, known, hintAt, MARKED } from './letters.js';
+import { feedback, typeLetter, eraseLetter, skipTile, keyStates, hintAt, MARKED } from './letters.js';
 import { topbar, modeTag, confirmClick, TILE, outcome } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
@@ -16,6 +16,8 @@ const ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
 const PL_ROW = 'ąćęłńóśźż';
 // the bulb of Connect's Hint button
 const BULB = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path></svg>';
+const LEFT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg>';
+const RIGHT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>';
 const BACKSPACE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"></path><path d="m12 9 6 6"></path><path d="m18 9-6 6"></path></svg>';
 
 export async function lettersGameScreen(root, id) {
@@ -96,14 +98,6 @@ export async function lettersGameScreen(root, id) {
     });
   }
 
-  // The letters in place so far, under the keyboard (owner, 2026-09-25): a row of tiles the size of the
-  // grid's - green where a guess had the right letter, dashed where a hint showed it, empty otherwise. No
-  // yellows: the keyboard shows those. `fresh` = the position a hint has just filled, which fades in.
-  function paintKnown(fresh = -1) {
-    const { slots } = known(game.guesses, game.secret, game.hinted);
-    $('.known-row').innerHTML = tiles(slots.map((s, i) => s.how + (i === fresh ? ' new-hint' : '')), slots.map(s => s.ch));
-  }
-
   // A hint: one letter in its right place, never one already known - free, only counted (owner), and at
   // most half the word, as in Connect (letters.js, hintAt).
   function hint() {
@@ -114,7 +108,6 @@ export async function lettersGameScreen(root, id) {
     game.hinted.push(at);
     putSave(game);
     say(t('lt.hintGot', { i: at + 1, ch: esc([...game.secret][at].toUpperCase()) }));
-    paintKnown(at);
   }
 
   // While playing, the grid is the part that scrolls (the screen fits the window): keep it at the
@@ -162,6 +155,23 @@ export async function lettersGameScreen(root, id) {
 
   const select = i => { sel = i; paintNow(); };
 
+  // Space leaves a tile empty and moves on (owner, 2026-09-25; letters.js skipTile) - on screen and on a PC.
+  function space() {
+    if (!playing() || revealing) return;
+    ({ row: cur, sel } = skipTile(cur, sel));
+    bad = false;
+    say('');
+    paintNow();
+  }
+
+  // ← / →: the selection one tile along, from the caret when nothing is selected - the keys under the
+  // keyboard (owner, 2026-09-25) and a computer's arrow keys.
+  function nudge(d) {
+    if (!playing() || revealing) return;
+    const gap = cur.indexOf(''), from = sel ?? (gap < 0 ? n - 1 : gap);
+    select(Math.min(n - 1, Math.max(0, from + d)));
+  }
+
   function paintPlay() {
     // While playing, the screen is exactly the window's height: status on top, the grid in the middle
     // (it scrolls), the keyboard at the bottom (css: .fit, .kbon). The end screen goes back to an
@@ -178,8 +188,8 @@ export async function lettersGameScreen(root, id) {
         ${marksOn ? row(PL_ROW, true) : ''}${row(ROWS[0])}${row(ROWS[1], true)}
         <div class="kb-row"><button type="button" class="key wide enter" data-act="enter">${t('kb.enter')}</button>${
           [...ROWS[2]].map(key).join('')}<button type="button" class="key wide" data-act="back" aria-label="${t('kb.backspace')}">${BACKSPACE}</button></div>
+        <div class="kb-row"><button type="button" class="key wide space" data-act="space">${t('kb.space')}</button><button type="button" class="key wide" data-act="left" aria-label="${t('kb.left')}">${LEFT}</button><button type="button" class="key wide" data-act="right" aria-label="${t('kb.right')}">${RIGHT}</button><button type="button" class="key wide" data-act="hint" aria-label="${t('game.hint')}">${BULB}</button></div>
       </div>
-      <div class="known"><div class="known-fit"><div class="lt-row known-row" style="--n:${n}" role="img" aria-label="${t('lt.known')}"></div></div><button class="btn btn-ghost lt-hint" type="button" aria-label="${t('game.hint')}">${BULB}</button></div>
       <input class="sink" type="text" inputmode="text" enterkeyhint="go" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="${n}" aria-label="${t('game.inputAria')}">
     </div>`;
     board = $('.lt-board');
@@ -188,18 +198,18 @@ export async function lettersGameScreen(root, id) {
     paintStatus();
     paintBoard();
     paintKeys();
-    paintKnown();
-    const bulb = $('.lt-hint');
-    bulb.addEventListener('click', hint);
-    bulb.addEventListener('pointerdown', e => e.preventDefault());   // no focus: Enter belongs to the guess
 
     // A key acts on pointer-down, at once. preventDefault keeps the focus where it is, so no key ever
     // opens the phone's keyboard - and when the phone's keyboard is open, using the keys on screen
     // closes it (owner, 2026-09-25). The key looks pressed, with its letter above the finger, only while held.
     const act = keyEl => {
       if (document.activeElement === sink) sink.blur();
-      if (keyEl.dataset.act === 'enter') submit();
-      else if (keyEl.dataset.act === 'back') back();
+      const act = keyEl.dataset.act;
+      if (act === 'enter') submit();
+      else if (act === 'back') back();
+      else if (act === 'space') space();
+      else if (act === 'left' || act === 'right') nudge(act === 'left' ? -1 : 1);
+      else if (act === 'hint') hint();
       else press(keyEl.dataset.k);
     };
     kb.addEventListener('pointerdown', e => {
@@ -264,7 +274,7 @@ export async function lettersGameScreen(root, id) {
     keepDown();
   }
 
-  // A computer's keyboard always types, whatever the setting: letters, Backspace, Enter; Esc lets a
+  // A computer's keyboard always types, whatever the setting: letters, Backspace, Enter, Space; Esc lets a
   // selection go (and only then leaves the screen, main.js); the arrows move the selection.
   function onKey(e) {
     if (!playing() || e.defaultPrevented || !app.isConnected || document.activeElement === sink) return;
@@ -275,12 +285,9 @@ export async function lettersGameScreen(root, id) {
     if (/^\p{L}$/u.test(e.key)) { e.preventDefault(); press(e.key.toLowerCase()); }
     else if (e.key === 'Backspace') { e.preventDefault(); back(); }
     else if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    else if (e.key === ' ') { e.preventDefault(); space(); }
     else if (e.key === 'Escape' && sel !== null) { e.preventDefault(); select(null); }
-    else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-      e.preventDefault();
-      const gap = cur.indexOf(''), from = sel ?? (gap < 0 ? n - 1 : gap);
-      select(Math.min(n - 1, Math.max(0, from + (e.key === 'ArrowLeft' ? -1 : 1))));
-    }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); nudge(e.key === 'ArrowLeft' ? -1 : 1); }
   }
 
   let revealing = false;
@@ -322,7 +329,6 @@ export async function lettersGameScreen(root, id) {
     // 2026-09-25) - never before its tile, so the keyboard gives nothing away - with a small bounce.
     const step = Math.min(30, 300 / n);     // = the row's reveal, tile after tile (app.css .lt-row.reveal)
     for (let i = 0; i < n; i++) setTimeout(() => { if (kb.isConnected) paintKeys(game.guesses, i); }, i * step);
-    setTimeout(() => { if (kb.isConnected) paintKnown(); }, revealMs);
     if (won || out) finish(game.status, true);
   }
 

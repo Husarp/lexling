@@ -380,7 +380,7 @@ official board plus two more, symmetrical, found by looking around; a core syste
 - [x] **Design prompt**: `notes/tiles-design-prompt.md` (new game, the game screen on phone and PC, placing
       tiles, blanks, exchange, the computer's turn, the end, saved-game card, statistics).
 
-### The word list — open, the owner decides (asked 2026-09-25)
+### The word list — DECIDED 2026-09-25: sjp.pl + ENABLE, built in 0.31.0
 Measured on the lists the app has (`ac.txt` + `extra.txt`): 458 306 Polish words, 72 354 English. Two problems:
 - **Abbreviations count as words**: *hr, pp, bp, cm, dr* / *cc, cf, bk* - and the computer plays them (seen in
   the test games: HR, PP, OPOWI, MAH). The lists come from spell-checkers, which want them.
@@ -391,10 +391,15 @@ Measured on the lists the app has (`ac.txt` + `extra.txt`): 458 306 Polish words
   ~173 000 words, what Words With Friends started with). Both would go into the word graph file, built ahead of
   time; download size to measure. The computer's levels would still use our frequency list to decide which
   words it "knows".
-- [ ] Owner: download and use them? (the downloads need the owner's yes)
+- [x] Owner: download and use them? - **yes**. 0.31.0: 3.2 million Polish words (2.8 MB), 168 000 English
+      (0.8 MB), every form of a slur or vulgar word left out; the README credits them. The credit line in the
+      app comes with the Tiles screens (design prompt; see also M5 "Credits in About").
+- [ ] Now possible, not asked: Letters could accept the forms only sjp.pl has (pasłem - see M11 above).
 
-### How it plays — mechanics, phone and PC (proposed 2026-09-25, in the design prompt)
-- **You against the computer**; who starts is drawn at random. No timer. Save & exit and Give up, as everywhere.
+### How it plays — mechanics, phone and PC (proposed 2026-09-25, in the design prompt; answers the same day)
+- **2–5 players** (owner: "add more users, up to 5"): people passing the device and/or the computer, each
+  seat its own level; a hand-over screen hides the rack between people. Core: 0.31.0. Who starts is drawn at
+  random. No timer. Save & exit and Give up, as everywhere.
 - **Placing**: drag a tile from the rack to a square (finger or mouse); or tap a tile, then a square; a tile
   put down this turn can be dragged elsewhere or tapped back to the rack; **Recall** takes them all back;
   **Shuffle** mixes the rack; the rack can be reordered by dragging.
@@ -408,18 +413,41 @@ Measured on the lists the app has (`ac.txt` + `extra.txt`): 458 306 Polish words
 - **Exchange**: pick the tiles to swap - only while 7+ tiles are in the bag (say why when not). **Pass**.
 - **The computer's turn**: a short "thinking" pause (it really takes milliseconds), its tiles land, its
   points show; the last move of each side stays marked.
-- **Always visible**: both scores, whose turn, tiles left in the bag. On demand: the move history; the letters
-  not yet seen (the bag plus the computer's rack) - proposed, owner to confirm.
-- **Hints** - proposed, owner to confirm: a hint lays one good move for your rack on the board as a preview
-  (play it or take it back); free, counted, as in the other games.
+- **Always visible**: every player's score, whose turn, tiles left in the bag. On demand: the move history; the
+  letters not yet seen (the bag plus everyone else's racks) - **owner: yes**, core 0.31.0.
+- **Hints** - **owner: yes**: a hint lays the best move for your rack on the board as a preview (play it or
+  take it back); free, counted, as in the other games. Core 0.31.0.
 - **New game**: language, board, the computer's level (Relaxed / Easy / Normal / Hard + Random). No
   Polish-letters switch - the Polish set has them - and no categories.
 - **End**: won / lost / draw / gave up; the final scores with the leftovers taken off and given; the best
   word; Play again, Menu. **Statistics**: played, won, best game score, best move (word + points), average
   score, seven-tile moves, hints used.
 
+### From the owner's own plan (letterex-plan(scrabble).md, read 2026-09-25 at the owner's wish)
+It agrees with what was built: DAWG + Appel–Jacobson, sjp.pl + ENABLE (CC BY rather than GPL), four levels,
+hot-seat. Taken into the core at once, as the plan asks for them "from day one" (0.31.0):
+- [x] The engine as actions, `apply(state, action) → state`, with a seed (replays, saves, later network games).
+- [x] A tag (hash) of the word list in every save - a new list never breaks an old game.
+- [x] Letter names (es, ef, zet / ess, aitch, zed) - checked: in both lists already, no extra list needed.
+- [x] Proper nouns and abbreviations out - the word-game lists have none.
+Its other ideas - **the owner to choose which go into the first version** (asked 2026-09-25):
+- [ ] Hint types chosen when asking: can I play anything (or better exchange - which tiles)? / the word only /
+      the place only / the full move; hint strength best / good; an optional hint limit; games with hints
+      counted apart in the statistics.
+- [ ] "Check a word" - look a word up in the list.
+- [ ] Rule options: bonus squares once (standard) / always; automatic checking / challenges with a penalty;
+      exchanges only with 7+ in the bag / always; the bonus for seven tiles; an optional time limit (per move /
+      per game).
+- [ ] A stronger computer: Hard weighing the tiles it keeps (needed for "exchange these"), an Expert level
+      that simulates (Monte Carlo).
+- [ ] Statistics per level and language, points per move, passes; a look-back after the game (the best move
+      of each turn) and replays.
+- [ ] New game on the last settings in one tap; a daily puzzle (the date as the seed); an anagram trainer;
+      bigger text.
+- [ ] Later: games over the local network (PC ↔ Android), then Bluetooth (Android ↔ Android).
+
 ### To build — after the owner's answers and the design
-- [ ] The word graph file per language (a tool that builds it from the chosen list) and its loading.
+- [x] The word graph file per language (a tool that builds it from the chosen list) and its loading. 0.31.0
 - [ ] The screens, from the design; the computer's turn off the main thread if it ever needs to be.
 - [ ] Saves, the games list, statistics; the menu row stops saying "soon".
 - [ ] Tune the levels by playing.
@@ -428,6 +456,16 @@ Measured on the lists the app has (`ac.txt` + `extra.txt`): 458 306 Polish words
 - [x] Hint = one letter in its right place, free (counted only), at most half the word; the strip above the grid
       shows the letters in place and the yellow ones still to place. Owner's idea.
 - [x] Should a hint lower the score? - moot: there is no score since 0.29.0.
+
+## From playing 0.29.6 on the phone — 2026-09-25 (afternoon)
+- [x] **Litery: the row of letters in place under the keyboard goes** (owner: not needed); in its place one row:
+      Space (leaves a tile empty and moves on), ← → (along the tiles), Hint. 0.31.1
+- [x] **"Doesn't exist or isn't allowed"** instead of "I don't know the word" - Guess, Letters, Connect. 0.31.1
+- [x] **The orange line at the top of every screen** (the top bar's 3 px accent edge) - gone, phone and PC. 0.31.1
+- [ ] Litery: where hinted letters show now that the row is gone - asked the owner.
+- [ ] Połącz: "hints mostly pick first letters" - measured, not so: over 1 200 hints 26.0 % landed on a first
+      letter, and 26.7 % of the squares are first letters; every letter of the circle equally often. Asked the
+      owner what they saw.
 
 ## M14 — The third game: Połącz / Connect — PLANNED 2026-09-25, designs requested
 The owner's description: you get a few letters **arranged in a circle**. You draw a word by dragging

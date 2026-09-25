@@ -1,7 +1,7 @@
 // Tests for the Letters mode rules in app/js/letters.js. Run: node tools/test-letters.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { feedback, typeLetter, eraseLetter, keyStates, known, hintAt } from '../app/js/letters.js';
+import { feedback, typeLetter, eraseLetter, skipTile, keyStates, known, hintAt } from '../app/js/letters.js';
 
 const G = 'green', Y = 'yellow', _ = 'grey';
 let passed = 0;
@@ -43,6 +43,13 @@ check('Backspace on an empty row does nothing', erased('_____', null), ['_____',
 check('Backspace on a selected letter empties it and keeps it selected', erased('steel', 2), ['st_el', 2]);
 check('Backspace on a selected gap steps back and empties that', erased('st_el', 2), ['s__el', 1]);
 check('Backspace on a selected first gap does nothing', erased('_teel', 0), ['_teel', 0]);
+// Space (owner, 2026-09-25): leave a tile empty and move on
+const spaced = (r, sel) => { const o = skipTile(row(r), sel); return [str(o.row), o.sel]; };
+check('Space: the first gap stays empty, the next tile is selected', spaced('st___', null), ['st___', 3]);
+check('Space, then a letter: it goes after the gap', (() => { const a = skipTile(row('_____'), null); const b = typeLetter(a.row, a.sel, 'a'); return [str(b.row), b.sel]; })(), ['_a___', 2]);
+check('Space on a selected letter empties it and moves on', spaced('steel', 1), ['s_eel', 2]);
+check('Space on the last tile: nothing selected after it', spaced('stee_', 4), ['stee_', null]);
+check('Space on a full row with nothing selected does nothing', spaced('steel', null), ['steel', null]);
 const keys = keyStates(['crane', 'sheet'], 'steel');
 check('keys: the design\'s example - C R A N H out, S green, T yellow, E green', [keys.state.c, keys.state.h, keys.state.s, keys.state.t, keys.state.e], ['miss', 'miss', 'hit', 'near', 'hit']);
 check('keys: SHEET has two green E - E is known to be in STEEL twice', keys.count.e, 2);

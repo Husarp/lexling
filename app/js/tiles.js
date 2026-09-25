@@ -1,9 +1,9 @@
-// Kafelki / Tiles - the rules, with no screen attached (PLAN.md M13). A game of letter tiles on a board
-// against the computer, in the manner of the classic crossword board game: the boards, the letter sets, the
-// bag and racks, checking and scoring a move, exchanging, passing and the end of the game. Finding moves (the
-// computer, hints) is tiles-moves.js; the word list lives in a word graph (dawg.js). "Scrabble" is a
+// Kafelki / Tiles - the rules, with no screen attached (PLAN.md M13). A game of letter tiles on a board for
+// 2-5 players, people or the computer, in the manner of the classic crossword board game: the boards, the letter
+// sets, the bag and racks, checking and scoring a move, exchanging, passing and the end of the game. Finding
+// moves (the computer, hints) is tiles-moves.js; the word list lives in a word graph (dawg.js). "Scrabble" is a
 // trademark - the game never uses the name.
-import { offensiveWord } from './offensive.js';
+import { fromBytes } from './dawg.js';
 
 export const RACK = 7, BINGO = 50, BLANK = '?';
 
@@ -105,37 +105,48 @@ export function fullBag(lang, board) {
   return bag;
 }
 
-// The words the game accepts: every base word and inflected form the app knows (Letters' guesses), 2 to 15
-// letters, made only of the set's letters - and never a slur or a vulgar word, as in every game here
-// (offensive.js; an inflected form through its base word). What goes into the word graph.
-export function tileWords(m) {
-  const lang = m.lang === 'pl' ? 'pl' : 'en', { letters } = letterSet(lang), abc = new Set(letters);
-  const ok = w => { const n = [...w].length; return n >= 2 && n <= 15 && [...w].every(ch => abc.has(ch)) && !offensiveWord(lang, w); };
-  const out = new Set();
-  m.ac.forEach((w, i) => { if (ok(w) && !offensiveWord(lang, m.words[m.acIdx[i]])) out.add(w); });
-  for (const w of m.extra) if (ok(w)) out.add(w);
-  return [...out];
-}
+// The words the game accepts, as a word graph built ahead of time (tools/build-tiles-words.mjs): sjp.pl's list
+// for word games in Polish (3.2 million words and forms, CC BY 4.0) and ENABLE in English (168 000, public
+// domain), 2 to 15 letters, minus slurs and vulgar words. The same promise to every caller.
+const graphs = {};
+export const loadTileWords = lang => graphs[lang] ??= fetch(`data/${lang}/tiles.bin`).then(r => r.arrayBuffer()).then(fromBytes)
+  .catch(e => { delete graphs[lang]; throw e; });
 
 // ── A game ───────────────────────────────────────────────────────────────────────────────────────
-// Plain data, so a save is the state itself: `cells` holds null or { ch, blank } per square (r * size + c),
-// `bag` is drawn from the end, `racks[p]` / `scores[p]` per player (0 = the person, 1 = the computer),
-// `zeros` counts turns in a row that scored nothing, `moves` is the history, `over` null or how it ended.
+// Plain data, so a save is the state itself: `players[p]` = { name, cpu } (`cpu` = the computer's level, or
+// null for a person - 2 to 5 of them, any mix: owner, 2026-09-25), `cells` holds null or { ch, blank } per
+// square (r * size + c), `bag` is drawn from the end, `racks[p]` / `scores[p]` / `hints[p]` per player,
+// `zeros` counts turns in a row that scored nothing, `moves` is the history, `over` null or how it ended,
+// `words` the tag of the word list that checked the moves (dawg.js), `seed` the game's own random numbers.
 // A placement is a list of { r, c, ch, blank }: `blank` true = a blank tile showing `ch`.
-const shuffle = (list, rand) => {
+export const PLAYERS_MIN = 2, PLAYERS_MAX = 5;
+
+// The owner's plan: an engine with a seed, so the same seed and the same moves always make the same game -
+// for replays, and one day for games between devices, which must draw the same tiles. One step of it:
+// [a number 0-1, the next seed] (mulberry32).
+const roll = seed => {
+  seed = (seed + 0x6D2B79F5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return [((t ^ (t >>> 14)) >>> 0) / 4294967296, seed];
+};
+const shuffle = (list, seed) => {
   const a = [...list];
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-  return a;
+  for (let i = a.length - 1, x; i > 0; i--) { [x, seed] = roll(seed); const j = Math.floor(x * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return { list: a, seed };
 };
 const draw = (bag, rack) => { const b = [...bag], r = [...rack]; while (r.length < RACK && b.length) r.push(b.pop()); return { bag: b, rack: r }; };
 
-export function newGame({ lang, board = 'classic', players = 2, first = 0, rand = Math.random }) {
-  let bag = shuffle(fullBag(lang, board), rand);
+// `first`: who starts - drawn from the seed when not given (the real game draws tiles for it).
+export function newGame({ lang, board = 'classic', players, first, seed = Math.floor(Math.random() * 2 ** 32), words = 0 }) {
+  if (players.length < PLAYERS_MIN || players.length > PLAYERS_MAX) throw new Error(`${players.length} players: 2 to 5 play`);
+  let { list: bag, seed: s } = shuffle(fullBag(lang, board), seed);
   const racks = [];
-  for (let p = 0; p < players; p++) { const d = draw(bag, []); bag = d.bag; racks.push(d.rack); }
-  const n = sizeOf(board);
-  return { lang, board, cells: Array(n * n).fill(null), bag, racks, scores: Array(players).fill(0),
-    turn: first, zeros: 0, moves: [], over: null };
+  for (let p = 0; p < players.length; p++) { const d = draw(bag, []); bag = d.bag; racks.push(d.rack); }
+  if (first === undefined) { let x; [x, s] = roll(s); first = Math.floor(x * players.length); }
+  const n = sizeOf(board), none = () => players.map(() => 0);
+  return { lang, board, words, players: players.map(x => ({ name: x.name ?? '', cpu: x.cpu ?? null })),
+    cells: Array(n * n).fill(null), bag, racks, scores: none(), hints: none(), turn: first, zeros: 0, moves: [], over: null, seed: s };
 }
 
 const firstMove = state => state.cells.every(x => !x);
@@ -256,13 +267,13 @@ export function play(state, placed, isWord) {
 // Swap some tiles for new ones - only while the bag still holds a full rack (the official rule). Scores
 // nothing. Returns null when it is not allowed.
 export const canExchange = state => state.bag.length >= RACK;
-export function exchange(state, tiles, rand = Math.random) {
+export function exchange(state, tiles) {
   if (!canExchange(state) || !tiles.length) return null;
   const p = state.turn, rack = [...state.racks[p]];
   for (const t of tiles) { const k = rack.indexOf(t); if (k < 0) return null; rack.splice(k, 1); }
   const d = draw(state.bag, rack);
-  const bag = shuffle([...d.bag, ...tiles], rand);
-  return scoreless({ ...state, bag, racks: state.racks.map((r, i) => i === p ? d.rack : r),
+  const { list: bag, seed } = shuffle([...d.bag, ...tiles], state.seed);
+  return scoreless({ ...state, bag, seed, racks: state.racks.map((r, i) => i === p ? d.rack : r),
     moves: [...state.moves, { p, kind: 'swap', n: tiles.length }] });
 }
 
@@ -275,4 +286,38 @@ function scoreless(state) {
   return zeros >= 2 * state.racks.length ? finish(after, 'passes') : after;
 }
 
+// Giving up ends the game for everyone; the others are ranked by their scores as they stand.
 export const resign = (state, p = state.turn) => finish(state, 'resign', -1, p);
+
+// The engine as one function (the owner's plan: "apply(state, action) -> state"). Everything that happens in a
+// game is one of these, so a game can be replayed from its first state and its actions:
+// { type: 'place', placed } | { type: 'exchange', tiles } | { type: 'pass' } | { type: 'resign', p }.
+// An action that is not allowed throws, and the state stays as it was.
+export function apply(state, action, isWord) {
+  if (state.over) throw new Error('the game is over');
+  if (action.type === 'place') return play(state, action.placed, isWord);
+  if (action.type === 'exchange') {
+    const after = exchange(state, action.tiles);
+    if (!after) throw new Error('not an allowed exchange');
+    return after;
+  }
+  if (action.type === 'pass') return pass(state);
+  if (action.type === 'resign') return resign(state, action.p ?? state.turn);
+  throw new Error('no such action: ' + action.type);
+}
+
+// A hint was shown to the player whose turn it is (the move itself: hint() in tiles-moves.js). Counted, as in
+// the other games.
+export const hinted = state => ({ ...state, hints: state.hints.map((h, p) => p === state.turn ? h + 1 : h) });
+
+// The tiles player `p` has not seen (owner, 2026-09-25: yes): what is in the bag and on everyone else's
+// racks, worked out as p sees it - the full set, minus the board, minus p's own rack. { letter: count } in
+// the language's alphabetical order, blanks ('?') last; letters all gone are left out.
+export function unseen(state, p = state.turn) {
+  const left = {};
+  for (const t of fullBag(state.lang, state.board)) left[t] = (left[t] || 0) + 1;
+  for (const x of state.cells) if (x) left[x.blank ? BLANK : x.ch]--;
+  for (const t of state.racks[p]) left[t]--;
+  const order = [...letterSet(state.lang).letters].sort((a, b) => a.localeCompare(b, state.lang)).concat(BLANK);
+  return Object.fromEntries(order.filter(ch => left[ch] > 0).map(ch => [ch, left[ch]]));
+}

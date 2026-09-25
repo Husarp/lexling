@@ -6,6 +6,44 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.31.1 — 2026-09-25 16:32: Litery - Space and arrows under the keyboard; clearer "not a word"; no orange line
+*(not packaged)*
+
+From the owner, playing 0.29.6 on the phone:
+- **Litery: the row of letters in place under the keyboard is gone** (owner: not needed). In its place one row of
+  keys: a long **Space** on the left - it leaves a tile empty and moves on (the selected tile, or the first gap,
+  so you can put in only the letters you know: Space Space A Space E) - then **← →**, which move the selected tile
+  along the row, then **Hint**. On a computer, Space and the arrow keys do the same.
+- **A word the game does not take** now reads "“XYZ” doesn't exist or isn't allowed" / "Słowo „XYZ” nie istnieje
+  lub jest niedozwolone" - in Guess, Letters and Connect (was "I don't know the word" / "Nie znam słowa").
+- **No orange line at the top of every screen**: the top bar had a 3 px line in the theme colour along its top
+  edge. Gone on the phone and on the PC.
+- Połącz hints checked, not changed: they already pick a random empty square (1 200 simulated: first letters 26.0 %
+  of hints, 26.7 % of squares; the circle's letters equally often).
+- 259 Letters tests (5 new, for Space).
+
+## 0.31.0 — 2026-09-25 16:32: Tiles - the real word lists, 2-5 players, hints, the tiles not yet seen
+*(not packaged)*
+
+The owner's answers (2026-09-25): download the word lists, keep the boards, hints yes, the unseen-tiles list yes,
+up to 5 players, and read their own plan for the game (`letterex-plan(scrabble).md`) and use its ideas.
+- **Word lists for word games**: SJP.PL's "słownik do gier" (Polish, 3 235 733 words and forms, CC BY 4.0) and
+  ENABLE (English, 168 341, public domain) - no abbreviations (HR and PP are gone), every legal form (PASŁEM is
+  in). Every form of a slur or a vulgar word is left out (the spell-checker dictionaries give the forms - MINETĄ
+  slipped through at first). Built ahead of time by `tools/build-tiles-words.mjs` into `app/data/<lang>/tiles.bin`
+  (2.8 MB + 0.8 MB), loaded in milliseconds. The raw lists stay in `tools/raw/tiles/`, out of git.
+- **2 to 5 players**: each a person or the computer at its own level, in any mix. Five players leave 65 tiles in
+  the bag. Everyone passing twice ends the game; giving up ends it for all.
+- **From the owner's plan**: the engine is now actions - `apply(state, action)`: place, exchange, pass, resign - and
+  shuffles from a seed kept in the game, so a game replays exactly from its start and its actions; every game
+  records the tag of the word list that checked it. Letter names (es, zet / ess, zed) checked: in both lists.
+- **Hints**: the best move for your rack (to show as a preview), counted per player. **Tiles not yet seen**: the
+  set minus the board and your own rack, in alphabetical order.
+- The words the computer now plays are real game words: EPENTEZA, PŁYWNICA, SALMONID. Still 1-4 ms a turn.
+- 159 Tiles tests: the word files, abbreviations and slurs out, forms in; five players; replays; the engine
+  refusing what is not allowed; hints and unseen tiles; seven whole games including five and three players.
+- The design prompt now has the players, the hand-over screen between people, and the credit line.
+
 ## 0.30.0 — 2026-09-25 15:47: Tiles' rules and computer player (no screen yet)
 *(not packaged)*
 

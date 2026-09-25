@@ -140,6 +140,17 @@ export function eraseLetter(row, sel) {
   return { row: next, sel: null };
 }
 
+// Space (owner, 2026-09-25): leaves a tile empty and moves on - the selected tile (emptied if it held a
+// letter), or with no selection the first gap, where the next letter would have gone. The selection then sits
+// on the tile after it (none after the last one). A full row with nothing selected stays as it is.
+export function skipTile(row, sel) {
+  const at = sel ?? row.indexOf('');
+  if (at < 0) return { row, sel };
+  const next = [...row];
+  next[at] = '';
+  return { row: next, sel: at + 1 < row.length ? at + 1 : null };
+}
+
 // What the guesses so far say about each letter, for its key: 'hit' if it has been in the right
 // place, 'near' if only in the word, 'miss' if not in it. `count` = how many times the letter is known
 // to be in the word - the most times it was green or yellow within one guess (shown from 2 up).

@@ -5,7 +5,8 @@
 
 // `words`: any order, duplicates allowed; `alphabet`: every letter a word may use (other words are left
 // out). A node is a number; its edges sit together in `letter` / `target`, from first[node] to
-// first[node + 1], in alphabet order. Node 0 is the root.
+// first[node + 1], in alphabet order. Node 0 is the root. `tag` = a hash of the word list (FNV-1a): a
+// saved game records it, so it is known which list checked its words (owner's plan: "hash wersji słownika").
 export function buildDawg(words, alphabet) {
   const letters = [...alphabet].sort();                 // code-point order = the order the words sort in
   const index = new Map(letters.map((ch, i) => [ch, i]));
@@ -52,18 +53,19 @@ export function buildDawg(words, alphabet) {
   first[order.length] = edges;
   const letter = new Uint8Array(edges), target = new Uint32Array(edges);
   order.forEach((n, i) => n.keys.forEach((k, j) => { letter[first[i] + j] = k; target[first[i] + j] = num.get(n.kids[j]); }));
-  return { letters, index, first, letter, target, final, words: list.length };
+  let tag = 0x811c9dc5;
+  for (const w of list) for (let i = 0; i <= w.length; i++) tag = Math.imul(tag ^ (i < w.length ? w.charCodeAt(i) : 10), 0x01000193) >>> 0;
+  return { letters, index, first, letter, target, final, words: list.length, tag };
 }
 
 // Building takes 1.6 s for the Polish list on a PC - several on a phone - so the game will load a graph
-// built ahead of time: these turn one into bytes for a data file and back. Layout: four Uint32 (nodes,
-// edges, letters, word count), first[], target[], the alphabet as UTF-16, then letter[] and final[].
+// built ahead of time: these turn one into bytes for a data file and back. Layout: five Uint32 (nodes,
+// edges, letters, word count, tag), first[], target[], the alphabet as UTF-16, then letter[] and final[].
 export function toBytes(d) {
   const nodes = d.final.length, edges = d.letter.length, abc = d.letters.join('');
-  const buf = new ArrayBuffer(16 + 4 * (nodes + 1) + 4 * edges + 2 * abc.length + edges + nodes);
-  const head = new Uint32Array(buf, 0, 4);
-  head.set([nodes, edges, abc.length, d.words]);
-  let at = 16;
+  const buf = new ArrayBuffer(20 + 4 * (nodes + 1) + 4 * edges + 2 * abc.length + edges + nodes);
+  new Uint32Array(buf, 0, 5).set([nodes, edges, abc.length, d.words, d.tag]);
+  let at = 20;
   new Uint32Array(buf, at, nodes + 1).set(d.first); at += 4 * (nodes + 1);
   new Uint32Array(buf, at, edges).set(d.target); at += 4 * edges;
   new Uint16Array(buf, at, abc.length).set([...abc].map(ch => ch.charCodeAt(0))); at += 2 * abc.length;
@@ -72,14 +74,14 @@ export function toBytes(d) {
   return new Uint8Array(buf);
 }
 export function fromBytes(buf) {
-  const [nodes, edges, n, words] = new Uint32Array(buf, 0, 4);
-  let at = 16;
+  const [nodes, edges, n, words, tag] = new Uint32Array(buf, 0, 5);
+  let at = 20;
   const first = new Uint32Array(buf, at, nodes + 1); at += 4 * (nodes + 1);
   const target = new Uint32Array(buf, at, edges); at += 4 * edges;
   const letters = [...new Uint16Array(buf, at, n)].map(c => String.fromCharCode(c)); at += 2 * n;
   const letter = new Uint8Array(buf, at, edges); at += edges;
   const final = new Uint8Array(buf, at, nodes);
-  return { letters, index: new Map(letters.map((ch, i) => [ch, i])), first, letter, target, final, words };
+  return { letters, index: new Map(letters.map((ch, i) => [ch, i])), first, letter, target, final, words, tag };
 }
 
 // the node reached from `n` by letter index `k`, or -1

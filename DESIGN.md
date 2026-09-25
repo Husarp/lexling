@@ -336,7 +336,10 @@ the right — and under it a plain card edged in the same colour with the word, 
   typeable.
 - **What you know + hints** (0.28.2): a strip above the grid - a box per letter, green where a guess had the
   right letter there, dashed where a hint showed it, then the yellow letters still to place. A hint shows one
-  letter in its place, costs no try, at most half the word.
+  letter in its place, costs no try, at most half the word. The strip went in 0.31.1 (owner: not needed).
+- **Under the keyboard (0.31.1, owner)**: one row - a long Space on the left (leaves a tile empty and moves on:
+  the selected one, or the first gap), ← → (the selection one tile along, as the arrow keys), then Hint. Space
+  and the arrows also work from a computer's keyboard.
 - **Random difficulty** (0.21.0): the game draws one of the four levels at the start and plays it,
   but never shows which — only "Random". The count before the start is all levels together.
 - **The screen fits the window while playing** (0.19.0): status on top, Guess right under the grid, and
@@ -367,8 +370,16 @@ the right — and under it a plain card edged in the same colour with the word, 
 - Screen: the status row, the board (tiles sized by width and height), one slot for the word being dragged
   and the game's answer, the circle with Shuffle, Hint and the bonus counter. Motion times are the design's.
 
-### Tiles (Kafelki) - the rules, no screens yet (0.30.0; PLAN.md M13)
-- **The classic crossword-tile game against the computer**, never called by the trademarked name. Official
+### Tiles (Kafelki) - the rules, no screens yet (0.30.0-0.31.0; PLAN.md M13)
+- **2-5 players on one device** (0.31.0, owner): each seat a person or the computer at its own level, in any mix.
+  People pass the device; a hand-over screen hides the rack between them (design). Giving up ends the game.
+- **An engine of actions with a seed** (0.31.0, from the owner's own plan): `apply(state, action)` for place /
+  exchange / pass / resign; the bag is shuffled from a seed kept in the state, so a first state plus its actions
+  replay the same game (the tests do) - ready for replays, and one day for games between devices. A save also
+  records the tag (a hash) of the word list that checked its moves.
+- **Hints** (0.31.0): the best move for the rack, laid on the board as a preview; counted per player.
+  **Letters not yet seen** (0.31.0): the full set minus the board and your own rack.
+- **The classic crossword-tile game**, never called by the trademarked name. Official
   rules: a rack of 7, the first word across the centre, one line, joined to what is down, every word made must
   be real, bonus squares only under new tiles, 50 for all seven tiles, exchanges only while 7+ tiles are in the
   bag, the game ends when a player goes out with the bag empty or everyone passes twice in a row (exchanges
@@ -380,13 +391,15 @@ the right — and under it a plain card edged in the same colour with the word, 
   idea of Words With Friends' "Fast Play" board, our own layout; **Bonus** - 15 × 15 with the bonuses pulled in
   from the edges and 16 triple letters, the idea of the Words With Friends board, our own layout. Copying a
   commercial board square for square was not an option, and their layouts are not published anyway.
-- **Words in a word graph** (DAWG, `dawg.js`): 458 306 Polish words in 1.7 MB, 72 354 English in 0.4 MB.
-  Building it takes 1.5 s on a PC, so the game will load one built ahead of time (bytes format in `dawg.js`).
-  For now the words are the app's own lists (`ac.txt` + `extra.txt`), minus slurs and vulgar words - which
-  lets in abbreviations (hr, pp, bp, cm) and misses most of the 2.9 million forms Polish players accept:
-  PLAN.md M13, "The word list".
+- **Words** (0.31.0, owner's choice): word-game lists, every form, no abbreviations or proper nouns - SJP.PL's
+  "słownik do gier" (CC BY 4.0) and ENABLE (public domain), 2-15 letters, only the set's letters, minus every
+  form of a slur or vulgar word (the Hunspell dictionaries give the forms). 3 235 733 Polish words in a 2.8 MB
+  word graph, 168 341 English in 0.8 MB: `app/data/<lang>/tiles.bin`, built ahead of time by
+  `tools/build-tiles-words.mjs` (building takes 15 s - far too slow for a phone), loaded in milliseconds.
+  Letter names (es, zet / ess, zed) are in both lists already - the owner's plan asked to check.
+  (0.30.0 used the app's own lists: abbreviations got in - hr, pp - and most Polish forms were missing.)
 - **Finding moves**: Appel & Jacobson (1988) - anchors, cross-checks, the left part then the right, along
-  the rows of the board and of the board turned over its diagonal. 1-2 ms a turn on a PC, 86 ms for the
+  the rows of the board and of the board turned over its diagonal. 1-4 ms a turn on a PC, 97 ms for the
   worst rack there is (two blanks, Polish). The tests check it against a search through every placement.
 - **The computer's levels** = how many words it knows (base word among the 5 000 / 8 000 / 20 000 most
   common, Hard all) and how hard it tries (the move nearest 50 / 70 / 85 / 100 % of the best it can see).
