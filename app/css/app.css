@@ -717,3 +717,23 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
 [data-screen=games] .save-last .mt-row{gap:3px}
 /* from game-picker.html (handoff-v2), not yet in app.css */
 [data-screen=games] .save-top{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-1) var(--space-3);margin-bottom:var(--space-1)}
+
+/* ── Touch screens (owner, 2026-09-25: "the Hint button shows a square when pressed") ──
+   Android draws its own grey box over anything tapped; the app answers taps itself, so that goes. And a
+   touch screen keeps :hover on after a tap, so a button pressed and left on screen (Hint, Shuffle, Give up)
+   kept its hover tint as a coloured square: there is no hover without a pointer that hovers. */
+html{-webkit-tap-highlight-color:transparent}
+@media (hover:none){
+  .btn-ghost:hover{color:var(--text-muted);background:none}
+  .btn-danger:hover{color:var(--error);background:none}
+  .btn-outline:hover{background:none;color:var(--text)}
+  .btn:hover .arrow{transform:none}
+  .chip:hover{border-color:var(--line)}.chip.on:hover{border-color:var(--accent)}
+  .seg button:hover{color:var(--text-muted)}.seg button.on:hover{color:var(--on-accent)}
+  .stepper button:hover{background:none}
+  .cn-bonus:hover{border-color:var(--text-dim)}.cn-bonus.open:hover{border-color:var(--accent)}
+  .cn-tool:hover{color:var(--text)}   /* Hint and Shuffle are full white, not the ghost grey */
+}
+/* Nothing on screen selects as text on a long press (buttons, labels, tiles) - only what is typed into */
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea{-webkit-user-select:text;user-select:text}

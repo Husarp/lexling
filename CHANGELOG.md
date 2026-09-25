@@ -6,6 +6,21 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.27.3 — 2026-09-25 14:07: No slurs in Connect; no square on a tapped button; no text selection
+*(not packaged)*
+
+- **Slurs and vulgar words never go on a Connect board and are never accepted as bonus words** (owner:
+  "slurs shouldn't be in crosswords - in bonus too"). A list of its own, `app/js/offensive.js` - Polish and
+  English base words, their inflected forms caught through the base word (KURWY → KURWA, BITCHES → BITCH), and
+  the roots Polish vulgar words are built from (WKURWIONY, ZAJEBISTY). Not the data's stoplist: that one also
+  holds everyday words that must not be *hidden* (THEN, JAK), which are fine bonus words. A word with an
+  innocent meaning too is on the list anyway: a missed bonus costs nothing. 8 new tests; no generated board
+  has one.
+- **A tapped button no longer shows a square** (the owner saw it on Hint): Android's grey tap box is gone, and
+  on a touch screen a button left on screen after a tap no longer keeps its hover colour - that was the tinted
+  square behind the icon (Hint, Shuffle, Give up, the steppers and chips).
+- **Nothing on screen selects as text on a long press** - buttons, labels, tiles; text boxes still do.
+
 ## 0.27.2 — 2026-09-25 14:03: A bigger letter circle; every base word that uses all the letters is on the board
 *(not packaged)*
 

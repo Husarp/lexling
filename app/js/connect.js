@@ -2,6 +2,7 @@
 // A circle of 4-7 letters, taken from one common word; a small crossword of words made from them.
 import { resolve } from './engine.js';
 import { pool } from './letters.js';
+import { offensive } from './offensive.js';
 
 export const RING_MIN = 4, RING_MAX = 7, WORD_MIN = 3;
 // How many words a board aims for, by circle size - the new-game readout shows the same (design v4).
@@ -44,7 +45,9 @@ function candidates(m, marks) {
   if (!mine[key]) {
     mine[key] = [];
     for (let len = WORD_MIN; len <= RING_MAX; len++) {
-      for (const i of pool(m, { len, diff: 'random', marks })) mine[key].push({ w: m.words[i], n: len, rank: i });
+      for (const i of pool(m, { len, diff: 'random', marks })) {
+        if (!offensive(m, m.words[i])) mine[key].push({ w: m.words[i], n: len, rank: i });   // no slurs on the board
+      }
     }
   }
   return mine[key];
@@ -187,5 +190,6 @@ export function judge(m, board, state, word) {
   const x = board.words.find(b => b.w === word);
   if (x) return isDone(x, state.found, visible(board, state.found, state.shown)) ? 'again' : 'found';
   if (state.bonus.includes(word)) return 'bonusAgain';
+  if (offensive(m, word)) return 'none';                     // nor as a bonus word (offensive.js)
   return resolve(m, word) || m.extra.has(word) ? 'bonus' : 'none';
 }

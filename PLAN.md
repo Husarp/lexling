@@ -453,6 +453,9 @@ The recommendation below was accepted:
 - [x] The four-game menu. 0.24.0
 
 ### Found while building it (2026-09-25)
+- [~] **Offensive words** - Connect: never on the board, never a bonus (`app/js/offensive.js`, 0.27.3). Still open:
+      Letters can hide *mineta* (its pool uses the data stoplist only) and accepts slurs as guesses - offered to
+      the owner to use the same list there.
 - [ ] **The stoplist misses a vulgar word**: a Hard Polish board used *mineta*. Letters can hide it on
       Hard too - it is one pool. Add it (and a pass for others) to `NEVER_SECRET` in `tools/seeds.mjs`,
       then rebuild the word data (`node tools/build-data.mjs`, ~8 min).

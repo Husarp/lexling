@@ -10,6 +10,7 @@ globalThis.fetch = async url => { const b = readFileSync(new URL(url, ROOT));
 const { loadWords } = await import('../app/js/engine.js');
 const { makePuzzle, RANGE, cellsOf, visible, isDone, nextHint, judge, solved, doneWords } = await import('../app/js/connect.js');
 const { pool } = await import('../app/js/letters.js');
+const { offensive } = await import('../app/js/offensive.js');
 
 let passed = 0;
 const check = (name, actual, expected) => { assert.deepEqual(actual, expected, name); passed++; };
@@ -82,6 +83,7 @@ for (const lang of ['pl', 'en']) {
       if (!p.board.words.every(x => common.has(x.w))) throw new Error('a board word that is not a common base word');
       if (!marks && MARKS.test(p.ring)) throw new Error('Polish letters in the circle with the switch off');
       if ([...p.ring].length !== letters) throw new Error('circle size');
+      if (p.board.words.some(x => offensive(m, x.w))) throw new Error('an offensive word on the board');
       // a base word that uses every letter is always on the board, however rare (owner, 2026-09-25)
       const onBoard = new Set(p.board.words.map(x => x.w));
       for (const w of byLetters.get(sorted(p.ring)) || []) if (!onBoard.has(w)) throw new Error(`${w} uses every letter of ${p.ring} but is not on the board`);
@@ -123,5 +125,16 @@ check('judge: another real word is a bonus', judge(pl, board, state, 'krata'), '
 check('judge: a Polish form is a bonus too', judge(pl, board, state, 'kotka'), 'bonus');
 check('judge: a bonus word twice', judge(pl, board, state, 'kot'), 'bonusAgain');
 check('judge: not a word', judge(pl, board, state, 'ntrak'), 'none');
+
+// slurs and vulgar words: never on the board, never a bonus (owner, 2026-09-25) - their forms and compounds too
+check('offensive: a vulgar word is not a bonus', judge(pl, board, state, 'kurwa'), 'none');
+check('offensive: nor its forms', judge(pl, board, state, 'kurwy'), 'none');
+check('offensive: nor a word built on its root', judge(pl, board, state, 'wkurwiony'), 'none');
+check('offensive: the word a Hard board once used', judge(pl, board, state, 'mineta'), 'none');
+const en = await loadWords('en');
+check('offensive: an English slur is not a bonus', judge(en, board, state, 'faggot'), 'none');
+check('offensive: nor its plural', judge(en, board, state, 'bitches'), 'none');
+check('offensive: an innocent word that starts the same still counts', judge(en, board, state, 'niggle'), 'bonus');
+check('offensive: an everyday word from the data stoplist still counts', judge(en, board, state, 'then'), 'bonus');
 
 console.log(`all ${passed} Connect tests passed`);
