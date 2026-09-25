@@ -4,14 +4,16 @@
 import { t, plural, esc } from './i18n.js';
 import { settings, stats, saveStats, getSave, putSave, gameName, recordLettersEnd, playClock } from './store.js';
 import { loadWords, resolve } from './engine.js';
-import { feedback, typeLetter, eraseLetter, keyStates, known, hintAt } from './letters.js';
+import { feedback, typeLetter, eraseLetter, keyStates, known, hintAt, MARKED } from './letters.js';
 import { topbar, modeTag, confirmClick, TILE, outcome, squares } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 import { offensive } from './offensive.js';
 
 const ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
-const PL_ROW = 'ąćęłńóśźż';   // a row of its own in Polish games: guesses may use them even when the word cannot
+// A row of its own in a Polish game that allows them. A game that does not has neither the letters in the
+// word nor the keys to type them: no using them to your advantage either (owner, 2026-09-25).
+const PL_ROW = 'ąćęłńóśźż';
 // the bulb of Connect's Hint button
 const BULB = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path></svg>';
 const BACKSPACE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"></path><path d="m12 9 6 6"></path><path d="m18 9-6 6"></path></svg>';
@@ -29,6 +31,7 @@ export async function lettersGameScreen(root, id) {
   // emptied or overwritten out of order. `sel` = the tile the player tapped to edit, or null.
   let cur = Array(n).fill(''), sel = null;
   const revealMs = Math.min(30, 300 / n) * (n - 1) + 180;   // = the row's colour reveal (app.css)
+  const marksOn = game.lang === 'pl' && game.marks;   // Polish letters allowed: in the word, and on the keyboard
   game.hinted ??= [];                        // the positions hints have shown (saves from before 0.28.2 have none)
 
   root.innerHTML = `<div class="app" data-screen="letters">
@@ -142,6 +145,7 @@ export async function lettersGameScreen(root, id) {
   // ── typing: the keys on screen, a computer's keyboard, and (with the setting) the phone's own ──
   function press(ch) {
     if (!playing() || revealing) return;
+    if (!marksOn && MARKED.test(ch)) return say(t('lt.marksOffNow'), true);
     let at;
     ({ row: cur, sel, at } = typeLetter(cur, sel, ch));
     if (at < 0) return;                      // the row is full and nothing is selected
@@ -174,7 +178,7 @@ export async function lettersGameScreen(root, id) {
       <p class="msg help" role="status" aria-live="polite"></p>
       <div class="lt-board" role="grid" aria-label="${t('game.guesses')}"></div>
       <div class="kb" role="group" aria-label="${t('kb.label')}">
-        ${game.lang === 'pl' ? row(PL_ROW, true) : ''}${row(ROWS[0])}${row(ROWS[1], true)}
+        ${marksOn ? row(PL_ROW, true) : ''}${row(ROWS[0])}${row(ROWS[1], true)}
         <div class="kb-row"><button type="button" class="key wide enter" data-act="enter">${t('kb.enter')}</button>${
           [...ROWS[2]].map(key).join('')}<button type="button" class="key wide" data-act="back" aria-label="${t('kb.backspace')}">${BACKSPACE}</button></div>
       </div>
@@ -246,7 +250,7 @@ export async function lettersGameScreen(root, id) {
     sink.addEventListener('input', () => {
       // letters only, never more than the word holds. Case is left alone - rewriting the field while
       // the phone keyboard is composing a word breaks it - and is dropped when the guess is read.
-      const clean = [...sink.value].filter(ch => /\p{L}/u.test(ch)).slice(0, n).join('');
+      const clean = [...sink.value].filter(ch => /\p{L}/u.test(ch) && (marksOn || !MARKED.test(ch.toLowerCase()))).slice(0, n).join('');
       if (clean !== sink.value) sink.value = clean;
       cur = [...clean.toLowerCase(), ...blank()].slice(0, n);
       bad = false;

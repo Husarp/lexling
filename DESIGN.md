@@ -331,6 +331,9 @@ the right — and under it a plain card edged in the same colour with the word, 
   (letters ÷ guesses × 100 × difficulty, later × 6 ÷ tries, points for running out of tries); it needed
   rebalancing each time the game changed and free hints bent it again, so it went. The end card shows the
   category, the guesses and the hints used.
+- **Allow Polish letters** (0.29.1): off = the word has none AND guesses cannot use them - the Polish keyboard
+  row is hidden and typing them is refused (owner: no using them to your advantage). The design had them always
+  typeable.
 - **What you know + hints** (0.28.2): a strip above the grid - a box per letter, green where a guess had the
   right letter there, dashed where a hint showed it, then the yellow letters still to place. A hint shows one
   letter in its place, costs no try, at most half the word.

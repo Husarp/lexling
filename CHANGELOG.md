@@ -6,6 +6,18 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.29.1 — 2026-09-25 14:57: "Allow Polish letters" - clearer, and in Letters off means off
+*(not packaged)*
+
+Polish games only, both at the owner's request:
+- **The setting is "Dopuść polskie litery" / "Allow Polish letters"** in Letters and in Connect (was "Polskie litery"
+  / "Polskie litery w kole"), and its line says they *may* come up, not that they will: Letters "Słowo może je
+  mieć — ale nie musi", Connect "Mogą trafić do koła — ale nie muszą".
+- **Letters with it off: no Polish letters at all** - not in the word (as before), and now not in guesses either:
+  the ą ć ę ł ń ó ś ź ż row is gone from the keyboard, and a computer's or the phone's keyboard cannot type them
+  ("W tej grze polskie litery są wyłączone"). "If you don't play with them, you can't use them to your
+  advantage either." The off line says so: "...a ty też ich nie użyjesz — znikają z klawiatury".
+
 ## 0.29.0 — 2026-09-25 14:51: No more scores; hints used in the statistics
 *(not packaged)*
 
