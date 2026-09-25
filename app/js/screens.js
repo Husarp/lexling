@@ -89,7 +89,7 @@ function lettersMeta(g) {
   return [LANG_NAMES[g.lang], t(g.cat === 'all' ? 'cat.allLong' : 'cat.' + g.cat),
     `${g.len} ${plural(g.len, 'lt.letters')}`,
     g.tries ? `${g.tries} ${plural(g.tries, 'lt.triesUnit')}` : t('lt.noLimit'),
-    t('diff.' + g.diff),
+    t('diff.' + (g.diffRandom ? 'random' : g.diff)),
     g.marks && t('lt.marksShort'),
     ago(g.updated)].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
 }
@@ -297,7 +297,7 @@ export function newGameScreen(root, _, refresh) {
 
 // ── Letters: new game (design: handoff-letters/new-game-letters.html) ─────────────────────────────
 // Same footing rule as above: every game starts from these, only the language carries over.
-const LT_NEW = { cat: 'all', len: 5, anyLen: false, tries: 6, unlimited: false, diff: 'normal', marks: false };
+const LT_NEW = { cat: 'all', len: 5, anyLen: false, tries: 6, unlimited: false, diff: 'normal', diffRandom: false, marks: false };
 const TRIES_MAX = 20;
 let ltPending = null;
 
@@ -339,7 +339,10 @@ export function lettersNewScreen(root, _, refresh) {
       </div>
       <div class="field">
         <span class="eyebrow">${t('new.diff')}</span>
-        <div class="seg" role="radiogroup">${DIFFS.map(d => `<button type="button" data-k="diff" data-v="${d}">${t('diff.' + d)}</button>`).join('')}</div>
+        <div class="tries">
+          <div class="seg" role="radiogroup" id="diff">${DIFFS.map(d => `<button type="button" data-k="diff" data-v="${d}">${t('diff.' + d)}</button>`).join('')}</div>
+          <button type="button" class="chip" role="switch" id="random-diff"><span class="num">?</span>${t('diff.random')}</button>
+        </div>
         <p class="help"><span class="arrow">→</span> ${t('lt.diffHelp')}</p>
       </div>
       <div class="card polish" id="polish">
@@ -358,15 +361,20 @@ export function lettersNewScreen(root, _, refresh) {
   </main>
 </div>`;
   const $ = sel => root.querySelector(sel);
-  const form = $('form'), err = $('#new-err'), start = $('[type=submit]'), toggle = $('#polish .toggle'), unlimited = $('#unlimited'), anyLen = $('#any-len');
+  const form = $('form'), err = $('#new-err'), start = $('[type=submit]'), toggle = $('#polish .toggle'), unlimited = $('#unlimited'), anyLen = $('#any-len'), randomDiff = $('#random-diff');
   // Polish letters are a Polish-only choice; an English word never has them to begin with
   const marks = () => o.lang === 'pl' && o.marks;
-  const choice = () => ({ cat: o.cat, diff: o.diff, marks: o.lang !== 'pl' || o.marks });
+  const choice = () => ({ cat: o.cat, diff: o.diffRandom ? 'random' : o.diff, marks: o.lang !== 'pl' || o.marks });
 
   const sync = () => {
     root.querySelectorAll('[data-k]').forEach(b => b.classList.toggle('on', String(o[b.dataset.k]) === b.dataset.v));
     // a category means a noun (except Verbs) - said here rather than discovered in the game
     $('#cat-about').textContent = t('about.' + o.cat) + (o.cat === 'all' || o.cat === 'verbs' ? '' : ' ' + t('lt.catNouns'));
+    // Random: the game draws one of the four levels when it starts and keeps it to itself
+    $('#diff').classList.toggle('off', o.diffRandom);
+    if (o.diffRandom) $('#diff').querySelectorAll('button').forEach(b => b.classList.remove('on'));
+    randomDiff.classList.toggle('on', o.diffRandom);
+    randomDiff.setAttribute('aria-checked', o.diffRandom);
     const [shorter, longer] = $('#len').querySelectorAll('button');
     // "any" = the game picks: a random word of any length, so lengths come up as often as words of them do
     $('#len').classList.toggle('off', o.anyLen);
@@ -390,7 +398,7 @@ export function lettersNewScreen(root, _, refresh) {
     $('#polish-help').innerHTML = t(o.marks ? 'lt.polishOn' : 'lt.polishOff');
     $('.summary').innerHTML = [LANG_NAMES[o.lang], t('cat.' + o.cat), o.anyLen ? t('lt.anyLenLong') : `${o.len} ${plural(o.len, 'lt.letters')}`,
       o.unlimited ? `∞ ${plural(0, 'lt.triesUnit')}` : `${o.tries} ${plural(o.tries, 'lt.triesUnit')}`,
-      t('diff.' + o.diff), marks() && t('lt.marksShort')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
+      t('diff.' + (o.diffRandom ? 'random' : o.diff)), marks() && t('lt.marksShort')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
     counts();
     fitAll(root);
   };
@@ -425,6 +433,7 @@ export function lettersNewScreen(root, _, refresh) {
   sync();
   root.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => {
     o[b.dataset.k] = b.dataset.v;
+    if (b.dataset.k === 'diff') o.diffRandom = false;   // choosing a level is choosing not to leave it to chance
     if (b.dataset.k === 'lang') {          // the interface follows, unless the player has chosen one
       settings.newGame = { lang: o.lang };
       saveSettings();
@@ -448,17 +457,20 @@ export function lettersNewScreen(root, _, refresh) {
   });
   unlimited.addEventListener('click', () => { o.unlimited = !o.unlimited; sync(); });
   anyLen.addEventListener('click', () => { o.anyLen = !o.anyLen; sync(); });
+  randomDiff.addEventListener('click', () => { o.diffRandom = !o.diffRandom; sync(); });
   toggle.addEventListener('click', () => { o.marks = !o.marks; sync(); });
 
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const m = await loadWords(o.lang);
-    const idx = pick(m, { len: o.anyLen ? null : o.len, ...choice() });
+    // Random draws one of the four levels now; the game keeps it for the score and shows only "Random"
+    const diff = o.diffRandom ? DIFFS[Math.floor(Math.random() * DIFFS.length)] : o.diff;
+    const idx = pick(m, { len: o.anyLen ? null : o.len, ...choice(), diff });
     if (idx < 0) { err.hidden = false; return; }
     settings.newGame = { lang: o.lang };
     saveSettings();
     const game = newGame({ mode: 'letters', lang: o.lang, cat: o.cat, len: [...m.words[idx]].length, tries: o.unlimited ? 0 : o.tries,
-      diff: o.diff, marks: marks(), secret: m.words[idx] });
+      diff, diffRandom: o.diffRandom, marks: marks(), secret: m.words[idx] });
     location.replace('#/game/' + game.id);   // Back from the game goes to the picker, not to this form
   });
 }

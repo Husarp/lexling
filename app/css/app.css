@@ -501,3 +501,8 @@ html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;g
 .result-actions{display:flex;flex-wrap:wrap;gap:var(--space-2)}
 /* Guess keeps both in #entry (repainted as one): let them sit in .main's column as the design has them */
 #entry.ended{display:contents}
+/* the drawn ✓ / ✕: centred by the circle's grid, sized to it */
+.outcome .mark svg{width:58%;height:58%}
+/* difficulty + Random switch share a row like Tries + Unlimited; with Random on, the levels step back */
+.tries .seg{flex:1 1 240px}
+.seg.off{opacity:.45}

@@ -6,6 +6,20 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.21.0 — 2026-09-25 03:45: Random difficulty; real numbers on the end banner
+*(not packaged)*
+
+- **Random difficulty in Letters**: a switch beside the four levels (the same row as Tries + Unlimited
+  and Length + Any). The game draws one of the four when it starts and scores with that level's
+  multiplier, but shows only "Random" / "Losowy" — on the new-game summary, the saved-games card and
+  the end card, whose sum reads "× the random level's multiplier". While Random is on the four levels
+  step back; tapping one switches Random off. It first went in as a fifth button, but at 320 px all
+  five labels overflowed even at their smallest size — measured, so it became a switch.
+- **Never X on the end banner**: the tries actually used, however the game ended — out of tries
+  `6/6`, given up `2/6` (and `0/6`), won `3/6`, unlimited `3/∞`.
+- **The ✓ / ✕ are centred in their circle**: they were typed characters the display font does not
+  have, so a fallback font drew them off-centre; now they are drawn (SVG) — 0.01 px from centre.
+
 ## 0.20.1 — 2026-09-25 03:27: Giving up before a guess says 0/6
 *(not packaged)*
 

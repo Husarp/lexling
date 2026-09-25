@@ -65,6 +65,9 @@ export function pool(m, { len, cat = 'all', diff = 'normal', marks = true }) {
   const inCat = cat === 'all' ? null : new Set(m.cats[cat] || []);
   const size = n => len ? n === len : n >= LEN_MIN && n <= LEN_MAX;
   const fits = words.filter(i => size([...m.words[i]].length) && (!inCat || inCat.has(i)) && (marks || !MARKED.test(m.words[i])));
+  // "random" (owner, 2026-09-25): the game draws one of the four levels when it starts; before that, the
+  // words it could hide are those of every level together
+  if (diff === 'random') return fits;
   const cap = DIFFS[diff] ?? DIFFS.normal;
   const within = fits.filter(i => diff === 'hard' ? hard.get(i) > DIFFS.normal : hard.get(i) <= cap);
   if (within.length >= MIN_POOL) return within;

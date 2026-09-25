@@ -327,6 +327,8 @@ the right — and under it a plain card edged in the same colour with the word, 
   step aside, the grid scrolls in the middle, Guess sits right above the keyboard, empty rows hide.
 - **No empty rows ahead** (since 0.19.0, for every number of tries — the design drew them for a limit):
   only the row being typed, and one more per guess, growing in tile by tile from the left.
+- **Random difficulty** (0.21.0): the game draws one of the four levels at the start and scores with it,
+  but never shows which — only "Random". The count before the start is all levels together.
 - **The screen fits the window while playing** (0.19.0): status on top, Guess right under the grid, and
   only the grid scrolls, kept at the newest row — however many tries were chosen.
 - **Any length** (0.17.0) draws the word from all lengths 3–13 in one pool, so each length comes up

@@ -149,6 +149,25 @@ Ported 1:1 in 0.16.0.
 - [x] Running out of tries shows that row too (owner: yes). 0.20.0.
 - [x] **End screens v2, both games** (owner's second design handoff): a green ✓ / red ✕ outcome banner,
       then a card with the word; wording Zgadłeś / Guessed correctly, Koniec prób, Poddałeś się. 0.20.0.
+- [x] **Random difficulty** in Letters: draws one of the four levels, scores with it, shows only
+      "Random". A switch beside the levels (five buttons did not fit 320 px). 0.21.0.
+- [x] **Never X/6 on the end banner** — the tries used, however it ended (6/6, 2/6, 0/6). 0.21.0.
+- [x] **✓ / ✕ centred** in the banner's circle (drawn, not typed). 0.21.0.
+- [ ] Open: should Znaczenie get Random difficulty too? Letters was asked for (it is the one with a score).
+- [ ] **Scoring question from the owner (2026-09-25)**: the score divides by the tries USED, so
+      unlimited tries can never lose and always pays — "you will always choose unlimited". The owner
+      suggested counting all tries, even unused. Options put to the owner: (a) divide by the tries
+      ALLOWED (unlimited counted as 20) — rewards risk, not speed; (b) keep dividing by tries used and
+      multiply by 6 ÷ tries allowed (6 → ×1, 3 → ×2, 12 → ×0.5, unlimited as 20 → ×0.3) — rewards both.
+      Recommended (b). Waiting for the owner.
+- [ ] **Points for a loss?** (owner's question) — e.g. out of tries scores from the best row: greens
+      and half the yellows, as a share of the word, of a quarter of a last-try win; giving up scores 0.
+      Waiting for the owner.
+- [ ] **On-screen keyboard** (owner's idea, 2026-09-25): the phone keyboard hides the tiles. Own
+      keyboard on phone and PC, keys coloured by what is known, a small "2" on a key when the letter
+      is known to repeat, a press animation, Backspace; tap a tile to select and overwrite it (the
+      selection then moves on); a Settings switch to use the phone's keyboard instead. Design prompt
+      written: `notes/letters-keyboard-design-prompt.md` — waiting for the design.
 - [ ] The owner asked whether the other end texts should change as well — the design's versions are in
       (Koniec prób / Out of tries, Poddałeś się / You gave up); waiting to hear if they want others.
 

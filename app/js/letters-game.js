@@ -198,7 +198,7 @@ export async function lettersGameScreen(root, id) {
     const won = game.status === 'won', g = game.guesses.length, dot = '<span class="dot">·</span>';
     // first the banner - what happened, big, in green or red - then the word and the numbers in a card
     const head = outcome(won, t(won ? 'end.won' : game.status === 'lost' ? 'end.lost' : 'end.gaveUp'),
-      `${won || !g ? g : 'X'}/${tries}`, t('lt.tries'));   // given up before a guess: 0/6, not X/6 (owner)
+      `${g}/${tries}`, t('lt.tries'));   // the tries used, however it ended - never X (owner)
     // the category the game was played in, next to the word it hid
     const facts = [`<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span>`,
       `<span><b>${g}</b> ${plural(g, 'n.guesses')}</span>`, `<span>${t('lt.score')} <b>${num(pts)}</b></span>`];
@@ -206,7 +206,7 @@ export async function lettersGameScreen(root, id) {
     if (won) {
       // the sum written out, so the score is never a mystery: 7 letters (ż ó ł count ×2) ÷ 3 guesses × 100 × 1.25
       const marked = [...new Set([...game.secret].filter(ch => MARKED.test(ch)))];
-      calc = `<p class="calc">${t('lt.calc', { p: points(game.secret), g, guesses: plural(g, 'n.guesses'),
+      calc = `<p class="calc">${t(game.diffRandom ? 'lt.calcRandom' : 'lt.calc', { p: points(game.secret), g, guesses: plural(g, 'n.guesses'),
         double: marked.length ? ' ' + plural(marked.length, 'lt.double').replace('{l}', marked.join(' ')) : '',
         m: decimal(MULTIPLIER[game.diff]), diff: t('diff.' + game.diff) })}</p>`;
       if (stats.lt.bestScore > pts) facts.push(`<span>${t('lt.best')} <b>${num(stats.lt.bestScore)}</b></span>`);

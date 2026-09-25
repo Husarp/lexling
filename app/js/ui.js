@@ -14,8 +14,11 @@ export const modeTag = mode => `<span class="mode-tag">${GLYPH[mode]}${t('mode.'
 // How a game ended, first thing on its end screen and the same in every mode (design v2:
 // handoff-letters/game-letters-end.html, game-guess-end.html): a banner in the success or error colour
 // saying only what happened, with the guess count on the right.
-export const outcome = (won, what, count, unit) => `<div class="outcome ${won ? 'won' : 'lost'}" role="status"><span class="mark" aria-hidden="true">${
-  won ? '✓' : '✕'}</span><span class="what">${what}</span><span class="count">${count}<small>${unit}</small></span></div>`;
+// The ✓ / ✕ are drawn, not typed: the display font has neither sign, and the fallback font's glyph sat
+// off-centre in the circle (owner, 2026-09-25).
+const MARK = { won: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', lost: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>' };
+export const outcome = (won, what, count, unit) => `<div class="outcome ${won ? 'won' : 'lost'}" role="status"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${
+  MARK[won ? 'won' : 'lost']}</svg></span><span class="what">${what}</span><span class="count">${count}<small>${unit}</small></span></div>`;
 
 // Letters feedback (letters.js) -> the tile classes: hit = right place, near = elsewhere, miss = not in it.
 export const TILE = { green: 'hit', yellow: 'near', grey: 'miss' };
