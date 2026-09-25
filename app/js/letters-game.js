@@ -198,7 +198,7 @@ export async function lettersGameScreen(root, id) {
     const won = game.status === 'won', g = game.guesses.length, dot = '<span class="dot">·</span>';
     // first the banner - what happened, big, in green or red - then the word and the numbers in a card
     const head = outcome(won, t(won ? 'end.won' : game.status === 'lost' ? 'end.lost' : 'end.gaveUp'),
-      `${won ? g : 'X'}/${tries}`, t('lt.tries'));
+      `${won || !g ? g : 'X'}/${tries}`, t('lt.tries'));   // given up before a guess: 0/6, not X/6 (owner)
     // the category the game was played in, next to the word it hid
     const facts = [`<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span>`,
       `<span><b>${g}</b> ${plural(g, 'n.guesses')}</span>`, `<span>${t('lt.score')} <b>${num(pts)}</b></span>`];

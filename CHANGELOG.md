@@ -6,6 +6,13 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.20.1 — 2026-09-25 03:27: Giving up before a guess says 0/6
+*(not packaged)*
+
+- The banner said **X/6** however the game ended without the word. Given up before the first guess it
+  now says **0/6** — nothing was tried, so an X read wrong (owner). After a guess, and out of tries, it
+  stays X as in the design.
+
 ## 0.20.0 — 2026-09-25 03:22: A new ending for every game — clear at a glance how it went
 *(debug APK built and installed on the phone 2026-09-25 03:25 — not released)*
 
