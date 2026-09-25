@@ -17,11 +17,13 @@ export const preload = lang => { load(lang).catch(() => {}); };
 
 async function readWords(lang) {
   const base = `data/${lang}/`;
-  const [vocab, acText, acBuf, extraText] = await Promise.all([
+  const [vocab, acText, acBuf, extraText, poolFix] = await Promise.all([
     fetch(base + 'vocab.json').then(r => r.json()),
     fetch(base + 'ac.txt').then(r => r.text()),
     fetch(base + 'ac.bin').then(r => r.arrayBuffer()),
     fetch(base + 'extra.txt').then(r => r.text()),
+    // words Litery and Połącz never hide (tools/build-pool-fix.mjs); an app without the file hides as before
+    fetch(base + 'pool.json').then(r => r.json()).catch(() => ({ drop: [] })),
   ]);
   const { words } = vocab;
   return {
@@ -33,6 +35,7 @@ async function readWords(lang) {
     acIdx: new Uint32Array(acBuf),
     secretSet: new Set(vocab.secret),     // for reading(): a word the engine can hide wins an ambiguity
     extra: new Set(extraText.split('\n').filter(Boolean)),   // Letters-only guesses: forms with no known base (pasę)
+    poolFix: { drop: new Set(poolFix.drop) },
   };
 }
 

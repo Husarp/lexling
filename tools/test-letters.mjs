@@ -136,5 +136,17 @@ check('a slur typed as a guess is refused, its forms too', ['kurwa', 'kurwy', 'c
 check('an innocent word is not caught by a vulgar root', ['kurek', 'ruch', 'suknia', 'cygaro'].some(w => offensive(pl, w)), false);
 check('zajebisty is on the stoplist, never hidden',
   ['relaxed', 'easy', 'normal', 'hard'].some(diff => has(pl, pool(pl, { len: 9, diff }), 'zajebisty')), false);
+// words no player would think of as ones to guess (owner, 2026-09-25: "SZER on Normal?") - tools/build-pool-fix.mjs
+const plAll = pool(pl, { diff: 'random' });
+check('never hidden: an abbreviation riding on a word, English, brands, fragments',
+  ['szer', 'rej', 'video', 'download', 'street', 'nokia', 'ppłk', 'owy', 'staje', 'września'].filter(w => has(pl, plAll, w)), []);
+check('loanwords Polish uses stay', ['menu', 'show', 'sushi', 'kebab', 'kiwi', 'tango'].filter(w => !has(pl, plAll, w)), []);
+check('every Polish word Letters may hide is in the word-game dictionary (sjp.pl)', (() => {
+  try { const sjp = new Set(readFileSync(new URL('raw/tiles/slowa.txt', import.meta.url), 'utf8').split(/\r?\n/)); return plAll.filter(i => !sjp.has(pl.words[i])).map(i => pl.words[i]); }
+  catch { return []; }                    // the raw list is not in git: checked where it was downloaded
+})(), []);
+const en = await load('en'), enAll = pool(en, { diff: 'random' });
+check('English: abbreviations and numerals never hidden, everyday new words stay',
+  [['asap', 'pct', 'vii', 'kinda', 'clit'].filter(w => has(en, enAll, w)), ['email', 'website', 'blog'].filter(w => !has(en, enAll, w))], [[], []]);
 
 console.log(`all ${passed} Letters tests passed`);

@@ -19,11 +19,13 @@ function prepare(m) {
   if (prepared.has(m)) return prepared.get(m);
   // `formOf` lists the words that are really an inflected form of another word - `ptaki`, `stara`,
   // `kota` - worked out by the pipeline, which still knows every word's forms (tools/build-data.mjs).
-  const skip = new Set([...(m.blocked || []), ...(m.formOf || [])]);
+  // `poolFix.drop`: words no player would think of as ones to guess - not in the word-game dictionary, plain
+  // English, abbreviations riding on a real word (szer) - tools/build-pool-fix.mjs (owner, 2026-09-25).
+  const skip = new Set([...(m.blocked || []), ...(m.formOf || [])]), drop = m.poolFix?.drop ?? new Set();
   const words = [];
   for (let i = 0; i < Math.min(POOL_WITHIN, m.count); i++) {
     // never a slur or a vulgar word either - the data's stoplist missed some (mineta): offensive.js
-    if (KINDS.has(m.posNames[m.pos[i]]) && !skip.has(i) && !offensiveWord(m.lang === 'pl' ? 'pl' : 'en', m.words[i])) words.push(i);
+    if (KINDS.has(m.posNames[m.pos[i]]) && !skip.has(i) && !drop.has(m.words[i]) && !offensiveWord(m.lang === 'pl' ? 'pl' : 'en', m.words[i])) words.push(i);
   }
 
   // Difficulty here is not the main mode's. That one measures how isolated a word is in MEANING,

@@ -131,6 +131,16 @@ A category with too few words in a band falls back to the **20 easiest it has** 
 Tools Relaxed is *butelka, szczotka, łańcuch* — and the new-game readout always shows the real count,
 so the choice is informed: *"3–9 letters · 23 words this game can hide"*.
 
+### Words Letters and Connect never hide (0.33.1, owner: "SZER on Normal?")
+`app/data/<lang>/pool.json` (tools/build-pool-fix.mjs) lists words kept out on top of the rules below. Polish:
+every word sjp.pl's word-game list does not know (119: English words, brands, abbreviations, fragments - video,
+nokia, ppłk, owy), and by hand 184 it knows but nobody would guess: plain English riding on English web text
+(download, street, business - loanwords Polish uses stay: menu, sushi, kebab, show, camping), words whose count in the
+web text belongs to something else (szer = szer., the abbreviation of szerokość; rej; bryg), and inflected forms the
+data took for base words (staje, września, żarty). English: only junk (asap, pct, vii, kinda); ENABLE is too old to
+judge (no email, no website). The frequency list the levels rest on is web text, so an abbreviation or a foreign word
+can look common: that is how SZER sat among the 3 000 commonest words, on Relaxed.
+
 ### Letters mode: a different difficulty, and base forms only
 The second mode (a Wordle, PLAN.md M12) cannot reuse the difficulty above. That one is rarity +
 *meaning isolation*, and this game never uses meaning. A Letters word is rated by **how well-known it

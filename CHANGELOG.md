@@ -6,6 +6,25 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.33.1 — 2026-09-25 18:04: Weird words no longer hidden in Litery and Połącz
+*(not packaged)*
+
+The owner: "I got SZER - I'm Polish and don't know what that is - and on Normal". Litery and Połącz pick their words
+from the same list, so both change.
+- **Why SZER happened**: how common a word is comes from web text, where "szer." (szerokość) is everywhere - so a rare
+  word looked like one of the 3 000 commonest and landed on Relaxed. The same happens with English words in Polish
+  web text (download, street) and with inflected forms the data took for base words (staje, września).
+- **303 Polish words are never hidden now**: 119 that sjp.pl's word-game list does not know at all (video, nokia,
+  ppłk, owy, samsung...), and 184 by hand - plain English (loanwords Polish uses stay: menu, sushi, kebab, show),
+  abbreviations riding on a real word (szer, rej, bryg), inflected forms (staje, września, żarty, tam). The list:
+  `app/data/pl/pool.json`, built by `tools/build-pool-fix.mjs`.
+- **English: 20** - abbreviations and numerals (asap, pct, vii, kinda); "clit" joins the vulgar words. Newer everyday
+  words stay (email, website, blog).
+- **Good words wrongly kept out - found, not fixed yet**: 1 319 of the 20 000 commonest Polish words are kept out as
+  "a form of another word", among them gra, muzyka, droga, polityka, walka, wino, kino, złoto, szachy. Telling them
+  from real forms (ptaki, nowe) needs sjp.pl's inflection list - the owner is asked about downloading it.
+- 265 Letters tests (4 new: those words never hidden, loanwords kept, every Polish word in the word-game list).
+
 ## 0.33.0 — 2026-09-25 17:53: How to play on every New game screen
 *(not packaged)*
 

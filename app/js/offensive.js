@@ -12,7 +12,7 @@ import { resolve } from './engine.js';
 const WORDS = {
   en: 'fuck fucker fucking motherfucker shit bullshit shitty bitch bitchy cunt dick dickhead cock pussy ass asshole arse '
     + 'arsehole bastard slut whore twat wank wanker prick bollocks crap piss tits boob boobs nigger nigga negro coon spic '
-    + 'chink gook kike wetback faggot fag dyke tranny retard retarded spaz cripple jap paki raghead towelhead gypsy',
+    + 'chink gook kike wetback faggot fag dyke tranny retard retarded spaz cripple jap paki raghead towelhead gypsy clit',
   pl: 'kurwa chuj huj pizda cipa cipka kutas fiut dupa dupek gówno dziwka suka skurwysyn ciota pedał pedzio cwel szmata '
     + 'jebać pierdolić mineta ruchać obciąganie srać zasraniec sraczka czarnuch murzyn ciapaty żółtek kacap szwab '
     + 'cyganka cygan zajebisty zajebiście chujowy chujowo jebany pierdolony zjebany kurewski '
