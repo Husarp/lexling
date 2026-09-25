@@ -354,8 +354,12 @@ Starting it before the letters mode exists is how a project ends up with three h
 - [ ] **Polish Scrabble accepts every inflected form**, and `ac.txt` already holds 384 000 of them —
       so the word list is solved, not just started.
 - [ ] Worth knowing early: **"Scrabble" is a trademark.** A shipped game needs its own name.
+- [ ] **Its name** (asked 2026-09-25): the owner turned down "Plansza / Board". Offered: **Kafelki /
+      Tiles** (recommended), Pojedynek / Duel, Mistrz słów / Wordsmith, Letterex. Not "Literaki" — the
+      name of a well-known Polish online game of this kind. The menu prompt uses Kafelki / Tiles as a
+      stand-in.
 
-## M14 — The third game: find the words in a circle of letters — PROPOSAL 2026-09-25, waiting for the owner
+## M14 — The third game: Połącz / Connect — PLANNED 2026-09-25, designs requested
 The owner's description: you get a few letters **arranged in a circle**. You draw a word by dragging
 through the letters with a finger (or the mouse held down) — a line follows the path — and **letting
 go checks the word**: a real word is accepted, a wrong one makes the letters **shake**. A **Shuffle**
@@ -401,26 +405,37 @@ themed packs, and **none of them has a points score** — finishing the board is
   stoplist, base forms), 3+ letters; difficulty picks how common they are, as in Letters.
 - **Bonus words: any other real word, every Polish form included** (`ac`) — counted, never required.
   So "which words count" becomes: base forms on the board, every form as a bonus.
-- **Hints without coins**: every 3 bonus words earn a hint that reveals one square. Shuffle is free.
+- **Hints — free and unlimited** (owner 2026-09-25: the game is about fun; a player who is stuck
+  should not be kept stuck). The owner's idea: a hint puts a letter into an unfinished word, e.g. its
+  first. Proposed, waiting for the owner's OK: each press shows **one more letter of one word, from
+  its start** — so the player takes as much help as they want. Tap a word on the board to choose it;
+  otherwise the hint goes on with the word showing the most letters (shortest on a tie), so repeated
+  presses finish one word. A word completed by hints counts, but looks hinted. (Weighed and not
+  proposed: a fixed first + last letter, or first two — they give too much for short words and too
+  little for long ones.) Shuffle is free.
 - A wrong word shakes the circle; an already-found word flashes on the board; a bonus word flies into
   the bonus counter. On a PC the letters can also be typed.
 - **No losing, no time limit.** Give up shows the missing words (like Letters' answer row).
 - New game: language, letters, difficulty (+ Random), Polish letters. **No category** — a letter set
   cannot keep to one.
 - Its own saved games, games-list section and statistics tab, like the other two games.
-- **Working name Połącz / Connect** — the owner names it.
+- **Name: Połącz / Connect** — confirmed by the owner 2026-09-25.
 - **Order: this game third, Scrabble (M13) fourth** — it needs no computer opponent, so it is far smaller.
 
-### Scoring across four games — the owner's question (2026-09-25), waiting for the owner
+### Scoring across four games — the owner's question (2026-09-25), ACCEPTED the same day
 The owner asked: badges for every game? one score summed up, or a ranking per game? or no score at all?
-Recommendation put to the owner:
+The recommendation below was accepted:
 - **No combined score.** The games measure different things — Guess counts guesses (fewer is
   better), Letters gives points, Connect finds words, Scrabble scores against the computer. A sum means
   nothing, and whichever game hands out the biggest numbers would swamp the rest.
 - **Connect has no points**, like the genre: its result is solved / bonus words / hints used.
-- **Each game keeps its own statistics tab**; **no new badges** for Connect and Scrabble (Guess and
-  Letters keep theirs).
+- **Each game keeps its own statistics tab**.
 - Later, if wanted: a **personal best list per game** (your top 10 results for that game).
+- [ ] **Achievements: all games or none — the owner leans to NONE** (2026-09-25: "not really needed").
+      Waiting for the owner to confirm. If confirmed: remove the badges from Guess and Letters too —
+      `badges.js`, the badge sections of the statistics screen, their strings and the "freshly
+      unlocked" accent; the numbers they were built on stay as statistics. The design prompts already
+      assume none.
 
 ### Designs — prompts written 2026-09-25
 - [ ] **Main menu for four games** — four big cards do not fit a phone: `notes/menu-four-games-design-prompt.md`.
