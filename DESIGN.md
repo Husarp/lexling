@@ -327,10 +327,14 @@ the right — and under it a plain card edged in the same colour with the word, 
   step aside, the grid scrolls in the middle, Guess sits right above the keyboard, empty rows hide.
 - **No empty rows ahead** (since 0.19.0, for every number of tries — the design drew them for a limit):
   only the row being typed, and one more per guess, growing in tile by tile from the left.
-- **Letters score** (0.22.0): letters ÷ guesses used × 100 × difficulty × 6 ÷ tries allowed (unlimited
-  counts as 20 tries, ×0.3 — never more than any limit). Out of tries: the best row (greens + ½ yellows) ÷ letters × ¼ of a last-try win; giving up 0.
-  The end card always writes the sum out, so a score is never a mystery.
-- **Random difficulty** (0.21.0): the game draws one of the four levels at the start and scores with it,
+- **No score** (since 0.29.0 - the owner: "play for fun, not sweat for score"). Letters had one from 0.16.0
+  (letters ÷ guesses × 100 × difficulty, later × 6 ÷ tries, points for running out of tries); it needed
+  rebalancing each time the game changed and free hints bent it again, so it went. The end card shows the
+  category, the guesses and the hints used.
+- **What you know + hints** (0.28.2): a strip above the grid - a box per letter, green where a guess had the
+  right letter there, dashed where a hint showed it, then the yellow letters still to place. A hint shows one
+  letter in its place, costs no try, at most half the word.
+- **Random difficulty** (0.21.0): the game draws one of the four levels at the start and plays it,
   but never shows which — only "Random". The count before the start is all levels together.
 - **The screen fits the window while playing** (0.19.0): status on top, Guess right under the grid, and
   only the grid scrolls, kept at the newest row — however many tries were chosen.
@@ -418,8 +422,9 @@ because they measure typing, not winning. (Measured the other way round too: cat
 *rarer* words than open ones — PL animals 69 vs all 46 — because categories reach to rank 30 000 while
 "All" stops at 12 000. Rarity is not the same as hard to corner.)
 
-**Letters**: games played, won, win streak (current, best under it), best score, average tries per win,
-and a strip of wins at each word length, 3–13.
+**Letters**: games played, won, win streak (current, best under it), average tries per win, hints used
+(and per game), the tries-per-win chart, and a strip of wins at each word length, 3–13. Every game's tab
+has "Hints used" since 0.29.0 (Connect's counted from the start, Guess's and Letters' from 0.29.0).
 
 Letters typed and time in game are shared by both games and shown under the Letters tab.
 

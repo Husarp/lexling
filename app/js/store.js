@@ -22,6 +22,8 @@ export const saveSettings = () => write('wg.settings', settings);
 export const stats = read('wg.stats', {
   // wonGuesses / wonRated are the average-win stat; they count only the wins that qualify (see recordEnd)
   played: 0, won: 0, givenUp: 0, words: 0, letters: 0, timeMs: 0, bestWin: 0, wonGuesses: 0, wonRated: 0,
+  // hints used, and the games counted since hints were (0.29.0) - for "per game" - Guess, then Letters below
+  hints: 0, hintGames: 0,
   hardest: null,    // { w, lang, score, guesses } - the toughest secret beaten so far
   hardWins: 0,      // wins on a word of difficulty >= HARD_WIN
   wonPools: {},     // category key (or "all") -> true: the categories-won statistic
@@ -29,7 +31,7 @@ export const stats = read('wg.stats', {
   unique: [], gameNo: 0,
   // Letters keeps its own numbers: everything above except letters, timeMs and gameNo is the Guess
   // mode's. wonLen = word length -> wins, for the wins-by-length strip.
-  lt: { played: 0, won: 0, lost: 0, givenUp: 0, streak: 0, bestStreak: 0, bestScore: 0, wonTries: 0, wonLen: {} },
+  lt: { played: 0, won: 0, lost: 0, givenUp: 0, streak: 0, bestStreak: 0, wonTries: 0, wonLen: {}, hints: 0, hintGames: 0 },
   // Connect's own numbers: words = board words the player found, longest = { w, game, at } of any word found
   cn: { played: 0, solved: 0, givenUp: 0, words: 0, bonus: 0, hints: 0, longest: null },
 });
@@ -89,6 +91,8 @@ export function recordGuess(game, word, typed) {
 //  * a category - the hint makes the word quick to corner, so speed and difficulty are not comparable
 //    with an open game. Those wins count toward the categories-won statistic only.
 export function recordEnd(game, won, difficulty = -1, hinted = false) {
+  stats.hints = (stats.hints || 0) + game.guesses.filter(g => g.hint).length;
+  stats.hintGames = (stats.hintGames || 0) + 1;
   if (won) {
     stats.won++;
     // guesses per win, in four bands, for the statistics chart (counted from 0.24.0)
@@ -118,15 +122,16 @@ export function recordEnd(game, won, difficulty = -1, hinted = false) {
 }
 
 // A Letters game ends won, lost (out of tries) or given up. Only a win keeps the streak going.
-export function recordLettersEnd(game, points) {
+export function recordLettersEnd(game) {
   const s = stats.lt;
+  s.hints = (s.hints || 0) + (game.hinted?.length || 0);
+  s.hintGames = (s.hintGames || 0) + 1;
   // tries per win (1–6, 7+) and games lost, for the statistics chart (counted from 0.24.0)
   const tried = game.status === 'won' ? (game.guesses.length > 6 ? '7+' : String(game.guesses.length)) : game.status === 'lost' ? 'x' : null;
   if (tried) s.dist = { ...s.dist, [tried]: (s.dist?.[tried] || 0) + 1 };
   if (game.status === 'won') {
     s.won++;
     s.bestStreak = Math.max(s.bestStreak, ++s.streak);
-    s.bestScore = Math.max(s.bestScore, points);
     s.wonTries += game.guesses.length;
     s.wonLen[game.len] = (s.wonLen[game.len] || 0) + 1;
   } else {

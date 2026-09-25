@@ -3,7 +3,7 @@ import { DIFFS } from './engine.js';
 import { offensiveWord } from './offensive.js';
 
 // Polish letters with marks are separate letters here: ó is not o, so `zolw` is simply wrong for
-// `żółw`. When the player allows them they are worth two in the score.
+// `żółw`. With the switch off, the hidden word has none of them.
 export const MARKED = /[ąćęłńóśźż]/;
 
 // ── Which words can be hidden ────────────────────────────────────────────────────────────────────
@@ -105,36 +105,8 @@ export function feedback(guess, answer) {
   return out;
 }
 
-export const MULTIPLIER = { relaxed: 0.75, easy: 1, normal: 1.25, hard: 1.5 };
-
-// letters ÷ guesses actually used × 100 × difficulty, with a marked Polish letter counting as two.
-// Tries left unused never enter the sum - that is the reward for finishing early, and it is why the
-// score still means something when tries are unlimited. A loss scores nothing here (see lossScore).
-//
-// Since 0.22.0 also × the tries factor (owner, 2026-09-25): dividing by the guesses used alone made
-// unlimited tries the obvious choice - it can never lose and still paid in full. Now 6 ÷ tries
-// allowed: 6, the classic Wordle, is ×1; 3 tries is ×2 (more risk, more points); 12 is ×0.5.
-// Unlimited counts as the most tries you can choose (0.22.1): at ×0.5 it paid more than 13-20 tries
-// while it can never lose, so nobody had a reason to pick those.
+// The most tries a game can have; one more step on the new-game stepper is Unlimited.
 export const TRIES_MAX = 20;
-export const triesFactor = tries => 6 / (tries || TRIES_MAX);
-
-export function score(answer, guessesUsed, won, diff, tries = 6) {
-  if (!won || guessesUsed < 1) return 0;
-  return Math.round(points(answer) / guessesUsed * 100 * (MULTIPLIER[diff] ?? 1) * triesFactor(tries));
-}
-
-// Running out of tries still pays something (owner, 2026-09-25): the best row - its greens, and its
-// yellows at half - as a share of the word, of a quarter of what a win on the very last try would
-// have paid. Giving up pays nothing, and an unlimited game cannot run out.
-export function bestRow(guesses, answer) {
-  return Math.max(0, ...guesses.map(g => feedback(g, answer).reduce((s, f) => s + (f === 'green' ? 1 : f === 'yellow' ? 0.5 : 0), 0)));
-}
-export function lossScore(answer, guesses, diff, tries) {
-  if (!tries || !guesses.length) return 0;
-  const lastTryWin = score(answer, tries, true, diff, tries);
-  return Math.round(bestRow(guesses, answer) / [...answer].length * lastTryWin / 4);
-}
 
 // ── The row being typed (design v4, the on-screen keyboard) ──────────────────────────────────────
 // `row` holds one letter or '' per tile - it can have gaps, because a tapped tile can be emptied or
@@ -216,5 +188,3 @@ export function hintAt(guesses, answer, hinted = [], rand = Math.random) {
   return open[Math.floor(rand() * open.length)];
 }
 
-// the "letters" of the score: żółw is 2+2+2+1 = 7
-export const points = answer => [...answer.toLowerCase()].reduce((n, ch) => n + (MARKED.test(ch) ? 2 : 1), 0);

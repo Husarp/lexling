@@ -107,7 +107,7 @@ function lettersMeta(g) {
 // green found, dashed finished by hints, empty still to find (design v4).
 function connectMeta(g) {
   return [LANG_NAMES[g.lang], `${g.letters} ${plural(g.letters, 'lt.letters')}`, t('diff.' + (g.diffRandom ? 'random' : g.diff)),
-    g.marks && t('cn.marksShort'), ago(g.updated)].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
+    g.marks && t('lt.marksShort'), ago(g.updated)].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
 }
 
 export function games(root, mode, refresh) {
@@ -574,7 +574,7 @@ export function connectNewScreen(root, _, refresh) {
     toggle.setAttribute('aria-checked', o.marks);
     $('#polish-help').textContent = t(o.marks ? 'cn.polishOn' : 'cn.polishOff');
     $('.summary').innerHTML = [LANG_NAMES[o.lang], `${o.letters} ${plural(o.letters, 'lt.letters')}`,
-      t('diff.' + (o.diffRandom ? 'random' : o.diff)), marks() && t('cn.marksShort')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
+      t('diff.' + (o.diffRandom ? 'random' : o.diff)), marks() && t('lt.marksShort')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
     err.hidden = true;
     fitAll(root);
   };
@@ -628,6 +628,8 @@ export function statsScreen(root, _, refresh) {
   const card = (label, value, sub = '') => `<div class="card stat-card${none ? ' dim' : ''}"><span class="eyebrow">${label}</span><span class="num">${value}</span>${sub && `<span class="sub">${sub}</span>`}</div>`;
   // Each game's one "shape" card (design v4): how many tries its wins took, the commonest bar in the
   // game's colour. Counted from 0.24.0 on - older wins were only ever kept as a total.
+  // hints used, and how many a game on average - Guess and Letters counted since 0.29.0, Connect from the start
+  const hintCard = (hints = 0, games = 0) => card(t('stats.hints'), num(hints), games ? t('stats.hintsPerGame', { n: decimal((hints / games).toFixed(1)) }) : '');
   const dist = (title, help, rows, tone = '', ink = '') => {
     const max = Math.max(...rows.map(r => r[1]));
     return `<div class="card dist"${tone ? ` style="--tone:${tone};--tone-ink:${ink}"` : ''}>
@@ -651,6 +653,7 @@ export function statsScreen(root, _, refresh) {
       ${card(t('stats.hardWins'), num(s.hardWins ?? 0), t('stats.hardWinsSub', { n: HARD_WIN }))}
       ${card(t('stats.pools'), num(Object.keys(s.wonPools ?? {}).length), t('stats.poolsSub', { n: CATS.length }))}
       ${card(t('stats.byLang'), `${num(s.wonLang?.pl ?? 0)} / ${num(s.wonLang?.en ?? 0)}`)}
+      ${hintCard(s.hints, s.hintGames)}
     </div>
     ${gWins ? dist(t('stats.perWinGuess'), `${num(gWins)} ${plural(gWins, 'n.wins')}`,
     [['1–10', gd.a || 0], ['11–25', gd.b || 0], ['26–50', gd.c || 0], ['51+', gd.d || 0]], 'var(--fill-hot)', '#000') : ''}
@@ -663,8 +666,8 @@ export function statsScreen(root, _, refresh) {
         ${card(t('stats.played'), num(lt.played))}
         ${card(t('stats.won'), num(lt.won), lt.played ? Math.round(lt.won / lt.played * 100) + ' %' : '')}
         ${card(t('stats.streak'), num(lt.streak), t('stats.streakBest', { n: num(lt.bestStreak) }))}
-        ${card(t('stats.bestScore'), lt.bestScore ? num(lt.bestScore) : '—')}
         ${card(t('stats.avgWin'), lt.won ? decimal((lt.wonTries / lt.won).toFixed(1)) : '—', t('stats.perWonLt'))}
+        ${hintCard(lt.hints, lt.hintGames)}
       </div>
       ${lWins + lLost ? dist(t('stats.perWinLt'), `${num(lWins)} ${plural(lWins, 'n.wins')} ${DOT} ${num(lLost)} ${plural(lLost, 'n.losses')}`,
     [...['1', '2', '3', '4', '5', '6'].map(k => [k, ld[k] || 0]), ...(ld['7+'] ? [['7+', ld['7+']]] : []), ['✕', lLost]]) : ''}
@@ -676,6 +679,7 @@ export function statsScreen(root, _, refresh) {
         ${card(t('stats.solved'), num(cn.solved), cn.played ? Math.round(cn.solved / cn.played * 100) + ' %' : '')}
         ${card(t('stats.wordsFound'), num(cn.words))}
         ${card(t('stats.bonusWords'), num(cn.bonus))}
+        ${hintCard(cn.hints, cn.solved + cn.givenUp)}
       </div>
       ${cn.longest ? `<div class="card best"><span class="eyebrow">${t('stats.longest')}</span>${squares(Array([...cn.longest.w].length).fill('hit'), 32, [...cn.longest.w])}
         <p class="help">${t('stats.longestSub', { n: [...cn.longest.w].length, letters: plural([...cn.longest.w].length, 'lt.letters'), g: esc(cn.longest.game), ago: ago(cn.longest.at) })}</p></div>` : ''}`;

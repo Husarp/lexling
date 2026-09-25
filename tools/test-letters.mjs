@@ -1,7 +1,7 @@
 // Tests for the Letters mode rules in app/js/letters.js. Run: node tools/test-letters.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { feedback, score, points, lossScore, bestRow, TRIES_MAX, typeLetter, eraseLetter, keyStates, known, hintAt } from '../app/js/letters.js';
+import { feedback, typeLetter, eraseLetter, keyStates, known, hintAt } from '../app/js/letters.js';
 
 const G = 'green', Y = 'yellow', _ = 'grey';
 let passed = 0;
@@ -28,27 +28,6 @@ check('ananas: three a all out of place - all three yellow', feedback('panama', 
 // Polish letters are separate letters
 check('ó is not o, ż is not z', feedback('zolw', 'żółw'), [_, _, _, G]);
 check('marked letters match themselves', feedback('żółw', 'żółw'), [G, G, G, G]);
-
-// ── score ────────────────────────────────────────────────────────────────────────────────────────
-check('the worked example in PLAN.md: żółw, 3rd guess, Normal', score('żółw', 3, true, 'normal'), 292);
-check('first-guess 5 letters on Easy', score('kotek', 1, true, 'easy'), 500);
-check('a loss scores nothing', score('kotek', 6, false, 'easy'), 0);
-check('Relaxed pays less', score('kotek', 2, true, 'relaxed'), 188);
-check('Hard pays more', score('kotek', 2, true, 'hard'), 375);
-check('a marked letter counts as two', points('żółw'), 7);
-// the tries factor (owner, 2026-09-25): × 6 ÷ tries allowed; unlimited counts as the most tries (20)
-check('6 tries is the classic game: ×1', score('kotek', 2, true, 'easy', 6), 250);
-check('3 tries is riskier: ×2', score('kotek', 2, true, 'easy', 3), 500);
-check('12 tries: ×0.5', score('kotek', 2, true, 'easy', 12), 125);
-check('unlimited counts as 20 tries: ×0.3', score('kotek', 2, true, 'easy', 0), 75);
-check('unlimited never pays more than any number of tries you can choose',
-  Array.from({ length: TRIES_MAX }, (_, i) => i + 1).every(n => score('kotek', 2, true, 'easy', n) >= score('kotek', 2, true, 'easy', 0)), true);
-// out of tries: the best row (greens, yellows at half) as a share of the word, of ¼ of a last-try win
-check('best row: wrona against krowa is 3 greens and a yellow', bestRow(['kasza', 'wrona'], 'krowa'), 3.5);
-check('out of tries pays a little: 3.5 / 5 × ¼ × 104', lossScore('krowa', ['kasza', 'wrona'], 'normal', 6), 18);
-check('an unlimited game cannot run out', lossScore('krowa', ['kasza'], 'normal', 0), 0);
-check('nothing right, nothing paid', lossScore('krowa', ['bitum'], 'normal', 6), 0);
-check('fewer guesses, higher score', score('kotek', 2, true, 'easy') > score('kotek', 4, true, 'easy'), true);
 
 // ── the on-screen keyboard (design v4): typing into the row, Backspace, the keys' colours ─────────
 const row = s => [...s].map(ch => ch === '_' ? '' : ch), str = r => r.map(ch => ch || '_').join('');

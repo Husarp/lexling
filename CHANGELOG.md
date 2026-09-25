@@ -6,6 +6,22 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.29.0 — 2026-09-25 14:51: No more scores; hints used in the statistics
+*(not packaged)*
+
+The owner: "this game is to play for fun, to try yourself - not to sweat for score". Only Letters had a score.
+- **Gone from Letters**: the score on the end card and the sum written under it, "best" beside it, and **Best
+  score** in the statistics. The rules behind it too - difficulty multipliers, the tries factor, points for running
+  out of tries (`letters.js`) - and their 16 tests.
+- **Texts that promised points** now say what the setting does: the tries hint ("how many guesses you get" / "ile
+  prób masz"), the Polish-letters card (no more "counts double in the score"), the difficulty help (no more
+  multipliers), and the saved-game line "ą–ż" (was "ą–ż ×2").
+- **Stays**: difficulty, tries and Unlimited still change how a game plays; every statistic stays; Guess keeps its
+  rank numbers - they are how that game is played, not a score.
+- **New in every game's statistics tab: "Hints used"**, and how many per game. Connect has counted its hints from
+  the start; Guess and Letters count from this version (older games are not in the "per game" figure).
+- 256 Letters tests, 284 Connect tests.
+
 ## 0.28.2 — 2026-09-25 14:45: Litery gets hints, and a strip of what you already know
 *(not packaged)*
 

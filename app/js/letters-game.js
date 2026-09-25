@@ -1,10 +1,10 @@
 // The Letters game screen - markup from handoff-letters/game-letters.html (playing) and
 // game-letters-end.html (won / lost / gave up), with the dummy text replaced by t(...) and live data.
 // The on-screen keyboard and editing a tile are design v4 ("Lexling Letters Keyboard").
-import { t, plural, esc, num, decimal } from './i18n.js';
+import { t, plural, esc } from './i18n.js';
 import { settings, stats, saveStats, getSave, putSave, gameName, recordLettersEnd, playClock } from './store.js';
 import { loadWords, resolve } from './engine.js';
-import { feedback, score, points, MULTIPLIER, MARKED, triesFactor, bestRow, lossScore, typeLetter, eraseLetter, keyStates, known, hintAt } from './letters.js';
+import { feedback, typeLetter, eraseLetter, keyStates, known, hintAt } from './letters.js';
 import { topbar, modeTag, confirmClick, TILE, outcome, squares } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
@@ -327,46 +327,26 @@ export async function lettersGameScreen(root, id) {
   // The result is recorded at once; the end card waits for the last row to finish colouring in.
   function finish(status, afterReveal = false) {
     game.status = status;
-    const pts = status === 'won' ? score(game.secret, game.guesses.length, true, game.diff, game.tries)
-      : status === 'lost' ? lossScore(game.secret, game.guesses, game.diff, game.tries) : 0;
-    recordLettersEnd(game, pts);
+    recordLettersEnd(game);
     if (status === 'won') chime();
-    if (!afterReveal) return paintEnd(pts);
+    if (!afterReveal) return paintEnd();
     revealing = true;
-    setTimeout(() => { if (app.isConnected) paintEnd(pts); }, revealMs);
+    setTimeout(() => { if (app.isConnected) paintEnd(); }, revealMs);
   }
 
-  function paintEnd(pts) {
+  function paintEnd() {
     const won = game.status === 'won', g = game.guesses.length, dot = '<span class="dot">·</span>';
     // first the banner - what happened, big, in green or red - then the word and the numbers in a card
     const head = outcome(won, t(won ? 'end.won' : game.status === 'lost' ? 'end.lost' : 'end.gaveUp'),
       `${g}/${tries}`, t('lt.tries'));   // the tries used, however it ended - never X (owner)
     // the category the game was played in, next to the word it hid
     const facts = [`<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span>`,
-      `<span><b>${g}</b> ${plural(g, 'n.guesses')}</span>`, `<span>${t('lt.score')} <b>${num(pts)}</b></span>`];
-    let calc = '';
-    // out of tries: the best row's share of the word, of a quarter of a win on the last try
-    if (game.status === 'lost') {
-      calc = `<p class="calc">${t('lt.calcLoss', { b: decimal(bestRow(game.guesses, game.secret)), n,
-        w: num(score(game.secret, game.tries, true, game.diff, game.tries)) })}</p>`;
-    }
-    if (won) {
-      // the sum written out, so the score is never a mystery: 7 letters (ż ó ł count ×2) ÷ 3 guesses × 100 × 1.25
-      const marked = [...new Set([...game.secret].filter(ch => MARKED.test(ch)))];
-      // and how many tries the player allowed themselves: × 6 ÷ tries, or × 0.5 unlimited
-      const triesPart = t('lt.calcTries', { f: decimal(+triesFactor(game.tries).toFixed(2)),
-        t: game.tries ? `${game.tries} ${plural(game.tries, 'lt.triesUnit')}` : t('lt.unlimitedLow') });
-      calc = `<p class="calc">${t(game.diffRandom ? 'lt.calcRandom' : 'lt.calc', { p: points(game.secret), g, guesses: plural(g, 'n.guesses'),
-        double: marked.length ? ' ' + plural(marked.length, 'lt.double').replace('{l}', marked.join(' ')) : '',
-        m: decimal(MULTIPLIER[game.diff]), diff: t('diff.' + game.diff) })}${triesPart}</p>`;
-      if (stats.lt.bestScore > pts) facts.push(`<span>${t('lt.best')} <b>${num(stats.lt.bestScore)}</b></span>`);
-    }
+      `<span><b>${g}</b> ${plural(g, 'n.guesses')}</span>`];
     if (game.hinted.length) facts.push(`<span><b>${game.hinted.length}</b> ${plural(game.hinted.length, 'lt.hintsLow')}</span>`);
     const card = `<div class="card result ${won ? 'won' : 'lost'}">
       <span class="eyebrow">${t(won ? 'end.wordWon' : 'end.wordLost')}</span>
       <p class="display">${esc(game.secret)}</p>
       <div class="result-stats">${facts.join(dot)}</div>
-      ${calc}
       <div class="result-actions"><a class="btn btn-primary" href="#/new/letters">${t('lt.again')} <span class="arrow">→</span></a><a class="btn btn-ghost" href="#/">${t('menu')}</a></div>
     </div>`;
     app.classList.remove('fit', 'kbon');
@@ -377,7 +357,7 @@ export async function lettersGameScreen(root, id) {
     refit();
   }
 
-  if (playing()) paintPlay(); else paintEnd(0);   // a finished game is deleted, so this is only a safeguard
+  if (playing()) paintPlay(); else paintEnd();   // a finished game is deleted, so this is only a safeguard
   window.addEventListener('resize', keepDown);
   window.visualViewport?.addEventListener('resize', keepDown);
   document.addEventListener('keydown', onKey, true);   // before main.js's Esc-goes-back: Esc first lets a selection go

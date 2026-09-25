@@ -39,11 +39,13 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - Statistics for each game (no achievements, since 0.23.0).
 - Polish + English, switchable.
 - **Letters mode**: one box per letter, its own on-screen keyboard (keys coloured by what the guesses
-  showed; tap a tile to edit it; the phone's keyboard as an option), a score of letters ÷ guesses used
-  × 100 × difficulty × 6 ÷ tries allowed (a Polish letter counts double; unlimited tries count as
-  20; running out of tries still pays a little from your best row), and its own statistics.
-- **Connect mode** (Połącz): drag across a circle of 4–7 letters to fill a small crossword; other real
-  words are bonus words; free, unlimited hints, one letter at a time; no points. Its own statistics.
+  showed; tap a tile to edit it; the phone's keyboard as an option), a strip of what you already know
+  (letters in place, yellow letters still to place), free hints (one letter in its place, at most half
+  the word), and its own statistics.
+- **Connect mode** (Połącz): drag across a circle of 4–10 letters to fill a small crossword; other real
+  words are bonus words; free hints, a random letter at a time, at most half of any word. Its own statistics.
+- **No scores anywhere** (since 0.29.0): the games are for fun; statistics show how you are doing,
+  hints used included.
 - **Tiles** (Kafelki), a Scrabble-like game against the computer, is planned: the menu shows it as "soon".
 
 ## Run it (development)
@@ -165,7 +167,7 @@ app/                the game itself — single-page app, no build step, no depen
   js/screens.js     menu, game picker, new game (both modes), statistics, settings
   js/game.js        the Guess game screen (input, autocomplete, guess boxes, history, win / give-up)
   js/letters-game.js  the Letters game screen (letter boxes, hidden input, reveal, win / loss, copy result)
-  js/letters.js     Letters rules: feedback, score, which words can be hidden and how hard they are
+  js/letters.js     Letters rules: feedback, the keyboard and hints, which words can be hidden and how hard
   js/engine.js      word data loading, rank scoring, form→lemma, autocomplete, secret picking
   js/store.js       settings, saved games, lifetime stats (localStorage)
   js/i18n.js        every UI string in EN + PL, plural rules, number/time formatting

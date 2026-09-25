@@ -204,6 +204,8 @@ Ported 1:1 in 0.16.0.
   never an inflected one.
 - **A guess must be a real word** of the right length. `resolve()` already answers that.
 - **Difficulty** is chosen as in the main mode and multiplies the score.
+- **No score since 0.29.0** (owner, 2026-09-25: the games are for fun; "not sweat for score"). What follows
+  about the score is how it was until then.
 - **Score** = letters ÷ guesses **actually used** × 100 × difficulty × **6 ÷ tries allowed** (0.22.0;
   unlimited counts as 20 tries, ×0.3 — 0.22.1). A Polish letter counts as two; tries you did not need
   never enter the sum, which is the bonus for finishing early.
@@ -365,7 +367,7 @@ Starting it before the letters mode exists is how a project ends up with three h
 ## Litery: hints and the "what you know" strip — DONE 2026-09-25 (0.28.2)
 - [x] Hint = one letter in its right place, free (counted only), at most half the word; the strip above the grid
       shows the letters in place and the yellow ones still to place. Owner's idea.
-- [ ] Open: should a hint lower the score? (it does not yet)
+- [x] Should a hint lower the score? - moot: there is no score since 0.29.0.
 
 ## M14 — The third game: Połącz / Connect — PLANNED 2026-09-25, designs requested
 The owner's description: you get a few letters **arranged in a circle**. You draw a word by dragging
