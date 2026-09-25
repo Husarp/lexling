@@ -134,5 +134,53 @@ export function lossScore(answer, guesses, diff, tries) {
   return Math.round(bestRow(guesses, answer) / [...answer].length * lastTryWin / 4);
 }
 
+// ── The row being typed (design v4, the on-screen keyboard) ──────────────────────────────────────
+// `row` holds one letter or '' per tile - it can have gaps, because a tapped tile can be emptied or
+// overwritten out of order. `sel` is the tile the player tapped to edit, or null. Both return the new
+// state and never change what they were given.
+
+// A letter replaces the selected tile, and the selection moves on (it ends after the last tile);
+// without a selection it fills the first gap. `at` = the tile that changed, -1 if none (row full).
+export function typeLetter(row, sel, ch) {
+  const next = [...row];
+  if (sel !== null) {
+    next[sel] = ch;
+    return { row: next, sel: sel + 1 < row.length ? sel + 1 : null, at: sel };
+  }
+  const at = next.indexOf('');
+  if (at >= 0) next[at] = ch;
+  return { row: next, sel: null, at };
+}
+
+// Backspace: with a selection it empties that tile and keeps it selected - on an already empty tile it
+// steps back one and empties that. Without a selection it takes the last letter off.
+export function eraseLetter(row, sel) {
+  const next = [...row];
+  if (sel !== null) {
+    if (next[sel]) next[sel] = '';
+    else if (sel > 0) next[--sel] = '';
+    return { row: next, sel };
+  }
+  const last = next.findLastIndex(Boolean);
+  if (last >= 0) next[last] = '';
+  return { row: next, sel: null };
+}
+
+// What the guesses so far say about each letter, for its key: 'hit' if it has been in the right
+// place, 'near' if only in the word, 'miss' if not in it. `count` = how many times the letter is known
+// to be in the word - the most times it was green or yellow within one guess (shown from 2 up).
+export function keyStates(guesses, answer) {
+  const state = {}, count = {}, rank = { miss: 1, near: 2, hit: 3 }, name = { green: 'hit', yellow: 'near', grey: 'miss' };
+  for (const w of guesses) {
+    const marks = feedback(w, answer).map(f => name[f]), inWord = {};
+    [...w.toLowerCase()].forEach((ch, i) => {
+      if (!state[ch] || rank[marks[i]] > rank[state[ch]]) state[ch] = marks[i];
+      if (marks[i] !== 'miss') inWord[ch] = (inWord[ch] || 0) + 1;
+    });
+    for (const [ch, k] of Object.entries(inWord)) count[ch] = Math.max(count[ch] || 0, k);
+  }
+  return { state, count };
+}
+
 // the "letters" of the score: żółw is 2+2+2+1 = 7
 export const points = answer => [...answer.toLowerCase()].reduce((n, ch) => n + (MARKED.test(ch) ? 2 : 1), 0);

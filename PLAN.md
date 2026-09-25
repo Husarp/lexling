@@ -167,7 +167,7 @@ Ported 1:1 in 0.16.0.
 - [x] **Points for a loss?** (owner's question) — e.g. out of tries scores from the best row: greens
       and half the yellows, as a share of the word, of a quarter of a last-try win; giving up scores 0.
       **Done in 0.22.0** — the owner chose exactly this.
-- [ ] **On-screen keyboard** (owner's idea, 2026-09-25): the phone keyboard hides the tiles. Own
+- [x] **On-screen keyboard** (owner's idea, 2026-09-25) — built in 0.25.0 from design v4: the phone keyboard hides the tiles. Own
       keyboard on phone and PC, keys coloured by what is known, a small "2" on a key when the letter
       is known to repeat, a press animation, Backspace; tap a tile to select and overwrite it (the
       selection then moves on); a Settings switch to use the phone's keyboard instead. Design prompt

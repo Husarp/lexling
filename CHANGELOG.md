@@ -6,6 +6,29 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.25.0 — 2026-09-25 13:38: Letters has its own keyboard
+*(not packaged)*
+
+From the owner's design handoff v4 ("Lexling Letters Keyboard"), with the owner's rules for the phone keyboard.
+- **An on-screen keyboard** at the bottom of the Letters game, on phones and computers: QWERTY, **Enter**
+  (it replaces the Guess button: grey until the row is full, then the theme colour) and **Backspace**. Polish
+  games get **an extra row** above, ą ć ę ł ń ó ś ź ż. The grid scrolls between the status row and the keys.
+- **The keys take the tile colours** — green, yellow, blue-grey for what the guesses have shown — and a small
+  **"2"** (or 3…) when a letter is known to be in the word more than once. They change 150 ms after the row
+  has coloured in, never before. A key acts the moment it is touched, darkens, and shows a preview above the
+  finger.
+- **Tap a tile to edit it**: a ring in the theme colour; the next letter replaces it and the selection moves on.
+  Backspace empties the selected tile (on an empty one it steps back). Tap it again, tap elsewhere, press
+  Enter or Esc to let go; the arrow keys move it on a computer.
+- **Settings → Letters → Phone keyboard**, off by default. On: tapping the tiles also opens the phone's own
+  keyboard; the keys on screen stay, and pressing one closes the phone's keyboard; tapping anywhere else
+  closes it too (the owner's rules — the design had the on-screen keyboard disappear instead).
+- **A computer's keyboard always types**, including Polish letters with AltGr.
+- Gone with the keyboard: the Guess button, the "tap the boxes to type" line, and the how-to-play card at
+  the start of a game (the design's start screen has no room for it at 320 × 640).
+- The rules behind it are in `letters.js` (typing into the row, Backspace, the keys' colours and counts),
+  with 15 new tests - the design's own examples among them (SHEET → STEEL gives E a "2"). 255 tests pass.
+
 ## 0.24.0 — 2026-09-25 13:30: A main menu for four games; the new Statistics screen
 *(not packaged)*
 

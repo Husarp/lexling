@@ -12,6 +12,8 @@ const write = (key, value) => { try { localStorage.setItem(key, JSON.stringify(v
 export const settings = read('wg.settings', {
   lang: (navigator.language || 'en').toLowerCase().startsWith('pl') ? 'pl' : 'en',
   theme: 'dark', accent: 'orange', sound: true, fuzzy: true, langChosen: false, lastCheck: 0, latest: '',
+  // Letters: tapping the tiles also opens the phone's own keyboard (the keys on screen stay) - owner, 2026-09-25
+  phoneKb: false,
   // Only the language carries over between games; everything else starts from NEW_GAME each time.
   newGame: { lang: null },
 });

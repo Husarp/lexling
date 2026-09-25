@@ -1,7 +1,7 @@
 // Tests for the Letters mode rules in app/js/letters.js. Run: node tools/test-letters.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { feedback, score, points, lossScore, bestRow, TRIES_MAX } from '../app/js/letters.js';
+import { feedback, score, points, lossScore, bestRow, TRIES_MAX, typeLetter, eraseLetter, keyStates } from '../app/js/letters.js';
 
 const G = 'green', Y = 'yellow', _ = 'grey';
 let passed = 0;
@@ -49,6 +49,27 @@ check('out of tries pays a little: 3.5 / 5 × ¼ × 104', lossScore('krowa', ['k
 check('an unlimited game cannot run out', lossScore('krowa', ['kasza'], 'normal', 0), 0);
 check('nothing right, nothing paid', lossScore('krowa', ['bitum'], 'normal', 6), 0);
 check('fewer guesses, higher score', score('kotek', 2, true, 'easy') > score('kotek', 4, true, 'easy'), true);
+
+// ── the on-screen keyboard (design v4): typing into the row, Backspace, the keys' colours ─────────
+const row = s => [...s].map(ch => ch === '_' ? '' : ch), str = r => r.map(ch => ch || '_').join('');
+const typed = (r, sel, ch) => { const o = typeLetter(row(r), sel, ch); return [str(o.row), o.sel, o.at]; };
+const erased = (r, sel) => { const o = eraseLetter(row(r), sel); return [str(o.row), o.sel]; };
+check('a letter fills the first gap', typed('st___', null, 'e'), ['ste__', null, 2]);
+check('a gap in the middle is filled first', typed('st_el', null, 'e'), ['steel', null, 2]);
+check('a full row takes no more letters', typed('steel', null, 'x'), ['steel', null, -1]);
+check('a selected tile is replaced and the selection moves on', typed('stael', 2, 'e'), ['steel', 3, 2]);
+check('the selection ends after the last tile', typed('steex', 4, 'l'), ['steel', null, 4]);
+check('Backspace takes the last letter off', erased('st_el', null), ['st_e_', null]);
+check('Backspace on an empty row does nothing', erased('_____', null), ['_____', null]);
+check('Backspace on a selected letter empties it and keeps it selected', erased('steel', 2), ['st_el', 2]);
+check('Backspace on a selected gap steps back and empties that', erased('st_el', 2), ['s__el', 1]);
+check('Backspace on a selected first gap does nothing', erased('_teel', 0), ['_teel', 0]);
+const keys = keyStates(['crane', 'sheet'], 'steel');
+check('keys: the design\'s example - C R A N H out, S green, T yellow, E green', [keys.state.c, keys.state.h, keys.state.s, keys.state.t, keys.state.e], ['miss', 'miss', 'hit', 'near', 'hit']);
+check('keys: SHEET has two green E - E is known to be in STEEL twice', keys.count.e, 2);
+check('keys: PALMA against KASZA - two green A', keyStates(['palma'], 'kasza').count.a, 2);
+check('keys: once green, a letter stays green', keyStates(['tacos', 'stack'], 'steal').state.t, 'hit');
+check('keys: a letter only ever grey counts nothing', keyStates(['crane'], 'steel').count.c, undefined);
 
 // ── which words can be hidden — against the real word data ──────────────────────────────────────
 const ROOT = new URL('../app/', import.meta.url);

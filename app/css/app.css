@@ -349,17 +349,8 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-kb] [data-screen=letters] .status{display:none}
 [data-screen=letters] .msg{margin:0;min-height:1.6em}               /* reserved: a message never pushes the grid down */
 [data-screen=letters] .play{display:grid;gap:var(--space-3)}
-[data-screen=letters] .entry{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap}
-[data-screen=letters] .entry .count{font-size:14px;color:var(--text-muted)}
-[data-screen=letters] .entry .count .num{font-size:20px;color:var(--text)}
-[data-screen=letters] .entry .submit{flex:0 1 220px;min-width:140px}
 /* the real text field: holds focus so the system keyboard (and long-press ż ó ł…) works; the boxes only draw it */
 [data-screen=letters] .sink{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
-[data-screen=letters] .how{display:grid;gap:var(--space-4);padding:var(--space-6) var(--space-5);border-left:3px solid var(--accent)}
-[data-screen=letters] .how h2{font:700 clamp(22px,5vw,28px)/1.05 var(--font-display);text-transform:uppercase;letter-spacing:-.02em}
-[data-screen=letters] .key3{display:grid;gap:var(--space-2)}
-[data-screen=letters] .key3 li{display:flex;align-items:center;gap:var(--space-3);font-size:14px;list-style:none}
-[data-screen=letters] .key3{padding:0}
 /* ── Phone keyboard open ([data-kb], set by js/main.js as in Guess) ──────────────────────────────
    Same move as the Guess screen: the brand bar and the status row step aside, spacing tightens.
    The screen becomes exactly the visible height (--vvh = visualViewport.height); the message line
@@ -367,12 +358,11 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
    with Guess sits at the bottom — directly above the keyboard, next to the keyboard's own Enter.
    Empty future rows are dropped: they are the one thing that would push the current row out of view. */
 [data-kb] [data-screen=letters].app{height:var(--vvh,100dvh);min-height:0}
-[data-kb] [data-screen=letters] .topbar,[data-kb] [data-screen=letters] .status,[data-kb] [data-screen=letters] .how{display:none}
+[data-kb] [data-screen=letters] .topbar,[data-kb] [data-screen=letters] .status{display:none}
 [data-kb] [data-screen=letters] .main{min-height:0;padding-top:var(--space-2);padding-bottom:var(--space-2);gap:var(--space-2)}
 [data-kb] [data-screen=letters] .play{flex:1;min-height:0;grid-template-rows:auto minmax(0,1fr) auto;gap:var(--space-2)}
 [data-kb] [data-screen=letters] .lt-board{overflow-y:auto;align-content:start;overscroll-behavior:contain}
 [data-kb] [data-screen=letters] .lt-row{--max:48px}
-[data-kb] [data-screen=letters] .entry .btn{min-height:44px}
 /* game-letters-end.html */
 /* game-picker.html */
 [data-screen=games] .save-last{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-2) var(--space-3);font-size:13px;color:var(--text-muted)}
@@ -554,3 +544,67 @@ html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;g
 [data-screen=stats] .none strong{font:700 22px/1.05 var(--font-display);text-transform:uppercase;letter-spacing:-.01em}
 /* a game that is not built yet: its row says "soon" and does not react to the pointer */
 [data-screen=menu] .game.soon:hover{transform:none;border-color:var(--line-soft);box-shadow:none}
+
+/* ═══ LETTERS · ON-SCREEN KEYBOARD — new CSS, goes below the Letters block of app.css ═══ */
+
+/* ── the game screen with the keyboard: status on top, the grid scrolls in the middle (kept at the
+   current row), the keyboard at the bottom. The Guess button goes: Enter on the keyboard is the one
+   way to send (and the computer's Enter). With the phone-keyboard setting on, none of this applies. ── */
+[data-screen=letters].kbon .main{padding-top:var(--space-3);padding-bottom:calc(var(--space-2) + var(--safe-b));gap:var(--space-2)}
+/* the keyboard takes ~210px, so the status row tightens to give the grid its height back
+   (320 × 640, Polish row on: ~120px of grid — the current row and the one before it at 5 letters,
+   ~6 rows at 13 letters; the grid is kept scrolled to the current row) */
+[data-screen=letters].kbon .status{row-gap:var(--space-2);padding-bottom:var(--space-2)}
+[data-screen=letters].kbon .status-actions .btn{min-height:36px}
+/* tiles are sized from the board's width (100cqi), which doesn't know about the scrollbar or the
+   board's padding — budget 14px for them so the last tile is never cut off */
+[data-screen=letters].fit .lt-row{--box:min(var(--max,60px),calc((100cqi - 14px - (var(--n) - 1) * var(--gap)) / var(--n)))}
+[data-screen=letters].kbon .lt-row{--max:48px}
+html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:var(--space-2)}
+[data-screen=letters].kbon .lt-board{overflow-y:auto;align-content:start;overscroll-behavior:contain;padding:4px}
+/* the grid only ever scrolls up and down; a thin, quiet bar in the app's greys (no arrows, no track) */
+[data-screen=letters].fit .lt-board{overflow-x:hidden;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+[data-screen=letters].fit .lt-board::-webkit-scrollbar{width:6px;height:0}
+[data-screen=letters].fit .lt-board::-webkit-scrollbar-track{background:transparent}
+[data-screen=letters].fit .lt-board::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+[data-screen=letters].fit .lt-board::-webkit-scrollbar-button{display:none}
+[data-theme=light] [data-screen=letters].fit .lt-board{scrollbar-color:#C4C9D6 transparent}
+[data-theme=light] [data-screen=letters].fit .lt-board::-webkit-scrollbar-thumb{background:#C4C9D6}
+
+/* ── keyboard ── */
+.kb{--kb-gap:6px;flex:none;display:grid;gap:8px;padding-top:var(--space-1);container-type:inline-size;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.kb-row{display:flex;justify-content:center;gap:var(--kb-gap)}
+.kb-row .pad{flex:.5 1 0;min-width:0;max-width:28px}
+.key{--kbg:var(--surface-2);--kfg:var(--text);position:relative;flex:1 1 0;min-width:0;max-width:56px;height:54px;display:grid;place-items:center;padding:0;border-radius:6px;background:var(--kbg);color:var(--kfg);font:600 19px/1 var(--font-body);text-transform:uppercase;transition:background 150ms var(--ease),color 150ms var(--ease),box-shadow 90ms linear}
+[data-theme=light] .key{--kbg:var(--lt-edge);--kfg:#000}
+/* what the game knows about the letter — the tile colours, white letters, as in the grid */
+.key.hit{--kbg:var(--lt-hit);--kfg:#fff}
+.key.near{--kbg:var(--lt-near);--kfg:#fff}
+.key.miss{--kbg:var(--lt-miss);--kfg:#fff}
+/* known to be in the word more than once: the count in the top-right corner */
+.key .n{position:absolute;top:3px;right:3px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:rgba(0,0,0,.28);color:#fff;font:700 10px/15px var(--font-body);text-align:center}
+.key.wide{flex:1.5 1 0;max-width:84px;font-size:11px;letter-spacing:.06em}
+.key svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* Enter wakes up when the row is full — as the Guess button did (outline → primary) */
+.key.enter.go{--kbg:var(--accent);--kfg:var(--on-accent)}
+/* the Polish row: always there in a Polish game (guesses may use them even when the word can't) */
+.kb-row.pl{padding-bottom:6px;border-bottom:1px solid var(--line-soft)}
+[data-theme=light] .kb-row.pl{border-bottom-color:var(--lt-edge)}
+/* press: answered at once — the key darkens and a preview rises above the finger, which covers the key */
+.key:active,.key.down{box-shadow:inset 0 0 0 99px rgba(0,0,0,.22);transition:none}
+.key:active::after,.key.down::after{content:attr(data-k);position:absolute;left:50%;bottom:calc(100% + 6px);translate:-50% 0;z-index:3;min-width:max(46px,150%);height:58px;display:grid;place-items:center;border-radius:10px;background:var(--kbg);color:var(--kfg);font:600 30px/1 var(--font-body);text-transform:uppercase;box-shadow:var(--shadow-md);pointer-events:none}
+.key.wide:active::after,.key.wide.down::after{content:none}
+@container (max-width:360px){.kb{--kb-gap:4px;gap:6px}.key{height:44px;font-size:16px;border-radius:5px}.key.wide{font-size:10px;letter-spacing:.02em}.key .n{top:2px;right:2px;min-width:13px;height:13px;font-size:9px;line-height:13px}}
+@container (min-width:560px){.key{height:48px;max-width:48px;font-size:16px}.key.wide{max-width:76px}}
+
+/* ── editing a guess: tap a tile of the row being typed ──
+   Selected = a ring OUTSIDE the tile in the theme colour. The caret is a line INSIDE the tile; a result
+   is a fill. So the three never look alike, and the theme colour still only ever outlines. */
+.lt.sel{position:relative;z-index:1;border-color:var(--accent);box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent)}
+[data-theme=light] .lt.sel{border-color:var(--accent)}
+@keyframes lt-put{0%{transform:scale(1)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
+.lt.put{animation:lt-put 110ms var(--ease)}
+/* the current row is easy to hit even with 20px tiles: taps anywhere in its band pick the nearest tile */
+[data-screen=letters].kbon .lt-row.now{padding-block:4px}
+
+/* ── Settings: the row that turns the on-screen keyboard off ── uses .row / .toggle as is */

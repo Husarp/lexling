@@ -1,12 +1,17 @@
 // The Letters game screen - markup from handoff-letters/game-letters.html (playing) and
 // game-letters-end.html (won / lost / gave up), with the dummy text replaced by t(...) and live data.
+// The on-screen keyboard and editing a tile are design v4 ("Lexling Letters Keyboard").
 import { t, plural, esc, num, decimal } from './i18n.js';
-import { stats, saveStats, getSave, putSave, gameName, recordLettersEnd, playClock } from './store.js';
+import { settings, stats, saveStats, getSave, putSave, gameName, recordLettersEnd, playClock } from './store.js';
 import { loadWords, resolve } from './engine.js';
-import { feedback, score, points, MULTIPLIER, MARKED, triesFactor, bestRow, lossScore } from './letters.js';
-import { topbar, modeTag, confirmClick, TILE, squares, outcome } from './ui.js';
+import { feedback, score, points, MULTIPLIER, MARKED, triesFactor, bestRow, lossScore, typeLetter, eraseLetter, keyStates } from './letters.js';
+import { topbar, modeTag, confirmClick, TILE, outcome } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
+
+const ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+const PL_ROW = 'ąćęłńóśźż';   // a row of its own in Polish games: guesses may use them even when the word cannot
+const BACKSPACE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"></path><path d="m12 9 6 6"></path><path d="m18 9-6 6"></path></svg>';
 
 export async function lettersGameScreen(root, id) {
   const game = getSave(id);
@@ -16,6 +21,10 @@ export async function lettersGameScreen(root, id) {
   const tries = game.tries || '∞';           // 0 = unlimited
   const playing = () => game.status === 'playing';
   let bad = false;                           // the row was sent short: outlined red until the next key
+  // The row being typed: one letter or '' per tile - it can have gaps, because a tapped tile can be
+  // emptied or overwritten out of order. `sel` = the tile the player tapped to edit, or null.
+  let cur = Array(n).fill(''), sel = null;
+  const revealMs = Math.min(30, 300 / n) * (n - 1) + 180;   // = the row's colour reveal (app.css)
 
   root.innerHTML = `<div class="app" data-screen="letters">
   ${topbar({ left: modeTag('letters'), right: `<span class="eyebrow">${esc(gameName(game))}</span>` })}
@@ -24,7 +33,7 @@ export async function lettersGameScreen(root, id) {
   const app = root.firstElementChild, main = app.querySelector('main');
   const $ = sel => main.querySelector(sel);
   const refit = () => fitAll(root);
-  let board, sink;
+  let board, sink, kb;
 
   // ── rows ──
   const tiles = (cls, letters = []) => cls.map((c, i) => `<span class="lt ${c}" style="--i:${i}">${esc(letters[i] ?? '')}</span>`).join('');
@@ -46,22 +55,30 @@ export async function lettersGameScreen(root, id) {
     if (playing()) paintNow();
   }
 
-  // The current row only draws what the hidden field holds: typed letters, then the caret box.
-  function paintNow() {
-    const typed = [...sink.value.toLowerCase()];
+  // The current row: its letters, the tapped tile ringed (sel), otherwise the caret in the first gap.
+  // `put` = the tile a key has just filled, which pops. Enter wakes up when the row is full.
+  function paintNow(put = -1) {
     const now = board.querySelector('.lt-row.now');
     if (!now) return;                        // the game has just ended: no row to type into
     now.classList.toggle('bad', bad);
+    const gap = cur.indexOf('');
     [...now.children].forEach((el, i) => {
-      el.textContent = typed[i] ?? '';
-      el.className = 'lt' + (i < typed.length ? ' typed' : i === typed.length ? ' caret' : '');
+      el.textContent = cur[i];
+      el.className = 'lt' + (cur[i] ? ' typed' : '') + (sel === i ? ' sel' : sel === null && i === gap ? ' caret' : '') + (i === put ? ' put' : '');
     });
-    $('.entry .count').innerHTML = !typed.length && document.activeElement !== sink
-      ? `<span class="arrow">→</span> ${t('lt.tap')}`
-      : t('lt.typed', { a: `<span class="num">${typed.length}</span>`, n, letters: plural(n, 'lt.letters') });
-    const submit = $('.entry .submit');
-    submit.classList.toggle('btn-primary', typed.length === n);
-    submit.classList.toggle('btn-outline', typed.length < n);
+    kb.querySelector('.enter').classList.toggle('go', gap < 0);
+  }
+
+  // What the game has learnt about each letter, on its key (letters.js, keyStates): the tile colours,
+  // and a small count when the letter is known to be in the word more than once.
+  function paintKeys(guesses = game.guesses) {
+    const { state, count } = keyStates(guesses, game.secret);
+    kb.querySelectorAll('[data-k]').forEach(key => {
+      const ch = key.dataset.k;
+      key.classList.remove('hit', 'near', 'miss');
+      if (state[ch]) key.classList.add(state[ch]);
+      key.innerHTML = esc(ch) + (count[ch] > 1 ? `<span class="n">${count[ch]}</span>` : '');
+    });
   }
 
   // While playing, the grid is the part that scrolls (the screen fits the window): keep it at the
@@ -86,49 +103,112 @@ export async function lettersGameScreen(root, id) {
     confirmClick($('#give-up'), () => playing() && finish('gaveup'), refit);
   }
 
+  // ── typing: the keys on screen, a computer's keyboard, and (with the setting) the phone's own ──
+  function press(ch) {
+    if (!playing() || revealing) return;
+    let at;
+    ({ row: cur, sel, at } = typeLetter(cur, sel, ch));
+    if (at < 0) return;                      // the row is full and nothing is selected
+    bad = false;
+    say('');
+    paintNow(at);
+  }
+
+  function back() {
+    if (!playing() || revealing) return;
+    ({ row: cur, sel } = eraseLetter(cur, sel));
+    bad = false;
+    say('');
+    paintNow();
+  }
+
+  const select = i => { sel = i; paintNow(); };
+
   function paintPlay() {
-    // While playing, the screen is exactly the window's height: status on top, Guess under the grid,
-    // and only the grid scrolls (css: .fit). The end screen goes back to an ordinary scrolling page.
-    app.classList.add('fit');
+    // While playing, the screen is exactly the window's height: status on top, the grid in the middle
+    // (it scrolls), the keyboard at the bottom (css: .fit, .kbon). The end screen goes back to an
+    // ordinary scrolling page. Enter on the keyboard is the one way to send a guess.
+    app.classList.add('fit', 'kbon');
+    const key = ch => `<button type="button" class="key" data-k="${ch}" aria-label="${ch}">${ch}</button>`;
+    const row = (letters, pads = false) => `<div class="kb-row${letters === PL_ROW ? ' pl' : ''}">${pads ? '<span class="pad"></span>' : ''}${
+      [...letters].map(key).join('')}${pads ? '<span class="pad"></span>' : ''}</div>`;
     main.innerHTML = `<div class="status"></div>
     <div class="play">
       <p class="msg help" role="status" aria-live="polite"></p>
       <div class="lt-board" role="grid" aria-label="${t('game.guesses')}"></div>
-      <div class="entry">
-        <span class="count"></span>
-        <button class="btn btn-outline submit" type="button">${t('lt.submit')} <span class="arrow">→</span></button>
+      <div class="kb" role="group" aria-label="${t('kb.label')}">
+        ${game.lang === 'pl' ? row(PL_ROW, true) : ''}${row(ROWS[0])}${row(ROWS[1], true)}
+        <div class="kb-row"><button type="button" class="key wide enter" data-act="enter">${t('kb.enter')}</button>${
+          [...ROWS[2]].map(key).join('')}<button type="button" class="key wide" data-act="back" aria-label="${t('kb.backspace')}">${BACKSPACE}</button></div>
       </div>
       <input class="sink" type="text" inputmode="text" enterkeyhint="go" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="${n}" aria-label="${t('game.inputAria')}">
-    </div>
-    ${game.guesses.length ? '' : `<div class="card how">
-      <h2>${t('lt.howTitle')}</h2>
-      <ul class="key3">
-        <li>${squares(['hit'], 28, ['a'])}${t('lt.hit')}</li>
-        <li>${squares(['near'], 28, ['b'])}${t('lt.near')}</li>
-        <li>${squares(['miss'], 28, ['c'])}${t('lt.miss')}</li>
-      </ul>
-      <p class="help"><span class="arrow">→</span> ${t('lt.howNote')}</p>
-    </div>`}`;
+    </div>`;
     board = $('.lt-board');
     sink = $('.sink');
+    kb = $('.kb');
     paintStatus();
     paintBoard();
+    paintKeys();
 
-    // The field is invisible and takes no taps of its own: a tap anywhere on the game hands it the
-    // focus, which is what opens the phone keyboard. Blur first - focusing a field that already has
-    // the focus does not bring back a keyboard the player swiped away.
-    main.addEventListener('click', e => {
-      if (!playing() || e.target.closest('button, a')) return;
-      sink.blur();
-      sink.focus();
+    // A key acts on pointer-down, at once. preventDefault keeps the focus where it is, so no key ever
+    // opens the phone's keyboard - and when the phone's keyboard is open, using the keys on screen
+    // closes it (owner, 2026-09-25). The key stays pressed-looking for 90 ms after it is let go.
+    const act = keyEl => {
+      if (document.activeElement === sink) sink.blur();
+      if (keyEl.dataset.act === 'enter') submit();
+      else if (keyEl.dataset.act === 'back') back();
+      else press(keyEl.dataset.k);
+    };
+    kb.addEventListener('pointerdown', e => {
+      const keyEl = e.target.closest('button');
+      if (!keyEl) return;
+      e.preventDefault();
+      keyEl.classList.add('down');
+      const up = () => setTimeout(() => keyEl.classList.remove('down'), 90);
+      keyEl.addEventListener('pointerup', up, { once: true });
+      keyEl.addEventListener('pointercancel', up, { once: true });
+      act(keyEl);
     });
-    sink.addEventListener('focus', paintNow);
-    sink.addEventListener('blur', paintNow);
+    // a key reached with Tab and pressed with Enter / Space arrives as a click with no pointer
+    kb.addEventListener('click', e => { if (e.detail === 0 && e.target.closest('button')) act(e.target.closest('button')); });
+
+    // Tapping a tile of the row being typed selects it (tap it again to let go); a tap between the
+    // tiles picks the nearest one. With the "phone keyboard" setting on, the tap opens the phone's
+    // keyboard instead, to type with (owner, 2026-09-25).
+    board.addEventListener('click', e => {
+      const now = e.target.closest('.lt-row.now');
+      if (!now || !playing()) return;
+      e.stopPropagation();
+      if (settings.phoneKb) { sink.blur(); sink.focus(); return; }
+      let i = [...now.children].indexOf(e.target.closest('.lt'));
+      if (i < 0) {
+        const x = e.clientX, boxes = [...now.children].map(el => el.getBoundingClientRect());
+        i = boxes.reduce((best, b, k) => Math.abs(x - (b.left + b.right) / 2) < Math.abs(x - (boxes[best].left + boxes[best].right) / 2) ? k : best, 0);
+      }
+      select(sel === i ? null : i);
+    });
+    // a tap anywhere else lets the selection go, and closes the phone's keyboard as Android does
+    main.addEventListener('click', e => {
+      if (!playing() || e.target.closest('.kb, button, a')) return;
+      if (sel !== null) select(null);
+      sink.blur();
+    });
+
+    // The phone's keyboard types into the hidden field, which then IS the row - letters from the left,
+    // as the game always worked. Opening it gathers the row's letters into the field (and lets go of
+    // any selection); the field is not rewritten while the keyboard composes, which would break it.
+    sink.addEventListener('focus', () => {
+      sel = null;
+      sink.value = cur.filter(Boolean).join('');
+      cur = [...sink.value, ...blank()].slice(0, n);
+      paintNow();
+    });
     sink.addEventListener('input', () => {
       // letters only, never more than the word holds. Case is left alone - rewriting the field while
       // the phone keyboard is composing a word breaks it - and is dropped when the guess is read.
       const clean = [...sink.value].filter(ch => /\p{L}/u.test(ch)).slice(0, n).join('');
       if (clean !== sink.value) sink.value = clean;
+      cur = [...clean.toLowerCase(), ...blank()].slice(0, n);
       bad = false;
       say('');
       paintNow();
@@ -138,29 +218,44 @@ export async function lettersGameScreen(root, id) {
       // the caret always sits at the end, where the boxes draw it
       else if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) e.preventDefault();
     });
-    const button = $('.entry .submit');
-    button.addEventListener('pointerdown', e => e.preventDefault());   // keep the focus, and the phone keyboard
-    button.addEventListener('click', () => { submit(); if (playing()) sink.focus(); });
-    // A computer keyboard types straight away; a phone waits for a tap, so the keyboard does not jump
-    // up over the how-to-play card the moment the screen opens.
-    if (matchMedia('(pointer: fine)').matches) sink.focus();
     refit();
     keepDown();
+  }
+
+  // A computer's keyboard always types, whatever the setting: letters, Backspace, Enter; Esc lets a
+  // selection go (and only then leaves the screen, main.js); the arrows move the selection.
+  function onKey(e) {
+    if (!playing() || e.defaultPrevented || !app.isConnected || document.activeElement === sink) return;
+    if (e.target.closest?.('input, textarea')) return;
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.closest?.('button, a')) return;   // a focused button presses itself
+    // AltGr (Polish letters on Windows) reports Ctrl + Alt; any other shortcut is not typing
+    if (e.metaKey || ((e.ctrlKey || e.altKey) && !e.getModifierState?.('AltGraph'))) return;
+    if (/^\p{L}$/u.test(e.key)) { e.preventDefault(); press(e.key.toLowerCase()); }
+    else if (e.key === 'Backspace') { e.preventDefault(); back(); }
+    else if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    else if (e.key === 'Escape' && sel !== null) { e.preventDefault(); select(null); }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const gap = cur.indexOf(''), from = sel ?? (gap < 0 ? n - 1 : gap);
+      select(Math.min(n - 1, Math.max(0, from + (e.key === 'ArrowLeft' ? -1 : 1))));
+    }
   }
 
   let revealing = false;
   function submit() {
     if (!playing() || revealing) return;
-    const word = sink.value.toLowerCase();
-    const k = [...word].length;
+    const word = cur.join('');
+    const k = cur.filter(Boolean).length;
+    sel = null;                              // sending the row ends any editing
     if (k < n) {
       bad = true;
       paintNow();
       return say(t('lt.needN', { n, letters: plural(n, 'lt.letters'), k }), true);
     }
     // a word the list places under a base word, or a stand-alone dictionary form (pasę, poszedłem)
-    if (!resolve(m, word) && !m.extra.has(word)) return say(t('lt.unknown', { w: word }), true);
+    if (!resolve(m, word) && !m.extra.has(word)) { paintNow(); return say(t('lt.unknown', { w: word }), true); }
     if (game.guesses.includes(word)) {
+      cur = blank();
       sink.value = '';
       paintNow();
       return say(t('lt.already', { w: word }), true);
@@ -168,10 +263,10 @@ export async function lettersGameScreen(root, id) {
     game.guesses.push(word);
     stats.letters += n;                      // letters typed are counted across every mode
     saveStats();
+    cur = blank();
     sink.value = '';
     say('');
     click();
-    $('.how')?.remove();
     const won = word === game.secret;
     const out = !won && game.tries && game.guesses.length >= game.tries;
     // decided before drawing, so a winning row is not followed by an empty one while it colours in
@@ -180,6 +275,9 @@ export async function lettersGameScreen(root, id) {
     paintBoard(true);
     keepDown();
     refit();
+    // the keys take their colours once the row has finished colouring in (a 150 ms fade, app.css),
+    // so the keyboard never gives a result away before the tiles do
+    setTimeout(() => { if (kb.isConnected) paintKeys(); }, revealMs);
     if (won || out) finish(game.status, true);
   }
 
@@ -192,7 +290,7 @@ export async function lettersGameScreen(root, id) {
     if (status === 'won') chime();
     if (!afterReveal) return paintEnd(pts);
     revealing = true;
-    setTimeout(() => { if (app.isConnected) paintEnd(pts); }, Math.min(30, 300 / n) * (n - 1) + 180);   // = the reveal (app.css)
+    setTimeout(() => { if (app.isConnected) paintEnd(pts); }, revealMs);
   }
 
   function paintEnd(pts) {
@@ -227,7 +325,7 @@ export async function lettersGameScreen(root, id) {
       ${calc}
       <div class="result-actions"><a class="btn btn-primary" href="#/new/letters">${t('lt.again')} <span class="arrow">→</span></a><a class="btn btn-ghost" href="#/">${t('menu')}</a></div>
     </div>`;
-    app.classList.remove('fit');
+    app.classList.remove('fit', 'kbon');
     main.innerHTML = `${head}${card}<div class="lt-board" role="grid" aria-label="${t('game.guesses')}"></div>`;
     board = $('.lt-board');
     paintBoard();
@@ -238,10 +336,12 @@ export async function lettersGameScreen(root, id) {
   if (playing()) paintPlay(); else paintEnd(0);   // a finished game is deleted, so this is only a safeguard
   window.addEventListener('resize', keepDown);
   window.visualViewport?.addEventListener('resize', keepDown);
+  document.addEventListener('keydown', onKey, true);   // before main.js's Esc-goes-back: Esc first lets a selection go
   const stop = playClock(root, game, () => app.isConnected);
   return () => {
     window.removeEventListener('resize', keepDown);
     window.visualViewport?.removeEventListener('resize', keepDown);
+    document.removeEventListener('keydown', onKey, true);
     stop();
   };
 }

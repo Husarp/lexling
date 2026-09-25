@@ -581,6 +581,10 @@ export async function settingsScreen(root, _, refresh) {
       <div class="row"><div class="row-text"><strong>${t('set.sound')}</strong><span>${t('set.soundDesc')}</span></div><button type="button" class="toggle ${on(settings.sound)}" data-toggle="sound" role="switch" aria-checked="${settings.sound}" aria-label="${t('set.sound')}"></button></div>
     </section>
     <section class="group">
+      <h2 class="title">${t('mode.letters')}</h2>
+      <div class="row"><div class="row-text"><strong>${t('set.phoneKb')}</strong><span>${t('set.phoneKbDesc')}</span></div><button type="button" class="toggle ${on(settings.phoneKb)}" data-toggle="phoneKb" role="switch" aria-checked="${settings.phoneKb}" aria-label="${t('set.phoneKb')}"></button></div>
+    </section>
+    <section class="group">
       <h2 class="title">${t('set.updates')}</h2>
       <div class="row"><div class="row-text"><strong>${t('set.version', { v: VERSION })}</strong><span id="update-line">${updateLine}</span></div>
         ${waiting
