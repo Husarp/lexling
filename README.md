@@ -1,4 +1,6 @@
-# WordGuess (working title)
+# Lexling
+
+*Called WordGuess until 0.18.0 — see "The rename" below.*
 
 A "guess the secret word" game based on **meaning**, not letters. The engine picks a secret
 word (randomly, or a friend types one in for you). You type guesses; every guess gets a
@@ -59,17 +61,27 @@ The Letters rules and word pool have tests against the real data: `node tools/te
 **Size:** Windows installer 52 MB, 65 MB installed; Android APK 34.5 MB (40 MB of it is the
 game, 39 MB word data).
 
+## The rename (0.18.0)
+
+The app was called **WordGuess** until 0.18.0. On Windows, installing Lexling over WordGuess is an
+ordinary update: the setup recognises the old install, removes the old program and shortcuts, and
+moves the saves folder `%LOCALAPPDATA%\WordGuess` to `%LOCALAPPDATA%\Lexling` whole (the game does
+the same on its first start, whichever comes first). On Android the app ID changed from
+`com.trivioflow.wordguess` to `io.github.husarp.lexling`, so Android sees a new app: it installs next
+to the old one, and games saved in the old app do not carry over. The GitHub repository moved to
+`Husarp/lexling`; GitHub forwards the old address, so older versions' update check still works.
+
 ## Install on Windows / ship an update
 
 ```powershell
 & ".\scripts\build.ps1"
 ```
 
-produces `build\WordGuessSetup.exe` (~3 minutes). Run it: it installs for your account only (no
-admin prompt) into `%LOCALAPPDATA%\Programs\WordGuess`, adds Start-menu and desktop shortcuts and an
+produces `build\LexlingSetup.exe` (~3 minutes). Run it: it installs for your account only (no
+admin prompt) into `%LOCALAPPDATA%\Programs\Lexling`, adds Start-menu and desktop shortcuts and an
 "Apps & features" entry. **The same exe is the updater**: run a newer one and it offers *Update*
 and replaces the program in place. Saved games, statistics and badges live in
-`%LOCALAPPDATA%\WordGuess` — outside the program folder — so updates never touch them; uninstalling
+`%LOCALAPPDATA%\Lexling` — outside the program folder — so updates never touch them; uninstalling
 keeps them unless you tick the box.
 
 During every build the script starts the freshly built game hidden and refuses to package it
@@ -82,7 +94,7 @@ is one, otherwise the Car Crash project's.
 ## Build the Android APK
 
 ```powershell
-& ".\scripts\build-android.ps1"           # build\WordGuess-debug.apk
+& ".\scripts\build-android.ps1"           # build\Lexling-debug.apk
 & ".\scripts\build-android.ps1" -Install  # …and push it to a connected phone
 ```
 
@@ -156,10 +168,10 @@ tools/              serve.mjs (dev server) and the word-data pipeline:
   vecmath.mjs       normalise / centre · seeds.mjs  category examples + never-secret stoplist
   raw/              downloaded fastText vectors + caches (2.6 GB, git-ignored, build-time only)
 desktop/main.py     the Windows app: WebView2 window + local server around app/ (saves, caching, self-test)
-installer/          setup.py (WordGuessSetup.exe: install / update / uninstall), wordguess.spec (PyInstaller)
+installer/          setup.py (LexlingSetup.exe: install / update / uninstall), lexling.spec (PyInstaller)
 scripts/            build.ps1 (Windows installer) · build-android.ps1 (APK) — both output to build/
 android/            Capacitor project: manifest, launcher icons; app/ is copied in by `cap sync`
-assets/             wordguess.ico / .png / -1024.png — the app icon, drawn by tools/make-icon.py
+assets/             lexling.ico / .png / -1024.png — the app icon, drawn by tools/make-icon.py
                     (concept 2b "Caret" black from "WordGuess Icon Ideas.dc.html")
 PLAN.md             forward-looking backlog (what's next)
 CHANGELOG.md        full history of every change

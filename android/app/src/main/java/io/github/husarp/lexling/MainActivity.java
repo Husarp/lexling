@@ -1,4 +1,4 @@
-package com.trivioflow.wordguess;
+package io.github.husarp.lexling;
 
 import android.os.Build;
 import android.os.Bundle;

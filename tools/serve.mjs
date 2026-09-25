@@ -19,4 +19,4 @@ createServer(async (req, res) => {
   } catch {
     res.writeHead(404).end('not found');
   }
-}).listen(PORT, '127.0.0.1', () => console.log(`WordGuess dev server: http://127.0.0.1:${PORT}`));
+}).listen(PORT, '127.0.0.1', () => console.log(`Lexling dev server: http://127.0.0.1:${PORT}`));

@@ -1,4 +1,4 @@
-WordGuess
+Lexling (formerly WordGuess)
 Copyright (c) 2026 Husarp. All rights reserved.
 
 This repository is public so the game can be seen and played - that is not permission to use it.
@@ -18,7 +18,7 @@ Not covered by the above - third-party material keeps its own licence:
   - the fonts in app/fonts/, Barlow Condensed and Inter, under the SIL Open Font License 1.1 (the
     licence files are next to them).
 
-To ask for permission, open an issue at https://github.com/Husarp/wordguess/issues
+To ask for permission, open an issue at https://github.com/Husarp/lexling/issues
 
 THE GAME IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT SHALL THE
 COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE GAME OR ITS USE.

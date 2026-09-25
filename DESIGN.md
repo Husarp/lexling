@@ -1,4 +1,6 @@
-# WordGuess — Design
+# Lexling — Design
+
+*Called WordGuess until 0.18.0.*
 
 The reference experience: games like *Semantle* / *Contexto* — you guess a hidden word and get
 feedback on how close in **meaning** each guess is. The score is the guess's **absolute rank**
@@ -347,7 +349,7 @@ Lockdown's loading glitches are the anti-goal. Rules from day one:
 
 - Multiple concurrent games, saved automatically after every guess; save = game settings +
   secret + guess history (and the cached rank list). Renameable.
-- Saves live **outside the program folder** (`%LOCALAPPDATA%\WordGuess` on Windows, platform
+- Saves live **outside the program folder** (`%LOCALAPPDATA%\Lexling` on Windows — `\WordGuess` until 0.18.0, moved over automatically, platform
   equivalent elsewhere) so updates never touch them — same rule as Reckless Driving.
 
 ## 5. Tech & platforms

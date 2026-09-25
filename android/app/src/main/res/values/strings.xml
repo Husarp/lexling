@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">WordGuess</string>
-    <string name="title_activity_main">WordGuess</string>
-    <string name="package_name">com.trivioflow.wordguess</string>
-    <string name="custom_url_scheme">com.trivioflow.wordguess</string>
+    <string name="app_name">Lexling</string>
+    <string name="title_activity_main">Lexling</string>
+    <string name="package_name">io.github.husarp.lexling</string>
+    <string name="custom_url_scheme">io.github.husarp.lexling</string>
 </resources>

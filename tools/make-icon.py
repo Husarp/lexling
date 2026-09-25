@@ -1,4 +1,4 @@
-"""Draws assets/wordguess.ico - concept 2b "Caret", black variant, from "WordGuess Icon Ideas.dc.html":
+"""Draws assets/lexling.ico - concept 2b "Caret", black variant, from "WordGuess Icon Ideas.dc.html":
 a black squircle with "gu" in Barlow Condensed ExtraBold, white, and the orange text caret after it.
 Needs Pillow.   python tools/make-icon.py
 
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     out = ROOT / "assets"
     out.mkdir(exist_ok=True)
     frames = [at(n) for n in SIZES]
-    frames[-1].save(out / "wordguess.ico", sizes=[(n, n) for n in SIZES], append_images=frames[:-1])
-    at(256).save(out / "wordguess.png")
-    draw(S).save(out / "wordguess-1024.png")     # for stores / the Android icon later
-    print("wrote", out / "wordguess.ico", "sizes", SIZES)
+    frames[-1].save(out / "lexling.ico", sizes=[(n, n) for n in SIZES], append_images=frames[:-1])
+    at(256).save(out / "lexling.png")
+    draw(S).save(out / "lexling-1024.png")     # for stores / the Android icon later
+    print("wrote", out / "lexling.ico", "sizes", SIZES)

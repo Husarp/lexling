@@ -1,14 +1,14 @@
-# Builds build\WordGuessSetup.exe (and the program folder build\dist\WordGuess).
+# Builds build\LexlingSetup.exe (and the program folder build\dist\Lexling).
 #   1. read the version from app\js\version.js (the one place it is written) and sanity-check app\
-#   2. WordGuess.exe (PyInstaller, installer\wordguess.spec)
+#   2. Lexling.exe (PyInstaller, installer\lexling.spec)
 #   3. self-test: the built exe starts HIDDEN and checks the app boots with that version, the bundled
 #      fonts work, localStorage is writable and both languages' word data loads (skip: -NoSelfTest)
-#   4. WordGuessSetup.exe = the setup program with the program folder zipped inside it
+#   4. LexlingSetup.exe = the setup program with the program folder zipped inside it
 # No admin needed, at build time or install time. Run from any folder:
 #   & "<project folder>\scripts\build.ps1"
 #
 # Python: needs pywebview + pyinstaller. Uses this project's .venv when there is one, otherwise the
-# Reckless Driving ("Car Crash") project's, which has both. To give WordGuess its own:
+# Reckless Driving ("Car Crash") project's, which has both. To give Lexling its own:
 #   python -m venv .venv ; .venv\Scripts\pip install pywebview pyinstaller pillow
 param([switch]$NoSelfTest)
 $ErrorActionPreference = "Continue"   # (PyInstaller writes progress to stderr; failures checked below)
@@ -37,18 +37,18 @@ if (Select-String -Path "$Root\app\index.html", "$Root\app\css\app.css" -Pattern
 }
 
 # 2. the game
-# PyInstaller's rebuild check ignores the icon file, so when only assets\wordguess.ico changes it
+# PyInstaller's rebuild check ignores the icon file, so when only assets\lexling.ico changes it
 # re-uses the cached exe and ships the PREVIOUS icon - which happened once, and was only visible after
 # installing. Dropping the cached exe re-runs the (fast) linking step; the analysis cache is kept.
-Remove-Item "$Build\work\WordGuess\WordGuess.exe", "$Build\work\WordGuess\EXE-00.toc" -ErrorAction SilentlyContinue
-& $Py -m PyInstaller --noconfirm --log-level WARN --distpath "$Build\dist" --workpath "$Build\work" installer\wordguess.spec
+Remove-Item "$Build\work\Lexling\Lexling.exe", "$Build\work\Lexling\EXE-00.toc" -ErrorAction SilentlyContinue
+& $Py -m PyInstaller --noconfirm --log-level WARN --distpath "$Build\dist" --workpath "$Build\work" installer\lexling.spec
 if ($LASTEXITCODE) { throw "Building the game failed" }
 
 # 3. self-test
 if (-not $NoSelfTest) {
     $report = "$Build\selftest.txt"
     Remove-Item $report -ErrorAction SilentlyContinue
-    Start-Process "$Build\dist\WordGuess\WordGuess.exe" -ArgumentList "--selftest", "`"$report`"" -Wait
+    Start-Process "$Build\dist\Lexling\Lexling.exe" -ArgumentList "--selftest", "`"$report`"" -Wait
     $result = (Get-Content $report -Raw -ErrorAction SilentlyContinue)
     if (-not $result -or -not $result.StartsWith("OK")) { throw "Self-test failed:`n$result" }
     Write-Output "Self-test: $($result.Trim())"
@@ -57,22 +57,22 @@ if (-not $NoSelfTest) {
 # 4. the installer, with the program folder zipped inside it
 $zip = "$Build\payload.zip"
 Remove-Item $zip -ErrorAction SilentlyContinue
-Compress-Archive -Path "$Build\dist\WordGuess\*" -DestinationPath $zip -CompressionLevel Optimal -ErrorAction Stop
+Compress-Archive -Path "$Build\dist\Lexling\*" -DestinationPath $zip -CompressionLevel Optimal -ErrorAction Stop
 
-& $Py -m PyInstaller --noconfirm --log-level WARN --onefile --noconsole --name WordGuessSetup `
-    --icon "$Root\assets\wordguess.ico" --paths "$Build\gen" `
-    --add-data "$zip;." --add-data "$Root\assets\wordguess.ico;." `
+& $Py -m PyInstaller --noconfirm --log-level WARN --onefile --noconsole --name LexlingSetup `
+    --icon "$Root\assets\lexling.ico" --paths "$Build\gen" `
+    --add-data "$zip;." --add-data "$Root\assets\lexling.ico;." `
     --distpath $Build --workpath "$Build\work-setup" --specpath "$Build\work-setup" installer\setup.py
 if ($LASTEXITCODE) { throw "Building the installer failed" }
 
-$size = "{0:N0}" -f ((Get-Item "$Build\WordGuessSetup.exe").Length / 1MB)
-Write-Output "Built $Build\WordGuessSetup.exe ($size MB)"
+$size = "{0:N0}" -f ((Get-Item "$Build\LexlingSetup.exe").Length / 1MB)
+Write-Output "Built $Build\LexlingSetup.exe ($size MB)"
 
 # 5. a note saying WHICH version these files came from. A build folder can say when it was made but
 #    never what it is, and that is the one thing the dev-status dashboard cannot work out on its own.
 #    Written last, so it only ever exists after a build that actually finished.
 $artifacts = @()
-foreach ($a in @(@("WordGuessSetup.exe", "Windows"), @("WordGuess-debug.apk", "Android"))) {
+foreach ($a in @(@("LexlingSetup.exe", "Windows"), @("Lexling-debug.apk", "Android"))) {
     $path = "$Build\$($a[0])"
     if (Test-Path $path) { $artifacts += @{ name = $a[0]; kind = $a[1] } }
 }

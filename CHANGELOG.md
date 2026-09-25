@@ -1,10 +1,40 @@
-﻿# CHANGELOG — WordGuess
+﻿# CHANGELOG — Lexling (called WordGuess until 0.18.0)
 
 All notable changes to this project are listed here. Newest on top.
 Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 - X = major overhaul, Y = new feature/update, Z = minor fix or tweak
 
 ---
+
+## 0.18.0 — 2026-09-25 02:24: WordGuess is now Lexling; Letters in the owner's colours
+*(not packaged)*
+
+**The new name, everywhere.** Logo LEX/LING (the orange slash kept from WORD/GUESS), the menu's big
+L/, the page and window title, the About text (which also stopped calling it "a semantic word game" —
+there are two games now), the footers, the licence, the build files and their outputs
+(`LexlingSetup.exe`, `Lexling-debug.apk`), the GitHub repository (`Husarp/lexling`) and the project
+folder.
+
+- **Windows: an update, not a new install.** The Lexling setup recognises a WordGuess install, closes
+  it, removes its program folder, shortcuts and uninstall entry, and **moves the saves folder**
+  `%LOCALAPPDATA%\WordGuess` → `%LOCALAPPDATA%\Lexling` whole. The game makes the same move on its
+  first start, whichever comes first; when both folders exist it never touches the old one. The local
+  port — the origin the saves belong to — is unchanged, so every save reads as before. Tested with
+  throwaway folders and a fake registry (10 checks, the real saves and registry never opened).
+- **Android: a new ID, `io.github.husarp.lexling`** (was `com.trivioflow.wordguess`, the owner's
+  employer, public on GitHub). Android treats it as a new app: it installs next to the old one, and
+  games saved in the old app stay there.
+- The game's own storage keys stay `wg.*` on purpose — renaming them would lose every save.
+- Still to do: the icon draws "gu", from Word**Gu**ess.
+- The other apps were checked for the employer's name: Car Crash, Browser Switch and Lockdown have
+  none.
+
+**Letters in the colours and style of the owner's reference picture**: green #79B851, yellow #F3C237,
+blue-grey #A4AEC4, white letters on all three, solid tiles with only slightly rounded corners, the
+plain bold sans instead of the condensed display face, and — in the light theme — near-white empty
+tiles with a 2 px #DEE1E9 edge, exactly as in the picture. The same colours reach the mini squares
+(menu, saved games, how-to legend), the Letters icon and the Full range strip. The theme colour still
+only outlines the caret box.
 
 ## 0.17.2 — 2026-09-25 01:04: Copy result removed
 *(released 2026-09-25 as v0.17.2 — Windows installer + Android APK; the first release since v0.15.0, so it carries 0.15.1–0.17.1 too)*

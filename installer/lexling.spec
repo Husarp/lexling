@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for the game itself -> build\\dist\\WordGuess\\WordGuess.exe.
+"""PyInstaller spec for the game itself -> build\\dist\\Lexling\\Lexling.exe.
 
 One-folder (not one-file): a one-file build would unpack ~75 MB (runtime + 40 MB of word data) to a
 temp folder on every launch. The folder is zipped into the installer afterwards, so the player
@@ -30,12 +30,12 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='WordGuess',
+    name='Lexling',
     debug=False,
     strip=False,
     upx=False,
     console=False,                            # no console window behind the game
-    icon=str(ROOT / 'assets' / 'wordguess.ico'),
+    icon=str(ROOT / 'assets' / 'lexling.ico'),
 )
 coll = COLLECT(
     exe,
@@ -43,5 +43,5 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=False,
-    name='WordGuess',
+    name='Lexling',
 )

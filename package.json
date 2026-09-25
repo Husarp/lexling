@@ -1,8 +1,8 @@
 ﻿{
-  "name": "wordguess",
-  "version": "0.17.2",
+  "name": "lexling",
+  "version": "0.18.0",
   "private": true,
-  "description": "WordGuess - Android wrapper. The game itself is app/ and needs none of this; these packages only build the APK (see PLAN.md M6).",
+  "description": "Lexling - Android wrapper. The game itself is app/ and needs none of this; these packages only build the APK (see PLAN.md M6).",
   "scripts": {
     "serve": "node tools/serve.mjs",
     "data": "node tools/build-data.mjs",

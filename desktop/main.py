@@ -1,4 +1,4 @@
-"""WordGuess - the Windows app.
+"""Lexling (called WordGuess until 0.18.0) - the Windows app.
 
 Shows the web app in app/ inside a native window using the Edge WebView2 runtime that is already part
 of Windows 11. Same pattern as Reckless Driving's wrapper, with two differences that come from this
@@ -20,7 +20,8 @@ SAVES. Everything - settings, saved games, statistics, badges - is in localStora
 survive a restart AND an app update:
   * private_mode=False (pywebview's default True never writes localStorage to disk and deletes the
     profile on exit);
-  * storage_path pinned to %LOCALAPPDATA%\\WordGuess - OUTSIDE the program folder an update replaces;
+  * storage_path pinned to %LOCALAPPDATA%\\Lexling - OUTSIDE the program folder an update replaces
+    (it was %LOCALAPPDATA%\\WordGuess before the rename; storage_path() moves it over once);
   * a FIXED port: localStorage is keyed to the origin, so a port that changed per launch would
     silently lose every save.
 
@@ -46,8 +47,9 @@ from pathlib import Path
 
 import webview
 
-APP = "WordGuess"
-HTTP_PORT = 42027       # own port: the origin the saves belong to (Reckless Driving has 42017)
+APP = "Lexling"
+OLD_APP = "WordGuess"   # the name until 0.18.0 - its saves folder is moved over on first start
+HTTP_PORT = 42027      # own port: the origin the saves belong to (Reckless Driving has 42017)
 SELFTEST_PORT = 42028   # a build must never collide with, or read, a copy the player has open
 WINDOW = dict(width=1100, height=800, min_size=(360, 480), background_color="#000000")
 
@@ -88,7 +90,7 @@ def serve(port: int) -> None:
 
 
 def already_running() -> bool:
-    """Is another copy of WordGuess (not just anything) answering on our port?"""
+    """Is another copy of the game (not just anything) answering on our port?"""
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{HTTP_PORT}/js/version.js", timeout=1) as r:
             return b"VERSION" in r.read()
@@ -110,8 +112,19 @@ def focus_existing_window() -> None:
 
 
 def storage_path() -> Path:
-    """Where WebView2 keeps the profile that holds localStorage. Never inside the program folder."""
-    path = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local") / APP
+    """Where WebView2 keeps the profile that holds localStorage. Never inside the program folder.
+
+    The game was called WordGuess until 0.18.0 and kept its saves in %LOCALAPPDATA%\\WordGuess. The
+    first start under the new name moves that folder over whole - the port, and so the origin the
+    saves belong to, is unchanged, so nothing inside it needs touching. (The installer does the same
+    move; whichever runs first does it.)"""
+    local = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+    path, old = local / APP, local / OLD_APP
+    if not path.exists() and old.is_dir():
+        try:
+            old.rename(path)
+        except OSError:
+            pass            # in use (the old version still open?): start fresh rather than not at all
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -213,9 +226,9 @@ def main() -> None:
         # Isolated on every axis: its own port, and a throwaway profile so a build can never read or
         # damage the player's real saves. Old throwaways are swept first: WebView2 keeps handles open
         # for a moment after the window is gone, so the delete below can lose that race.
-        for old in Path(tempfile.gettempdir()).glob("wordguess-selftest-*"):
+        for old in [*Path(tempfile.gettempdir()).glob("lexling-selftest-*"), *Path(tempfile.gettempdir()).glob("wordguess-selftest-*")]:
             shutil.rmtree(old, ignore_errors=True)
-        tmp = tempfile.mkdtemp(prefix="wordguess-selftest-")
+        tmp = tempfile.mkdtemp(prefix="lexling-selftest-")
         try:
             webview.start(run_selftest, (window, Path(args.selftest)), private_mode=False, storage_path=tmp)
         finally:

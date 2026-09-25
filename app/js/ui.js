@@ -4,7 +4,7 @@ import { t } from './i18n.js';
 // Brand centred, whatever sits beside it: back on the left (only when the screen has one), the
 // screen's own note on the right. The side slots are equal columns, so the brand stays centred.
 export const topbar = ({ left = '', right = '' } = {}) =>
-  `<header class="topbar"><span class="side">${left}</span><a class="brand" href="#/">Word<b>/</b>Guess</a><span class="side end">${right}</span></header>`;
+  `<header class="topbar"><span class="side">${left}</span><a class="brand" href="#/">Lex<b>/</b>ling</a><span class="side end">${right}</span></header>`;
 
 // Which game a screen or a save belongs to: the mode's small glyph and its name.
 export const GLYPH = { guess: '<span class="glyph guess" aria-hidden="true"></span>',

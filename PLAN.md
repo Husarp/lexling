@@ -1,4 +1,6 @@
-﻿# WordGuess — Development Plan
+﻿# Lexling — Development Plan
+
+*Called WordGuess until 0.18.0 — the history below keeps the old name where it was the name.*
 
 Forward-looking backlog only — full history lives in `CHANGELOG.md`.
 Game/engine design decisions live in `DESIGN.md`.
@@ -311,8 +313,8 @@ Starting it before the letters mode exists is how a project ends up with three h
 
 - [~] Finish the letters mode — built as the second of three modes (M12) — and ship it first.
       Playable in 0.16.0; not packaged or released yet.
-- [ ] WordGuess stops being one game and becomes the name of a collection of three. Decide whether
-      the app keeps that name or gets one that fits all three.
+- [x] WordGuess stops being one game and becomes the name of a collection of three. Decided
+      2026-09-25: the app is renamed **Lexling** (0.18.0) — see "Rename to Lexling" below.
 - [ ] **Polish Scrabble accepts every inflected form**, and `ac.txt` already holds 384 000 of them —
       so the word list is solved, not just started.
 - [ ] Worth knowing early: **"Scrabble" is a trademark.** A shipped game needs its own name.
@@ -356,13 +358,33 @@ use, their names are not, and ours needs its own name like the rest of the app.
 - [ ] **Order against Scrabble (M13).** This game needs no computer opponent, so it is far smaller
       than Scrabble — it could come third and Scrabble fourth.
 
+## Rename to Lexling — DONE 2026-09-25 (0.18.0)
+Asked 2026-09-25: rename the app "in GitHub and everywhere (folder name)", with the Android ID
+built from the owner's GitHub name rather than the employer's.
+- [x] Name everywhere the player sees it: logo LEX/LING (the slash stays orange, as in WORD/GUESS),
+      the menu's big letters L/, window and page title, About text, footers.
+- [x] Android ID `com.trivioflow.wordguess` → **`io.github.husarp.lexling`** (the same form as Browser
+      Switch's). Android sees a new app: the old one stays until uninstalled, its saves do not carry over.
+- [x] Windows: program, setup, folders and shortcuts are Lexling. The setup recognises a WordGuess
+      install and updates it: old program, shortcuts and uninstall entry removed, saves folder moved
+      `%LOCALAPPDATA%\WordGuess` → `\Lexling` whole (the game does it too, on first start). Tested
+      with throwaway folders and a fake registry (10 checks); the real install is exercised on the
+      next build.
+- [x] GitHub repository `Husarp/wordguess` → `Husarp/lexling`, the project folder `WordGuess` →
+      `Lexling`. localStorage keys stay `wg.*` on purpose — renaming them would lose every save.
+- [ ] **The icon still says "gu"** (from Word**Gu**ess). Needs new letters or a new design — owner to
+      choose.
+- [x] The other apps checked for the employer's name (Car Crash, Browser Switch, Lockdown): none has
+      it. Browser Switch already uses `io.github.husarp.*`; whether Car Crash's
+      `com.husarp.recklessdriving` should switch too is the owner's call (it would cost phone saves).
+
 ## OPEN QUESTIONS (waiting on owner)
 - [ ] Polish badge names — current picks: Wordsmith → **Mistrz słów**, Typist → **Skryba**,
       Sharpshooter → **Snajper**. Change if you prefer others.
 - [ ] After a give-up / win: also show the true top-10 closest words ("what was rank 1?")?
       Contexto does; not in the design, so not built.
 - [ ] Badge tier thresholds (placeholder numbers in DESIGN.md §6) — tune later.
-- [ ] Final game name (working title: WordGuess). It should fit all the games — three planned in M13, four since M14.
+- [x] Final game name: **Lexling** (owner, 2026-09-25) — renamed in 0.18.0. It should fit all the games — three planned in M13, four since M14.
       Considered 2026-09-25: **Wordly** — advised against: 8+ "Wordly" games on Google Play (mostly
       Wordle clones), Wordly (wordly.ai) is an established company, and it is one letter from Wordle.
       English-only shortlist searched the same day (web + app stores, NOT trademark registers or

@@ -47,7 +47,7 @@ export function menu(root, _, refresh) {
   ${topbar({ right: `<span class="eyebrow lang-switch">${
     ['pl', 'en'].map(l => `<button type="button" data-lang="${l}" class="${on(getLang() === l)}" aria-label="${LANG_NAMES[l]}">${l.toUpperCase()}</button>`).join(DOT)}</span>` })}
   <section class="hero">
-    <div class="wm" aria-hidden="true">W/</div>
+    <div class="wm" aria-hidden="true">L/</div>
     <div class="hero-inner">
       <p class="eyebrow">${t('menu.eyebrow')} ${DOT} ${t('menu.offline')}</p>
       <h1 class="display">${t('menu.h1')}</h1>
@@ -593,7 +593,7 @@ export async function settingsScreen(root, _, refresh) {
       </div>
     </section>
   </main>
-  <footer class="footer"><span>WordGuess v${VERSION}</span>${DOT}<span>© 2026 Husarp</span>${DOT}<span>${t('foot.rights')}</span></footer>
+  <footer class="footer"><span>Lexling v${VERSION}</span>${DOT}<span>© 2026 Husarp</span>${DOT}<span>${t('foot.rights')}</span></footer>
 </div>`;
   root.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.k === 'lang') return switchLang(b.dataset.v, refresh);

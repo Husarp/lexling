@@ -1,6 +1,6 @@
 {
-  "appId": "com.trivioflow.wordguess",
-  "appName": "WordGuess",
+  "appId": "io.github.husarp.lexling",
+  "appName": "Lexling",
   "webDir": "app",
   "android": {
     "backgroundColor": "#000000"

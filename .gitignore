@@ -1,6 +1,6 @@
 # 2.6 GB of downloaded fastText vectors + pipeline caches - build-time only (see tools/build-data.mjs)
 tools/raw/
-# scripts/build.ps1 output: program folder, payload.zip, WordGuessSetup.exe, WordGuess-debug.apk
+# scripts/build.ps1 output: program folder, payload.zip, LexlingSetup.exe, Lexling-debug.apk
 build/
 __pycache__/
 .venv/

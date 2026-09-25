@@ -1,4 +1,4 @@
-# Builds build\WordGuess-debug.apk from the same app\ folder the desktop build uses.
+# Builds build\Lexling-debug.apk from the same app\ folder the desktop build uses.
 #   & "<project folder>\scripts\build-android.ps1"          debug APK, installable by sideload
 #   & "<project folder>\scripts\build-android.ps1" -Install  …and push it to a connected phone
 #
@@ -23,7 +23,7 @@ $env:JAVA_HOME = $Jdk
 $env:ANDROID_HOME = $Sdk
 $env:ANDROID_SDK_ROOT = $Sdk
 $version = (Select-String -Path "$Root\app\js\version.js" -Pattern "VERSION\s*=\s*'([^']+)'").Matches[0].Groups[1].Value
-Write-Output "Building WordGuess $version for Android"
+Write-Output "Building Lexling $version for Android"
 
 # 1. copy app\ into the native project (android\app\src\main\assets\public)
 & npx cap sync android
@@ -36,14 +36,14 @@ Set-Location "$Root\android"
 if ($LASTEXITCODE) { throw "Gradle $task failed" }
 
 $built = Get-ChildItem "$Root\android\app\build\outputs\apk\*\*.apk" | Sort-Object LastWriteTime | Select-Object -Last 1
-$out = "$Root\build\WordGuess-$(if ($Release) { 'release' } else { 'debug' }).apk"
+$out = "$Root\build\Lexling-$(if ($Release) { 'release' } else { 'debug' }).apk"
 Copy-Item $built.FullName $out -Force
 Write-Output ("Built $out ({0:N1} MB)" -f ($built.Length / 1MB))
 
 # Record which version this came from, the same note scripts\build.ps1 writes, so the dev-status
 # dashboard stays right whether the APK or the installer was built last.
 $artifacts = @()
-foreach ($a in @(@("WordGuessSetup.exe", "Windows"), @("WordGuess-debug.apk", "Android"), @("WordGuess-release.apk", "Android"))) {
+foreach ($a in @(@("LexlingSetup.exe", "Windows"), @("Lexling-debug.apk", "Android"), @("Lexling-release.apk", "Android"))) {
     if (Test-Path "$Root\build\$($a[0])") { $artifacts += @{ name = $a[0]; kind = $a[1] } }
 }
 @{ version = $version; builtAt = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ss"); artifacts = $artifacts } |

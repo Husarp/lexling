@@ -6,7 +6,7 @@
 @font-face{font-family:Inter;font-weight:600;font-style:normal;font-display:block;src:url("../fonts/Inter-SemiBold.otf") format("opentype")}
 
 /* ═══ SHARED BLOCK — ported verbatim from design/handoff/*.html (identical in all six files) ═══ */
-/* ── WordGuess design tokens · derived from 13/DEVS brand (orange #DB5126 · black · white) ── */
+/* ── Lexling (designed as WordGuess) design tokens · derived from 13/DEVS brand (orange #DB5126 · black · white) ── */
 :root{
   --bg:#000000; --surface:#1A1A1A; --surface-2:#262626;
   --line:#4A4A4A; --line-soft:#2A2A2A;
@@ -313,50 +313,45 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 
 /* ═══ LETTERS MODE — ported verbatim from handoff-letters/*.html. Left out: the demo frames, the
    third-mode glyph (.glyph.tiles, no third mode yet) and the clipboard preview card (.share). ═══ */
-/* ── Letters tiles (identical in every file that draws them) ──
-   Feedback colours come from the guess-box ramp: hit = --fill-hot, near = --fill-mid, miss = --line.
-   Fills are solid, not --fill-alpha: in Letters the colour IS the answer, so it must not be tinted grey.
-   Ink on hit/near is black (white on #2BD96B / #FFC531 is ~2:1); ink on miss is white.
-   Light theme: --line there is the empty-box border (#E0E0E0) and cannot carry white ink, so a miss
-   uses --text-muted (#4A4A4A) — the same grey the dark theme gets from --line. */
-.lt-board{display:grid;gap:clamp(3px,1.2vw,6px);container-type:inline-size}
-.lt-row{--gap:min(6px,1cqi);--box:min(var(--max,60px),calc((100cqi - (var(--n) - 1) * var(--gap)) / var(--n)));display:grid;grid-template-columns:repeat(var(--n),var(--box));gap:var(--gap);justify-content:center}
-.lt{height:var(--box);min-width:0;display:grid;place-items:center;border:1.5px solid var(--line-soft);border-radius:min(var(--radius-md),calc(var(--box) * .2));font:800 calc(var(--box) * .62)/1 var(--font-display);text-transform:uppercase;color:var(--text);background:transparent;transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),color var(--dur) var(--ease)}
+/* ── Letters tiles ──
+   Colours and style from the owner's reference picture (2026-09-25), replacing the design's: green
+   #79B851 = right place, yellow #F3C237 = elsewhere, blue-grey #A4AEC4 = not in the word, white letters
+   on all three, solid fills with no darker edge. Empty tiles are #FBFCFF with a 2px #DEE1E9 border in
+   the light theme (as in the picture) and stay dark in the dark theme. Corners are only slightly
+   rounded, the gap is about a ninth of a tile, and the letters are the plain bold sans, not condensed.
+   The theme colour still only ever outlines (the caret box), so it cannot be read as a result. */
+:root{--lt-hit:#79B851;--lt-near:#F3C237;--lt-miss:#A4AEC4;--lt-empty:transparent;--lt-edge:var(--line-soft)}
+[data-theme=light]{--lt-empty:#FBFCFF;--lt-edge:#DEE1E9}
+.lt-board{display:grid;gap:clamp(4px,1.3vw,8px);container-type:inline-size}
+.lt-row{--gap:min(8px,1.3cqi);--box:min(var(--max,60px),calc((100cqi - (var(--n) - 1) * var(--gap)) / var(--n)));display:grid;grid-template-columns:repeat(var(--n),var(--box));gap:var(--gap);justify-content:center}
+.lt{height:var(--box);min-width:0;display:grid;place-items:center;border:2px solid var(--lt-edge);border-radius:min(6px,calc(var(--box) * .09));font:600 calc(var(--box) * .48)/1 var(--font-body);text-transform:uppercase;color:var(--text);background:var(--lt-empty);transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),color var(--dur) var(--ease)}
 .lt-row.now .lt{border-color:var(--line)}
 .lt.typed{border-color:var(--text-muted)}
 .lt.caret{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-.lt.hit{background:var(--fill-hot);border-color:var(--fill-hot);color:#000}
-.lt.near{background:var(--fill-mid);border-color:var(--fill-mid);color:#000}
-.lt.miss{background:var(--line);border-color:var(--line);color:#fff}
-.lt-row.future .lt{border-style:dashed}
+.lt.hit{background:var(--lt-hit);border-color:var(--lt-hit);color:#fff}
+.lt.near{background:var(--lt-near);border-color:var(--lt-near);color:#fff}
+.lt.miss{background:var(--lt-miss);border-color:var(--lt-miss);color:#fff}
 .lt-row.bad .lt{border-color:var(--error)}
-[data-theme=light] .lt{border-color:var(--line)}
-[data-theme=light] .lt-row.now .lt{border-color:var(--text-dim)}
+[data-theme=light] .lt-row.now .lt{border-color:#C4C9D6}
 [data-theme=light] .lt.typed{border-color:var(--text-muted)}
 [data-theme=light] .lt.caret{border-color:var(--accent)}
-[data-theme=light] .lt.miss{background:var(--text-muted);border-color:var(--text-muted)}
-[data-theme=light] .lt.hit{border-color:var(--fill-hot)}[data-theme=light] .lt.near{border-color:var(--fill-mid)}
 [data-theme=light] .lt-row.bad .lt{border-color:var(--error)}
 /* reveal: each box takes its colour in turn with a 4px lift — the brand's fade + small translate, no flip.
    Stagger shrinks with length so a 13-letter row still lands in under a second and a half. */
-@keyframes lt-reveal{0%{background:transparent;border-color:var(--text-muted);color:var(--text);transform:none}40%{transform:translateY(-4px)}100%{transform:none}}
+@keyframes lt-reveal{0%{background:var(--lt-empty);border-color:var(--text-muted);color:var(--text);transform:none}40%{transform:translateY(-4px)}100%{transform:none}}
 .lt-row.reveal .lt{animation:lt-reveal 360ms var(--ease) backwards;animation-delay:calc(var(--i) * min(120ms, 1000ms / var(--n)))}
-/* mini squares: legend, saved-game card, menu cue, share preview */
+/* mini squares: legend, saved-game card, menu cue */
 .mt-row{display:flex;gap:3px}
-.mt{flex:none;width:var(--s,18px);height:var(--s,18px);border-radius:4px;display:grid;place-items:center;font:800 calc(var(--s,18px) * .64)/1 var(--font-display);text-transform:uppercase;border:1.5px solid var(--line-soft)}
-.mt.hit{background:var(--fill-hot);border-color:var(--fill-hot);color:#000}
-.mt.near{background:var(--fill-mid);border-color:var(--fill-mid);color:#000}
-.mt.miss{background:var(--line);border-color:var(--line);color:#fff}
-[data-theme=light] .mt{border-color:var(--line)}
-[data-theme=light] .mt.miss{background:var(--text-muted);border-color:var(--text-muted)}
-[data-theme=light] .mt.hit{border-color:var(--fill-hot)}[data-theme=light] .mt.near{border-color:var(--fill-mid)}
+.mt{flex:none;width:var(--s,18px);height:var(--s,18px);border-radius:3px;display:grid;place-items:center;font:600 calc(var(--s,18px) * .52)/1 var(--font-body);text-transform:uppercase;border:1.5px solid var(--lt-edge)}
+.mt.hit{background:var(--lt-hit);border-color:var(--lt-hit);color:#fff}
+.mt.near{background:var(--lt-near);border-color:var(--lt-near);color:#fff}
+.mt.miss{background:var(--lt-miss);border-color:var(--lt-miss);color:#fff}
 /* mode tag: which game a screen or a save belongs to */
 .mode-tag{display:inline-flex;align-items:center;gap:var(--space-2);font:600 12px/1.2 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);white-space:nowrap}
 .glyph{flex:none;display:inline-flex;gap:2px}
 .glyph.letters i{width:7px;height:7px;border-radius:2px}
-.glyph.letters i:nth-child(1){background:var(--fill-hot)}.glyph.letters i:nth-child(2){background:var(--fill-mid)}.glyph.letters i:nth-child(3){background:var(--line)}
+.glyph.letters i:nth-child(1){background:var(--lt-hit)}.glyph.letters i:nth-child(2){background:var(--lt-near)}.glyph.letters i:nth-child(3){background:var(--lt-miss)}
 .glyph.guess{width:22px;height:7px;border-radius:2px;background:linear-gradient(90deg,var(--fill-cold),var(--fill-warm),var(--fill-mid),var(--fill-hot))}
-[data-theme=light] .glyph.letters i:nth-child(3){background:var(--text-muted)}
 /* modes: one card per game, equal weight. auto-fit takes a third card without a redesign:
    stacked below ~500px, side by side above, three across at the 720px column. */
 [data-screen=menu] .modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:var(--space-3)}
@@ -457,7 +452,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=stats] .lengths{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:4px}
 [data-screen=stats] .lengths span{display:grid;gap:4px;justify-items:center;min-width:0}
 [data-screen=stats] .lengths b{width:100%;height:30px;display:grid;place-items:center;border-radius:8px;font:800 15px/1 var(--font-display);border:1.5px dashed var(--line-soft);color:var(--text-dim)}
-[data-screen=stats] .lengths .won b{border:1.5px solid var(--fill-hot);background:color-mix(in srgb,var(--fill-hot) 16%,transparent);color:var(--text)}
+[data-screen=stats] .lengths .won b{border:1.5px solid var(--lt-hit);background:color-mix(in srgb,var(--lt-hit) 16%,transparent);color:var(--text)}
 [data-screen=stats] .lengths em{font:600 10px/1 var(--font-body);font-style:normal;color:var(--text-dim)}
 [data-screen=stats] .shared{display:flex;flex-wrap:wrap;gap:var(--space-1) var(--space-4);padding-top:var(--space-4);border-top:1px solid var(--line-soft);font-size:14px;color:var(--text-muted)}
 [data-screen=stats] .shared b{font:800 18px/1 var(--font-display);color:var(--text)}
