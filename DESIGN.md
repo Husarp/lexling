@@ -535,6 +535,28 @@ outside closes it. Kafelki's gear sits in its button row instead, right of the m
 stays one line up to 470 px, the labels giving up their letter-spacing first. On a phone under 375 px the game's
 name gives way in the top bar (to the gear, or Kafelki's "?") - it is on the saved-games list anyway.
 
+### Kafelki: ratings and looks (0.41.0, owner, 2026-09-26)
+- **How good a move was**: its points against the best move there was on that board with that rack (the move finder)
+  - the best, excellent (85 %+), good (65 %+), fair (40 %+), weak. "Oceniaj moje ruchy / Rate my moves" (on at first;
+  the gear, Settings) shows it after each of your moves on the message line, where it stays while the computer answers,
+  and a percentage beside every move in History. A pass or exchange names the best move there was. Each move's best is
+  kept with the save (`game.evals`, lined up with the moves; an undo drops the ones taken back).
+- **How the game went**, on the end screen for every player, the computer too: each one's points against the best
+  there was over all their turns, then every turn - who, what, its rating, the best move (`lookBack(state, dict, true)`).
+- **Bonus squares, three looks** ("Pola premiowe"): colour; labels only (a plain square, the label in its colour -
+  brighter on dark, deeper on light); grey. In the gear, History, New game and Settings.
+- **Raised tiles** ("Wypukłe płytki", off at first): the board's tiles get a light top edge, a deep bottom edge and a
+  shadow, lifted a little - easier to see.
+- **What is under a tile**: a tap on a tile on the board fades it for 1.5 s and shows its square.
+- **No points on the board at all**: not after a move, not while one is built - the message line and Play show them.
+- **The message line is much bigger** (18 px text, words 22 px, points 30 px; a little less on a phone).
+- **A hinted word looks like a hint in every letter**, the tiles already down that it runs through too.
+- **Zoom**: no zoom-out button (pinch, and Play / Recall zoom out); the zoom is one transform set on the board itself
+  (its custom properties restyled every square on each step), a layer of its own while it moves, a pinch step at most
+  once a frame.
+- **The end screen's board** lets a finger scroll the page (in the game the board keeps every touch).
+- The panel over the board has the board's own corners (8 px), so no square shows past its top corners.
+
 ### What a word means (0.40.0, owner: "don't download - too much; open the browser")
 The app holds no definitions (a Polish dictionary would be 126 MB to fetch and tens of MB in the app). A word opens
 its meaning in the phone's own browser instead (ui.js `meaningUrl`, `openExternal`): **sjp.pl** for Polish - it

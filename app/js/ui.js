@@ -28,7 +28,8 @@ document.addEventListener('pointerdown', e => { if (e.target.closest?.('.mw')) e
 // is open (a game would otherwise type into itself, and Esc would leave the screen).
 const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
 export const gearButton = (cls = '') => `<button class="btn btn-ghost gs-open${cls ? ' ' + cls : ''}" type="button" aria-label="${t('set.title')}" title="${t('set.title')}">${GEAR}</button>`;
-// `extra` = the game's own settings, [[key, label, help]]; `onChange()` repaints what they change.
+// `extra` = the game's own settings, [[key, label, help]] - a switch - or [key, label, help, [[value, text], ...]] - a
+// choice; `onChange()` repaints what they change.
 export function wireGear(root, extra = [], onChange = () => {}) {
   root.firstElementChild.addEventListener('click', e => {        // the screen, which goes when it is replaced
     if (!e.target.closest('.gs-open')) return;
@@ -36,7 +37,10 @@ export function wireGear(root, extra = [], onChange = () => {}) {
     const dlg = document.createElement('dialog');
     dlg.className = 'card game-settings';
     dlg.innerHTML = `<div class="gs-head"><span class="eyebrow">${t('set.title')}</span><button class="btn btn-ghost gs-close" type="button" aria-label="${t('tiles.close')}">✕</button></div>${
-      items.map(([key, label, help]) => `<div class="gs-row"><div class="row-text"><strong>${label}</strong><span>${help}</span></div><button type="button" class="toggle${settings[key] ? ' on' : ''}" role="switch" aria-checked="${!!settings[key]}" aria-label="${label}" data-key="${key}"></button></div>`).join('')}`;
+      items.map(([key, label, help, choices]) => choices
+        ? `<div class="gs-row col"><div class="row-text"><strong>${label}</strong><span>${help}</span></div><div class="seg" role="radiogroup">${choices.map(([v, text]) =>
+          `<button type="button" data-key="${key}" data-v="${v}" class="${settings[key] === v ? 'on' : ''}">${text}</button>`).join('')}</div></div>`
+        : `<div class="gs-row"><div class="row-text"><strong>${label}</strong><span>${help}</span></div><button type="button" class="toggle${settings[key] ? ' on' : ''}" role="switch" aria-checked="${!!settings[key]}" aria-label="${label}" data-key="${key}"></button></div>`).join('')}`;
     const keys = e => {
       e.stopPropagation();
       if (e.key === 'Escape') { e.preventDefault(); close(); }
@@ -46,11 +50,16 @@ export function wireGear(root, extra = [], onChange = () => {}) {
     dlg.addEventListener('click', e => {
       const toggle = e.target.closest('[data-key]');
       if (toggle) {
-        const key = toggle.dataset.key;
-        settings[key] = !settings[key];
+        const key = toggle.dataset.key, v = toggle.dataset.v;
+        if (v === undefined) {
+          settings[key] = !settings[key];
+          toggle.classList.toggle('on', settings[key]);
+          toggle.setAttribute('aria-checked', settings[key]);
+        } else {
+          settings[key] = v === 'true' ? true : v === 'false' ? false : v;
+          dlg.querySelectorAll(`[data-key="${key}"]`).forEach(b => b.classList.toggle('on', b === toggle));
+        }
         saveSettings();
-        toggle.classList.toggle('on', settings[key]);
-        toggle.setAttribute('aria-checked', settings[key]);
         if (key === 'sound') click(); else onChange(key);
       } else if (e.target === dlg || e.target.closest('.gs-close')) close();   // the backdrop, or ✕
     });

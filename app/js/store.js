@@ -23,6 +23,10 @@ export const settings = read('wg.settings', {
   // Tiles: the bonus squares in their colours - off: one quiet grey with the labels only (owner, 2026-09-25: "too many
   // colours on the board")
   tilesBonus: true,
+  // Tiles: after each of your moves, how good it was - its points against the best move there was (owner, 2026-09-26)
+  tilesRate: true,
+  // Tiles: the tiles on the board raised, like real ones - easier to see (owner, 2026-09-26)
+  tiles3d: false,
   // Only the language carries over between games; everything else starts from NEW_GAME each time.
   newGame: { lang: null },
 });

@@ -60,8 +60,8 @@ Playable in **Polish and English** (both the UI and the word libraries).
   (bonus squares every time, challenges, exchanges always, no seven-tile bonus, a clock per move or per game,
   hints off, undo against the computer, everyone's tiles shown between friends), each score's "+points" of the
   last turn,
-  a look-back after the game (your move next to the best there was) and its own statistics by language and
-  level. Points stay in this one - scoring is the game.
+  move ratings (after each of your moves, and for every player at the end: points against the best move there was),
+  raised tiles and three looks for the bonus squares, and its own statistics by language and level. Points stay in this one - scoring is the game.
 
 ## Run it (development)
 

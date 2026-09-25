@@ -452,4 +452,15 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   check('no move: all three levels empty', none, { small: null, big: null, master: null });
 }
 
+// ── rating a game (owner, 2026-09-26): every player's turns, the computer's too ──
+{
+  const isWord = w => has(dicts.en, w), rand = seeded(33);
+  let s = newGame({ lang: 'en', players: [{ name: 'Ada' }, { cpu: 'easy' }], first: 0, seed: 33, words: dicts.en.tag });
+  for (let k = 0; k < 8 && !s.over; k++) s = apply(s, computerMove(s, dicts.en, k % 2 ? 'easy' : 'hard', rankOf('en'), rand), isWord);
+  const all = lookBack(s, dicts.en, true), turns = s.log.filter(a => ['place', 'exchange', 'pass', 'timeout'].includes(a.type)).length;
+  check('rating a game: every turn of every player', [all.length, new Set(all.map(x => x.p)).size], [turns, 2]);
+  check('rating a game: the best move is never worse than what was played', all.every(x => !x.best || x.best.score >= x.played), true);
+  check('rating a game: without "everyone", only the person', lookBack(s, dicts.en).every(x => x.p === 0), true);
+}
+
 console.log(`all ${passed} Tiles tests passed`);

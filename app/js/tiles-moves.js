@@ -292,11 +292,12 @@ export function computerMove(state, dict, level = 'normal', rankOf = () => 0, ra
 // ── After the game: looking back (the owner's plan) ──────────────────────────────────────────────
 // For each turn a person took: what they did and scored, next to the best move there was on that board with that
 // rack - [{ i (the action's place in the log), p, kind, played, word (the one it made), best: { word, score, placed } | null }].
-export function lookBack(state, dict) {
+// `everyone`: the computers' turns too (the end of a game rates every player - owner, 2026-09-26).
+export function lookBack(state, dict, everyone = false) {
   const states = replay(state, w => has(dict, w)), out = [];
   state.log.forEach((a, i) => {
     const before = states[i];
-    if (!['place', 'exchange', 'pass', 'timeout'].includes(a.type) || before.players[before.turn].cpu) return;
+    if (!['place', 'exchange', 'pass', 'timeout'].includes(a.type) || (!everyone && before.players[before.turn].cpu)) return;
     const best = hint(before, dict);
     const made = a.type === 'place' ? wordsMade(before, a.placed) : null;
     out.push({ i, p: before.turn, kind: a.type, played: made ? made.score : 0, word: made?.words[0]?.w ?? '',

@@ -7,7 +7,7 @@ import { loadWords, resolve } from './engine.js';
 import { has } from './dawg.js';
 import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, checkMove, apply, canExchange, hinted,
   unseen, undo, loadTileWords, checkWord, fullBag, BLANK } from './tiles.js';
-import { hintLevels, sameMove, computerMove, lookBack, LEVELS } from './tiles-moves.js';
+import { hint as bestMove, hintLevels, sameMove, computerMove, lookBack, LEVELS } from './tiles-moves.js';
 import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
@@ -24,7 +24,6 @@ const ICON = {
   challenge: svg('<path d="M4 22V4"></path><path d="M4 4h12l-2 4 2 4H4"></path>'),
 };
 const CHEV = '<svg class="tl-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>';
-const ZOOM_OUT = svg('<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path><path d="M8 11h6"></path>');
 const CLOSE = svg('<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>');
 const PAINT = svg('<circle cx="13.5" cy="6.5" r="1"></circle><circle cx="17.5" cy="10.5" r="1"></circle><circle cx="8.5" cy="7.5" r="1"></circle><circle cx="6.5" cy="12.5" r="1"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.65-.75 1.65-1.69 0-.44-.18-.84-.44-1.13-.29-.29-.44-.65-.44-1.13a1.64 1.64 0 0 1 1.67-1.67h2c3.05 0 5.55-2.5 5.55-5.55C21.97 6.01 17.46 2 12 2z"></path>');
 const FIND = svg('<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>');
@@ -34,6 +33,20 @@ const ERR = { line: 'tiles.err.line', gap: 'tiles.err.gap', alone: 'tiles.err.to
 // the move being built when its squares are under 32 px, and pinches up to 2.5 ×
 const THINK_MS = 900, TOAST_MS = 1200, SMALL = 32, AUTO_ZOOM = 2, ZOOM_MAX = 2.5;
 const clampPan = (v, z) => Math.min(0, Math.max(-(1 - 1 / z), v));
+
+// How good a move was (owner, 2026-09-26): its points against the best move there was on that board with that rack -
+// the best, excellent (85 %+), good (65 %+), fair (40 %+) or weak. No rating when there was no move to make.
+const BANDS = [[1, 'best'], [0.85, 'great'], [0.65, 'good'], [0.4, 'fair'], [0, 'weak']];
+export const rateOf = (played, best) => best > 0 ? BANDS.find(([k]) => played / best >= k - 1e-9)[1] : null;
+const pctOf = (played, best) => Math.min(100, Math.round(played / best * 100));
+const rateBadge = (played, best) => { const r = rateOf(played, best); return r ? `<span class="rate rate-${r}">${t('tiles.rate.' + r)} · ${pctOf(played, best)}%</span>` : ''; };
+
+// The bonus squares' look (owner, 2026-09-26): in colour (true), only their labels coloured on a plain square ('text'),
+// or one quiet grey (false) - a choice in the gear, History, New game and Settings.
+export const BONUS_LOOKS = [[true, 'colour'], ['text', 'text'], [false, 'grey']];
+export const bonusSeg = () => `<div class="seg" role="radiogroup">${BONUS_LOOKS.map(([v, k]) =>
+  `<button type="button" data-bonus="${v}" class="${settings.tilesBonus === v ? 'on' : ''}">${t('tiles.bonus.' + k)}</button>`).join('')}</div>`;
+export const bonusOf = v => v === 'true' ? true : v === 'false' ? false : v;
 
 // A player's name as shown: the one typed on New game, or - in the interface language - "You" / "Computer" when
 // there is one of the kind, "Player 2" / "Computer 2" when there are several.
@@ -71,8 +84,10 @@ function wireCheck(box, langOf) {
 }
 
 // The board's squares and tiles (design: only bonus / start / marked squares and tiles are elements - plain
-// squares are the grid's background). `draft` = this turn's tiles, `bubble` = the points.
-function boardInner(S, { draft = [], bad = false, cursor = null, drop = -1, bubble = null } = {}) {
+// squares are the grid's background). `draft` = this turn's tiles. No points on the board, ever (owner, 2026-09-26) - the
+// message line and Play show them.
+// `hinted` = squares of tiles already down that belong to a hinted word: they take the hint look too.
+function boardInner(S, { draft = [], bad = false, cursor = null, drop = -1, hinted = new Set(), peek = -1 } = {}) {
   const n = sizeOf(S.board), prem = premiums(S.board), mid = centre(S.board);
   const fresh = new Map(draft.map(d => [d.r * n + d.c, d]));
   const at = i => `grid-row:${Math.floor(i / n) + 1};grid-column:${i % n + 1}`;
@@ -84,18 +99,15 @@ function boardInner(S, { draft = [], bad = false, cursor = null, drop = -1, bubb
     if (cur) cls.push(cursor.down ? 'cur dn' : 'cur');
     if (i === drop) cls.push('drop');
     if (!cls.length) continue;
-    const label = k && i !== mid && !cur && i !== drop && !S.cells[i] && !fresh.has(i) ? t('tiles.label.' + k) : '';
+    const label = k && i !== mid && !cur && i !== drop && !fresh.has(i) ? t('tiles.label.' + k) : '';
     html += `<span class="q ${cls.join(' ')}" style="${at(i)}">${label}</span>`;
   }
   // who put a tile down: its class pN tints it in that player's colour (owner, 2026-09-25: coloured tiles, no frames)
   const tile = (i, ch, blank, cls) => `<b class="t ${cls}${blank ? ' bl' : ''}" data-i="${i}" style="${at(i)}">${esc(ch)}<i class="p">${blank || !ch ? '' : valueOf(S.lang, ch)}</i></b>`;
-  S.cells.forEach((x, i) => { if (x) html += tile(i, x.ch, x.blank, 'p' + x.by); });
+  S.cells.forEach((x, i) => { if (x) html += tile(i, x.ch, x.blank, (hinted.has(i) ? 'hint' : 'p' + x.by) + (i === peek ? ' peek' : '')); });
   for (const [i, d] of fresh) html += tile(i, d.ch, d.blank, d.hint ? 'hint' : bad ? 'new bad' : 'new');
-  if (bubble) html += `<span class="bub${bubble.cls ? ' ' + bubble.cls : ''}${bubble.c >= n - 2 ? ' flip' : ''}${bubble.r <= 1 ? ' low' : ''}" style="--r:${bubble.r};--c:${bubble.c}"><b>${bubble.pts}</b></span>`;
   return html;
 }
-// the last tile of a move in reading order - where its points bubble sits
-const lastTile = placed => placed.reduce((a, x) => x.r > a.r || (x.r === a.r && x.c > a.c) ? x : a);
 
 export async function tilesGameScreen(root, id) {
   const game = getSave(id);
@@ -154,7 +166,7 @@ export async function tilesGameScreen(root, id) {
   </div></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main'), play = app.querySelector('.tl-play');
-  wireGear(root, [['tilesColours', t('tiles.colours'), ''], ['tilesBonus', t('tiles.bonus'), t('tiles.bonusHelp')]],
+  wireGear(root, [['tilesRate', t('tiles.rate.setting'), t('tiles.rate.settingHelp')], ['tilesColours', t('tiles.colours'), ''], ['tiles3d', t('tiles.raised'), t('tiles.raisedHelp')], ['tilesBonus', t('tiles.bonus'), t('tiles.bonusHelp'), BONUS_LOOKS.map(([v, k]) => [v, t('tiles.bonus.' + k)])]],
     () => { if (S.over) return; paintStatus(); paintBoard(); paintMore(); });
   const $ = s => play.querySelector(s);
   const status = $('.status'), boardEl = $('.tl-board'), tb = $('.tb'), say = $('.say'), rackEl = $('.tl-rack'), dock = $('.tl-dock');
@@ -162,7 +174,8 @@ export async function tilesGameScreen(root, id) {
   const refit = () => fitAll(root);
 
   // the board's two colour switches (Settings, New game, the game): players' tiles tinted; bonus squares coloured
-  const looks = () => (settings.tilesColours !== false ? ' own' : '') + (settings.tilesBonus === false ? ' mono' : '');
+  const looks = () => (settings.tilesColours !== false ? ' own' : '') + (settings.tilesBonus === false ? ' mono' : settings.tilesBonus === 'text' ? ' tint' : '')
+    + (settings.tiles3d ? ' raised' : '');
   const myTurn = () => !S.over && !thinking && !toast && !handOver && !cpu(S.turn) && shown === S.turn;
   // The rack in the order its player arranged it (reorder, shuffle): the saved order, then any tiles new to it.
   const rackOf = p => {
@@ -223,23 +236,44 @@ export async function tilesGameScreen(root, id) {
   function paintBoard() {
     const res = judge(), lifted = press?.drag && press.kind === 'tile' ? press.di : -1;
     const shownDraft = draft.filter((_, i) => i !== lifted);
-    const bubble = res && !res.error ? { ...lastTile(draft), pts: res.score, cls: draft[0].hint ? 'hint' : '' }
-      : null;
     tb.className = `tb n${n}${zoom.z > 1 ? ' zoom' : ''}${looks()}`;
-    tb.innerHTML = boardInner(S, { draft: shownDraft, bad: !!res?.error, cursor: myTurn() && mode === 'play' ? cursor : null, drop: dropAt, bubble });
+    tb.innerHTML = boardInner(S, { draft: shownDraft, bad: !!res?.error, cursor: myTurn() && mode === 'play' ? cursor : null, drop: dropAt, hinted: hintedCells(), peek: peekAt });
     applyZoom(!!(pinch || press?.drag));
     // tiles that just came down settle in, 150 ms each, 60 apart (design: motion)
     landing?.forEach((i, k) => tb.querySelector(`[data-i="${i}"]`)?.animate([{ transform: 'translateY(-35%) scale(1.15)', opacity: 0 }, { transform: 'none', opacity: 1 }],
       { duration: 150, delay: k * 60, easing: 'ease-out', fill: 'backwards' }));
     landing = null;
   }
-  function applyZoom(instant = false) {
-    tb.style.cssText = `--n:${n};--z:${zoom.z};--tx:${zoom.x * 100}%;--ty:${zoom.y * 100}%${instant ? ';transition:none' : ''}`;
-    tb.classList.toggle('zoom', zoom.z > 1);
-    const btn = boardEl.querySelector('.tl-zoomout');
-    if (zoom.z > 1 && !btn) boardEl.insertAdjacentHTML('beforeend', `<button class="tl-zoomout" type="button" data-act="zoomout" aria-label="${t('tiles.zoomOut')}">${ZOOM_OUT}</button>`);
-    if (zoom.z === 1) btn?.remove();
+  // The zoom is one transform on the board grid, set on it directly (owner, 2026-09-26: "zooming lags a bit"): through the
+  // --z / --tx / --ty custom properties every square and tile below restyled on each step, as they inherit them. While the
+  // board moves it is a layer of its own (will-change), and once it rests it is drawn sharp again at its new size.
+  // A hint shows its whole word in the hint look (owner, 2026-09-26: "when a word is from a hint all its letters should be
+  // the hint version"): the tiles already on the board that the word runs through, found along the line of the move.
+  function hintedCells() {
+    const out = new Set();
+    if (!draft[0]?.hint) return out;
+    const d0 = draft[0], filled = (r, c) => r >= 0 && c >= 0 && r < n && c < n && (!!S.cells[r * n + c] || draft.some(d => d.r === r && d.c === c));
+    const across = draft.length > 1 ? draft.every(d => d.r === d0.r)
+      : filled(d0.r, d0.c - 1) || filled(d0.r, d0.c + 1) || !(filled(d0.r - 1, d0.c) || filled(d0.r + 1, d0.c));
+    const [dr, dc] = across ? [0, 1] : [1, 0];
+    let r = d0.r, c = d0.c;
+    while (filled(r - dr, c - dc)) { r -= dr; c -= dc; }
+    for (; filled(r, c); r += dr, c += dc) if (S.cells[r * n + c]) out.add(r * n + c);
+    return out;
   }
+  function applyZoom(instant = false) {
+    const tr = `scale(${zoom.z}) translate(${zoom.x * 100}%, ${zoom.y * 100}%)`;
+    tb.style.transition = instant ? 'none' : '';
+    if (tr === shownZoom) return;
+    shownZoom = tr;
+    tb.style.willChange = 'transform';
+    tb.style.transform = tr;
+    tb.classList.toggle('zoom', zoom.z > 1);
+    clearTimeout(settle);
+    settle = setTimeout(() => { tb.style.willChange = ''; }, instant ? 150 : 260);
+  }
+  let shownZoom = '', settle = 0;
+  tb.style.setProperty('--n', n);
   // Zoomed in on the move being built: the first tile down zooms in when the squares are small, and the view
   // follows the word while it grows (design NOTES "placing on a phone").
   function follow() {
@@ -318,12 +352,14 @@ export async function tilesGameScreen(root, id) {
         : m.kind === 'swap' ? t('tiles.hist.exchanged', { n: m.n }) : m.kind === 'pass' ? t('tiles.hist.passed')
           : m.kind === 'timeout' ? t('tiles.hist.timeout') : m.kind === 'withdrawn' ? `${words(m)} · ${t('tiles.hist.withdrawn')}`
             : t(m.ok ? 'tiles.hist.challengeWon' : 'tiles.hist.challengeLost');
-      return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${i + 1}</span><span class="who" title="${esc(nameOf(S, m.p))}"></span><span class="w">${w}</span><span class="r">${quiet ? '–' : m.score}</span></li>`;
+      const ev = settings.tilesRate !== false && m.kind === 'play' && game.evals?.[i], r = ev && rateOf(m.score, ev.best);
+      return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${i + 1}</span><span class="who" title="${esc(nameOf(S, m.p))}"></span><span class="w">${w}</span><span class="r">${quiet ? '–' : m.score}${
+        r ? `<small class="rate rate-${r}">${pctOf(m.score, ev.best)}%</small>` : ''}</span></li>`;
     }).reverse();
-    const own = settings.tilesColours !== false, bonus = settings.tilesBonus !== false;
+    const own = settings.tilesColours !== false;
     return (rows.length ? `<ol class="tl-hist">${rows.join('')}</ol>` : `<p class="help">${t('tiles.hist.empty')}</p>`)
       + `<div class="tl-row"><span>${t('tiles.colours')}</span><button type="button" class="toggle${own ? ' on' : ''}" role="switch" aria-checked="${own}" data-act="colours" aria-label="${t('tiles.colours')}"></button></div>`
-      + `<div class="tl-row"><span>${t('tiles.bonus')}</span><button type="button" class="toggle${bonus ? ' on' : ''}" role="switch" aria-checked="${bonus}" data-act="bonus" aria-label="${t('tiles.bonus')}"></button></div>`;
+      + `<div class="tl-row col"><span>${t('tiles.bonus')}</span>${bonusSeg()}</div>`;
   }
   function unseenHtml() {
     // as the player on screen sees it; with nobody's rack on screen, every tile not on the board
@@ -389,9 +425,14 @@ export async function tilesGameScreen(root, id) {
   function act(action) {
     const p = S.turn, before = S;
     if (!cpu(p)) action = { ...action, ms: game.turnMs || 0 };
+    // the best move there was this turn - for rating it (settings: "Rate my moves"; History)
+    const top = ['place', 'exchange', 'pass', 'timeout'].includes(action.type) ? bestMove(S, dict) : undefined;
     try { S = apply(S, action, isWord); } catch (e) { msg = { html: esc(e.message), err: true }; paintSay(); return false; }
     game.state = S;
     game.turnMs = 0;
+    // game.evals lines up with S.moves: { best, word } for a turn a player took, null for anything else
+    game.evals = (game.evals ?? []).slice(0, before.moves.length);
+    if (S.moves.length > before.moves.length) game.evals[S.moves.length - 1] = top === undefined ? null : { best: top?.score ?? 0, word: top?.word ?? '' };
     resetTurn();
     // no points bubble on the board after a move (owner, 2026-09-25) - the message line says what was played
     const m = S.moves.at(-1);
@@ -399,16 +440,19 @@ export async function tilesGameScreen(root, id) {
       landing = [...m.placed].sort((a, b) => a.r - b.r || a.c - b.c).map(x => x.r * n + x.c);
     }
     // a challenge's outcome, or a turn lost to the clock, stays on the line while the next player moves
-    const said = report(action, p);
+    const said = report(action, p, game.evals.at(-1));
     msg = msg?.keep && said && action.type !== 'challenge' ? { ...said, html: `${msg.html} ${said.html}` } : said;
     if (S.over) { finish(); return true; }
     putSave(game);
     next();
     return true;
   }
-  function report(action, p) {
+  function report(action, p, ev) {
     const name = esc(nameOf(S, p)), m = S.moves.at(-1);
-    if (action.type === 'place') return { html: `${t('tiles.say.played', { name })} ${wordsLine(m.words, m.score, m.bingo)}` };
+    // a person's own turn, rated (the setting): it stays on the line while the computer answers
+    const rate = !cpu(p) && settings.tilesRate !== false && ev?.best > 0 ? rated(action.type === 'place' ? m.score : 0, ev) : '';
+    if (action.type === 'place') return { html: `${t('tiles.say.played', { name })} ${wordsLine(m.words, m.score, m.bingo)}${rate}`, keep: !!rate };
+    if (rate && (action.type === 'exchange' || action.type === 'pass')) return { html: `${t(action.type === 'exchange' ? 'tiles.say.swapped' : 'tiles.say.passed', { name, n: action.tiles?.length })}${rate}`, keep: true };
     if (action.type === 'exchange') return { html: t('tiles.say.swapped', { name, n: action.tiles.length }) };
     if (action.type === 'pass') return { html: t('tiles.say.passed', { name }) };
     if (action.type === 'timeout') return { html: t('tiles.say.timeout'), keep: true };
@@ -419,6 +463,7 @@ export async function tilesGameScreen(root, id) {
     }
     return null;
   }
+  const rated = (played, ev) => ` ${played ? rateBadge(played, ev.best) : ''}${played < ev.best ? ` <small class="best-was">${t('tiles.rate.bestWas', { w: esc(ev.word.toUpperCase()), n: ev.best })}</small>` : ''}`;
   // Whose turn now: a computer thinks; between people the device changes hands first, the rack hidden.
   function next() {
     if (S.over) return;
@@ -520,6 +565,7 @@ export async function tilesGameScreen(root, id) {
       if (!back) return;
       S = back;
       game.state = S;
+      game.evals = (game.evals ?? []).slice(0, S.moves.length);
       game.turnMs = 0;
       thinking = false;
       resetTurn();
@@ -530,8 +576,6 @@ export async function tilesGameScreen(root, id) {
     guide() { if (!S.over) { panel = panel === 'guide' ? null : 'guide'; paintMore(); } },
     close() { panel = null; paintMore(); },
     colours() { settings.tilesColours = settings.tilesColours === false; saveSettings(); paintStatus(); paintBoard(); paintMore(); },
-    bonus() { settings.tilesBonus = settings.tilesBonus === false; saveSettings(); paintBoard(); paintMore(); },
-    zoomout() { zoomOut(); applyZoom(); },
     show() { handOver = false; shown = S.turn; paintAll(); },
     pickCancel() {
       if (draft[blankFor] && !draft[blankFor].ch) draft.splice(blankFor, 1);   // a blank with no letter goes back
@@ -651,10 +695,20 @@ export async function tilesGameScreen(root, id) {
       return;
     }
     const sq = p.cell;
+    if (sq && S.cells[sq.r * n + sq.c]) return peek(sq.r * n + sq.c);
     if (!sq || !myTurn() || mode !== 'play' || !free(sq.r, sq.c)) return;
     if (sel >= 0) return placeAt(sel, sq.r, sq.c);
     // a computer: click a square to type there, again to turn across ↔ down
     if (desk) cursor = cursor && cursor.r === sq.r && cursor.c === sq.c ? { ...cursor, down: !cursor.down } : { r: sq.r, c: sq.c, down: cursor?.down ?? false };
+  }
+  // A tile tapped on the board fades for a moment and shows the square under it - a bonus or a plain one (owner, 2026-09-26:
+  // "click a letter to see if there is a bonus under it"). Any time, whoever's turn it is.
+  let peekAt = -1, peekTimer = 0;
+  function peek(i) {
+    peekAt = i;
+    clearTimeout(peekTimer);
+    peekTimer = setTimeout(() => { peekAt = -1; if (app.isConnected && !S.over) paintBoard(); }, 1500);
+    paintBoard();
   }
   function drop(p, x, y) {
     const sq = squareAt(x, y);
@@ -736,8 +790,10 @@ export async function tilesGameScreen(root, id) {
     dropAt = -1;
     pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, m: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], ...zoom };
   }
-  function movePinch() {
-    if (touches.size < 2) return;
+  let pinchFrame = 0;
+  const movePinch = () => { pinchFrame ||= requestAnimationFrame(() => { pinchFrame = 0; pinchStep(); }); };
+  function pinchStep() {
+    if (!pinch || touches.size < 2) return;
     const [a, b] = [...touches.values()], box = boardEl.getBoundingClientRect();
     const z = Math.min(ZOOM_MAX, Math.max(1, pinch.z * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.d));
     const u = (pinch.m[0] - box.left) / box.width / pinch.z - pinch.x, v = (pinch.m[1] - box.top) / box.height / pinch.z - pinch.y;
@@ -747,7 +803,7 @@ export async function tilesGameScreen(root, id) {
   }
 
   app.addEventListener('click', e => {
-    const el = e.target.closest('[data-act], [data-open], [data-ch], [data-level]');
+    const el = e.target.closest('[data-act], [data-open], [data-ch], [data-level], [data-bonus]');
     if (!el || S.over) return;
     if (el.dataset.open) {
       panel = !wide && panel === el.dataset.open ? null : el.dataset.open;
@@ -757,6 +813,7 @@ export async function tilesGameScreen(root, id) {
     }
     if (el.dataset.ch) return pickLetter(el.dataset.ch);
     if (el.dataset.level) return pickHint(el.dataset.level);
+    if (el.dataset.bonus) { settings.tilesBonus = bonusOf(el.dataset.bonus); saveSettings(); paintBoard(); return paintMore(); }
     TOOLS[el.dataset.act]?.();
   });
   // A button pressed with the pointer does not take the focus: Enter would press it again instead of playing.
@@ -856,19 +913,21 @@ export async function tilesGameScreen(root, id) {
     <div class="card tl-look" hidden></div>`;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     refit();
-    // Looking back (the owner's plan): each of the people's turns next to the best move there was. It replays the
-    // game, so it comes a moment after the rest.
+    // How the game went (the owner's plan, 2026-09-26 for every player): each player's points against the best there
+    // was, then every turn - who, what, its rating, the best move. It replays the game, so it comes a moment after the rest.
     setTimeout(() => {
       const box = main.querySelector('.tl-look');
       if (!box?.isConnected) return;
       let rows;
-      try { rows = lookBack(S, dict); } catch { return; }
+      try { rows = lookBack(S, dict, true); } catch { return; }
       if (!rows.length) return;
-      const multi = people.length > 1;
-      box.innerHTML = `<span class="eyebrow">${t('tiles.look')}</span><ol><li class="head"><span></span><span>${t('tiles.look.played')}</span><span>${t('tiles.look.best')}</span></li>${rows.map((x, k) => {
+      const sum = (p, k) => rows.filter(x => x.p === p).reduce((a, x) => a + (k === 'best' ? x.best?.score ?? 0 : x.played), 0);
+      const overall = S.players.map((_, p) => { const best = sum(p, 'best'), got = sum(p, 'played'), r = rateOf(got, best);
+        return `<li class="pc${p}"><i></i><span>${esc(nameOf(S, p))}</span>${r ? `<span class="rate rate-${r}">${t('tiles.rate.' + r)} · ${pctOf(got, best)}%</span>` : '<span>—</span>'}</li>`; }).join('');
+      box.innerHTML = `<span class="eyebrow">${t('tiles.eval')}</span><ul class="tl-evals">${overall}</ul><p class="help">${t('tiles.eval.help')}</p><ol><li class="head"><span></span><span>${t('tiles.look.played')}</span><span>${t('tiles.look.best')}</span></li>${rows.map((x, k) => {
         const same = !x.best || x.played >= x.best.score;
         const played = x.kind === 'place' ? `${esc(x.word)} <small>${x.played}</small>` : `<small>${t(x.kind === 'exchange' ? 'tiles.look.swap' : 'tiles.look.pass')}</small>`;
-        return `<li class="${same ? 'same' : ''}"><span class="i">${k + 1}</span><span class="w">${multi ? `<small>${esc(nameOf(S, x.p))} </small>` : ''}${played}</span><span class="best"><span class="w">${
+        return `<li class="pc${x.p}${same ? ' same' : ''}"><span class="i">${k + 1}</span><span class="w"><i class="dot" title="${esc(nameOf(S, x.p))}"></i>${played}${x.best ? ' ' + rateBadge(x.played, x.best.score) : ''}</span><span class="best"><span class="w">${
           x.best ? `${esc(x.best.word)} <small>${x.best.score}</small>` : '—'}</span></span></li>`;
       }).join('')}</ol>`;
       box.hidden = false;

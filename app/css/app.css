@@ -1194,3 +1194,55 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .mean-words{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;font:700 17px/1.35 var(--font-display);text-transform:uppercase}
 .mean-words .eyebrow{flex-basis:100%;font-family:var(--font-body)}
 .tl-check .mean-slot:empty{display:none}
+/* 0.41.0: how good a move was (owner, 2026-09-26) - a badge in five bands, after a move, in History and at the end */
+.rate{display:inline-flex;align-items:center;padding:2px 7px;border-radius:9999px;font:700 11px/1.3 var(--font-body);letter-spacing:.02em;text-transform:none;white-space:nowrap;vertical-align:middle;background:var(--rate-bg);color:var(--rate-ink)}
+.rate-best,.rate-great{--rate-bg:rgba(121,184,81,.18);--rate-ink:#8FD163}
+.rate-good{--rate-bg:rgba(90,160,230,.16);--rate-ink:#7FB8F0}
+.rate-fair{--rate-bg:rgba(232,163,23,.16);--rate-ink:#E8B04A}
+.rate-weak{--rate-bg:rgba(224,49,49,.16);--rate-ink:#F07070}
+[data-theme=light] .rate-best,[data-theme=light] .rate-great{--rate-ink:#2E7D1F}
+[data-theme=light] .rate-good{--rate-ink:#1F5FA8}
+[data-theme=light] .rate-fair{--rate-ink:#8A5A00}
+[data-theme=light] .rate-weak{--rate-ink:#B32020}
+[data-screen=tiles] .say .best-was{font-size:12px;color:var(--text-dim)}
+.tl-hist .r small.rate{margin-left:6px;padding:1px 5px;font-size:10px}
+.tl-evals{list-style:none;padding:0;margin:0;display:grid;gap:6px}
+.tl-evals li{display:grid;grid-template-columns:12px minmax(0,1fr) auto;align-items:center;gap:var(--space-2);font-size:15px}
+.tl-evals li i{width:10px;height:10px;border-radius:50%;background:var(--pc)}
+.tl-look .w .dot{display:inline-block;width:8px;height:8px;margin-right:6px;border-radius:50%;background:var(--pc);vertical-align:middle}
+.tl-look .w .rate{margin-left:4px}
+/* the bonus squares, "labels only" (owner, 2026-09-26): a plain square, the label in the bonus colour (brighter on dark,
+   deeper on light, so it reads) */
+:root{--tb-2l-txt:#8CC8EA;--tb-3l-txt:#6FA5EE;--tb-2w-txt:#F29B55;--tb-3w-txt:#F2665F}
+[data-theme=light]{--tb-2l-txt:#2B80B5;--tb-3l-txt:#1F5FA8;--tb-2w-txt:#C2621A;--tb-3w-txt:#C0302A}
+.tb.tint .q:is(.l2,.l3,.w2,.w3){background:var(--tb-sq)}
+.tb.tint .q.l2{color:var(--tb-2l-txt)}.tb.tint .q.l3{color:var(--tb-3l-txt)}.tb.tint .q.w2{color:var(--tb-2w-txt)}.tb.tint .q.w3{color:var(--tb-3w-txt)}
+/* a choice of three, on its own line under its label (History, the gear) */
+.tl-row.col,.gs-row.col{flex-direction:column;align-items:stretch;gap:var(--space-2)}
+.gs-row .seg button,.tl-row .seg button{min-height:38px;font-size:11px}
+#bonus{margin-top:var(--space-2)}
+/* raised tiles (a setting, owner 2026-09-26): a light top edge, a deep bottom edge and a shadow on the board, the tile
+   lifted a little - they read as solid pieces standing on the board. The ring of this turn's tiles stays on top. */
+.tb.raised .t:not(.hint){translate:0 calc(var(--cs) * -.05);box-shadow:inset 0 0 0 var(--rw) var(--ring),inset 0 calc(var(--cs) * .07) 0 rgba(255,255,255,.4),inset 0 calc(var(--cs) * -.17) 0 rgba(0,0,0,.3),0 calc(var(--cs) * .09) calc(var(--cs) * .12) rgba(0,0,0,.55)}
+.tb.raised .t:not(.hint) .p{bottom:18%}
+/* the panel over the board has the board's own corners (8 px), so no sliver of a square shows past its top corners
+   (owner, 2026-09-26: "orange in both top corners" - a zoomed-in 2S square behind a rounder corner) */
+[data-screen=tiles] .tl-panel{border-radius:8px}
+/* in the end review a long rating may wrap rather than run into the next column */
+.tl-look .w .rate{white-space:normal;max-width:100%}
+/* the message line above the rack, much bigger (owner, 2026-09-26: "way bigger - everything shown there") */
+[data-screen=tiles] .say{font-size:18px;line-height:1.35;min-height:30px;gap:2px 8px}
+[data-screen=tiles] .say b{font:700 22px/1.1 var(--font-display);letter-spacing:.01em}
+[data-screen=tiles] .say .pts{font-size:30px}
+[data-screen=tiles] .say .rate{font-size:14px;padding:3px 9px}
+[data-screen=tiles] .say .best-was{font-size:15px}
+@container (max-width:480px){
+  [data-screen=tiles] .say{font-size:17px;min-height:28px}
+  [data-screen=tiles] .say b{font-size:21px}
+  [data-screen=tiles] .say .pts{font-size:27px}
+}
+/* a tile tapped on the board shows the square under it for a moment */
+.tb .t.peek{opacity:.12;transition:opacity 120ms var(--ease)}
+/* the final board on the end screen is only to look at: a finger on it scrolls the page (in the game the board keeps every
+   touch for placing, panning and pinching) - owner, 2026-09-26: "you cannot scroll down to see the whole board" */
+.tl-final .tl-board{touch-action:auto;user-select:auto;-webkit-user-select:auto}

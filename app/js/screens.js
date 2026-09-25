@@ -6,7 +6,7 @@ import { load, loadWords, preload, resolve, pickSecret, lengthStats } from './en
 import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js';
 import { makePuzzle, RANGE, RING_MIN, RING_MAX, visible, isDone } from './connect.js';
 import { BOARDS, STANDARD, LEVEL_ORDER, PLAYERS_MAX, newGame as tilesGame, loadTileWords, valueOf, fullBag } from './tiles.js';
-import { nameOf, topics, LABEL } from './tiles-game.js';
+import { nameOf, topics, LABEL, bonusSeg, bonusOf } from './tiles-game.js';
 import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYPH, modeTag, TILE, squares } from './ui.js';
 import { fitAll } from './fit.js';
 import { click } from './sound.js';
@@ -682,10 +682,8 @@ export function tilesNewScreen(root, _, refresh) {
           <button type="button" class="toggle" role="switch" aria-label="${t('tiles.colours')}"></button>
         </div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.coloursHelp')}</p>
-        <div class="row" id="bonus">
-          <div class="row-text"><strong>${t('tiles.bonus')}</strong></div>
-          <button type="button" class="toggle" role="switch" aria-label="${t('tiles.bonus')}"></button>
-        </div>
+        <div class="row"><div class="row-text"><strong>${t('tiles.bonus')}</strong></div></div>
+        <div id="bonus">${bonusSeg()}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.bonusHelp')}</p>
       </div>
       <details class="card tl-rules"${o.rulesOpen ? ' open' : ''}>
@@ -749,10 +747,10 @@ export function tilesNewScreen(root, _, refresh) {
       b.querySelector('.meta').innerHTML = `${n} × ${n} ${DOT} ${tiles} ${plural(tiles, 'tiles.tilesN')}`;
     });
     // the same switch as in Settings and in the game (owner, 2026-09-25: "also on the setup")
-    for (const [el, value] of [[$('#colours > .row .toggle'), settings.tilesColours !== false], [$('#bonus .toggle'), settings.tilesBonus !== false]]) {
-      el.classList.toggle('on', value);
-      el.setAttribute('aria-checked', value);
-    }
+    const colours = $('#colours > .row .toggle'), own = settings.tilesColours !== false;
+    colours.classList.toggle('on', own);
+    colours.setAttribute('aria-checked', own);
+    $('#bonus').innerHTML = bonusSeg();
     paintPlayers();
     paintRules();
     paintSummary();
@@ -773,7 +771,7 @@ export function tilesNewScreen(root, _, refresh) {
   }));
   root.querySelectorAll('[data-board]').forEach(b => b.addEventListener('click', () => { o.board = b.dataset.board; sync(); }));
   $('#colours > .row .toggle').addEventListener('click', () => { settings.tilesColours = settings.tilesColours === false; saveSettings(); sync(); });
-  $('#bonus .toggle').addEventListener('click', () => { settings.tilesBonus = settings.tilesBonus === false; saveSettings(); sync(); });
+  $('#bonus').addEventListener('click', e => { const b = e.target.closest('[data-bonus]'); if (b) { settings.tilesBonus = bonusOf(b.dataset.bonus); saveSettings(); sync(); } });
   $('.tl-rules').addEventListener('toggle', e => { o.rulesOpen = e.target.open; });
   $('.tl-players').addEventListener('input', e => {
     const p = e.target.dataset.name;
@@ -974,7 +972,9 @@ export async function settingsScreen(root, _, refresh) {
     <section class="group">
       <h2 class="title">${t('set.tiles')}</h2>
       <div class="row"><div class="row-text"><strong>${t('tiles.colours')}</strong><span>${t('set.tilesColoursDesc')}</span></div><button type="button" class="toggle ${on(settings.tilesColours)}" data-toggle="tilesColours" role="switch" aria-checked="${settings.tilesColours}" aria-label="${t('tiles.colours')}"></button></div>
-      <div class="row"><div class="row-text"><strong>${t('tiles.bonus')}</strong><span>${t('tiles.bonusHelp')}</span></div><button type="button" class="toggle ${on(settings.tilesBonus)}" data-toggle="tilesBonus" role="switch" aria-checked="${settings.tilesBonus}" aria-label="${t('tiles.bonus')}"></button></div>
+      <div class="row"><div class="row-text"><strong>${t('tiles.bonus')}</strong><span>${t('tiles.bonusHelp')}</span></div>${bonusSeg()}</div>
+      <div class="row"><div class="row-text"><strong>${t('tiles.raised')}</strong><span>${t('tiles.raisedHelp')}</span></div><button type="button" class="toggle ${on(settings.tiles3d)}" data-toggle="tiles3d" role="switch" aria-checked="${!!settings.tiles3d}" aria-label="${t('tiles.raised')}"></button></div>
+      <div class="row"><div class="row-text"><strong>${t('tiles.rate.setting')}</strong><span>${t('tiles.rate.settingHelp')}</span></div><button type="button" class="toggle ${on(settings.tilesRate)}" data-toggle="tilesRate" role="switch" aria-checked="${settings.tilesRate}" aria-label="${t('tiles.rate.setting')}"></button></div>
     </section>
     <section class="group">
       <h2 class="title">${t('set.updates')}</h2>
@@ -1013,6 +1013,11 @@ export async function settingsScreen(root, _, refresh) {
     el.classList.toggle('on', settings[key]);
     el.setAttribute('aria-checked', settings[key]);
     if (key === 'sound') click();
+  }));
+  root.querySelectorAll('[data-bonus]').forEach(b => b.addEventListener('click', () => {
+    settings.tilesBonus = bonusOf(b.dataset.bonus);
+    saveSettings();
+    root.querySelectorAll('[data-bonus]').forEach(x => x.classList.toggle('on', x === b));
   }));
   root.querySelectorAll('[data-accent]').forEach(el => el.addEventListener('click', () => {
     settings.accent = el.dataset.accent;

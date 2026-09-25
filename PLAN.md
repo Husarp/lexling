@@ -502,6 +502,13 @@ Order: the game itself first, then these; all of them are in the design prompt, 
 - [x] **A settings gear in every game** (owner: "the usual icon only"): Sound. 0.39.0
 - [x] Kafelki's gear also holds its two colour switches (owner). 0.40.0
 - [x] Kafelki's gear moved to the button row, right of the magnifier (owner). 0.40.1
+- [x] **Move ratings** (owner, 2026-09-26): after each of your moves (a setting), and at the end every player's rating
+      and every turn with its rating and the best move. 0.41.0
+- [x] Bonus squares: colour / labels only / grey; raised tiles (a setting); tap a tile to see the square under it;
+      the whole hinted word in the hint look; no points oval on the board; a bigger message line; no zoom-out button;
+      a lighter zoom; the end board scrolls; the check panel's corners. 0.41.0 (owner)
+- [ ] The new scores row (design "Lexling Tiles Scores", 2026-09-26) - asked: which place, and how it scrolls.
+- [ ] Letter colours as a choice beside tinted tiles, in the settings - asked: the 🎨 button's future.
 - [x] **Word meanings** (owner, 2026-09-26) - not downloaded ("too much"): a word opens its meaning in the browser,
       sjp.pl for Polish, Wiktionary for English - Check a word and History in Kafelki, the guesses in Znaczenie, the
       end cards of every game. 0.40.0

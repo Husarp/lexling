@@ -6,6 +6,28 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.41.0 — 2026-09-26 01:23: Kafelki: how good your moves were, and a round of looks and fixes
+*(not packaged)*
+
+- **Move ratings** (owner): after each of your moves the message line says how good it was - its points against the
+  best move there was: Najlepszy ruch / Świetny / Dobry / Przeciętny / Słaby, with the % and the best word when yours
+  was not it. History shows a % beside every move. A setting, "Oceniaj moje ruchy" (⚙ and Settings), on at first.
+- **"Ocena gry" / "How the game went"** at the end: every player's rating for the whole game, the computer's too, then
+  every turn - who, what, its rating, and the best move there was.
+- **Bonus squares, three looks** ("Pola premiowe"): Kolor, **Tylko opis** (a plain square, only its label coloured),
+  Szare - in the ⚙, History, New game and Settings.
+- **"Wypukłe płytki" / "Raised tiles"** (a setting): the board's tiles stand up like real ones - easier to see.
+- **Tap a tile on the board** to see the square under it (it fades for a moment).
+- **The message line above the rack is much bigger** - words, points, ratings.
+- **No points oval on the board, ever** - the line and the Play button show the points.
+- **A hint shows its whole word as a hint**, the letters already on the board too.
+- **No zoom-out button** on the board (pinch, and Play / Recall zoom out), and **zooming is lighter** - the board moves
+  as one layer instead of restyling every square on each step.
+- **Fixed**: the end screen's board did not let a finger scroll the page; the "Check a word" window showed a sliver of
+  a bonus square in its top corners.
+- Checked in headless Edge: ratings after moves, in History and at the end; the three looks; raised tiles (dark and
+  light); the peek; zoom and pinch with touch; undo, a whole game, hints off. 261 Tiles tests (3 new).
+
 ## 0.40.1 — 2026-09-26 00:41: Kafelki: the gear beside the magnifier
 *(not packaged)*
 
