@@ -6,6 +6,12 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.22.2 — 2026-09-25 04:10: + at 20 tries goes on to unlimited
+
+- **The tries stepper runs 1 … 20 → ∞**: + at 20 switches Unlimited on, and − from ∞ goes back to 20.
+  The Unlimited button stays, for getting there (and back to your number) in one tap. The ∞ is no
+  longer greyed out — it is a value of the stepper now, not a stepper switched off.
+
 ## 0.22.1 — 2026-09-25 04:05: Unlimited tries score like 20 tries
 *(not packaged)*
 

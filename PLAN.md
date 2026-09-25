@@ -162,8 +162,8 @@ Ported 1:1 in 0.16.0.
       **Done in 0.22.0**: the owner chose (b), with unlimited counting every guess as two (×0.5).
 - [x] With (b), unlimited (×0.5) paid MORE than 13–20 tries (×0.46 … ×0.3). The owner chose: unlimited
       counts as 20 tries (×0.3), keep 20 as the most. 0.22.1.
-- [ ] **Tries stepper: + at 20 switches to Unlimited** (owner's idea, 2026-09-25) — asked for an
-      opinion first; waiting for the go-ahead.
+- [x] **Tries stepper: + at 20 switches to Unlimited** (owner's idea, 2026-09-25); − from ∞ gives 20;
+      the Unlimited button stays. 0.22.2.
 - [x] **Points for a loss?** (owner's question) — e.g. out of tries scores from the best row: greens
       and half the yellows, as a share of the word, of a quarter of a last-try win; giving up scores 0.
       **Done in 0.22.0** — the owner chose exactly this.

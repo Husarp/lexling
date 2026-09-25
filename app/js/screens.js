@@ -384,11 +384,10 @@ export function lettersNewScreen(root, _, refresh) {
     anyLen.classList.toggle('on', o.anyLen);
     anyLen.setAttribute('aria-checked', o.anyLen);
     const [fewer, more] = $('#tries').querySelectorAll('button');
-    $('#tries').classList.toggle('off', o.unlimited);
     $('#tries output').innerHTML = o.unlimited ? '<span class="num">∞</span><span class="help"></span>'
       : `<span class="num">${o.tries}</span><span class="help">${plural(o.tries, 'lt.triesUnit')}</span>`;
-    fewer.disabled = o.unlimited || o.tries <= 1;
-    more.disabled = o.unlimited || o.tries >= TRIES_MAX;
+    fewer.disabled = !o.unlimited && o.tries <= 1;
+    more.disabled = o.unlimited;
     unlimited.classList.toggle('on', o.unlimited);
     unlimited.setAttribute('aria-checked', o.unlimited);
     $('#polish').hidden = o.lang !== 'pl';
@@ -452,7 +451,12 @@ export function lettersNewScreen(root, _, refresh) {
   });
   $('#tries').addEventListener('click', e => {
     const step = +e.target.closest('[data-step]')?.dataset.step;
-    if (step) { o.tries = Math.min(TRIES_MAX, Math.max(1, o.tries + step)); sync(); }
+    if (!step) return;
+    // ∞ is the step after the most tries (owner, 2026-09-25): + at 20 turns Unlimited on, − from it gives 20
+    if (o.unlimited) { if (step < 0) { o.unlimited = false; o.tries = TRIES_MAX; } }
+    else if (step > 0 && o.tries >= TRIES_MAX) o.unlimited = true;
+    else o.tries = Math.min(TRIES_MAX, Math.max(1, o.tries + step));
+    sync();
   });
   unlimited.addEventListener('click', () => { o.unlimited = !o.unlimited; sync(); });
   anyLen.addEventListener('click', () => { o.anyLen = !o.anyLen; sync(); });
