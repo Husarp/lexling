@@ -6,6 +6,17 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.22.5 — 2026-09-25 04:36: The Android APK is signed with Lexling's own key
+*(not packaged)*
+
+- **`build-android.ps1` now makes the signed APK** (`build\Lexling-release.apk`) by default, and
+  releases carry it instead of `Lexling-debug.apk` (the owner's choice, knowing the cost below). The
+  debug build is still there: `-DebugBuild`. Without `android\keystore.properties` the script stops
+  rather than make an APK that cannot be installed.
+- **One uninstall per phone:** Android updates an app only with an APK signed by the same key, so a
+  phone with the debug-signed Lexling (0.22.2 / 0.22.4) has to uninstall it first — which deletes its
+  Lexling saves and statistics. From this version on, updates install over it normally.
+
 ## 0.22.4 — 2026-09-25 04:29: An Android signing key of Lexling's own
 *(released 2026-09-25 as v0.22.4 — Windows installer + Android debug APK, carrying 0.22.3 too)*
 

@@ -1,11 +1,14 @@
-# Builds build\Lexling-debug.apk from the same app\ folder the desktop build uses.
-#   & "<project folder>\scripts\build-android.ps1"          debug APK, installable by sideload
+# Builds build\Lexling-release.apk - signed with Lexling's own key - from the same app\ folder the
+# desktop build uses. The key is found through android\keystore.properties (git-ignored; README).
+#   & "<project folder>\scripts\build-android.ps1"             signed APK, installable by sideload
+#   & "<project folder>\scripts\build-android.ps1" -DebugBuild  build\Lexling-debug.apk (debug key)
 #   & "<project folder>\scripts\build-android.ps1" -Install  …and push it to a connected phone
 #
 # Everything comes from this PC: the Android SDK under %LOCALAPPDATA%\Android\Sdk and the JDK that
 # ships inside Android Studio. Neither has to be on PATH - they are pointed at here - and no part of
 # the toolchain is needed to PLAY the game, only to package it.
-param([switch]$Install, [switch]$Release)
+param([switch]$Install, [switch]$DebugBuild)
+$Release = -not $DebugBuild   # since 0.22.5 the signed APK is the normal build (owner)
 $ErrorActionPreference = "Continue"
 $Root = Split-Path -Parent $PSScriptRoot
 $Sdk = "$env:LOCALAPPDATA\Android\Sdk"
@@ -30,6 +33,10 @@ Write-Output "Building Lexling $version for Android"
 if ($LASTEXITCODE) { throw "cap sync failed" }
 
 # 2. the APK itself
+# an unsigned APK cannot be installed at all - stop here rather than build one
+if ($Release -and -not (Test-Path "$Root\android\keystore.properties")) {
+    throw "android\keystore.properties is missing, so the APK cannot be signed - see README (Android). -DebugBuild makes a debug APK."
+}
 $task = if ($Release) { "assembleRelease" } else { "assembleDebug" }
 Set-Location "$Root\android"
 & .\gradlew.bat $task --no-daemon
