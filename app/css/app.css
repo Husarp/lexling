@@ -424,7 +424,6 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-kb] [data-screen=letters] .play{flex:1;min-height:0;grid-template-rows:auto minmax(0,1fr) auto;gap:var(--space-2)}
 [data-kb] [data-screen=letters] .lt-board{overflow-y:auto;align-content:start;overscroll-behavior:contain}
 [data-kb] [data-screen=letters] .lt-row{--max:48px}
-[data-kb] [data-screen=letters] .lt-row.future{display:none}
 [data-kb] [data-screen=letters] .entry .btn{min-height:44px}
 /* game-letters-end.html */
 [data-screen=letters] .win{display:grid;gap:var(--space-4);padding:var(--space-6) var(--space-5);background:var(--accent);color:#fff;border-radius:var(--radius-md)}
@@ -484,3 +483,18 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
    edge; Save & exit and Give up get a row of their own underneath, on the left, further apart. */
 [data-screen=game] .status,[data-screen=letters] .status{justify-content:space-between}
 [data-screen=game] .status-actions,[data-screen=letters] .status-actions{flex-basis:100%;margin-left:0;gap:var(--space-3)}
+
+/* ═══ LETTERS: THE SCREEN FITS THE WINDOW — asked 2026-09-25 ═══
+   With many tries the grid ran off the screen and took the status row or Guess with it. While a game
+   is being played (.fit, set by letters-game.js) the screen is exactly the window's height: the
+   status row stays at the top, Guess stays right under the grid, and only the grid scrolls once it
+   outgrows the room - kept at the newest row. With the keyboard open the design's layout above still
+   applies (Guess at the bottom, next to the keyboard). The end screen is an ordinary page again. */
+[data-screen=letters].app.fit{height:var(--vvh,100dvh);min-height:0}
+[data-screen=letters].fit .main{min-height:0}
+html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;grid-template-rows:auto minmax(0,1fr) auto}
+[data-screen=letters].fit .lt-board{overflow-y:auto;align-content:start;overscroll-behavior:contain;padding:4px 0}   /* room for the 4px lift of the reveal */
+/* a new row grows in, tile by tile from the left - quick: a 5-letter row is done in under a third of a
+   second, a 13-letter one in under half */
+@keyframes lt-grow{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
+.lt-row.grow .lt{animation:lt-grow 180ms var(--ease) backwards;animation-delay:calc(var(--i) * min(30ms, 300ms / var(--n)))}

@@ -323,7 +323,10 @@ names the category the game was played in. **Every button has a frame** — the 
   anywhere on the game focuses it. Nothing is sent until Enter / Go / Guess.
 - **Keyboard open**: the screen becomes exactly the visible height (`--vvh`), top bar and status
   step aside, the grid scrolls in the middle, Guess sits right above the keyboard, empty rows hide.
-- **Unlimited tries** draws no empty rows; the grid grows by one per guess.
+- **No empty rows ahead** (since 0.19.0, for every number of tries — the design drew them for a limit):
+  only the row being typed, and one more per guess, growing in tile by tile from the left.
+- **The screen fits the window while playing** (0.19.0): status on top, Guess right under the grid, and
+  only the grid scrolls, kept at the newest row — however many tries were chosen.
 - **Any length** (0.17.0) draws the word from all lengths 3–13 in one pool, so each length comes up
   as often as words of it exist — not every length equally (owner's choice).
 - **No "Copy result"** — the design had a button that copied a 🟩🟨⬛ summary for sharing; built in

@@ -32,15 +32,12 @@ export async function lettersGameScreen(root, id) {
     tiles(feedback(w, game.secret).map(f => TILE[f]), [...w])}</div>`;
   const blank = () => Array(n).fill('');
 
+  // Only the row being typed is drawn empty, never the tries still to come: with 20 tries those rows
+  // ran the screen out of room (owner, 2026-09-25). A new row appears after each guess and grows in,
+  // tile by tile - the status row already says how many tries are left.
   function paintBoard(reveal = false) {
     const rows = game.guesses.map((w, i) => past(w, reveal && i === game.guesses.length - 1));
-    if (playing()) {
-      rows.push(`<div class="lt-row now" style="--n:${n}">${tiles(blank())}</div>`);
-      // with a limit, the tries still to come are drawn empty; unlimited just grows a row per guess
-      if (game.tries) for (let k = game.guesses.length + 1; k < game.tries; k++) {
-        rows.push(`<div class="lt-row future" style="--n:${n}" aria-hidden="true">${tiles(blank())}</div>`);
-      }
-    }
+    if (playing()) rows.push(`<div class="lt-row now grow" style="--n:${n}">${tiles(blank())}</div>`);
     board.innerHTML = rows.join('');
     if (playing()) paintNow();
   }
@@ -63,9 +60,10 @@ export async function lettersGameScreen(root, id) {
     submit.classList.toggle('btn-outline', typed.length < n);
   }
 
-  // With the keyboard open the grid is the part that scrolls: keep it at the current row.
+  // While playing, the grid is the part that scrolls (the screen fits the window): keep it at the
+  // newest row, the one being typed.
   const keepDown = () => {
-    if (board?.isConnected && document.documentElement.hasAttribute('data-kb')) board.scrollTop = board.scrollHeight;
+    if (board?.isConnected && playing()) board.scrollTop = board.scrollHeight;
   };
 
   function say(text, error = false) {
@@ -85,6 +83,9 @@ export async function lettersGameScreen(root, id) {
   }
 
   function paintPlay() {
+    // While playing, the screen is exactly the window's height: status on top, Guess under the grid,
+    // and only the grid scrolls (css: .fit). The end screen goes back to an ordinary scrolling page.
+    app.classList.add('fit');
     main.innerHTML = `<div class="status"></div>
     <div class="play">
       <p class="msg help" role="status" aria-live="polite"></p>
@@ -140,6 +141,7 @@ export async function lettersGameScreen(root, id) {
     // up over the how-to-play card the moment the screen opens.
     if (matchMedia('(pointer: fine)').matches) sink.focus();
     refit();
+    keepDown();
   }
 
   let revealing = false;
@@ -173,7 +175,6 @@ export async function lettersGameScreen(root, id) {
     paintStatus();
     paintBoard(true);
     keepDown();
-    if (!document.documentElement.hasAttribute('data-kb')) board.querySelector('.lt-row.now')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     refit();
     if (won || out) finish(game.status, true);
   }
@@ -218,6 +219,7 @@ export async function lettersGameScreen(root, id) {
       ${actions}
     </div>`;
     }
+    app.classList.remove('fit');
     main.innerHTML = `${card}<div class="lt-board" role="grid" aria-label="${t('game.guesses')}"></div>`;
     board = $('.lt-board');
     paintBoard();

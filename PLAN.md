@@ -141,6 +141,9 @@ Ported 1:1 in 0.16.0.
         licence to check first. Planned together with M13.
 - [x] **Status bar, both games**: the numbers spread across the whole first row, Save & exit and
       Give up on their own row underneath, aligned left, further apart. 0.17.1.
+- [x] **Many tries ran off the screen** (reported with 20): the screen now fits the window while
+      playing — status on top, Guess under the grid, only the grid scrolls. No empty rows are drawn
+      for the tries to come; a new row is added per guess and grows in, left to right, quickly. 0.19.0.
 
 ### Left to do after 0.16.0
 - [ ] **Play it on a real phone.** Tested here in a browser at 320 px, with the keyboard simulated;

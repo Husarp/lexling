@@ -6,6 +6,23 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.19.0 — 2026-09-25 02:55: Letters fits the screen, however many tries
+*(not packaged)*
+
+From playing on the phone: with many tries (20) the grid ran off the screen and took the status row or
+the Guess button with it.
+- **The screen fits the window while you play.** The status row (tries, length, category, language)
+  stays at the top, Guess stays right under the grid, and only the grid scrolls once it outgrows the
+  room — always kept at the row being typed. Measured at 412 × 780 with 14 guesses of 20: the page no
+  longer scrolls, status and Guess both in view, the current row visible. On a wide window with two
+  guesses, Guess sits 12 px under the grid, not at the bottom of the window. The end screen is an
+  ordinary scrolling page again; with the phone keyboard open the design's layout still applies.
+- **No empty rows for the tries to come.** Only the row being typed is drawn; one more appears after
+  each guess (the status row already shows how many tries are left). Limited and unlimited games now
+  look the same.
+- **A new row grows in**, tile by tile from the left, from small to full size: 180 ms a tile, 30 ms
+  apart — a 5-letter row is done in 0.3 s, a 13-letter one in under half a second.
+
 ## 0.18.3 — 2026-09-25 02:38: Android ID com.husarp.lexling
 *(debug APK built and installed on the phone 2026-09-25 02:41 — as a new app next to the old WordGuess; not released)*
 
