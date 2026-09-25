@@ -370,7 +370,8 @@ official board plus two more, symmetrical, found by looking around; a core syste
 - [x] **The rules, no screens (0.30.0)**: `tiles.js`, `tiles-moves.js`, `dawg.js`, `tools/test-tiles.mjs` -
       what they do is in DESIGN.md "Tiles". The official rules and letter sets (checked on pl.wikipedia.org and a
       Polish rules page); a game is plain data, so a save is the state itself.
-- [x] **Boards: Classic** (the original), **Quick** (11 × 11, half the tiles) and **Bonus** (bonuses nearer the
+- [x] **Boards: Classic** (the original), ~~**Quick** (11 × 11, half the tiles)~~ - dropped 2026-09-25 (owner: "the
+      full game from start to finish with all the letters"), 0.32.0 - and **Bonus** (bonuses nearer the
       middle) - all symmetrical. Looked at: the Words With Friends board (bonuses pulled in, more triple
       letters, 35 for all seven tiles), its 11 × 11 Fast Play board, Wordfeud's random boards (not symmetrical),
       Super Scrabble (21 × 21 - too big for a phone), Wordscraper (players draw their own). Quick and Bonus take
@@ -437,13 +438,14 @@ Order: the game itself first, then these; all of them are in the design prompt, 
       (In place of the plan's four hint types.) Core: hint() 0.31.0; the two steps are the screen's.
 - [x] **"Check a word" - any time** (owner: not as a hint - "you just want to check if they are possible"),
       in the game and from the games list. Core: checkWord 0.31.2.
-- [ ] Rule options: bonus squares once (standard) / always; automatic checking / challenges with a penalty;
-      exchanges only with 7+ in the bag / always; the bonus for seven tiles; an optional time limit (per move /
-      per game).
-- [ ] A stronger computer: Hard weighing the tiles it keeps (needed for "exchange these"), an Expert level
-      that simulates (Monte Carlo).
-- [ ] Statistics per level and language, points per move, passes; a look-back after the game (the best move
-      of each turn). ~~Replays~~ - dropped (owner: "too much hassle").
+- [x] Rule options: bonus squares once (standard) / always; automatic checking / challenges with a penalty (the
+      challenger loses the turn); exchanges only with 7+ in the bag / always; the seven-tile bonus on / off; a time
+      limit per move (a pass) / per game (10 points per started minute over). Core 0.32.0; screens with the design.
+- [x] A stronger computer: Hard weighing the tiles it keeps, and swapping a hopeless rack; an Expert level that
+      tries its best moves against possible answers. 0.32.0
+- [x] Statistics per level and language, points per move, passes (`results`, `recordTilesEnd`); a look-back
+      after the game - the best move of each turn (`lookBack`). 0.32.0 ~~Replays~~ - dropped (owner: "too much
+      hassle"); the game log that rebuilds a game is only what the look-back needs.
 - ~~New game on the last settings in one tap; a daily puzzle; an anagram trainer~~ - dropped (owner).
 - [ ] Bigger text - maybe (owner: "could be it").
 - [ ] **The owner's own new idea (2026-09-25): who put which tile** - a switch in the game, on and off at any
@@ -468,6 +470,13 @@ Order: the game itself first, then these; all of them are in the design prompt, 
 - [x] **Litery: the row of letters in place under the keyboard goes** (owner: not needed); in its place one row:
       Space (leaves a tile empty and moves on), ← → (along the tiles), Hint. 0.31.1
 - [x] **"Doesn't exist or isn't allowed"** instead of "I don't know the word" - Guess, Letters, Connect. 0.31.1
+- [x] **Połącz: the half-word cap counts every letter showing** - crossings of found words too (owner: "a word of
+      six letters with two filled by crossed words gets one hint"). Clearer "no more hints allowed". 0.32.0
+- [x] **Labels that did not fit in Polish** (owner: "Podpowiedź" in Połącz; "check other buttons") - checked on
+      every screen in headless Edge, both languages, 320-1100 px: Połącz's Hint button was squeezed below its
+      label at 480 px (the owner's phone is 480 px wide), "Normalny" in the level buttons at 412 px, "Znaczenie"
+      in the statistics tabs at 320 px. All fixed. 0.32.0
+- [ ] Owner: should Litery's hint cap count letters already green too (as Połącz's now counts crossings)? Asked.
 - [x] **The orange line at the top of every screen** (the top bar's 3 px accent edge) - gone, phone and PC. 0.31.1
 - [x] Litery: where hinted letters show now that the row is gone - owner: greyed out in its place in every
       row being typed, to type over. 0.31.2

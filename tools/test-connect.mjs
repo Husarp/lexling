@@ -104,8 +104,8 @@ for (const lang of ['pl', 'en']) {
 const board = { cols: 6, rows: 4, words: [{ w: 'karton', r: 1, c: 1, d: 'a' }, { w: 'kora', r: 1, c: 1, d: 'd' }, { w: 'tron', r: 1, c: 4, d: 'd' }] };
 check('cells of a word across', cellsOf(board.words[0]), ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6']);
 check('cells of a word down', cellsOf(board.words[1]), ['1-1', '2-1', '3-1', '4-1']);
-// hints (owner, 2026-09-25): a random letter not showing yet, anywhere - or in the chosen word; never more
-// than half of a word's letters (rounded down) from hints; letters from found crossing words do not count
+// hints (owner, 2026-09-25): a random letter not showing yet, anywhere - or in the chosen word; none once half of
+// a word's letters (rounded down) show - letters from found crossing words count too (owner, later that day)
 check('the cap: half a word, rounded down', [hintCap('kora'), hintCap('karton'), hintCap('kot'), hintCap('krowa')], [2, 3, 1, 2]);
 const first = nextHint(board, [], [], null, () => 0);
 check('a hint is a letter not showing yet', first.cell !== null && !visible(board, [], []).has(first.cell), true);
@@ -113,12 +113,20 @@ const spots = new Set(Array.from({ length: 60 }, (_, i) => nextHint(board, [], [
 check('hints land all over the board, not word by word', spots.size >= 8, true);
 check('a chosen word gets the hint', cellsOf(board.words[2]).includes(nextHint(board, ['karton'], [], 'tron', () => .5).cell), true);
 check('...and never a letter already showing', nextHint(board, ['karton'], [], 'tron', () => 0).cell, '2-4');
-// KORA (4 letters, cap 2) with 2 hinted letters: none of its cells may be hinted again
+// KORA (4 letters, cap 2) with 2 hinted letters (and its K from KARTON): none of its cells may be hinted again
 check('a word at its cap takes no more hints', nextHint(board, ['karton'], ['2-1', '3-1'], 'kora').cell, null);
 // the crossing cell 1-1 (K of KARTON and KORA) counts for both: with KORA at its cap, 1-1 is off limits too
 check('a crossing letter counts for both words', Array.from({ length: 40 }, (_, i) => nextHint(board, [], ['2-1', '3-1'], null, () => i / 40).cell).includes('1-1'), false);
 // KARTON 3 of 6 hinted (A R O), KORA 2 of 4 (O R), TRON 2 of 4 (R O): every word at its cap
 check('no hint left: says so', nextHint(board, [], ['1-2', '1-3', '1-5', '2-1', '3-1', '2-4', '3-4']).cell, null);
+// KARTON found: KORA shows its K (1 of 4) and TRON its T (1 of 4) - one hint more each, then no more
+{
+  const shown = [];
+  for (let h = nextHint(board, ['karton'], shown); h && h.cell; h = nextHint(board, ['karton'], shown)) shown.push(h.cell);
+  check('letters from a found crossing word count: one hint each for KORA and TRON, then none', [shown.length, shown.filter(k => cellsOf(board.words[1]).includes(k)).length], [2, 1]);
+}
+// half of KORA showing through crossings alone: no hint at all for it
+check('a word already half showing through crossings gets no hint', nextHint({ ...board, words: [...board.words, { w: 'rok', r: 3, c: 1, d: 'a' }] }, ['karton', 'rok'], [], 'kora'), { cell: null, words: [] });
 // on real puzzles: pressing Hint until it has nothing left never puts a word over its cap, and ends
 for (const lang of ['pl', 'en']) {
   const m = await loadWords(lang), rand = seeded(7);

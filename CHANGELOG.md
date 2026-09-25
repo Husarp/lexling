@@ -6,6 +6,36 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.32.0 — 2026-09-25 17:28: Tiles' rules finished (options, challenges, clocks, Expert, look-back); Połącz hints; labels that did not fit
+*(not packaged)*
+
+The owner: "anything left other than the design? Do it."
+- **Tiles: the Quick board is gone** (owner: "the full game, from start to finish, with all the letters"). Two
+  boards, Classic and Bonus, both with all 100 tiles.
+- **Tiles: rule options** (the owner's plan; the standard ones by default): bonus squares every time; **challenges**
+  - a move goes down unchecked and the next player may challenge it: a word that is not allowed goes back (tiles,
+  bag and points as they were) and the challenger plays; challenging a good word costs the challenger the turn;
+  exchanges always; the seven-tile bonus off; **a clock** per move (running out is a pass) or per game (10 points
+  for every started minute over, the tournament rule).
+- **Tiles: a stronger computer.** Hard now weighs the tiles it keeps (a blank is gold, a vowel/consonant balance,
+  no doubles or heavy letters) and swaps a hopeless rack; **Expert**, a fifth level for this game, also plays its
+  best moves against racks the next player could hold (~0.1 s a turn on a PC). Every level challenges a word
+  that is not allowed - and never a good one.
+- **Tiles: after the game** - every action is logged, so a game can be rebuilt from its start; the **look-back**
+  shows each person's turn next to the best move there was. **Statistics**: every game counts, several people
+  too, never the computer's own moves - played, won against the computer, best game, best move, average score,
+  points per move, seven-tile moves, passes, hints - kept per language and level.
+- **Połącz hints: a word takes no more hints once half its letters show - counting letters from found crossing
+  words too** (owner: "a six-letter word with two letters from crossings gets one hint"). The message says so:
+  "No more hints allowed: every word left already shows at least half its letters" / "Więcej podpowiedzi nie ma:
+  w każdym pozostałym słowie widać już co najmniej połowę liter".
+- **Labels that did not fit** (owner: "Podpowiedź" in Połącz; "check the other buttons in Polish"): every screen
+  measured in both languages at 320-1100 px. Three found and fixed: Połącz's Hint button was squeezed narrower
+  than "PODPOWIEDŹ" at 480 px - the owner's phone is 480 px wide to the app (display size set larger); the level
+  buttons ("Normalny") at 412 px - Random now drops under them sooner; the statistics tabs ("Znaczenie") at 320 px.
+- 231 Tiles tests (rules options, challenges, clocks, replay, look-back, statistics, Expert games), 286 Connect,
+  259 Letters.
+
 ## 0.31.2 — 2026-09-25 16:45: Litery's hinted letters in the row you type; Tiles: who put each tile, check a word
 *(not packaged)*
 

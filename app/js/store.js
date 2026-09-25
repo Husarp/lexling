@@ -1,6 +1,7 @@
 // Settings, saved games and lifetime stats. Everything lives in localStorage; the desktop/Android
 // wrappers pin the WebView's storage folder outside the install dir so updates never touch it.
 import { t } from './i18n.js';
+import { results } from './tiles.js';
 
 // "A hard word": the top ~10 % of the uncategorised pool, for the hard-words statistic.
 export const HARD_WIN = 70;
@@ -37,6 +38,9 @@ export const stats = read('wg.stats', {
   lt: { played: 0, won: 0, lost: 0, givenUp: 0, streak: 0, bestStreak: 0, wonTries: 0, wonLen: {}, hints: 0, hintGames: 0 },
   // Connect's own numbers: words = board words the player found, longest = { w, game, at } of any word found
   cn: { played: 0, solved: 0, givenUp: 0, words: 0, bonus: 0, hints: 0, longest: null },
+  // Tiles' own numbers, kept per language and level ('pl|normal', 'en|people' ...) so its tab can show any mix
+  // of them: the sums of tiles.js results(), and the best game and best move so far.
+  tl: {},
 });
 const unique = new Set(stats.unique);
 export const saveStats = () => { stats.unique = [...unique]; write('wg.stats', stats); };
@@ -147,6 +151,18 @@ export function recordLettersEnd(game) {
 
 // A Connect game ends solved ('won') or given up. Its words, bonus words and hints add to the totals;
 // the longest word found - on the board or a bonus - is kept with the game's name and when.
+// A finished Tiles game into the statistics - every game on this device, several people included; the
+// computer's own moves never count (tiles.js results). `id` = its save, which goes.
+export function recordTilesEnd(state, id) {
+  const r = results(state), s = stats.tl[r.lang + '|' + r.level] ??= { played: 0, vsCpu: 0, won: 0, games: 0, points: 0,
+    moves: 0, movePoints: 0, bingos: 0, passes: 0, hints: 0, bestGame: null, bestMove: null };
+  for (const k of ['played', 'vsCpu', 'won', 'games', 'points', 'moves', 'movePoints', 'bingos', 'passes', 'hints']) s[k] += r[k];
+  if (r.games && (s.bestGame === null || r.bestGame > s.bestGame)) s.bestGame = r.bestGame;
+  if (r.bestMove && (!s.bestMove || r.bestMove.score > s.bestMove.score)) s.bestMove = { ...r.bestMove, at: Date.now() };
+  saveStats();
+  if (id) deleteSave(id);
+}
+
 export function recordConnectEnd(game) {
   const s = stats.cn;
   if (game.status === 'won') s.solved++; else s.givenUp++;

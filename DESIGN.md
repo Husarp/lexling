@@ -366,9 +366,9 @@ the right — and under it a plain card edged in the same colour with the word, 
   help to anyone when the circle hands the letters over): Relaxed 5 000 most common words, Easy 8 000, Normal
   12 000, Hard 20 000.
 - **Hints are free** (owner: nobody should stay stuck), but a hint stays a hint (0.27.4): each press shows a
-  random letter not showing yet - anywhere, or in the word tapped first - and no word gets more than half its
-  letters (rounded down) from hints; letters from found crossing words do not count, a crossing letter counts for
-  both words. A word whose letters all show (hints plus crossings) counts as found and keeps the dashed look.
+  random letter not showing yet - anywhere, or in the word tapped first - and a word takes no more hints once half
+  its letters (rounded down) show - since 0.32.0 counting letters from found crossing words too (owner: a six-letter
+  word with two letters from crossings gets one hint); a crossing letter counts for both words. A word whose letters all show (hints plus crossings) counts as found and keeps the dashed look.
 - **No points and no achievements** (owner, 2026-09-25): the result is solved or given up, words, bonus words,
   hints. Statistics: played, solved, words found, bonus words, the longest word found.
 - Screen: the status row, the board (tiles sized by width and height), one slot for the word being dragged
@@ -381,6 +381,17 @@ the right — and under it a plain card edged in the same colour with the word, 
   exchange / pass / resign; the bag is shuffled from a seed kept in the state, so a first state plus its actions
   replay the same game (the tests do) - ready for replays, and one day for games between devices. A save also
   records the tag (a hash) of the word list that checked its moves.
+- **Rule options** (0.32.0, the owner's plan; the standard by default): bonus squares every time; challenges - a
+  move goes down unchecked, the next player may challenge (not allowed: it goes back, a turn that scored nothing;
+  allowed: the challenger loses the turn; the last tiles are always checked at once); exchanges always (while
+  there are tiles to draw); the seven-tile bonus off; a clock per move (running out = a pass) or per game (10
+  points per started minute over, at the end). Every action goes into `log`, so `replay` rebuilds a game.
+- **The computer, stronger** (0.32.0): Hard weighs what it keeps (`leaveValue`: blanks gold, a vowel/consonant
+  balance, no doubles or heavy letters) and swaps a hopeless rack; **Expert** also plays its best six moves
+  against ten racks the next player could hold and takes the best answer off - ~0.1 s a turn on a PC. Every
+  level challenges a word that is not allowed. **Look-back**: each person's turn next to the best move there was.
+- **Statistics** (0.32.0): `results` - every game counts, several people too, never the computer's own moves;
+  stored per language and level (`store.js recordTilesEnd`).
 - **Hints** (0.31.0): the best move for the rack; counted per player. The screen shows it in two steps (owner,
   0.31.2): first the squares where it goes, then the word as a preview - each press a hint.
 - **Check a word** (0.31.2, owner: any time): `checkWord` - allowed, or why not (too short / too long / a
@@ -394,9 +405,9 @@ the right — and under it a plain card edged in the same colour with the word, 
   count, so it cannot run for ever); leftovers are taken off, and whoever went out gets them. No challenges:
   a move is checked before it goes down, as in the apps.
 - **The official letter sets**, 100 tiles each with two blanks (Polish: 32 letters, A ×9 … Ź ×1 worth 9).
-- **Three boards**, each symmetrical both ways and across the diagonals: **Classic** - the original 15 × 15;
-  **Quick** - 11 × 11 with half the tiles (every letter half as many, rounded up: 60 Polish, 54 English), the
-  idea of Words With Friends' "Fast Play" board, our own layout; **Bonus** - 15 × 15 with the bonuses pulled in
+- **Two boards**, each symmetrical both ways and across the diagonals, both with all 100 tiles: **Classic** - the
+  original 15 × 15; (**Quick**, 11 × 11 with half the tiles, 0.30.0-0.31.2, dropped in 0.32.0 - the owner wants the
+  full game every time); **Bonus** - 15 × 15 with the bonuses pulled in
   from the edges and 16 triple letters, the idea of the Words With Friends board, our own layout. Copying a
   commercial board square for square was not an option, and their layouts are not published anyway.
 - **Words** (0.31.0, owner's choice): word-game lists, every form, no abbreviations or proper nouns - SJP.PL's

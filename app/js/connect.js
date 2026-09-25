@@ -173,18 +173,19 @@ export const solved = (board, found, shown) => doneWords(board, found, shown).le
 
 // The next hint (owner, 2026-09-25): a random letter that is not showing yet, anywhere on the board - or,
 // when the player tapped a word first, anywhere in that word. A hint must stay a hint, not solve the word
-// for you: at most half of a word's letters (rounded down) may come from hints - 3 of 6, 2 of 5, 1 of 3.
-// Letters showing through a word the player found do not count; those were earned. A cell where two
-// words cross counts for both. Returns null when every word is done, { cell: null } when no word may
+// for you: once half of a word's letters (rounded down) show - 3 of 6, 2 of 5, 1 of 3 - it takes no more
+// hints. Every letter showing counts, a hinted one or one a found crossing word put there (owner, 2026-09-25:
+// "if a word of six letters already has two from crossed words, you can only do one hint on it"). A cell
+// where two words cross counts for both. Returns null when every word is done, { cell: null } when no word may
 // take another hinted letter (or the chosen one may not), otherwise { cell, words } - the unfinished
 // words through that cell.
 export const hintCap = word => Math.floor([...word].length / 2);
 export function nextHint(board, found, shown, pick = null, rand = Math.random) {
-  const vis = visible(board, found, shown), hinted = new Set(shown);
+  const vis = visible(board, found, shown);
   const open = board.words.filter(x => !isDone(x, found, vis));
   if (!open.length) return null;
   const through = k => open.filter(x => cellsOf(x).includes(k));
-  const allowed = k => !vis.has(k) && through(k).every(x => cellsOf(x).filter(c => hinted.has(c)).length < hintCap(x.w));
+  const allowed = k => !vis.has(k) && through(k).every(x => cellsOf(x).filter(c => vis.has(c)).length < hintCap(x.w));
   const chosen = pick && open.find(x => x.w === pick);
   const cells = [...new Set((chosen ? [chosen] : open).flatMap(cellsOf))].filter(allowed);
   if (!cells.length) return { cell: null, words: [] };

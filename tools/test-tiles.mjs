@@ -11,9 +11,9 @@ globalThis.fetch = async url => { const b = readFileSync(new URL(url, ROOT));
 const { loadWords, resolve } = await import('../app/js/engine.js');
 const { buildDawg, has, toBytes, fromBytes } = await import('../app/js/dawg.js');
 const T = await import('../app/js/tiles.js');
-const { findMoves, computerMove, hint, LEVELS } = await import('../app/js/tiles-moves.js');
+const { findMoves, computerMove, hint, lookBack, leaveValue, LEVELS } = await import('../app/js/tiles-moves.js');
 const { BOARDS, sizeOf, premiums, letterSet, fullBag, loadTileWords, newGame, placementError, wordsMade, checkMove,
-  play, exchange, pass, resign, canExchange, apply, hinted, unseen, checkWord, RACK, BINGO, BLANK } = T;
+  play, exchange, pass, resign, canExchange, apply, replay, hinted, unseen, checkWord, results, STANDARD, RACK, BINGO, BLANK } = T;
 
 let passed = 0;
 const check = (name, actual, expected) => { assert.deepEqual(actual, expected, name); passed++; };
@@ -21,12 +21,12 @@ const seeded = seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul
 
 // ── boards ──
 const tally = rows => [...rows.join('')].reduce((o, ch) => (ch === '.' ? o : { ...o, [ch]: (o[ch] || 0) + 1 }), {});
-check('classic: 8 T, 17 D, 12 t, 24 d', tally(BOARDS.classic.rows), { T: 8, d: 24, D: 17, t: 12 });
-check('quick: 4 T, 9 D, 8 t, 16 d', tally(BOARDS.quick.rows), { T: 4, d: 16, D: 9, t: 8 });
-check('bonus: 8 T, 12 D, 16 t, 28 d', tally(BOARDS.bonus.rows), { t: 16, d: 28, D: 12, T: 8 });
+check('two boards, both full size (the Quick board dropped: owner, 2026-09-25)', Object.keys(BOARDS), ['classic', 'bonus']);
+check('classic: 8 T, 17 D, 12 t, 24 d', tally(BOARDS.classic), { T: 8, d: 24, D: 17, t: 12 });
+check('bonus: 8 T, 12 D, 16 t, 28 d', tally(BOARDS.bonus), { t: 16, d: 28, D: 12, T: 8 });
 for (const [id, b] of Object.entries(BOARDS)) {
-  const n = b.rows.length, at = (r, c) => b.rows[r][c];
-  check(`${id}: square`, b.rows.every(row => row.length === n) && n % 2 === 1, true);
+  const n = b.length, at = (r, c) => b[r][c];
+  check(`${id}: 15 x 15`, b.every(row => row.length === n) && n === 15, true);
   let sym = true;
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
     const v = at(r, c);
@@ -36,18 +36,16 @@ for (const [id, b] of Object.entries(BOARDS)) {
 }
 check('classic centre is a double word', premiums('classic')[112], 'D');
 check('bonus centre has no bonus', premiums('bonus')[112], '.');
-check('classic: the original layout, row 0', BOARDS.classic.rows[0], 'T..d...T...d..T');
+check('classic: the original layout, row 0', BOARDS.classic[0], 'T..d...T...d..T');
 
 // ── letter sets ──
 for (const lang of ['pl', 'en']) {
-  check(`${lang}: 100 tiles`, fullBag(lang, 'classic').length, 100);
-  check(`${lang}: two blanks`, fullBag(lang, 'classic').filter(t => t === BLANK).length, 2);
+  check(`${lang}: 100 tiles`, fullBag(lang).length, 100);
+  check(`${lang}: two blanks`, fullBag(lang).filter(t => t === BLANK).length, 2);
 }
 check('pl: 32 letters', letterSet('pl').letters.length, 32);
 check('pl values', ['a', 'y', 'ł', 'ó', 'ć', 'ń', 'ź'].map(ch => letterSet('pl').values[ch]), [1, 2, 3, 5, 6, 7, 9]);
 check('en values', ['e', 'd', 'b', 'f', 'k', 'x', 'q'].map(ch => letterSet('en').values[ch]), [1, 2, 3, 4, 5, 8, 10]);
-check('quick bag: half, rounded up - pl 60, en 54', [fullBag('pl', 'quick').length, fullBag('en', 'quick').length], [60, 54]);
-check('quick bag keeps every letter', new Set(fullBag('pl', 'quick')).size, 33);
 
 // ── the word graph ──
 {
@@ -197,6 +195,51 @@ const col = (r, c, word, blanks = []) => [...word].map((ch, i) => ({ r: r + i, c
   check('apply: nothing after the end', (() => { try { apply(over, { type: 'pass' }); return 'ok'; } catch { return 'refused'; } })(), 'refused');
 }
 
+// ── rule options (the owner's plan) ──
+{
+  check('the standard rules by default', en().rules, STANDARD);
+  // bonus squares every time: CAT on the centre (a double word), then S after it - CATS runs over the centre again
+  const cat = play(en(), row(7, 7, 'cat'), isEn);
+  const always = { ...cat, rules: { ...cat.rules, premiums: 'always' }, racks: [cat.racks[0], ['s', 'x', 'x', 'x', 'x', 'x', 'x']] };
+  check('bonus squares once: CATS = 6', wordsMade({ ...always, rules: STANDARD }, [{ r: 7, c: 10, ch: 's' }]).score, 6);
+  check('bonus squares every time: CATS = 6 x 2 = 12', wordsMade(always, [{ r: 7, c: 10, ch: 's' }]).score, 12);
+  check('seven-tile bonus off', checkMove({ ...en(), rules: { ...STANDARD, bingo: 0 } }, row(7, 4, 'casters', [6]), isEn).score, 16);
+  const low = { ...en(), bag: ['a', 'b', 'c'] };
+  check('exchanges only with 7+ in the bag (standard)', canExchange(low), false);
+  const anyTime = { ...low, rules: { ...STANDARD, exchange: 'always' } };
+  check('exchanges always: while there are tiles to draw', [canExchange(anyTime, 3), canExchange(anyTime, 4), exchange(anyTime, ['c', 'a', 't']) !== null, exchange(anyTime, ['c', 'a', 't', 's'])], [true, false, true, null]);
+}
+{
+  // challenges: a move goes down unchecked, the next player may challenge it
+  const s = { ...en(), rules: { ...STANDARD, check: 'challenge' } };
+  const bad = play(s, row(7, 7, 'cta'), isEn);
+  check('challenges: a word that is not allowed goes down, waiting', [bad.scores[0] > 0, !!bad.pending, bad.turn], [true, true, 1]);
+  const back = apply(bad, { type: 'challenge' }, isEn);
+  check('challenged, not allowed: the move goes back - tiles, bag, points', [back.cells[112], back.racks[0], back.bag, back.scores], [null, s.racks[0], s.bag, [0, 0]]);
+  check('...the challenger plays on; a turn that scored nothing', [back.turn, back.zeros, back.pending], [1, 1, null]);
+  check('...the history shows it', back.moves.map(m => m.kind), ['withdrawn', 'challenge']);
+  const good = play(s, row(7, 7, 'cat'), isEn);
+  const lost = apply(good, { type: 'challenge' }, isEn);
+  check('challenging a good word costs the challenger the turn', [lost.turn, lost.scores, lost.moves.at(-1)], [0, [10, 0], { p: 1, kind: 'challenge', ok: false, of: 0 }]);
+  check('any other move accepts it', pass(good).pending, null);
+  check('nothing to challenge: refused', (() => { try { apply(s, { type: 'challenge' }, isEn); return 'ok'; } catch { return 'refused'; } })(), 'refused');
+  check('the computer challenges a word that is not allowed', computerMove(bad, dicts.en, 'relaxed').type, 'challenge');
+  check('...and never a good one', computerMove(good, dicts.en, 'hard').type !== 'challenge', true);
+  const lastTiles = { ...s, bag: [], racks: [['c', 't', 'a'], s.racks[1]] };
+  check('the last tiles are checked at once: nobody is left to challenge', (() => { try { play(lastTiles, row(7, 7, 'cta'), isEn); return 'ok'; } catch { return 'refused'; } })(), 'refused');
+}
+{
+  // the clock: per move, running out is a pass; per game, every started minute over costs 10
+  const perMove = { ...en(), rules: { ...STANDARD, time: { per: 'move', seconds: 60 } } };
+  const t = apply(perMove, { type: 'timeout', ms: 60000 });
+  check('time per move: running out passes the turn', [t.turn, t.zeros, t.moves[0].kind, t.clock], [1, 1, 'timeout', [60000, 0]]);
+  let g = { ...en(), rules: { ...STANDARD, time: { per: 'game', seconds: 60 } } };
+  g = apply(g, { type: 'pass', ms: 200000 });              // player 0: 3 min 20 s - 2 min 20 s over: 3 started minutes
+  for (let i = 0; i < 3; i++) g = apply(g, { type: 'pass', ms: 1000 });
+  const left = en().racks.map(r => r.reduce((a, ch) => a + T.valueOf('en', ch), 0));
+  check('time per game: 10 points for every started minute over, at the end', [g.over.late, g.scores], [[30, 0], [-left[0] - 30, -left[1]]]);
+}
+
 // ── checking a word, any time ──
 check('check: a word', checkWord(dicts.pl, 'pl', '  Żółw '), { word: 'żółw', ok: true, why: null });
 check('check: every form', [checkWord(dicts.pl, 'pl', 'pasłem').ok, checkWord(dicts.en, 'en', 'casters').ok], [true, true]);
@@ -271,15 +314,18 @@ function midGame(lang, board, turns, seed) {
   return s;
 }
 {
-  const first = { ...newGame({ lang: 'en', board: 'quick', players: TWO, first: 0, seed: 5 }), racks: [['r', 'e', 't', 'a', 'i'], []] };
-  agree('en, quick board, first move, 5 tiles', first, 'en');
-  const mid = midGame('en', 'quick', 6, 7);
-  agree('en, quick board, 6 moves in, 4 tiles', { ...mid, racks: mid.racks.map(r => r.filter(t => t !== BLANK).slice(0, 4)) }, 'en');
-  agree('en, quick board, with a blank', { ...mid, racks: mid.racks.map(r => [...r.filter(t => t !== BLANK).slice(0, 2), BLANK]) }, 'en');
+  const first = { ...newGame({ lang: 'en', board: 'bonus', players: TWO, first: 0, seed: 5 }), racks: [['r', 'e', 't', 'a', 'i'], []] };
+  agree('en, bonus board, first move, 5 tiles', first, 'en');
+  const mid = midGame('en', 'classic', 6, 7);
+  agree('en, classic board, 6 moves in, 4 tiles', { ...mid, racks: mid.racks.map(r => r.filter(t => t !== BLANK).slice(0, 4)) }, 'en');
+  agree('en, classic board, with a blank', { ...mid, racks: mid.racks.map(r => [...r.filter(t => t !== BLANK).slice(0, 2), BLANK]) }, 'en');
+  // the rule options change the scores: the finder must still agree with wordsMade
+  agree('en, bonus squares every time, no seven-tile bonus', { ...mid, rules: { ...STANDARD, premiums: 'always', bingo: 0 }, racks: mid.racks.map(r => r.filter(t => t !== BLANK).slice(0, 4)) }, 'en');
   const pl = midGame('pl', 'classic', 8, 11);
   agree('pl, classic board, 8 moves in, 4 tiles', { ...pl, racks: pl.racks.map(r => r.filter(t => t !== BLANK).slice(0, 4)) }, 'pl');
   const bonus = midGame('pl', 'bonus', 5, 13);
   agree('pl, bonus board, with a blank', { ...bonus, racks: bonus.racks.map(r => [...r.filter(t => t !== BLANK).slice(0, 2), BLANK]) }, 'pl');
+  agree('pl, bonus squares every time, with a blank', { ...bonus, rules: { ...STANDARD, premiums: 'always' }, racks: bonus.racks.map(r => [...r.filter(t => t !== BLANK).slice(0, 2), BLANK]) }, 'pl');
   // the slowest rack there is: two blanks, in Polish (32 letters each), mid-game
   const two = { ...pl, racks: pl.racks.map(r => [...r.filter(t => t !== BLANK).slice(0, 5), BLANK, BLANK]) };
   const t0 = performance.now(), all = findMoves(two, dicts.pl), ms = Math.round(performance.now() - t0);
@@ -289,13 +335,16 @@ function midGame(lang, board, turns, seed) {
 
 // ── whole games, computer against computer: every move legal, every tile accounted for, and how fast ──
 const rankOf = lang => w => resolve(lexes[lang], w)?.idx ?? Infinity;
-for (const [lang, board, levels, seed] of [['pl', 'classic', ['hard', 'normal'], 21], ['en', 'classic', ['hard', 'easy'], 22],
-  ['pl', 'quick', ['relaxed', 'hard'], 23], ['en', 'bonus', ['normal', 'hard'], 24], ['pl', 'bonus', ['easy', 'hard'], 25],
-  ['pl', 'classic', ['relaxed', 'easy', 'normal', 'hard', 'hard'], 26], ['en', 'quick', ['normal', 'hard', 'easy'], 27]]) {
+const games = [];
+for (const [lang, board, levels, seed, rules = {}] of [['pl', 'classic', ['hard', 'normal'], 21], ['en', 'classic', ['hard', 'easy'], 22],
+  ['pl', 'classic', ['relaxed', 'hard'], 23], ['en', 'bonus', ['normal', 'hard'], 24], ['pl', 'bonus', ['easy', 'hard'], 25],
+  ['pl', 'classic', ['relaxed', 'easy', 'normal', 'hard', 'hard'], 26], ['en', 'classic', ['normal', 'hard', 'easy'], 27],
+  ['pl', 'classic', ['expert', 'hard'], 28], ['en', 'classic', ['expert', 'normal'], 29],
+  ['en', 'bonus', ['hard', 'easy'], 30, { check: 'challenge', premiums: 'always', exchange: 'always' }]]) {
   const rand = seeded(seed), isWord = w => has(dicts[lang], w);
-  const start = newGame({ lang, board, players: levels.map(cpu => ({ cpu })), seed, words: dicts[lang].tag });
+  const start = newGame({ lang, board, players: levels.map(cpu => ({ cpu })), seed, words: dicts[lang].tag, rules });
   let s = start;
-  const total = fullBag(lang, board).length, actions = [];
+  const total = fullBag(lang).length, actions = [];
   let worst = 0, sum = 0, turns = 0, ok = true;
   while (!s.over && turns < 300) {
     const t0 = performance.now();
@@ -310,6 +359,10 @@ for (const [lang, board, levels, seed] of [['pl', 'classic', ['hard', 'normal'],
   }
   const byMoves = levels.map((_, p) => s.moves.filter(x => x.p === p && x.kind === 'play').reduce((n, x) => n + x.score, 0) + s.over.adjust[p]);
   check(`${lang} ${board} game: replayed from its first state and actions, the same game`, actions.reduce((x, a) => apply(x, a, isWord), start), s);
+  check(`${lang} ${board} game: and rebuilt from its own log`, replay(s, isWord).at(-1), s);
+  const r = results(s);
+  check(`${lang} ${board} game: computers only - nothing for the people's statistics`, [r.games, r.moves, r.vsCpu], [0, 0, 1]);
+  games.push({ s, isWord, lang });
   check(`${lang} ${board} game: the word list's tag kept`, s.words, dicts[lang].tag);
   check(`${lang} ${board} game: every move legal, no tile lost`, ok, true);
   check(`${lang} ${board} game: it ends`, !!s.over, true);
@@ -318,6 +371,33 @@ for (const [lang, board, levels, seed] of [['pl', 'classic', ['hard', 'normal'],
     `words ${s.moves.filter(x => x.kind === 'play').map(x => x.words[0].w).slice(0, 10).join(' ')}…, ` +
     `computer ${Math.round(sum / turns)} ms a turn on average, ${Math.round(worst)} ms at most`);
 }
-check('levels: four, the app\'s names', Object.keys(LEVELS), ['relaxed', 'easy', 'normal', 'hard']);
+check('levels: the app\'s four, and Expert for this game', Object.keys(LEVELS), ['relaxed', 'easy', 'normal', 'hard', 'expert']);
+
+// ── what the computer keeps on its rack ──
+check('leave: a blank is worth keeping', leaveValue('en', ['?', 'e']) > leaveValue('en', ['e']), true);
+check('leave: heavy letters and doubles are not', [leaveValue('pl', ['ź', 'ń']) < 0, leaveValue('en', ['u', 'u', 'u']) < leaveValue('en', ['u', 'r', 's'])], [true, true]);
+check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', 't', 'e']) > leaveValue('en', ['a', 'e', 'i', 'o']), true);
+
+// ── after the game: statistics and the look-back, a person against the computer ──
+{
+  const isWord = w => has(dicts.pl, w), rand = seeded(40);
+  let s = newGame({ lang: 'pl', players: [{ name: 'Ada' }, { cpu: 'normal' }], seed: 40, words: dicts.pl.tag });
+  // the person here plays the computer's Hard moves, and takes one hint
+  s = hinted(s);
+  while (!s.over) s = apply(s, computerMove(s, dicts.pl, s.players[s.turn].cpu ?? 'hard', rankOf('pl'), rand), isWord);
+  const r = results(s);
+  const mine = s.moves.filter(m => m.p === 0 && m.kind === 'play');
+  check('results: one person, against Normal', [r.level, r.games, r.vsCpu, r.hints], ['normal', 1, 1, s.hints[0]]);
+  check('results: won = the person beat the computer', r.won, s.over.winner === 0 ? 1 : 0);
+  check('results: the person\'s moves and points', [r.moves, r.movePoints, r.bestGame], [mine.length, mine.reduce((a, m) => a + m.score, 0), s.scores[0]]);
+  check('results: the best move', r.bestMove.score, Math.max(...mine.map(m => m.score)));
+  const t0 = performance.now(), back = lookBack(s, dicts.pl), ms = Math.round(performance.now() - t0);
+  check('look-back: every turn the person took', back.length, s.log.filter((a, i) => replay(s, isWord)[i].turn === 0 && a.type !== 'resign').length);
+  check('look-back: the best move is never worse than what was played', back.every(x => !x.best || x.best.score >= x.played), true);
+  check('look-back: only the person\'s turns', back.every(x => x.p === 0), true);
+  console.log(`look-back of ${back.length} turns in ${ms} ms; the person (playing like Hard) scored ${back.reduce((a, x) => a + x.played, 0)} of a best ${back.reduce((a, x) => a + (x.best?.score ?? 0), 0)}`);
+  const people = results(newGame({ lang: 'en', players: [{ name: 'A' }, { name: 'B' }], seed: 1 }));
+  check('results: people only - level "people", no win against the computer', [people.level, people.vsCpu, people.won, people.games], ['people', 0, 0, 2]);
+}
 
 console.log(`all ${passed} Tiles tests passed`);

@@ -451,7 +451,7 @@ html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;g
 /* the drawn ✓ / ✕: centred by the circle's grid, sized to it */
 .outcome .mark svg{width:58%;height:58%}
 /* difficulty + Random switch share a row like Tries + Unlimited; with Random on, the levels step back */
-.tries .seg{flex:1 1 240px}
+.tries .seg{flex:1 1 320px}   /* four Polish levels need ~80 px each - below that the switch goes under them (owner: "Normalny" did not fit) */
 .seg.off{opacity:.45}
 
 /* ═══ LEXLING · FOUR GAMES — new CSS, goes below the shared block and the Letters block ═══ */
@@ -528,6 +528,7 @@ html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;g
 [data-screen=stats] .tabs4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
 @container (max-width:499px){[data-screen=stats] .tabs4{grid-template-columns:1fr 1fr}}
 [data-screen=stats] .tabs4 button{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-width:0}
+@media (max-width:340px){[data-screen=stats] .tabs4 button{gap:4px;padding-left:4px;padding-right:4px}}   /* 320 px: "Znaczenie" and its glyph did not fit (owner: check the Polish labels) */
 [data-screen=stats] .tabs4 button.on .glyph{filter:brightness(1.15)}
 [data-screen=stats] .stats-sum{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--space-2) var(--space-3)}
 [data-screen=stats] .stats-sum .num{font-size:clamp(56px,14vw,88px);line-height:.85}
@@ -710,7 +711,7 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
 .cn-bonus.bump{animation:cn-bump 150ms var(--ease) 300ms}
 /* labels appear once there's room: stacked under the icon on a half-screen phone (the side columns
    are ~100px there — "PODPOWIEDŹ" fits at 10px), beside it on a computer */
-@container (min-width:420px){.cn-tool{width:auto;min-width:64px;height:auto;min-height:56px;padding:8px 10px;flex-direction:column;gap:5px}.cn-tool .lbl{display:block;font-size:10px;letter-spacing:.1em}.cn-bonus{min-width:64px;min-height:56px}}
+@container (min-width:420px){.cn-tool{width:auto;min-width:max-content;height:auto;min-height:56px;padding:8px 10px;flex-direction:column;gap:5px}.cn-tool .lbl{display:block;font-size:10px;letter-spacing:.1em}.cn-bonus{min-width:64px;min-height:56px}}
 @container (min-width:560px){.cn-tool{flex-direction:row;gap:var(--space-2);min-height:48px;padding:0 var(--space-4)}.cn-tool .lbl{font-size:13px}}
 /* bonus words: a small list over the board, anchored to the counter; tap outside to close */
 .cn-pop{position:absolute;right:0;bottom:calc(100% + 8px);z-index:6;width:min(300px,100%);display:grid;gap:var(--space-3);padding:var(--space-4);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:var(--shadow-md)}

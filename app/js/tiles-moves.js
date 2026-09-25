@@ -7,14 +7,16 @@
 // one: first the part left of the anchor, then on to the right, walking the word graph letter by letter, so
 // a branch no word begins with is never followed. A square with tiles above or below it only takes the
 // letters that still make a word downwards there - worked out once per square before the search.
-import { step } from './dawg.js';
-import { sizeOf, centre, premiums, letterSet, wordsMade, RACK, BINGO, BLANK, LETTER_X, WORD_X } from './tiles.js';
+import { step, has } from './dawg.js';
+import { sizeOf, centre, premiums, letterSet, wordsMade, valueOf, unseen, canExchange, apply, replay, RACK, BINGO, BLANK, LETTER_X, WORD_X } from './tiles.js';
 
 // Every legal move for `rack` (default: the player whose turn it is) on the board of `state`, each
 // { placed: [{ r, c, ch, blank }], word, score }. `word` = the word along the move's line; the full list
 // of words it makes, and their scores, is wordsMade(state, placed).
 export function findMoves(state, dict, rack = state.racks[state.turn]) {
   const n = sizeOf(state.board), prem = premiums(state.board), { values } = letterSet(state.lang);
+  // the game's rules: bonus squares every time, not only under new tiles; the seven-tile bonus
+  const always = state.rules?.premiums === 'always', bingo = state.rules?.bingo ?? BINGO;
   const val = dict.letters.map(ch => values[ch] ?? 0);
   const count = new Int8Array(dict.letters.length);
   let blanks = 0;
@@ -37,7 +39,7 @@ export function findMoves(state, dict, rack = state.racks[state.turn]) {
   function rows(down, cells, blank, prem) {
     // Down each square: which letters can go there (a bit per letter) and the points of the tiles above and
     // below it, or -1 where there are none (then nothing is formed downwards and any letter will do).
-    const allowed = new Int32Array(n * n).fill(-1), cross = new Int32Array(n * n).fill(-1);
+    const allowed = new Int32Array(n * n).fill(-1), cross = new Int32Array(n * n).fill(-1), crossX = new Int32Array(n * n).fill(1);
     const anchor = new Uint8Array(n * n);
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
       const i = r * n + c;
@@ -49,7 +51,8 @@ export function findMoves(state, dict, rack = state.racks[state.turn]) {
       let top = r, pts = 0;
       while (top > 0 && cells[(top - 1) * n + c] >= 0) top--;
       let node = 0;
-      for (let k = top; k < r && node >= 0; k++) { node = step(dict, node, cells[k * n + c]); pts += blank[k * n + c] ? 0 : val[cells[k * n + c]]; }
+      const tile = k => { const v = blank[k] ? 0 : val[cells[k]]; if (!always) return v; crossX[i] *= WORD_X[prem[k]] || 1; return v * (LETTER_X[prem[k]] || 1); };
+      for (let k = top; k < r && node >= 0; k++) { node = step(dict, node, cells[k * n + c]); pts += tile(k * n + c); }
       let bits = 0;
       if (node >= 0) {
         for (let e = dict.first[node]; e < dict.first[node + 1]; e++) {
@@ -58,7 +61,7 @@ export function findMoves(state, dict, rack = state.racks[state.turn]) {
           if (m >= 0 && dict.final[m]) bits |= 1 << dict.letter[e];
         }
       }
-      for (let k = r + 1; k < n && cells[k * n + c] >= 0; k++) pts += blank[k * n + c] ? 0 : val[cells[k * n + c]];
+      for (let k = r + 1; k < n && cells[k * n + c] >= 0; k++) pts += tile(k * n + c);
       allowed[i] = bits;
       cross[i] = pts;
     }
@@ -129,15 +132,20 @@ export function findMoves(state, dict, rack = state.racks[state.turn]) {
       const placed = [];
       for (let c = s; c < e; c++) {
         const i = r * n + c;
-        if (cells[i] >= 0) { sum += blank[i] ? 0 : val[cells[i]]; word += dict.letters[cells[i]]; continue; }
+        if (cells[i] >= 0) {
+          const v = blank[i] ? 0 : val[cells[i]];
+          if (always) { sum += v * (LETTER_X[prem[i]] || 1); mul *= WORD_X[prem[i]] || 1; } else sum += v;
+          word += dict.letters[cells[i]];
+          continue;
+        }
         const k = newK[c], b = newB[c], v = b ? 0 : val[k], lx = LETTER_X[prem[i]] || 1, wx = WORD_X[prem[i]] || 1;
         sum += v * lx;
         mul *= wx;
-        if (cross[i] >= 0) extra += (cross[i] + v * lx) * wx;
+        if (cross[i] >= 0) extra += (cross[i] + v * lx) * wx * crossX[i];
         word += dict.letters[k];
         placed.push(down ? { r: c, c: r, ch: dict.letters[k], blank: !!b } : { r, c, ch: dict.letters[k], blank: !!b });
       }
-      out.push({ placed, word, score: sum * mul + extra + (placed.length === RACK ? BINGO : 0) });
+      out.push({ placed, word, score: sum * mul + extra + (placed.length === RACK ? bingo : 0) });
     }
   }
 }
@@ -152,30 +160,126 @@ export function hint(state, dict) {
 // ── The computer ─────────────────────────────────────────────────────────────────────────────────
 // A level is how many words the computer knows and how hard it tries. `known`: only words whose base word is
 // among that many of the most common (the word list is most-common-first; the same measure as Connect's
-// levels) - Hard knows every word. `aim`: it plays the move scoring nearest to that share of the best it
-// can see. Hard plays the best move there is. First values, to be tuned by playing.
+// levels) - Hard and Expert know every word. `aim`: it plays the move scoring nearest to that share of the best
+// it can see. Hard also weighs what it keeps on its rack (`leave`) and swaps a hopeless rack; Expert (the
+// owner's plan) also tries its best few moves against what the next player could answer (`simulate`).
+// First values, to be tuned by playing.
 export const LEVELS = {
   relaxed: { known: 5000, aim: 0.5 },
   easy: { known: 8000, aim: 0.7 },
   normal: { known: 20000, aim: 0.85 },
-  hard: { known: Infinity, aim: 1 },
+  hard: { known: Infinity, aim: 1, leave: true },
+  expert: { known: Infinity, aim: 1, leave: true, simulate: true },
 };
 
+// What the tiles kept on the rack are worth to the next turns, in points - a rule of thumb, as players think of
+// it: a blank is gold; a balance of vowels and consonants keeps words coming; doubles, and the heavy letters (5+
+// points), get stuck. English S is nearly a blank; Q without U is a burden.
+const VOWELS = { pl: 'aąeęioóuy', en: 'aeiou' };
+export function leaveValue(lang, tiles) {
+  let v = 0, vowels = 0, letters = 0;
+  const seen = {};
+  for (const t of tiles) {
+    if (t === BLANK) { v += 20; continue; }
+    letters++;
+    const pts = valueOf(lang, t);
+    if (VOWELS[lang].includes(t)) vowels++;
+    if (pts >= 5) v -= pts * 0.8;
+    if (seen[t]) v -= 3 * seen[t];
+    seen[t] = (seen[t] || 0) + 1;
+    if (lang === 'en' && t === 's') v += 6;
+    if (lang === 'en' && t === 'q' && !tiles.includes('u')) v -= 6;
+  }
+  return v - 2.5 * Math.abs(vowels - letters * 0.42);
+}
+const rest = (rack, placed) => { const r = [...rack]; for (const t of placed) r.splice(r.indexOf(t.blank ? BLANK : t.ch), 1); return r; };
+
+// The best swap for a rack: which tiles to keep (the subset with the best leaveValue), and what that is worth.
+function bestKeep(lang, rack) {
+  let best = { keep: [], value: 0 };
+  for (let mask = 0; mask < 1 << rack.length; mask++) {
+    const keep = rack.filter((_, i) => mask & (1 << i));
+    if (keep.length === rack.length) continue;
+    const value = leaveValue(lang, keep);
+    if (value > best.value) best = { keep, value };
+  }
+  return best;
+}
+
+// Expert: each candidate played out on a copy of the game, against racks the next player could hold - drawn at
+// random from the tiles this player has not seen - and that player's best answer taken off.
+function simulated(state, dict, moves, rand, samples = 10) {
+  const isWord = w => has(dict, w), me = state.turn;
+  const pool = Object.entries(unseen(state, me)).flatMap(([t, k]) => Array(k).fill(t));
+  return moves.map(m => {
+    let after;
+    try { after = apply({ ...state, rules: { ...state.rules, check: 'auto' } }, { type: 'place', placed: m.placed }, isWord); } catch { return { m, value: -Infinity }; }
+    if (after.over) return { m, value: m.value + 1000 };      // going out ends it: nothing to answer
+    let answer = 0;
+    for (let i = 0; i < samples; i++) {
+      const bag = [...pool], rack = [];
+      for (let k = 0; k < Math.min(RACK, bag.length); k++) rack.push(bag.splice(Math.floor(rand() * bag.length), 1)[0]);
+      answer += Math.max(0, ...findMoves(after, dict, rack).map(x => x.score));
+    }
+    return { m, value: m.value - answer / samples };
+  });
+}
+
 // The computer's turn, as an action for apply() in tiles.js: { type: 'place', placed }, { type: 'exchange',
-// tiles } or { type: 'pass' }.
+// tiles }, { type: 'pass' } - or { type: 'challenge' } when challenges are on and the move just made has a word
+// that is not allowed (the computer knows the list; it never challenges a good word).
 // `rankOf(word)` = the place of the word's base word in the frequency list, or Infinity when unknown.
 // With nothing it knows to play, it swaps its whole rack while it may, and passes when it may not.
 export function computerMove(state, dict, level = 'normal', rankOf = () => 0, rand = Math.random) {
-  const { known, aim } = LEVELS[level] ?? LEVELS.normal;
-  // looking words up is the slow part, so only as far as needed: the best move it knows, then outward from its aim
-  const knows = m => known === Infinity || wordsMade(state, m.placed).words.every(x => rankOf(x.w) < known);
+  if (state.pending) {
+    const move = state.moves[state.moves.length - 1];
+    if (move.words.some(x => !has(dict, x.w))) return { type: 'challenge' };
+  }
+  const L = LEVELS[level] ?? LEVELS.normal, rack = state.racks[state.turn];
+  const swapAll = () => canExchange(state, rack.length) ? { type: 'exchange', tiles: [...rack] } : { type: 'pass' };
   const moves = findMoves(state, dict).sort((x, y) => y.score - x.score);
+  if (L.leave) {
+    if (!moves.length) return swapAll();
+    // what a move is worth: its points, and - while there is a bag to draw from - what it leaves on the rack
+    const valued = moves.map(m => ({ ...m, value: m.score + (state.bag.length ? leaveValue(state.lang, rest(rack, m.placed)) : 0) }))
+      .sort((x, y) => y.value - x.value);
+    let best = valued[0];
+    if (L.simulate) {
+      const tried = simulated(state, dict, valued.slice(0, 6), rand).sort((x, y) => y.value - x.value);
+      best = tried[0].m;
+    }
+    const keep = bestKeep(state.lang, rack);
+    const out = rack.length - keep.keep.length;
+    if (best.score < 10 && keep.value > best.value + 8 && canExchange(state, out)) {
+      const tiles = [...rack];
+      for (const t of keep.keep) tiles.splice(tiles.indexOf(t), 1);
+      return { type: 'exchange', tiles };
+    }
+    return { type: 'place', placed: best.placed };
+  }
+  // looking words up is the slow part, so only as far as needed: the best move it knows, then outward from its aim
+  const knows = m => L.known === Infinity || wordsMade(state, m.placed).words.every(x => rankOf(x.w) < L.known);
   const top = moves.find(knows);
-  if (!top) return state.bag.length >= RACK ? { type: 'exchange', tiles: [...state.racks[state.turn]] } : { type: 'pass' };
-  const want = top.score * aim, gaps = new Map();
+  if (!top) return swapAll();
+  const want = top.score * L.aim, gaps = new Map();
   for (const m of moves) { const g = Math.abs(m.score - want); gaps.set(g, [...gaps.get(g) ?? [], m]); }
   for (const g of [...gaps.keys()].sort((x, y) => x - y)) {
     const near = gaps.get(g).filter(knows);
     if (near.length) return { type: 'place', placed: near[Math.floor(rand() * near.length)].placed };
   }
+}
+
+// ── After the game: looking back (the owner's plan) ──────────────────────────────────────────────
+// For each turn a person took: what they did and scored, next to the best move there was on that board with that
+// rack - [{ i (the action's place in the log), p, kind, played, best: { word, score, placed } | null }].
+export function lookBack(state, dict) {
+  const states = replay(state, w => has(dict, w)), out = [];
+  state.log.forEach((a, i) => {
+    const before = states[i];
+    if (!['place', 'exchange', 'pass', 'timeout'].includes(a.type) || before.players[before.turn].cpu) return;
+    const best = hint(before, dict);
+    out.push({ i, p: before.turn, kind: a.type, played: a.type === 'place' ? wordsMade(before, a.placed).score : 0,
+      best: best && { word: best.word, score: best.score, placed: best.placed } });
+  });
+  return out;
 }
