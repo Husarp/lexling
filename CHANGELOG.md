@@ -6,6 +6,16 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.37.1 — 2026-09-25 23:56: Kafelki: no tabs - check a word from a magnifier
+*(not packaged)*
+
+- **Check a word moved** (owner): a small magnifier at the end of the "Zapisz i wyjdź / Poddaję się" row opens it,
+  ready to type. Tapping the scores opens only **History** (with the colours switch), tapping the bag only **Letters
+  left** - no tabs any more; each panel has its title and ×.
+- On the narrowest phones (320 px) that row stays on one line.
+- Checked in headless Edge at 320, 480 and 1280 px: each button opens its own panel, the magnifier puts the cursor
+  in the word field, a second tap closes it; nothing overflows, no console errors.
+
 ## 0.37.0 — 2026-09-25 23:19: Kafelki: two more boards, hints in three levels, +points, everyone's tiles
 *(not packaged)*
 

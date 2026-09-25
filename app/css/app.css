@@ -1151,3 +1151,13 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-dock .lvl{flex:1 1 0;min-width:0;min-height:48px;padding:0 var(--space-2)}
 .tl-dock .lvl.off{opacity:.4}
 .tl-dock .lvl~.btn-ghost.wide{flex:1 1 100%;min-height:44px}
+/* 0.38.0: "check a word" from a small magnifier at the end of the Save & exit / Give up row (owner) */
+[data-screen=tiles] .status-actions .tl-find{margin-left:auto;min-width:40px;padding:0}
+.tl-find svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+@container (max-width:480px){[data-screen=tiles] .status-actions .tl-find{min-width:36px}}
+/* on the narrowest phones the row stays one line - the labels give up their tracking first (fit.js) - unless Undo is there too */
+@container (max-width:360px){
+  [data-screen=tiles] .status-actions:not(:has([data-act=undo])){flex-wrap:nowrap;gap:var(--space-2)}
+  [data-screen=tiles] .status-actions:not(:has([data-act=undo])) .btn{min-width:0;padding:0 var(--space-2)}
+  [data-screen=tiles] .status-actions .tl-find{flex:none;min-width:36px}
+}

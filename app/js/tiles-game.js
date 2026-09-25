@@ -26,6 +26,7 @@ const ICON = {
 const CHEV = '<svg class="tl-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>';
 const ZOOM_OUT = svg('<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path><path d="M8 11h6"></path>');
 const CLOSE = svg('<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>');
+const FIND = svg('<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>');
 const DOT = '<span class="dot">·</span>';
 const ERR = { line: 'tiles.err.line', gap: 'tiles.err.gap', alone: 'tiles.err.touch', centre: 'tiles.err.centre', single: 'tiles.err.single' };
 // motion and zoom (design NOTES): the computer "thinks" 900 ms, who-starts shows 1200 ms; the board zooms in on
@@ -127,7 +128,9 @@ export async function tilesGameScreen(root, id) {
   let levels = null;          // the three hints for this turn, { small, big, master } (tiles-moves.js hintLevels)
   let cursor = null;          // computer: the square typing goes to, { r, c, down }
   let blankFor = -1;          // the draft tile whose blank letter is being picked
-  let panel = null;           // 'hist' / 'unseen' / 'check' / 'guide' - over the board on a phone, beside it when wide
+  // 'hist' (tap the scores) / 'unseen' (the bag) / 'check' (the magnifier) / 'guide' (the "?") - each its own panel, no
+  // tabs (owner, 2026-09-25); over the board on a phone, beside it when wide (History until another is opened)
+  let panel = null;
   let msg = null;             // what just happened, for the message line: { html, err }
   let landing = null;         // squares whose tiles just came down, to animate
   let thinking = false, toast = false, handOver = false, wide = false;
@@ -193,7 +196,7 @@ export async function tilesGameScreen(root, id) {
       ${S.rules.time ? `<div class="tl-clock"><span class="eyebrow">${t('tiles.r.time')}</span><span class="num"></span></div>` : ''}
       ${open ? othersHtml() : ''}
       <div class="status-actions"><a class="btn btn-ghost" href="#/games/tiles">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button>${
-        canUndo ? `<button class="btn btn-ghost" type="button" data-act="undo"${undo(S, isWord, 0) ? '' : ' disabled'}>${t('tiles.undo')}</button>` : ''}</div>`;
+        canUndo ? `<button class="btn btn-ghost" type="button" data-act="undo"${undo(S, isWord, 0) ? '' : ' disabled'}>${t('tiles.undo')}</button>` : ''}<button class="btn btn-ghost tl-find" type="button" data-open="check" aria-label="${t('tiles.check')}" title="${t('tiles.check')}">${FIND}</button></div>`;
     confirmClick(status.querySelector('#give-up'), giveUp, refit);
     paintClock();
   }
@@ -330,9 +333,8 @@ export async function tilesGameScreen(root, id) {
     if (which === 'guide') {
       html = `<div class="tl-panel" role="dialog" aria-label="${t('tiles.guide')}"><div class="tl-panel-head"><span class="eyebrow grow">${t('tiles.guide')}</span><button class="btn btn-ghost" type="button" data-act="close">${t('tiles.close')}</button></div>${topics(S.rules)}</div>`;
     } else if (which) {
-      const tabs = { hist: 'tiles.history', unseen: 'tiles.unseen', check: 'tiles.checkTab' };
-      html = `<div class="tl-panel" role="dialog"><div class="tl-panel-head"><div class="seg" role="tablist">${Object.entries(tabs).map(([k, key]) =>
-        `<button type="button" role="tab" data-tab="${k}" class="${which === k ? 'on' : ''}" aria-selected="${which === k}">${t(key)}</button>`).join('')}</div>
+      const title = t({ hist: 'tiles.history', unseen: 'tiles.unseen', check: 'tiles.check' }[which]);
+      html = `<div class="tl-panel" role="dialog" aria-label="${title}"><div class="tl-panel-head"><span class="eyebrow grow">${title}</span>
         <button class="btn btn-ghost tl-x" type="button" data-act="close" aria-label="${t('tiles.close')}">${CLOSE}</button></div>${{ hist: histHtml, unseen: unseenHtml, check: checkHtml }[which]()}</div>`;
     }
     if (wide) html += `<p class="tl-keys">${t('tiles.keys')}</p>`;
@@ -735,10 +737,14 @@ export async function tilesGameScreen(root, id) {
   }
 
   app.addEventListener('click', e => {
-    const el = e.target.closest('[data-act], [data-open], [data-tab], [data-ch], [data-level]');
+    const el = e.target.closest('[data-act], [data-open], [data-ch], [data-level]');
     if (!el || S.over) return;
-    if (el.dataset.open) { panel = !wide && panel === el.dataset.open ? null : el.dataset.open; return paintMore(); }
-    if (el.dataset.tab) { panel = el.dataset.tab; return paintMore(); }
+    if (el.dataset.open) {
+      panel = !wide && panel === el.dataset.open ? null : el.dataset.open;
+      paintMore();
+      if (panel === 'check') more.querySelector('.tl-check input')?.focus();   // ready to type
+      return;
+    }
     if (el.dataset.ch) return pickLetter(el.dataset.ch);
     if (el.dataset.level) return pickHint(el.dataset.level);
     TOOLS[el.dataset.act]?.();

@@ -464,7 +464,11 @@ The design's markup and CSS as given (the handoff-only `.tl-finger` left out); w
 its style (the second block in app.css). `app/js/tiles-game.js`; New game, the games list and the statistics tab
 are in `screens.js`.
 - **One grid, two layouts**: a phone - status, board, message line, rack, tools; from 900 px the board on the
-  left and a 360 px column with the History / Letters left / Check panel always open and the keys line.
+  left and a 360 px column with a panel always open (History, until another is opened) and the keys line.
+- **One panel each, no tabs** (0.37.1, owner): the scores open History (with the colours switch), the bag Letters
+  left, and a small magnifier at the end of the Save & exit / Give up row opens Check a word, its field ready to
+  type in. Each has its title and ×; tapping its button again, or outside it, closes it on a phone. On the
+  narrowest phones that row stays one line - the labels give up their letter-spacing first.
 - **Placing**: drag a rack tile onto a square (it rides above the finger, the square under it outlined), or tap
   a tile then a square; a tile of this move can be dragged elsewhere, or tapped back (a blank reopens its letter
   picker). A computer: click a square (again, or an arrow key: across / down), type from the rack, the cursor

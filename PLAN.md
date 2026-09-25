@@ -444,7 +444,7 @@ Order: the game itself first, then these; all of them are in the design prompt, 
 - [x] **Hints, the owner's way**: the first press marks where the best word goes, the second shows the word.
       (In place of the plan's four hint types.) Core: hint() 0.31.0; the two steps are the screen's.
 - [x] **"Check a word" - any time** (owner: not as a hint - "you just want to check if they are possible"),
-      in the game (the Check tab). Core: checkWord 0.31.2. The card on the games list went in 0.36.0 (owner: "it
+      in the game (the magnifier beside Give up, since 0.37.1). Core: checkWord 0.31.2. The card on the games list went in 0.36.0 (owner: "it
       does not make sense there - it should be inside the game").
 - [x] Rule options: bonus squares once (standard) / always; automatic checking / challenges with a penalty (the
       challenger loses the turn); exchanges only with 7+ in the bag / always; the seven-tile bonus on / off; a time
@@ -494,6 +494,8 @@ Order: the game itself first, then these; all of them are in the design prompt, 
 - [x] **Everyone's tiles** - a rule, two people or more: the other people's racks under the scores, always in view,
       so a friend can think while you move; no hand-over card then; the computer's tiles stay hidden. 0.37.0
 - [x] **How to play closed every time**, in all four games; **no Random level** in Litery and Połącz either. 0.37.0
+- [x] **No tabs** (owner): the scores open History, the bag Letters left, a small magnifier beside Save & exit /
+      Give up opens Check a word. 0.37.1
 - [ ] Tune the levels by playing.
 
 ## Litery: hints and the "what you know" strip — DONE 2026-09-25 (0.28.2)
