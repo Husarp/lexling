@@ -561,7 +561,7 @@ html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;g
 /* tiles are sized from the board's width (100cqi), which doesn't know about the scrollbar or the
    board's padding — budget 14px for them so the last tile is never cut off */
 [data-screen=letters].fit .lt-row{--box:min(var(--max,60px),calc((100cqi - 14px - (var(--n) - 1) * var(--gap)) / var(--n)))}
-[data-screen=letters].kbon .lt-row{--max:48px}
+[data-screen=letters].kbon .lt-row{--max:calc(48px + max(0, 6 - var(--n)) * 4px)}   /* short words a little bigger (owner) */
 html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;gap:var(--space-2)}
 [data-screen=letters].kbon .lt-board{overflow-y:auto;align-content:start;overscroll-behavior:contain;padding:4px}
 /* the grid only ever scrolls up and down; a thin, quiet bar in the app's greys (no arrows, no track) */
@@ -596,9 +596,9 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
 .kb-row.pl{padding-bottom:6px;border-bottom:1px solid var(--line-soft)}
 [data-theme=light] .kb-row.pl{border-bottom-color:var(--lt-edge)}
 /* press: answered at once — the key darkens and a preview rises above the finger, which covers the key */
-.key:active,.key.down{box-shadow:inset 0 0 0 99px rgba(0,0,0,.22);transition:none}
-.key:active::after,.key.down::after{content:attr(data-k);position:absolute;left:50%;bottom:calc(100% + 6px);translate:-50% 0;z-index:3;min-width:max(46px,150%);height:58px;display:grid;place-items:center;border-radius:10px;background:var(--kbg);color:var(--kfg);font:600 30px/1 var(--font-body);text-transform:uppercase;box-shadow:var(--shadow-md);pointer-events:none}
-.key.wide:active::after,.key.wide.down::after{content:none}
+.key.down{box-shadow:inset 0 0 0 99px rgba(0,0,0,.22);transition:none}   /* only while held: :active lingers on phones */
+.key.down::after{content:attr(data-k);position:absolute;left:50%;bottom:calc(100% + 6px);translate:-50% 0;z-index:3;min-width:max(46px,150%);height:58px;display:grid;place-items:center;border-radius:10px;background:var(--kbg);color:var(--kfg);font:600 30px/1 var(--font-body);text-transform:uppercase;box-shadow:var(--shadow-md);pointer-events:none}
+.key.wide.down::after{content:none}
 @container (max-width:360px){.kb{--kb-gap:4px;gap:6px}.key{height:44px;font-size:18px;border-radius:5px}.key.wide{font-size:10px;letter-spacing:.02em}.key .n{top:2px;right:2px;min-width:13px;height:13px;font-size:9px;line-height:13px}}
 @container (min-width:560px){.key{height:48px;max-width:48px;font-size:16px}.key.wide{max-width:76px}}
 
@@ -744,17 +744,15 @@ html{-webkit-tap-highlight-color:transparent}
 body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 input,textarea{-webkit-user-select:text;user-select:text}
 
-/* ── Letters: what you know (owner, 2026-09-25) ── under the keyboard (so the keys sit higher, easier to
-   reach - owner, the same day), a box per letter: green where a guess had
-   the right letter, dashed where a hint showed it; then, in yellow, the letters known to be in the word that
-   no box holds yet. It learns from a guess once the row has coloured in. */
-[data-screen=letters] .known{display:flex;align-items:center;gap:var(--space-3)}
-[data-screen=letters] .known-slots{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px var(--space-4)}
-[data-screen=letters] .known .mt-row{flex-wrap:wrap;gap:4px}
-/* Hint sits at the end of the strip it fills: Connect's bulb, a quiet ghost button */
+/* ── Letters: the letters in place (owner, 2026-09-25) ── under the keyboard, so the keys sit higher and easier
+   to reach: a row of tiles the size of the grid's - green where a guess had the right letter, dashed where a
+   hint showed it. No yellows: the keyboard shows those. It learns from a guess once the row has coloured in. */
+[data-screen=letters] .known{display:flex;align-items:center;gap:var(--space-2)}
+[data-screen=letters] .known-fit{flex:1;min-width:0;container-type:inline-size}
+[data-screen=letters] .known-row{justify-content:center}
+[data-screen=letters] .known .lt.hint{background:transparent;border-style:dashed;border-color:var(--text-muted);color:var(--text-muted)}
+[data-screen=letters] .known .lt.new-hint{animation:cw-hint 150ms var(--ease)}
+/* Hint sits at the end of the row it fills: Connect's bulb, a quiet ghost button */
 [data-screen=letters] .lt-hint{flex:none;min-height:36px;padding:0 var(--space-2);color:var(--text)}
 [data-screen=letters] .lt-hint svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 @media (hover:none){[data-screen=letters] .lt-hint:hover{color:var(--text)}}
-[data-screen=letters] .known .mt{font-weight:700}
-[data-screen=letters] .known .mt.hintd{color:var(--text-muted)}
-[data-screen=letters] .known .mt.new-hint{animation:cw-hint 150ms var(--ease)}

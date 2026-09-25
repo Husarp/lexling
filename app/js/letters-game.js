@@ -5,7 +5,7 @@ import { t, plural, esc } from './i18n.js';
 import { settings, stats, saveStats, getSave, putSave, gameName, recordLettersEnd, playClock } from './store.js';
 import { loadWords, resolve } from './engine.js';
 import { feedback, typeLetter, eraseLetter, keyStates, known, hintAt, MARKED } from './letters.js';
-import { topbar, modeTag, confirmClick, TILE, outcome, squares } from './ui.js';
+import { topbar, modeTag, confirmClick, TILE, outcome } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 import { offensive } from './offensive.js';
@@ -96,14 +96,12 @@ export async function lettersGameScreen(root, id) {
     });
   }
 
-  // What the guesses have pinned down, under the keyboard (owner, 2026-09-25): a box per letter - green where
-  // a guess had the right letter, dashed where a hint showed it - then, in yellow, the letters known to be
-  // in the word that no box holds yet. `fresh` = the position a hint has just filled, which fades in.
+  // The letters in place so far, under the keyboard (owner, 2026-09-25): a row of tiles the size of the
+  // grid's - green where a guess had the right letter, dashed where a hint showed it, empty otherwise. No
+  // yellows: the keyboard shows those. `fresh` = the position a hint has just filled, which fades in.
   function paintKnown(fresh = -1) {
-    const { slots, loose } = known(game.guesses, game.secret, game.hinted);
-    const size = n <= 8 ? 22 : 18;
-    $('.known-slots').innerHTML = squares(slots.map((s, i) => (s.how === 'hint' ? 'hintd' : s.how) + (i === fresh ? ' new-hint' : '')), size, slots.map(s => s.ch))
-      + (loose.length ? squares(loose.map(() => 'near'), size, loose) : '');
+    const { slots } = known(game.guesses, game.secret, game.hinted);
+    $('.known-row').innerHTML = tiles(slots.map((s, i) => s.how + (i === fresh ? ' new-hint' : '')), slots.map(s => s.ch));
   }
 
   // A hint: one letter in its right place, never one already known - free, only counted (owner), and at
@@ -181,7 +179,7 @@ export async function lettersGameScreen(root, id) {
         <div class="kb-row"><button type="button" class="key wide enter" data-act="enter">${t('kb.enter')}</button>${
           [...ROWS[2]].map(key).join('')}<button type="button" class="key wide" data-act="back" aria-label="${t('kb.backspace')}">${BACKSPACE}</button></div>
       </div>
-      <div class="known"><span class="known-slots" role="img" aria-label="${t('lt.known')}"></span><button class="btn btn-ghost lt-hint" type="button" aria-label="${t('game.hint')}">${BULB}</button></div>
+      <div class="known"><div class="known-fit"><div class="lt-row known-row" style="--n:${n}" role="img" aria-label="${t('lt.known')}"></div></div><button class="btn btn-ghost lt-hint" type="button" aria-label="${t('game.hint')}">${BULB}</button></div>
       <input class="sink" type="text" inputmode="text" enterkeyhint="go" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="${n}" aria-label="${t('game.inputAria')}">
     </div>`;
     board = $('.lt-board');
@@ -197,7 +195,7 @@ export async function lettersGameScreen(root, id) {
 
     // A key acts on pointer-down, at once. preventDefault keeps the focus where it is, so no key ever
     // opens the phone's keyboard - and when the phone's keyboard is open, using the keys on screen
-    // closes it (owner, 2026-09-25). The key stays pressed-looking for 90 ms after it is let go.
+    // closes it (owner, 2026-09-25). The key looks pressed, with its letter above the finger, only while held.
     const act = keyEl => {
       if (document.activeElement === sink) sink.blur();
       if (keyEl.dataset.act === 'enter') submit();
@@ -210,7 +208,7 @@ export async function lettersGameScreen(root, id) {
       e.preventDefault();
       keyEl.classList.add('down');
       keyEl.setPointerCapture(e.pointerId);
-      keyEl.addEventListener('lostpointercapture', () => setTimeout(() => keyEl.classList.remove('down'), 90), { once: true });
+      keyEl.addEventListener('lostpointercapture', () => keyEl.classList.remove('down'), { once: true });   // at once (owner)
       act(keyEl);
     });
     // a key reached with Tab and pressed with Enter / Space arrives as a click with no pointer

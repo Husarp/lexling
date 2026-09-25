@@ -163,20 +163,14 @@ export function keyStates(guesses, answer, upto = Infinity) {
 // `hinted` = the positions a hint has shown (0-based). A hint shows one letter in its right place and
 // costs nothing but being counted; at most half the word (rounded down) may come from hints, as in Connect.
 
-// The overview beside the grid: one slot per letter - 'hit' where some guess had the right letter there,
-// 'hint' where a hint showed it, '' where nothing is known - and `loose`: the letters known to be in the
-// word that no slot holds yet (the yellows still to place), once for each time they are still missing.
+// The strip under the keyboard: one slot per letter - 'hit' where some guess had the right letter there,
+// 'hint' where a hint showed it, '' where nothing is known. Only letters in place: the yellows are on
+// the keyboard already (owner, 2026-09-25).
 export function known(guesses, answer, hinted = []) {
   const a = [...answer.toLowerCase()];
   const slots = a.map((ch, i) => guesses.some(g => [...g.toLowerCase()][i] === ch) ? { ch, how: 'hit' }
     : hinted.includes(i) ? { ch, how: 'hint' } : { ch: '', how: '' });
-  const { count } = keyStates(guesses, answer);
-  const loose = [];
-  for (const [ch, k] of Object.entries(count)) {
-    const placed = slots.filter(s => s.ch === ch).length;
-    for (let i = placed; i < k; i++) loose.push(ch);
-  }
-  return { slots, loose };
+  return { slots };
 }
 
 // The next hint: a random position whose letter is not known yet - or -1 when every letter is known,

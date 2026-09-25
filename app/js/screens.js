@@ -324,12 +324,12 @@ export function newGameScreen(root, _, refresh) {
 }
 
 // ── Letters: new game (design: handoff-letters/new-game-letters.html) ─────────────────────────────
-// Same footing rule as above: every game starts from these, only the language carries over.
-const LT_NEW = { cat: 'all', len: 5, anyLen: false, tries: 6, unlimited: false, diff: 'normal', diffRandom: false, marks: false };
+// Same footing rule as above: every game starts from these; the language and "Allow Polish letters" carry over.
+const LT_NEW = { cat: 'all', len: 5, anyLen: false, tries: 6, unlimited: false, diff: 'normal', diffRandom: false };
 let ltPending = null;
 
 export function lettersNewScreen(root, _, refresh) {
-  const o = ltPending ?? { ...LT_NEW, lang: settings.newGame.lang || settings.lang };
+  const o = ltPending ?? { ...LT_NEW, lang: settings.newGame.lang || settings.lang, marks: settings.marks?.letters ?? true };
   ltPending = null;
   const lengths = Array.from({ length: LEN_MAX - LEN_MIN + 1 }, (_, i) => LEN_MIN + i);
   const stepper = (id, less, more) => `<div class="stepper" id="${id}"><button type="button" data-step="-1" aria-label="${less}">−</button><output></output><button type="button" data-step="1" aria-label="${more}">+</button></div>`;
@@ -489,7 +489,7 @@ export function lettersNewScreen(root, _, refresh) {
   unlimited.addEventListener('click', () => { o.unlimited = !o.unlimited; sync(); });
   anyLen.addEventListener('click', () => { o.anyLen = !o.anyLen; sync(); });
   randomDiff.addEventListener('click', () => { o.diffRandom = !o.diffRandom; sync(); });
-  toggle.addEventListener('click', () => { o.marks = !o.marks; sync(); });
+  toggle.addEventListener('click', () => { o.marks = !o.marks; settings.marks = { ...settings.marks, letters: o.marks }; saveSettings(); sync(); });
 
   form.addEventListener('submit', async e => {
     e.preventDefault();
@@ -508,11 +508,11 @@ export function lettersNewScreen(root, _, refresh) {
 
 // ── Connect: new game (design v4, "Lexling Connect" 2) ─────────────────────────────────────────────
 // The Letters controls, rebuilt: letters in the circle, the level (+ Random), the Polish-letters card.
-const CN_NEW = { letters: 6, diff: 'normal', diffRandom: false, marks: false };
+const CN_NEW = { letters: 6, diff: 'normal', diffRandom: false };
 let cnPending = null;
 
 export function connectNewScreen(root, _, refresh) {
-  const o = cnPending ?? { ...CN_NEW, lang: settings.newGame.lang || settings.lang };
+  const o = cnPending ?? { ...CN_NEW, lang: settings.newGame.lang || settings.lang, marks: settings.marks?.connect ?? true };
   cnPending = null;
   root.innerHTML = `<div class="app" data-screen="new">
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.connect}">${t('back.games')}</a>`, right: modeTag('connect') })}
@@ -596,7 +596,7 @@ export function connectNewScreen(root, _, refresh) {
     if (step) { o.letters = Math.min(RING_MAX, Math.max(RING_MIN, o.letters + step)); sync(); }
   });
   randomDiff.addEventListener('click', () => { o.diffRandom = !o.diffRandom; sync(); });
-  toggle.addEventListener('click', () => { o.marks = !o.marks; sync(); });
+  toggle.addEventListener('click', () => { o.marks = !o.marks; settings.marks = { ...settings.marks, connect: o.marks }; saveSettings(); sync(); });
 
   form.addEventListener('submit', async e => {
     e.preventDefault();

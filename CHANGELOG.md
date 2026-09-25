@@ -6,6 +6,20 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.29.4 — 2026-09-25 15:17: A big row of the letters in place; Polish letters on by default; bigger short words; a snappier key
+*(not packaged)*
+
+All from the owner, playing on the phone:
+- **The strip under the keyboard is now a row of tiles the size of the grid's** (about 50 px at 5 letters) and shows
+  **only the letters in their place** - green, and dashed where a hint showed one. The yellow letters are gone from
+  it: the keyboard shows those. It shrinks with long words the way the grid does.
+- **"Allow Polish letters" is on by default** - and **remembered**: turn it off and the next new game starts with it
+  off. Letters and Connect each remember their own. (Until now every new game started with it off.)
+- **Short words get slightly bigger tiles**: at most 60 px for 3 letters, 56 for 4, 52 for 5; 6 and more stay 48.
+- **A key's pressed look and its letter above the finger go the moment the finger lifts** (they stayed 90 ms more,
+  and on phones the :active state can linger longer still, which looked like lag). Only the key's own "held" state
+  shows it now.
+
 ## 0.29.3 — 2026-09-25 15:05: Letters' keyboard sits higher, with bigger letters
 *(not packaged)*
 

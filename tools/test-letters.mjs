@@ -59,8 +59,6 @@ check('keys, all turned: the same as no limit', keyStates(['crane', 'sheet'], 's
 // ── what the player knows, and hints (owner, 2026-09-25) ────────────────────────────────────────
 const k1 = known(['crane', 'sheet'], 'steel');
 check('known: S E E placed by SHEET, the rest empty', k1.slots.map(s => s.how ? s.ch : '_').join(''), 's_ee_');
-check('known: T is in the word, not placed yet', k1.loose, ['t']);
-check('known: a letter placed as often as it is known is not loose', known(['sheet'], 'steel').loose.includes('e'), false);
 const k2 = known(['crane', 'sheet'], 'steel', [4]);
 check('known: a hint fills its slot, marked as a hint', [k2.slots[4].ch, k2.slots[4].how], ['l', 'hint']);
 check('hint: never a letter already known', [0, .3, .6, .99].every(r => ![0, 2, 3].includes(hintAt(['crane', 'sheet'], 'steel', [], () => r))), true);
