@@ -23,9 +23,7 @@ const ICON = {
   hint: svg('<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path>'),
   challenge: svg('<path d="M4 22V4"></path><path d="M4 4h12l-2 4 2 4H4"></path>'),
 };
-const CHEV = '<svg class="tl-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>';
 const CLOSE = svg('<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>');
-const PAINT = svg('<circle cx="13.5" cy="6.5" r="1"></circle><circle cx="17.5" cy="10.5" r="1"></circle><circle cx="8.5" cy="7.5" r="1"></circle><circle cx="6.5" cy="12.5" r="1"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.65-.75 1.65-1.69 0-.44-.18-.84-.44-1.13-.29-.29-.44-.65-.44-1.13a1.64 1.64 0 0 1 1.67-1.67h2c3.05 0 5.55-2.5 5.55-5.55C21.97 6.01 17.46 2 12 2z"></path>');
 const FIND = svg('<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>');
 const DOT = '<span class="dot">·</span>';
 const ERR = { line: 'tiles.err.line', gap: 'tiles.err.gap', alone: 'tiles.err.touch', centre: 'tiles.err.centre', single: 'tiles.err.single' };
@@ -44,6 +42,11 @@ const rateBadge = (played, best) => { const r = rateOf(played, best); return r ?
 // The bonus squares' look (owner, 2026-09-26): in colour (true), only their labels coloured on a plain square ('text'),
 // or one quiet grey (false) - a choice in the gear, History, New game and Settings.
 export const BONUS_LOOKS = [[true, 'colour'], ['text', 'text'], [false, 'grey']];
+// Player colours (owner, 2026-09-26): each player's tiles tinted (true - as before), the letters in the player's colour on
+// yellow tiles ('letters', the design's way) or none (false). A choice in the gear, New game and Settings.
+export const COLOUR_LOOKS = [[true, 'tiles'], ['letters', 'letters'], [false, 'off']];
+export const coloursSeg = () => `<div class="seg" role="radiogroup">${COLOUR_LOOKS.map(([v, k]) =>
+  `<button type="button" data-colours="${v}" class="${settings.tilesColours === v ? 'on' : ''}">${t('tiles.colours.' + k)}</button>`).join('')}</div>`;
 export const bonusSeg = () => `<div class="seg" role="radiogroup">${BONUS_LOOKS.map(([v, k]) =>
   `<button type="button" data-bonus="${v}" class="${settings.tilesBonus === v ? 'on' : ''}">${t('tiles.bonus.' + k)}</button>`).join('')}</div>`;
 export const bonusOf = v => v === 'true' ? true : v === 'false' ? false : v;
@@ -166,7 +169,7 @@ export async function tilesGameScreen(root, id) {
   </div></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main'), play = app.querySelector('.tl-play');
-  wireGear(root, [['tilesRate', t('tiles.rate.setting'), t('tiles.rate.settingHelp')], ['tilesColours', t('tiles.colours'), ''], ['tiles3d', t('tiles.raised'), t('tiles.raisedHelp')], ['tilesBonus', t('tiles.bonus'), t('tiles.bonusHelp'), BONUS_LOOKS.map(([v, k]) => [v, t('tiles.bonus.' + k)])]],
+  wireGear(root, [['tilesRate', t('tiles.rate.setting'), t('tiles.rate.settingHelp')], ['tilesColours', t('tiles.colours'), t('tiles.coloursHelp'), COLOUR_LOOKS.map(([v, k]) => [v, t('tiles.colours.' + k)])], ['tiles3d', t('tiles.raised'), t('tiles.raisedHelp')], ['tilesBonus', t('tiles.bonus'), t('tiles.bonusHelp'), BONUS_LOOKS.map(([v, k]) => [v, t('tiles.bonus.' + k)])]],
     () => { if (S.over) return; paintStatus(); paintBoard(); paintMore(); });
   const $ = s => play.querySelector(s);
   const status = $('.status'), boardEl = $('.tl-board'), tb = $('.tb'), say = $('.say'), rackEl = $('.tl-rack'), dock = $('.tl-dock');
@@ -174,7 +177,7 @@ export async function tilesGameScreen(root, id) {
   const refit = () => fitAll(root);
 
   // the board's two colour switches (Settings, New game, the game): players' tiles tinted; bonus squares coloured
-  const looks = () => (settings.tilesColours !== false ? ' own' : '') + (settings.tilesBonus === false ? ' mono' : settings.tilesBonus === 'text' ? ' tint' : '')
+  const looks = () => (settings.tilesColours === 'letters' ? ' inks' : settings.tilesColours !== false ? ' own' : '') + (settings.tilesBonus === false ? ' mono' : settings.tilesBonus === 'text' ? ' tint' : '')
     + (settings.tiles3d ? ' raised' : '');
   const myTurn = () => !S.over && !thinking && !toast && !handOver && !cpu(S.turn) && shown === S.turn;
   // The rack in the order its player arranged it (reorder, shuffle): the saved order, then any tiles new to it.
@@ -210,16 +213,31 @@ export async function tilesGameScreen(root, id) {
     const np = S.players.length;
     // beside each score what that player's last turn brought (owner, 2026-09-25): +23, or +0 for a pass or exchange
     const last = p => { const m = S.moves.findLast(x => x.p === p); return m ? `<small class="delta">+${m.kind === 'play' ? m.score : 0}</small>` : ''; };
-    const side = p => `<span class="tl-side p${p}${!S.over && S.turn === p ? ' on' : ''}"><span class="eyebrow"><i></i><span>${esc(nameOf(S, p))}</span></span><span class="num">${S.scores[p]}${last(p)}${
-      thinking && S.turn === p ? `<span class="tl-dots" aria-label="${t('tiles.thinking')}"><i></i><i></i><i></i></span>` : ''}</span></span>`;
-    status.innerHTML = `<button class="tl-score${np > 2 ? ' many' : ''}" type="button" data-open="hist" style="--np:${np}" aria-label="${t('tiles.history')}">${S.players.map((_, p) => side(p)).join('')}${CHEV}</button>
-      <button class="tl-bag" type="button" data-open="unseen" aria-label="${t('tiles.unseen')}"><span class="eyebrow">${t('tiles.bag')}</span><span class="num">${S.bag.length}</span>${CHEV}</button>
+    // The scores (design "Lexling Tiles Scores", on top - owner, 2026-09-26): a box per player - a tile badge with the
+    // initial, the name, the score - the player to move ringed; the bag a dashed box of its own. With three players or more
+    // the boxes scroll sideways, and the row follows the turn: the player to move slides to the front.
+    const ini = initials(), tint = settings.tilesColours === true;
+    const chip = p => `<button type="button" class="ps pc${p}${!S.over && S.turn === p ? ' on' : ''}" data-open="hist" aria-label="${esc(nameOf(S, p))}: ${S.scores[p]}"><span class="pb${tint ? ' tint' : ''}" aria-hidden="true">${esc(ini[p])}</span><span class="nm">${esc(nameOf(S, p))}</span><span class="sc">${S.scores[p]}${last(p)}${
+      thinking && S.turn === p ? `<span class="tl-dots" aria-label="${t('tiles.thinking')}"><i></i><i></i><i></i></span>` : ''}</span></button>`;
+    const was = status.querySelector('.ps-row')?.scrollLeft ?? 0;
+    status.innerHTML = `<div class="ps-row${np > 2 ? ' many' : ''}">${S.players.map((_, p) => chip(p)).join('')}</div>
+      <button class="ps-bag" type="button" data-open="unseen" aria-label="${t('tiles.unseen')}"><span class="nm">${t('tiles.bag')}</span><span class="sc">${S.bag.length}</span></button>
       ${S.rules.time ? `<div class="tl-clock"><span class="eyebrow">${t('tiles.r.time')}</span><span class="num"></span></div>` : ''}
       ${open ? othersHtml() : ''}
       <div class="status-actions"><a class="btn btn-ghost" href="#/games/tiles">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button>${
-        canUndo ? `<button class="btn btn-ghost" type="button" data-act="undo"${undo(S, isWord, 0) ? '' : ' disabled'}>${t('tiles.undo')}</button>` : ''}<button class="btn btn-ghost tl-find tl-paint${settings.tilesColours !== false ? ' on' : ''}" type="button" data-act="colours" aria-pressed="${settings.tilesColours !== false}" aria-label="${t('tiles.colours')}" title="${t('tiles.colours')}">${PAINT}</button><button class="btn btn-ghost tl-find" type="button" data-open="check" aria-label="${t('tiles.check')}" title="${t('tiles.check')}">${FIND}</button>${gearButton('tl-find')}</div>`;
+        canUndo ? `<button class="btn btn-ghost" type="button" data-act="undo"${undo(S, isWord, 0) ? '' : ' disabled'}>${t('tiles.undo')}</button>` : ''}<button class="btn btn-ghost tl-find" type="button" data-open="check" aria-label="${t('tiles.check')}" title="${t('tiles.check')}">${FIND}</button>${gearButton('tl-find')}</div>`;
     confirmClick(status.querySelector('#give-up'), giveUp, refit);
     paintClock();
+    const row = status.querySelector('.ps-row.many'), cur = row?.querySelector('.ps.on');
+    if (row) { row.scrollLeft = was; if (cur) row.scrollTo({ left: cur.offsetLeft - row.firstElementChild.offsetLeft, behavior: 'smooth' }); }
+  }
+  // the badge's letters: a person's initial (two letters when two names start alike: KU, KA); with several computers,
+  // each its number (design)
+  function initials() {
+    const names = S.players.map((_, p) => nameOf(S, p)), cpus = S.players.filter(x => x.cpu).length;
+    const first = p => ([...names[p]][0] ?? '?').toUpperCase(), numbered = p => S.players[p].cpu && cpus > 1;
+    return S.players.map((x, p) => numbered(p) ? String(S.players.slice(0, p + 1).filter(y => y.cpu).length)
+      : S.players.some((_, q) => q !== p && !numbered(q) && first(q) === first(p)) ? [...names[p]].slice(0, 2).join('').toUpperCase() : first(p));
   }
   // Everyone's tiles (the rule): the other people's racks, one row each, always in view - never a computer's.
   const othersHtml = () => `<div class="tl-others">${people.filter(p => p !== shown).map(p => `<div class="tl-other pc${p}"><i aria-hidden="true"></i><span>${esc(nameOf(S, p))}</span><span class="mt-row">${
@@ -356,10 +374,7 @@ export async function tilesGameScreen(root, id) {
       return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${i + 1}</span><span class="who" title="${esc(nameOf(S, m.p))}"></span><span class="w">${w}</span><span class="r">${quiet ? '–' : m.score}${
         r ? `<small class="rate rate-${r}">${pctOf(m.score, ev.best)}%</small>` : ''}</span></li>`;
     }).reverse();
-    const own = settings.tilesColours !== false;
-    return (rows.length ? `<ol class="tl-hist">${rows.join('')}</ol>` : `<p class="help">${t('tiles.hist.empty')}</p>`)
-      + `<div class="tl-row"><span>${t('tiles.colours')}</span><button type="button" class="toggle${own ? ' on' : ''}" role="switch" aria-checked="${own}" data-act="colours" aria-label="${t('tiles.colours')}"></button></div>`
-      + `<div class="tl-row col"><span>${t('tiles.bonus')}</span>${bonusSeg()}</div>`;
+    return rows.length ? `<ol class="tl-hist">${rows.join('')}</ol>` : `<p class="help">${t('tiles.hist.empty')}</p>`;
   }
   function unseenHtml() {
     // as the player on screen sees it; with nobody's rack on screen, every tile not on the board
@@ -575,7 +590,6 @@ export async function tilesGameScreen(root, id) {
     },
     guide() { if (!S.over) { panel = panel === 'guide' ? null : 'guide'; paintMore(); } },
     close() { panel = null; paintMore(); },
-    colours() { settings.tilesColours = settings.tilesColours === false; saveSettings(); paintStatus(); paintBoard(); paintMore(); },
     show() { handOver = false; shown = S.turn; paintAll(); },
     pickCancel() {
       if (draft[blankFor] && !draft[blankFor].ch) draft.splice(blankFor, 1);   // a blank with no letter goes back
@@ -803,7 +817,7 @@ export async function tilesGameScreen(root, id) {
   }
 
   app.addEventListener('click', e => {
-    const el = e.target.closest('[data-act], [data-open], [data-ch], [data-level], [data-bonus]');
+    const el = e.target.closest('[data-act], [data-open], [data-ch], [data-level]');
     if (!el || S.over) return;
     if (el.dataset.open) {
       panel = !wide && panel === el.dataset.open ? null : el.dataset.open;
@@ -813,7 +827,6 @@ export async function tilesGameScreen(root, id) {
     }
     if (el.dataset.ch) return pickLetter(el.dataset.ch);
     if (el.dataset.level) return pickHint(el.dataset.level);
-    if (el.dataset.bonus) { settings.tilesBonus = bonusOf(el.dataset.bonus); saveSettings(); paintBoard(); return paintMore(); }
     TOOLS[el.dataset.act]?.();
   });
   // A button pressed with the pointer does not take the focus: Enter would press it again instead of playing.

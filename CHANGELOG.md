@@ -6,6 +6,19 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.42.0 — 2026-09-26 01:35: Kafelki: the new scores row, and player colours three ways
+*(not packaged)*
+
+- **The scores, redesigned** (design "Lexling Tiles Scores", the layout on top): a box per player with a small tile
+  badge (the initial - or the number, with several computers), the name and the score; the player to move has an
+  orange ring; the bag is a dashed box. **With three players or more the boxes scroll sideways**, and the row slides
+  to whoever moves - the previous one moves out of view. Tap the boxes for History, the bag for Letters left.
+- **"Kolory graczy" / "Player colours"**: **Płytki** (tinted tiles), **Litery** (coloured letters on yellow tiles, as
+  in the design) or **Wyłączone** - in the ⚙, on New game and in Settings. The 🎨 button is gone, and History is only
+  the history now.
+- Checked in headless Edge at 320-480 px: two and five players (the row follows each turn), the three colour looks,
+  "KOMPUTER" fits at 320; a whole game, undo, the meaning links. 261 Tiles tests.
+
 ## 0.41.0 — 2026-09-26 01:23: Kafelki: how good your moves were, and a round of looks and fixes
 *(not packaged)*
 

@@ -1246,3 +1246,32 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* the final board on the end screen is only to look at: a finger on it scrolls the page (in the game the board keeps every
    touch for placing, panning and pinching) - owner, 2026-09-26: "you cannot scroll down to see the whole board" */
 .tl-final .tl-board{touch-action:auto;user-select:auto;-webkit-user-select:auto}
+/* ═══ 0.42.0: the scores (design "Lexling Tiles Scores", on top - owner, 2026-09-26). A box per player: a tile badge with
+   the initial, the name, the score; the player to move ringed in the theme colour. Three players or more: the boxes
+   scroll sideways (two in view) and the row follows the turn. The bag: a dashed box of its own, always in view. ═══ */
+/* the letter colours (a choice: player colours "Letters"), dark enough on the yellow tile - the design's five inks, in
+   the hues of the tinted tiles where they can be (seat 5's yellow has no ink on yellow: teal) */
+:root{--tl-i0:#245A0C;--tl-i1:#5B2386;--tl-i2:#9E1830;--tl-i3:#3F4653;--tl-i4:#005F66}
+.pc0,.t.p0{--pi:var(--tl-i0)}.pc1,.t.p1{--pi:var(--tl-i1)}.pc2,.t.p2{--pi:var(--tl-i2)}.pc3,.t.p3{--pi:var(--tl-i3)}.pc4,.t.p4{--pi:var(--tl-i4)}
+.tb.inks .t:is(.p0,.p1,.p2,.p3,.p4){color:var(--pi)}
+.ps-row{flex:1 1 0;min-width:0;display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}
+.ps-row::-webkit-scrollbar{display:none}
+.ps{flex:1 0 0;min-width:0;scroll-snap-align:start;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:4px 7px;padding:7px 9px 8px;text-align:left;border:1.5px solid var(--line);border-radius:var(--radius-md);background:var(--surface);transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease)}
+.ps-row.many .ps{flex:0 0 calc((100% - 6px) / 2)}
+.ps.on{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.pb{flex:none;width:22px;height:22px;display:grid;place-items:center;border-radius:5px;background:var(--tl-tile);color:var(--pi,var(--tl-ink));box-shadow:inset 0 -2px 0 rgba(0,0,0,.22);font:800 13px/1 var(--font-display)}
+.pb.tint{background:var(--pt,var(--tl-tile));color:var(--tl-ink)}
+.ps .nm,.ps-bag .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 11px/1.1 var(--font-body);letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted)}
+.ps.on .nm{color:var(--text)}
+.ps .sc{grid-column:1 / -1;display:flex;align-items:baseline;gap:6px;min-width:0;font:800 26px/1 var(--font-display);font-variant-numeric:tabular-nums;color:var(--text)}
+.ps .sc .delta{font:700 13px/1 var(--font-body);color:var(--text-muted)}
+.ps-bag{flex:none;display:grid;align-content:space-between;gap:4px;padding:7px 11px 8px;text-align:left;border:1.5px dashed var(--text-dim);border-radius:var(--radius-md)}
+.ps-bag .sc{font:800 26px/1 var(--font-display);font-variant-numeric:tabular-nums;color:var(--text)}
+.ps:hover,.ps-bag:hover{border-color:var(--accent)}
+@container (max-width:480px){.ps{padding:5px 7px 6px}.ps-bag{padding:5px 9px 6px}.ps .sc,.ps-bag .sc{font-size:23px}.pb{width:20px;height:20px;font-size:12px}}
+/* the narrowest phones: tighter boxes, so "KOMPUTER" fits beside its badge in a two-player game */
+@container (max-width:360px){
+  .ps{padding:5px 6px 6px;column-gap:5px}
+  .ps .nm,.ps-bag .nm{font-size:10.5px;letter-spacing:.03em}
+  .ps-bag{padding:5px 8px 6px}
+}

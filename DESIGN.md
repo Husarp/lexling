@@ -535,6 +535,18 @@ outside closes it. Kafelki's gear sits in its button row instead, right of the m
 stays one line up to 470 px, the labels giving up their letter-spacing first. On a phone under 375 px the game's
 name gives way in the top bar (to the gear, or Kafelki's "?") - it is on the saved-games list anyway.
 
+### Kafelki: the scores and the player colours (0.42.0, design "Lexling Tiles Scores", owner, 2026-09-26)
+- **The scores, on top** (the owner's pick, option 1a, "similar to now but they scroll and look better"): a box per
+  player - a small tile badge with the initial (two letters when two names start alike; with several computers each
+  its number), the name, the score and the "+points" of the last turn - the player to move ringed in the theme colour;
+  the bag a dashed box of its own, always in view. Two players share the row; from three the boxes are half the row
+  each and **scroll sideways**, and the row **follows the turn**: the player to move slides to the front. A tap on a
+  box opens History, on the bag Letters left.
+- **Player colours, a choice of three** ("Kolory graczy"): **Płytki** - each player's tiles tinted (as 0.36.0);
+  **Litery** - yellow tiles, the letter in the player's colour (the design's way: dark inks, ≥ 4.5:1 on the yellow -
+  green, purple, crimson, slate, teal); **Wyłączone**. The badges keep the colours in every case, so seats still read.
+  In the gear, New game and Settings; the 🎨 button and History's switches are gone (owner).
+
 ### Kafelki: ratings and looks (0.41.0, owner, 2026-09-26)
 - **How good a move was**: its points against the best move there was on that board with that rack (the move finder)
   - the best, excellent (85 %+), good (65 %+), fair (40 %+), weak. "Oceniaj moje ruchy / Rate my moves" (on at first;
