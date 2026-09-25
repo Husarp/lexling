@@ -38,6 +38,10 @@ export async function lettersGameScreen(root, id) {
   function paintBoard(reveal = false) {
     const rows = game.guesses.map((w, i) => past(w, reveal && i === game.guesses.length - 1));
     if (playing()) rows.push(`<div class="lt-row now grow" style="--n:${n}">${tiles(blank())}</div>`);
+    // Giving up shows the word where it would have gone: one more row, all green, growing in like a
+    // new row does (owner, 2026-09-25).
+    if (game.status === 'gaveup') rows.push(`<div class="lt-row grow" style="--n:${n}" aria-label="${esc(game.secret)}">${
+      tiles(Array(n).fill('hit'), [...game.secret])}</div>`);
     board.innerHTML = rows.join('');
     if (playing()) paintNow();
   }

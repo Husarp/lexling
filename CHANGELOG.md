@@ -6,6 +6,13 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.19.2 — 2026-09-25 03:07: Giving up shows the word in the grid
+*(debug APK built and installed on the phone — not released)*
+
+- After **Give up**, the word appears as one more row under your guesses, all green, growing in tile by
+  tile like a new row does. (Out of tries still shows the word only on the card — say if that should
+  get the row too.)
+
 ## 0.19.1 — 2026-09-25 03:04: A guess colours in as fast as a new row appears
 *(debug APK built and installed on the phone — not released)*
 

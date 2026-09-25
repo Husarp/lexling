@@ -144,6 +144,9 @@ Ported 1:1 in 0.16.0.
 - [x] **Many tries ran off the screen** (reported with 20): the screen now fits the window while
       playing — status on top, Guess under the grid, only the grid scrolls. No empty rows are drawn
       for the tries to come; a new row is added per guess and grows in, left to right, quickly. 0.19.0.
+- [x] **A guess colours in as fast as a new row appears** (0.3 s for 5 letters). 0.19.1.
+- [x] **Giving up shows the word as a green row** in the grid, growing in like a new row. 0.19.2.
+- [ ] Open: should running out of tries show that row too? Only Give up was asked for.
 
 ### Left to do after 0.16.0
 - [ ] **Play it on a real phone.** Tested here in a browser at 320 px, with the keyboard simulated;
