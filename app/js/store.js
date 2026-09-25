@@ -14,9 +14,9 @@ export const settings = read('wg.settings', {
   theme: 'dark', accent: 'orange', sound: true, fuzzy: true, langChosen: false, lastCheck: 0, latest: '',
   // Letters: tapping the tiles also opens the phone's own keyboard (the keys on screen stay) - owner, 2026-09-25
   phoneKb: false,
-  // "Allow Polish letters" on the new-game screens: on at first, then whatever the player chose last - one
-  // choice for every game (owner, 2026-09-25)
-  polish: true,
+  // "Allow Polish letters" on the new-game screens: on at first, then whatever the player chose last - each
+  // game its own choice (owner, 2026-09-25)
+  polish: { letters: true, connect: true },
   // Only the language carries over between games; everything else starts from NEW_GAME each time.
   newGame: { lang: null },
 });

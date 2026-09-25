@@ -329,7 +329,7 @@ const LT_NEW = { cat: 'all', len: 5, anyLen: false, tries: 6, unlimited: false, 
 let ltPending = null;
 
 export function lettersNewScreen(root, _, refresh) {
-  const o = ltPending ?? { ...LT_NEW, lang: settings.newGame.lang || settings.lang, marks: settings.polish ?? true };
+  const o = ltPending ?? { ...LT_NEW, lang: settings.newGame.lang || settings.lang, marks: settings.polish?.letters ?? true };
   ltPending = null;
   const lengths = Array.from({ length: LEN_MAX - LEN_MIN + 1 }, (_, i) => LEN_MIN + i);
   const stepper = (id, less, more) => `<div class="stepper" id="${id}"><button type="button" data-step="-1" aria-label="${less}">−</button><output></output><button type="button" data-step="1" aria-label="${more}">+</button></div>`;
@@ -489,7 +489,7 @@ export function lettersNewScreen(root, _, refresh) {
   unlimited.addEventListener('click', () => { o.unlimited = !o.unlimited; sync(); });
   anyLen.addEventListener('click', () => { o.anyLen = !o.anyLen; sync(); });
   randomDiff.addEventListener('click', () => { o.diffRandom = !o.diffRandom; sync(); });
-  toggle.addEventListener('click', () => { o.marks = !o.marks; settings.polish = o.marks; saveSettings(); sync(); });
+  toggle.addEventListener('click', () => { o.marks = !o.marks; settings.polish = { ...settings.polish, letters: o.marks }; saveSettings(); sync(); });
 
   form.addEventListener('submit', async e => {
     e.preventDefault();
@@ -512,7 +512,7 @@ const CN_NEW = { letters: 6, diff: 'normal', diffRandom: false };
 let cnPending = null;
 
 export function connectNewScreen(root, _, refresh) {
-  const o = cnPending ?? { ...CN_NEW, lang: settings.newGame.lang || settings.lang, marks: settings.polish ?? true };
+  const o = cnPending ?? { ...CN_NEW, lang: settings.newGame.lang || settings.lang, marks: settings.polish?.connect ?? true };
   cnPending = null;
   root.innerHTML = `<div class="app" data-screen="new">
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.connect}">${t('back.games')}</a>`, right: modeTag('connect') })}
@@ -596,7 +596,7 @@ export function connectNewScreen(root, _, refresh) {
     if (step) { o.letters = Math.min(RING_MAX, Math.max(RING_MIN, o.letters + step)); sync(); }
   });
   randomDiff.addEventListener('click', () => { o.diffRandom = !o.diffRandom; sync(); });
-  toggle.addEventListener('click', () => { o.marks = !o.marks; settings.polish = o.marks; saveSettings(); sync(); });
+  toggle.addEventListener('click', () => { o.marks = !o.marks; settings.polish = { ...settings.polish, connect: o.marks }; saveSettings(); sync(); });
 
   form.addEventListener('submit', async e => {
     e.preventDefault();

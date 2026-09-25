@@ -6,6 +6,12 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.29.6 — 2026-09-25 15:20: Each game remembers its own Polish-letters choice again
+*(not packaged)*
+
+- "Allow Polish letters" is remembered **per game** again (the owner: each game separately) - Letters and Connect each
+  start from their own last choice, on at first. 0.29.5 had made it one choice for both.
+
 ## 0.29.5 — 2026-09-25 15:18: Hinted letters in green; one Polish-letters choice for every game
 *(not packaged)*
 
