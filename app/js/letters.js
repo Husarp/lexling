@@ -107,10 +107,29 @@ export const MULTIPLIER = { relaxed: 0.75, easy: 1, normal: 1.25, hard: 1.5 };
 
 // letters ÷ guesses actually used × 100 × difficulty, with a marked Polish letter counting as two.
 // Tries left unused never enter the sum - that is the reward for finishing early, and it is why the
-// score still means something when tries are unlimited. A loss scores nothing.
-export function score(answer, guessesUsed, won, diff) {
+// score still means something when tries are unlimited. A loss scores nothing here (see lossScore).
+//
+// Since 0.22.0 also × the tries factor (owner, 2026-09-25): dividing by the guesses used alone made
+// unlimited tries the obvious choice - it can never lose and still paid in full. Now 6 ÷ tries
+// allowed: 6, the classic Wordle, is ×1; 3 tries is ×2 (more risk, more points); 12 is ×0.5. With
+// unlimited tries every guess counts as two - ×0.5.
+export const triesFactor = tries => tries ? 6 / tries : 0.5;
+
+export function score(answer, guessesUsed, won, diff, tries = 6) {
   if (!won || guessesUsed < 1) return 0;
-  return Math.round(points(answer) / guessesUsed * 100 * (MULTIPLIER[diff] ?? 1));
+  return Math.round(points(answer) / guessesUsed * 100 * (MULTIPLIER[diff] ?? 1) * triesFactor(tries));
+}
+
+// Running out of tries still pays something (owner, 2026-09-25): the best row - its greens, and its
+// yellows at half - as a share of the word, of a quarter of what a win on the very last try would
+// have paid. Giving up pays nothing, and an unlimited game cannot run out.
+export function bestRow(guesses, answer) {
+  return Math.max(0, ...guesses.map(g => feedback(g, answer).reduce((s, f) => s + (f === 'green' ? 1 : f === 'yellow' ? 0.5 : 0), 0)));
+}
+export function lossScore(answer, guesses, diff, tries) {
+  if (!tries || !guesses.length) return 0;
+  const lastTryWin = score(answer, tries, true, diff, tries);
+  return Math.round(bestRow(guesses, answer) / [...answer].length * lastTryWin / 4);
 }
 
 // the "letters" of the score: żółw is 2+2+2+1 = 7

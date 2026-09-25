@@ -3,7 +3,7 @@
 import { t, plural, esc, num, decimal } from './i18n.js';
 import { stats, saveStats, getSave, putSave, gameName, recordLettersEnd, playClock } from './store.js';
 import { loadWords, resolve } from './engine.js';
-import { feedback, score, points, MULTIPLIER, MARKED } from './letters.js';
+import { feedback, score, points, MULTIPLIER, MARKED, triesFactor, bestRow, lossScore } from './letters.js';
 import { topbar, modeTag, confirmClick, TILE, squares, outcome } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
@@ -186,7 +186,8 @@ export async function lettersGameScreen(root, id) {
   // The result is recorded at once; the end card waits for the last row to finish colouring in.
   function finish(status, afterReveal = false) {
     game.status = status;
-    const pts = score(game.secret, game.guesses.length, status === 'won', game.diff);
+    const pts = status === 'won' ? score(game.secret, game.guesses.length, true, game.diff, game.tries)
+      : status === 'lost' ? lossScore(game.secret, game.guesses, game.diff, game.tries) : 0;
     recordLettersEnd(game, pts);
     if (status === 'won') chime();
     if (!afterReveal) return paintEnd(pts);
@@ -203,12 +204,20 @@ export async function lettersGameScreen(root, id) {
     const facts = [`<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span>`,
       `<span><b>${g}</b> ${plural(g, 'n.guesses')}</span>`, `<span>${t('lt.score')} <b>${num(pts)}</b></span>`];
     let calc = '';
+    // out of tries: the best row's share of the word, of a quarter of a win on the last try
+    if (game.status === 'lost') {
+      calc = `<p class="calc">${t('lt.calcLoss', { b: decimal(bestRow(game.guesses, game.secret)), n,
+        w: num(score(game.secret, game.tries, true, game.diff, game.tries)) })}</p>`;
+    }
     if (won) {
       // the sum written out, so the score is never a mystery: 7 letters (ż ó ł count ×2) ÷ 3 guesses × 100 × 1.25
       const marked = [...new Set([...game.secret].filter(ch => MARKED.test(ch)))];
+      // and how many tries the player allowed themselves: × 6 ÷ tries, or × 0.5 unlimited
+      const triesPart = t('lt.calcTries', { f: decimal(+triesFactor(game.tries).toFixed(2)),
+        t: game.tries ? `${game.tries} ${plural(game.tries, 'lt.triesUnit')}` : t('lt.unlimitedLow') });
       calc = `<p class="calc">${t(game.diffRandom ? 'lt.calcRandom' : 'lt.calc', { p: points(game.secret), g, guesses: plural(g, 'n.guesses'),
         double: marked.length ? ' ' + plural(marked.length, 'lt.double').replace('{l}', marked.join(' ')) : '',
-        m: decimal(MULTIPLIER[game.diff]), diff: t('diff.' + game.diff) })}</p>`;
+        m: decimal(MULTIPLIER[game.diff]), diff: t('diff.' + game.diff) })}${triesPart}</p>`;
       if (stats.lt.bestScore > pts) facts.push(`<span>${t('lt.best')} <b>${num(stats.lt.bestScore)}</b></span>`);
     }
     const card = `<div class="card result ${won ? 'won' : 'lost'}">

@@ -154,15 +154,16 @@ Ported 1:1 in 0.16.0.
 - [x] **Never X/6 on the end banner** — the tries used, however it ended (6/6, 2/6, 0/6). 0.21.0.
 - [x] **✓ / ✕ centred** in the banner's circle (drawn, not typed). 0.21.0.
 - [ ] Open: should Znaczenie get Random difficulty too? Letters was asked for (it is the one with a score).
-- [ ] **Scoring question from the owner (2026-09-25)**: the score divides by the tries USED, so
+- [x] **Scoring question from the owner (2026-09-25)**: the score divides by the tries USED, so
       unlimited tries can never lose and always pays — "you will always choose unlimited". The owner
       suggested counting all tries, even unused. Options put to the owner: (a) divide by the tries
       ALLOWED (unlimited counted as 20) — rewards risk, not speed; (b) keep dividing by tries used and
       multiply by 6 ÷ tries allowed (6 → ×1, 3 → ×2, 12 → ×0.5, unlimited as 20 → ×0.3) — rewards both.
-      Recommended (b). Waiting for the owner.
-- [ ] **Points for a loss?** (owner's question) — e.g. out of tries scores from the best row: greens
+      **Done in 0.22.0**: the owner chose (b), with unlimited counting every guess as two (×0.5).
+- [ ] Open: with (b), unlimited (×0.5) pays MORE than 13–20 tries (×0.46 … ×0.3) — put to the owner.
+- [x] **Points for a loss?** (owner's question) — e.g. out of tries scores from the best row: greens
       and half the yellows, as a share of the word, of a quarter of a last-try win; giving up scores 0.
-      Waiting for the owner.
+      **Done in 0.22.0** — the owner chose exactly this.
 - [ ] **On-screen keyboard** (owner's idea, 2026-09-25): the phone keyboard hides the tiles. Own
       keyboard on phone and PC, keys coloured by what is known, a small "2" on a key when the letter
       is known to repeat, a press animation, Backspace; tap a tile to select and overwrite it (the
@@ -195,8 +196,11 @@ Ported 1:1 in 0.16.0.
   never an inflected one.
 - **A guess must be a real word** of the right length. `resolve()` already answers that.
 - **Difficulty** is chosen as in the main mode and multiplies the score.
-- **Score** = letters ÷ guesses **actually used** × 100 × difficulty. A Polish letter counts as two;
-  tries you did not need simply never enter the sum, which is the bonus for finishing early.
+- **Score** = letters ÷ guesses **actually used** × 100 × difficulty × **6 ÷ tries allowed** (0.22.0;
+  unlimited ×0.5 — every guess counts as two). A Polish letter counts as two; tries you did not need
+  never enter the sum, which is the bonus for finishing early.
+  **Out of tries** (0.22.0): the best row (greens + ½ yellows) ÷ the word's letters × ¼ of a
+  last-try win. Giving up: 0.
   Worked example: `żółw` with Polish letters on is ż+ó+ł+w = 2+2+2+1 = **7**; solved on the third
   guess → 7 ÷ 3 × 100 = **233**, then × difficulty.
 - **Repeated letters** follow Wordle's exact rule: two `a`s guessed against one `a` in the answer

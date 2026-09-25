@@ -6,6 +6,19 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.22.0 — 2026-09-25 03:56: Letters scoring - fewer tries pay more; running out of tries pays a little
+*(not packaged)*
+
+- **The tries you allow yourself count**: the score is now also × 6 ÷ tries allowed — 6 (the classic
+  Wordle) ×1, 3 tries ×2, 12 tries ×0.5. With **unlimited** tries every guess counts as two (×0.5).
+  Before, unlimited could never lose and still paid in full, so it was always the best choice.
+  The end card's sum shows it: `5 letters ÷ 2 guesses × 100 × 1 Easy × 2 (3 tries)`.
+- **Out of tries is no longer 0**: the best row — its greens, and its yellows at half — as a share of
+  the word, of a quarter of what a win on the very last try would have paid. The end card writes the
+  sum out. Giving up still pays 0. Only wins count towards the best score in the statistics.
+- **New-game screen**: the tries hint said "the score only counts the ones you use" — now
+  "fewer tries, more points — unlimited counts every guess twice".
+
 ## 0.21.0 — 2026-09-25 03:45: Random difficulty; real numbers on the end banner
 *(not packaged)*
 
