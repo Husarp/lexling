@@ -355,7 +355,7 @@ Starting it before the letters mode exists is how a project ends up with three h
       so the word list is solved, not just started.
 - [ ] Worth knowing early: **"Scrabble" is a trademark.** A shipped game needs its own name.
 
-## M14 — The fourth mode: find the words in a circle of letters — IDEA, added 2026-09-25
+## M14 — The third game: find the words in a circle of letters — PROPOSAL 2026-09-25, waiting for the owner
 The owner's description: you get a few letters **arranged in a circle**. You draw a word by dragging
 through the letters with a finger (or the mouse held down) — a line follows the path — and **letting
 go checks the word**: a real word is accepted, a wrong one makes the letters **shake**. A **Shuffle**
@@ -385,14 +385,55 @@ use, their names are not, and ours needs its own name like the rest of the app.
 - Fewer letters leave very few words (5 Polish letters: median 5, some sets only 2): the letter set
   should be chosen for having enough words, not just drawn at random.
 
-### Open — to decide before building
-- [ ] **What is the goal?** Find a fixed set of target words (Wordscapes shows them as blank slots
-      you fill in), or find as many as you can, open-ended, until you stop?
-- [ ] **Which words count** — base forms only, or every form (Polish 3× more words)?
-- [ ] **Scoring** — per word found; longer words worth more? A bonus for a word using every letter?
-- [ ] Shortest word allowed (3 letters?), a time limit or none, hints or none.
-- [ ] **Order against Scrabble (M13).** This game needs no computer opponent, so it is far smaller
-      than Scrabble — it could come third and Scrabble fourth.
+### How the genre plays — looked up 2026-09-25
+Wordscapes, Word Cookies and Words of Wonders all work the same way: the letter wheel at the bottom,
+a small crossword of blank slots above; swipe across the letters, let go to check; words of 3+
+letters. A real word that is not on the board is a **bonus word** — it fills a jar that pays coins.
+**Shuffle** is free; **hints** (reveal one square, or a whole word) cost coins. Progress is levels in
+themed packs, and **none of them has a points score** — finishing the board is the goal.
+
+### Proposal — written 2026-09-25, waiting for the owner
+- **Goal: a small crossword (4–10 words)** made from the circle's letters, always including one word
+  that uses every letter. Solved = every board word found. (Answers "what is the goal" below.)
+- **Letters: 4–7** (a setting), taken from a common base word of that length; only letter sets with at
+  least 4 board words (5 Polish letters can have as few as 2 — measured above).
+- **Board words**: common base words, the same rules as Letters' pool (noun / adj / verb / adv, the
+  stoplist, base forms), 3+ letters; difficulty picks how common they are, as in Letters.
+- **Bonus words: any other real word, every Polish form included** (`ac`) — counted, never required.
+  So "which words count" becomes: base forms on the board, every form as a bonus.
+- **Hints without coins**: every 3 bonus words earn a hint that reveals one square. Shuffle is free.
+- A wrong word shakes the circle; an already-found word flashes on the board; a bonus word flies into
+  the bonus counter. On a PC the letters can also be typed.
+- **No losing, no time limit.** Give up shows the missing words (like Letters' answer row).
+- New game: language, letters, difficulty (+ Random), Polish letters. **No category** — a letter set
+  cannot keep to one.
+- Its own saved games, games-list section and statistics tab, like the other two games.
+- **Working name Połącz / Connect** — the owner names it.
+- **Order: this game third, Scrabble (M13) fourth** — it needs no computer opponent, so it is far smaller.
+
+### Scoring across four games — the owner's question (2026-09-25), waiting for the owner
+The owner asked: badges for every game? one score summed up, or a ranking per game? or no score at all?
+Recommendation put to the owner:
+- **No combined score.** The games measure different things — Guess counts guesses (fewer is
+  better), Letters gives points, Connect finds words, Scrabble scores against the computer. A sum means
+  nothing, and whichever game hands out the biggest numbers would swamp the rest.
+- **Connect has no points**, like the genre: its result is solved / bonus words / hints used.
+- **Each game keeps its own statistics tab**; **no new badges** for Connect and Scrabble (Guess and
+  Letters keep theirs).
+- Later, if wanted: a **personal best list per game** (your top 10 results for that game).
+
+### Designs — prompts written 2026-09-25
+- [ ] **Main menu for four games** — four big cards do not fit a phone: `notes/menu-four-games-design-prompt.md`.
+- [ ] **Connect's screens** (new game, game, end, saved-game card, statistics): `notes/connect-design-prompt.md`.
+
+### To build — after the owner agrees and the designs arrive
+- [ ] Letter-set chooser + word finder (reuse Letters' pool; ~23 ms Polish, measured above).
+- [ ] **Crossword layout generator** — new, the largest piece; tests: crossings agree, every board
+      word is valid, the all-letters word is on the board.
+- [ ] The circle: drag with a path line, shake, shuffle; typing on a PC.
+- [ ] Board, bonus words, hints, give up, the end card.
+- [ ] New-game screen, saves, the games-list section, the statistics tab, Polish and English strings.
+- [ ] The four-game menu.
 
 ## Rename to Lexling — DONE 2026-09-25 (0.18.0)
 Asked 2026-09-25: rename the app "in GitHub and everywhere (folder name)", with the Android ID
