@@ -363,7 +363,8 @@ Asked 2026-09-25: rename the app "in GitHub and everywhere (folder name)", with 
 built from the owner's GitHub name rather than the employer's.
 - [x] Name everywhere the player sees it: logo LEX/LING (the slash stays orange, as in WORD/GUESS),
       the menu's big letters L/, window and page title, About text, footers.
-- [x] Android ID → **`io.github.husarp.lexling`** (the old one named the owner's employer) (the same form as Browser
+- [x] Android ID → **`com.husarp.lexling`** (the old one named the owner's employer). First `io.github.husarp.lexling`;
+      the owner chose `com.husarp.<name>` for all apps the same day, before that ID was ever built (the same form as Browser
       Switch's). Android sees a new app: the old one stays until uninstalled, its saves do not carry over.
 - [x] Windows: program, setup, folders and shortcuts are Lexling. The setup recognises a WordGuess
       install and updates it: old program, shortcuts and uninstall entry removed, saves folder moved
@@ -374,7 +375,8 @@ built from the owner's GitHub name rather than the employer's.
       `Lexling`. localStorage keys stay `wg.*` on purpose — renaming them would lose every save.
 - [x] **The icon says "le"** now (was "gu", from Word**Gu**ess) — owner chose the letters, 2026-09-25, 0.18.1.
 - [x] The other apps checked for the employer's name (Car Crash, Browser Switch, Lockdown): none has
-      it. Browser Switch already uses `io.github.husarp.*`; whether Car Crash's
+      it. **Rule since 2026-09-25: every app is `com.husarp.<name>`** — no domain needs buying (nothing checks it).
+      Car Crash already was; Browser Switch moved from `io.github.husarp.*`; whether Car Crash's
       `com.husarp.recklessdriving` should switch too is the owner's call (it would cost phone saves).
 
 ## OPEN QUESTIONS (waiting on owner)

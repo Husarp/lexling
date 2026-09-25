@@ -6,6 +6,14 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.18.3 — 2026-09-25 02:38: Android ID com.husarp.lexling
+*(not packaged)*
+
+- The owner chose `com.husarp.<name>` as the form for every app's ID, shorter than
+  `io.github.husarp.<name>`. Lexling's ID from 0.18.0 had never been built or installed anywhere, so it
+  changed for free: `io.github.husarp.lexling` → **`com.husarp.lexling`**. Nothing checks that the
+  owner has the web address husarp.com — the ID is only a name, unique is all it has to be.
+
 ## 0.18.2 — 2026-09-25 02:37: "le" moved down, centred in the icon
 *(not packaged)*
 

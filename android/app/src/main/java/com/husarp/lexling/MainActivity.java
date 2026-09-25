@@ -1,4 +1,4 @@
-package io.github.husarp.lexling;
+package com.husarp.lexling;
 
 import android.os.Build;
 import android.os.Bundle;
