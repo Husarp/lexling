@@ -7,7 +7,7 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 ---
 
 ## 0.49.0 — 2026-09-26 04:51: Statistics in groups, with more numbers
-*(not packaged)*
+*(released 2026-09-26 as v0.49.0 — Windows installer + signed Android APK, carrying 0.30.0–0.48.1 too; installed on the owner's phone)*
 
 - **Statistics are grouped** (owner): each tab is a few cards with a title - e.g. Gry, Słowa, Rekordy, Inne - and
   the numbers laid out inside them. No more boxes stretched to their neighbour's height, and the numbers in a row line
@@ -18,6 +18,8 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
   there was, over all your games - counted from this version on).
 - Checked in headless Edge at 320, 393 and 1000 px with sample numbers in every game, and a Kafelki game played to the
   end adding to the move rating.
+- The Windows build's "nothing from the network" check no longer trips on an inline SVG's xmlns name
+  (www.w3.org/2000/svg, a label that is never fetched) - it had stopped every Windows build since 0.35.0.
 
 ## 0.48.1 — 2026-09-26 04:44: Kafelki: words from hints rated and counted; the button row fixed
 *(not packaged)*

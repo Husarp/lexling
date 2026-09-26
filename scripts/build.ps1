@@ -31,8 +31,9 @@ Set-Content -Path "$Build\gen\version.py" -Value "VERSION = `"$version`"" -Encod
 foreach ($f in "data\index.json", "data\pl\vectors.bin", "data\en\vectors.bin", "data\pl\ac.txt", "data\en\ac.txt") {
     if (-not (Test-Path "$Root\app\$f")) { throw "app\$f is missing - build the word data first: node tools\build-data.mjs" }
 }
-# The game must not need the network for anything it shows.
-if (Select-String -Path "$Root\app\index.html", "$Root\app\css\app.css" -Pattern "https?://" -Quiet) {
+# The game must not need the network for anything it shows (an inline SVG's xmlns name, www.w3.org/2000/svg,
+# is a label that is never fetched).
+if (Select-String -Path "$Root\app\index.html", "$Root\app\css\app.css" -Pattern "https?://(?!www\.w3\.org/2000/svg)" -Quiet) {
     throw "app\index.html or app\css\app.css references something on the network"
 }
 
