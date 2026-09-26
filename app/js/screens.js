@@ -894,11 +894,16 @@ export function statsScreen(root, _, refresh) {
   // a game not played yet says so, above its numbers - which show in dim ink
   const cn = s.cn, tlPlayed = tilesPlayed();
   const none = { guess: !s.played, letters: !lt.played, connect: !cn.played, tiles: !tlPlayed }[statsTab];
-  const card = (label, value, sub = '') => `<div class="card stat-card${none ? ' dim' : ''}"><span class="eyebrow">${label}</span><span class="num">${value}</span>${sub && `<span class="sub">${sub}</span>`}</div>`;
-  // Each game's one "shape" card (design v4): how many tries its wins took, the commonest bar in the
-  // game's colour. Counted from 0.24.0 on - older wins were only ever kept as a total.
+  // Numbers in groups (owner, 2026-09-26: "add more fields, group them better, some boxes are bigger than they should"):
+  // a card per group with its title, the numbers in a grid inside it - no box per number, so none is stretched to its
+  // neighbour's height. A game not played yet: the numbers in dim ink.
+  const cell = (label, value, sub = '', wide = false) => `<div class="scell${wide ? ' wide' : ''}"><span class="lbl">${label}</span><span class="num">${value}</span>${
+    sub ? `<span class="sub">${sub}</span>` : ''}</div>`;
+  const group = (title, cells) => `<section class="card sgroup${none ? ' dim' : ''}"><h2 class="eyebrow">${title}</h2><div class="scells">${cells.join('')}</div></section>`;
+  const per = (a, b) => b ? decimal((a / b).toFixed(1)) : '—';
+  const pct = (a, b) => b ? Math.round(a / b * 100) + ' %' : '';
   // hints used, and how many a game on average - Guess and Letters counted since 0.29.0, Connect from the start
-  const hintCard = (hints = 0, games = 0) => card(t('stats.hints'), num(hints), games ? t('stats.hintsPerGame', { n: decimal((hints / games).toFixed(1)) }) : '');
+  const hintCell = (hints = 0, games = 0) => cell(t('stats.hints'), num(hints), games ? t('stats.hintsPerGame', { n: per(hints, games) }) : '');
   const dist = (title, help, rows, tone = '', ink = '') => {
     const max = Math.max(...rows.map(r => r[1]));
     return `<div class="card dist"${tone ? ` style="--tone:${tone};--tone-ink:${ink}"` : ''}>
@@ -906,23 +911,30 @@ export function statsScreen(root, _, refresh) {
       <ol>${rows.map(([k, v]) => `<li class="${v === max ? 'top' : ''}"><span>${k}</span><b style="--pct:${Math.max(10, Math.round(v / max * 100))}%">${num(v)}</b></li>`).join('')}</ol>
     </div>`;
   };
+  // Each game's one "shape" card (design v4): how many tries its wins took, the commonest bar in the
+  // game's colour. Counted from 0.24.0 on - older wins were only ever kept as a total.
   const gd = s.guessDist ?? {}, gWins = Object.values(gd).reduce((a, b) => a + b, 0);
-  const guessPanel = () => `<div class="stats">
-      ${card(t('stats.played'), num(s.played))}
-      ${card(t('stats.won'), num(s.won), s.played ? Math.round(s.won / s.played * 100) + ' %' : '')}
-      ${card(t('stats.givenUp'), num(s.givenUp))}
-      ${card(t('stats.words'), num(s.words))}
-      ${card(t('stats.unique'), num(s.unique.length))}
-      ${card(t('stats.letters'), num(s.letters))}
-      ${card(t('stats.time'), `${clock(s.timeMs, true)}<span class="muted" style="font:500 13px var(--font-body)"> h</span>`, t('stats.timeSub'))}
-      ${card(t('stats.bestWin'), s.bestWin ? num(s.bestWin) : '—', s.bestWin ? plural(s.bestWin, 'n.guesses') : '')}
-      ${card(t('stats.avgWin'), s.wonRated ? decimal((s.wonGuesses / s.wonRated).toFixed(1)) : '—', t('stats.perWon'))}
-      ${card(t('stats.hardest'), s.hardest ? `<span style="font-size:.7em">${esc(s.hardest.w)}</span>` : '—',
-    s.hardest ? t('stats.hardestSub', { n: s.hardest.score }) : '')}
-      ${card(t('stats.hardWins'), num(s.hardWins ?? 0), t('stats.hardWinsSub', { n: HARD_WIN }))}
-      ${card(t('stats.pools'), num(Object.keys(s.wonPools ?? {}).length), t('stats.poolsSub', { n: CATS.length }))}
-      ${card(t('stats.byLang'), `${num(s.wonLang?.pl ?? 0)} / ${num(s.wonLang?.en ?? 0)}`)}
-      ${hintCard(s.hints, s.hintGames)}
+  const guessPanel = () => `<div class="sgroups">
+      ${group(t('stats.g.games'), [
+    cell(t('stats.played'), num(s.played)),
+    cell(t('stats.won'), num(s.won), pct(s.won, s.played)),
+    cell(t('stats.givenUp'), num(s.givenUp))])}
+      ${group(t('stats.g.words'), [
+    cell(t('stats.words'), num(s.words)),
+    cell(t('stats.wordsPerGame'), per(s.words, s.played)),
+    cell(t('stats.unique'), num(s.unique.length)),
+    cell(t('stats.letters'), num(s.letters)),
+    cell(t('stats.avgLen'), per(s.letters, s.words))])}
+      ${group(t('stats.g.records'), [
+    cell(t('stats.bestWin'), s.bestWin ? num(s.bestWin) : '—', s.bestWin ? plural(s.bestWin, 'n.guesses') : ''),
+    cell(t('stats.avgWin'), s.wonRated ? per(s.wonGuesses, s.wonRated) : '—', t('stats.perWon')),
+    cell(t('stats.hardWins'), num(s.hardWins ?? 0), t('stats.hardWinsSub', { n: HARD_WIN })),
+    cell(t('stats.hardest'), s.hardest ? `<span class="word">${esc(s.hardest.w)}</span>` : '—', s.hardest ? t('stats.hardestSub', { n: s.hardest.score }) : '', true)])}
+      ${group(t('stats.g.more'), [
+    cell(t('stats.pools'), num(Object.keys(s.wonPools ?? {}).length), t('stats.poolsSub', { n: CATS.length })),
+    cell(t('stats.byLang'), `${num(s.wonLang?.pl ?? 0)} / ${num(s.wonLang?.en ?? 0)}`),
+    hintCell(s.hints, s.hintGames),
+    cell(t('stats.time'), `${clock(s.timeMs, true)}<span class="unit"> h</span>`, t('stats.timeSub'))])}
     </div>
     ${gWins ? dist(t('stats.perWinGuess'), `${num(gWins)} ${plural(gWins, 'n.wins')}`,
     [['1–10', gd.a || 0], ['11–25', gd.b || 0], ['26–50', gd.c || 0], ['51+', gd.d || 0]], 'var(--fill-hot)', '#000') : ''}
@@ -931,23 +943,37 @@ export function statsScreen(root, _, refresh) {
   // wins at each word length, 3 to 13, so the player sees which ones are missing
   const lengthsStrip = `<div class="lengths" aria-label="${t('stats.byLen')}">${Array.from({ length: 11 }, (_, i) => i + 3).map(len =>
     `<span class="${lt.wonLen[len] ? 'won' : ''}"><b>${lt.wonLen[len] ? num(lt.wonLen[len]) : '·'}</b><em>${len}</em></span>`).join('')}</div>`;
-  const lettersPanel = () => `<div class="stats">
-        ${card(t('stats.played'), num(lt.played))}
-        ${card(t('stats.won'), num(lt.won), lt.played ? Math.round(lt.won / lt.played * 100) + ' %' : '')}
-        ${card(t('stats.streak'), num(lt.streak), t('stats.streakBest', { n: num(lt.bestStreak) }))}
-        ${card(t('stats.avgWin'), lt.won ? decimal((lt.wonTries / lt.won).toFixed(1)) : '—', t('stats.perWonLt'))}
+  // the word length won most often
+  const fav = Object.entries(lt.wonLen ?? {}).reduce((a, [len, n]) => n > (a?.[1] ?? 0) ? [len, n] : a, null);
+  const lettersPanel = () => `<div class="sgroups">
+        ${group(t('stats.g.games'), [
+    cell(t('stats.played'), num(lt.played)),
+    cell(t('stats.won'), num(lt.won), pct(lt.won, lt.played)),
+    cell(t('stats.lost'), num(lt.lost ?? 0)),
+    cell(t('stats.givenUp'), num(lt.givenUp ?? 0))])}
+        ${group(t('stats.g.streaks'), [
+    cell(t('stats.streakNow'), num(lt.streak)),
+    cell(t('stats.streakTop'), num(lt.bestStreak)),
+    cell(t('stats.avgWin'), lt.won ? per(lt.wonTries, lt.won) : '—', t('stats.perWonLt')),
+    cell(t('stats.favLen'), fav ? num(+fav[0]) : '—', fav ? `${num(fav[1])} ${plural(fav[1], 'n.wins')}` : '')])}
       </div>
       ${lWins + lLost ? dist(t('stats.perWinLt'), `${num(lWins)} ${plural(lWins, 'n.wins')} ${DOT} ${num(lLost)} ${plural(lLost, 'n.losses')}`,
     [...['1', '2', '3', '4', '5', '6'].map(k => [k, ld[k] || 0]), ...(ld['7+'] ? [['7+', ld['7+']]] : []), ['✕', lLost]]) : ''}
       <h2 class="title">${t('stats.byLen')}</h2>
       ${lengthsStrip}`;
   // Connect: its numbers, then the longest word found drawn in green tiles (design v4)
-  const connectPanel = () => `<div class="stats">
-        ${card(t('stats.played'), num(cn.played))}
-        ${card(t('stats.solved'), num(cn.solved), cn.played ? Math.round(cn.solved / cn.played * 100) + ' %' : '')}
-        ${card(t('stats.wordsFound'), num(cn.words))}
-        ${card(t('stats.bonusWords'), num(cn.bonus))}
-        ${hintCard(cn.hints, cn.solved + cn.givenUp)}
+  const cnDone = cn.solved + cn.givenUp;
+  const connectPanel = () => `<div class="sgroups">
+        ${group(t('stats.g.games'), [
+    cell(t('stats.played'), num(cn.played)),
+    cell(t('stats.solved'), num(cn.solved), pct(cn.solved, cn.played)),
+    cell(t('stats.givenUp'), num(cn.givenUp ?? 0))])}
+        ${group(t('stats.g.words'), [
+    cell(t('stats.wordsFound'), num(cn.words)),
+    cell(t('stats.wordsPerGame'), per(cn.words, cnDone)),
+    cell(t('stats.bonusWords'), num(cn.bonus)),
+    cell(t('stats.bonusPerGame'), per(cn.bonus, cnDone)),
+    hintCell(cn.hints, cnDone)])}
       </div>
       ${cn.longest ? `<div class="card best"><span class="eyebrow">${t('stats.longest')}</span>${squares(Array([...cn.longest.w].length).fill('hit'), 32, [...cn.longest.w])}
         <p class="help">${t('stats.longestSub', { n: [...cn.longest.w].length, letters: plural([...cn.longest.w].length, 'lt.letters'), g: esc(cn.longest.game), ago: ago(cn.longest.at) })}</p></div>` : ''}`;
@@ -959,7 +985,7 @@ export function statsScreen(root, _, refresh) {
   }).map(([k, v]) => ({ ...v, lang: k.split('|')[0] }));
   const tsum = k => tlRows.reduce((a, v) => a + (v[k] || 0), 0);
   const tilesPanel = () => {
-    const games = tsum('games'), vsCpu = tsum('vsCpu'), moves = tsum('moves');
+    const games = tsum('games'), vsCpu = tsum('vsCpu'), moves = tsum('moves'), rateBest = tsum('rateBest');
     const best = tlRows.reduce((a, v) => v.bestGame !== null && v.bestGame > a ? v.bestGame : a, -1);
     const bm = tlRows.reduce((a, v) => v.bestMove && (!a || v.bestMove.score > a.score) ? { ...v.bestMove, lang: v.lang } : a, null);
     return `<div class="tl-filters">
@@ -967,15 +993,23 @@ export function statsScreen(root, _, refresh) {
         <div class="chips">${['all', ...LEVEL_ORDER, 'people'].map(l => `<button type="button" class="chip ${on(tlLevel === l)}" data-tl-level="${l}">${
       l === 'all' ? t('stats.tiles.allLevels') : l === 'people' ? t('stats.tiles.people') : t('diff.' + l)}</button>`).join('')}</div>
       </div>
-      <div class="stats">
-        ${card(t('stats.played'), num(tsum('played')))}
-        ${card(t('stats.tiles.won'), num(tsum('won')), vsCpu ? Math.round(tsum('won') / vsCpu * 100) + ' %' : '')}
-        ${card(t('stats.tiles.best'), best >= 0 ? num(best) : '—')}
-        ${card(t('stats.tiles.avg'), games ? num(Math.round(tsum('points') / games)) : '—')}
-        ${card(t('stats.tiles.perMove'), moves ? decimal((tsum('movePoints') / moves).toFixed(1)) : '—')}
-        ${card(t('stats.tiles.bingos'), num(tsum('bingos')))}
-        ${hintCard(tsum('hints'), games)}
-        ${card(t('stats.tiles.passes'), num(tsum('passes')))}
+      <div class="sgroups">
+        ${group(t('stats.g.games'), [
+      cell(t('stats.played'), num(tsum('played'))),
+      cell(t('stats.tiles.won'), num(tsum('won')), pct(tsum('won'), vsCpu)),
+      cell(t('stats.tiles.lost'), num(vsCpu - tsum('won'))),
+      cell(t('stats.tiles.peopleGames'), num(tsum('played') - vsCpu))])}
+        ${group(t('stats.g.points'), [
+      cell(t('stats.tiles.best'), best >= 0 ? num(best) : '—'),
+      cell(t('stats.tiles.avg'), games ? num(Math.round(tsum('points') / games)) : '—'),
+      cell(t('stats.tiles.points'), num(tsum('points'))),
+      cell(t('stats.tiles.perMove'), moves ? per(tsum('movePoints'), moves) : '—')])}
+        ${group(t('stats.g.moves'), [
+      cell(t('stats.tiles.moves'), num(moves)),
+      cell(t('stats.tiles.bingos'), num(tsum('bingos'))),
+      cell(t('stats.tiles.passes'), num(tsum('passes'))),
+      hintCell(tsum('hints'), games),
+      cell(t('stats.tiles.rating'), rateBest ? Math.round(tsum('ratePlayed') / rateBest * 100) + ' %' : '—', t(rateBest ? 'stats.tiles.ratingSub' : 'stats.tiles.ratingNone'))])}
       </div>
       ${bm ? `<div class="card best"><span class="eyebrow">${t('stats.tiles.bestMove')}</span><div class="tl-best"><span class="mt-row">${[...bm.w].map(ch =>
       `<i class="mtl" style="--s:36px">${esc(ch)}<i class="p">${valueOf(bm.lang, ch) ?? ''}</i></i>`).join('')}</span><span class="num">${bm.score}</span></div></div>` : ''}`;

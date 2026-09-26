@@ -178,6 +178,17 @@ export function recordTilesEnd(state, id) {
   if (id) deleteSave(id);
 }
 
+// How good the people's moves were in a finished Tiles game - their points and the best there was, summed - for the
+// statistics' move rating (owner, 2026-09-26). From the end review, so only games that have ratings; its entry was made
+// by recordTilesEnd a moment before.
+export function recordTilesRating(state, played, best) {
+  const r = results(state), s = stats.tl[r.lang + '|' + r.level];
+  if (!s || !best) return;
+  s.ratePlayed = (s.ratePlayed || 0) + played;
+  s.rateBest = (s.rateBest || 0) + best;
+  saveStats();
+}
+
 export function recordConnectEnd(game) {
   const s = stats.cn;
   if (game.status === 'won') s.solved++; else s.givenUp++;

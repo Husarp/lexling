@@ -569,6 +569,15 @@ name gives way in the top bar (to the gear, or Kafelki's "?") - it is on the sav
   "Z podpowiedzi" instead of a percentage; the end review marks it and leaves it out of that player's rating.
 - **Raised tiles in the top row** (0.42.3): the grid leaves a sixth of a square at the top of the board, so their faces
   are not cut off by its edge; a tap is measured on the grid as drawn.
+- **Statistics in groups** (0.49.0, owner: "add more fields, group them better, some boxes are bigger than they
+  should"): each tab is a few cards - Gry, Słowa, Rekordy, Inne (Znaczenie); Gry, Serie i próby (Litery); Gry, Słowa
+  (Połącz); Gry, Punkty, Ruchy (Kafelki) - the numbers in a grid inside, no box per number (a box stretched to its
+  neighbour's height before). Each number is three rows - label, number, note - shared across its row (a subgrid), so
+  the numbers line up when a label wraps. New numbers, mostly worked out from what was already kept: words per game and
+  average word length; Letters' losses, given-up games, current and best streak apart, the favourite length; Connect's
+  given-up games, words and bonus words per game; Kafelki's losses to the computer, games without it, points in all,
+  words played - and the **move rating**, the one new count: the people's points against the best there was, summed
+  from each game's end review (stats.tl[...].ratePlayed / rateBest, from 0.49.0 on).
 - **A word from a hint is rated and counts** (0.48.1, owner: "they should count but still show - after the move and at
   the end"): the box shows the hint's lightbulb before its rating; History and the end review rate it (its "Z podpowiedzi"
   tag stays) and it counts in the player's rating for the game. (0.43.0-0.48.0 left it out.)

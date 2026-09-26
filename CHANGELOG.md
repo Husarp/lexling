@@ -6,6 +6,19 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.49.0 — 2026-09-26 04:51: Statistics in groups, with more numbers
+*(not packaged)*
+
+- **Statistics are grouped** (owner): each tab is a few cards with a title - e.g. Gry, Słowa, Rekordy, Inne - and
+  the numbers laid out inside them. No more boxes stretched to their neighbour's height, and the numbers in a row line
+  up even when a label takes two lines.
+- **More numbers**: Znaczenie - words per game, average word length; Litery - games lost and given up, current and best
+  streak, your favourite word length; Połącz - games given up, words and bonus words per game; Kafelki - games lost to
+  the computer, games without it, points in all, words played, and **Ocena ruchów** (your points against the best
+  there was, over all your games - counted from this version on).
+- Checked in headless Edge at 320, 393 and 1000 px with sample numbers in every game, and a Kafelki game played to the
+  end adding to the move rating.
+
 ## 0.48.1 — 2026-09-26 04:44: Kafelki: words from hints rated and counted; the button row fixed
 *(not packaged)*
 

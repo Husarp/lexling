@@ -2,7 +2,7 @@
 // turns, the hand-over between people, the panel (history, letters left, check a word), the end and the
 // look-back. The rules are tiles.js; finding moves - the computer, hints, the look-back - is tiles-moves.js.
 import { t, esc, clock, plural } from './i18n.js';
-import { settings, saveSettings, getSave, putSave, recordTilesEnd, playClock } from './store.js';
+import { settings, saveSettings, getSave, putSave, recordTilesEnd, recordTilesRating, playClock } from './store.js';
 import { loadWords, resolve } from './engine.js';
 import { has } from './dawg.js';
 import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, checkMove, apply, canExchange,
@@ -695,7 +695,7 @@ export async function tilesGameScreen(root, id) {
     paintStatus();   // the score, when the hint cost points
     paintTurn();
   }
-  let hintPaid = 0, turnHints = [];   // the moves the hints showed this turn
+  let hintPaid = 0, turnHints = [], ratedInStats = false;   // the moves the hints showed this turn
   function pickLetter(ch) {
     if (blankFor < 0 || !draft[blankFor]) return;
     draft[blankFor].ch = ch;
@@ -1017,6 +1017,12 @@ export async function tilesGameScreen(root, id) {
       try { rows = lookBack(S, dict, true); } catch { return; }
       if (!rows.length) return;
       const sum = (p, k) => rows.filter(x => x.p === p).reduce((a, x) => a + (k === 'best' ? x.best?.score ?? 0 : x.played), 0);
+      // the people's moves into the statistics' move rating, once
+      if (!ratedInStats) {
+        ratedInStats = true;
+        const people = S.players.map((x, p) => x.cpu ? -1 : p).filter(p => p >= 0);
+        recordTilesRating(S, people.reduce((a, p) => a + sum(p, 'played'), 0), people.reduce((a, p) => a + sum(p, 'best'), 0));
+      }
       const overall = S.players.map((_, p) => { const best = sum(p, 'best'), got = sum(p, 'played'), r = rateOf(got, best);
         return `<li class="pc${p}"><i></i><span>${esc(nameOf(S, p))}</span>${r ? `<span class="rate rate-${r}">${t('tiles.rate.' + r)} · ${pctOf(got, best)}%</span>` : '<span>—</span>'}</li>`; }).join('');
       box.innerHTML = `<span class="eyebrow">${t('tiles.eval')}</span><ul class="tl-evals">${overall}</ul><p class="help">${t('tiles.eval.help')}</p><ol><li class="head"><span></span><span>${t('tiles.look.played')}</span><span>${t('tiles.hist.rating')}</span><span>${t('tiles.look.best')}</span><span>${t('tiles.hist.who')}</span></li>${rows.map((x, k) => {

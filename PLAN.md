@@ -532,7 +532,7 @@ Order: the game itself first, then these; all of them are in the design prompt, 
       (owner). The Tiles looks were already kept. 0.48.0
 - [x] A word from a hint rated after the move, in History and at the end, and counted in the game's rating (owner:
       "they should count"). 0.48.1
-- [ ] **Statistics**: more fields, better groups, boxes the right size (owner, 2026-09-26).
+- [x] **Statistics**: grouped cards, numbers lined up, new numbers, Kafelki's move rating (owner). 0.49.0
 - [x] A blank paler and without dashes, so it is not taken for a hinted tile (owner); **a game without ratings** - a rule
       on New game: nobody sees any rating in that game, History still lists the moves (owner). 0.46.0
 - [x] **Word meanings** (owner, 2026-09-26) - not downloaded ("too much"): a word opens its meaning in the browser,
