@@ -6,6 +6,18 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.46.0 — 2026-09-26 03:56: Kafelki: a game without ratings, blanks told apart from hints
+*(not packaged)*
+
+- **A game without ratings** (owner): New game → Zasady → **"Oceny ruchów: Dozwolone / Bez ocen"**. With "Bez ocen"
+  nobody sees how good a move was in that game - no box under the board, no rating or best move in History (it still
+  lists every move), no rating at the end, and no rating choice in the game's ⚙. "Dozwolone" works as before: each
+  player's own "Oceniaj moje ruchy" setting decides.
+- **A blank is now a paler tile without dashes** (owner) - in a player's colour, that colour paler. Dashes now mean only
+  a tile from a hint, so the two no longer look alike. How to play says so too.
+- Checked in headless Edge at 360 px: the rule on New game, a game with "Bez ocen" through a pass, History, ⚙ and the
+  end; a blank, a hinted and a plain tile side by side in a player's colour, close up. 270 Tiles tests.
+
 ## 0.45.0 — 2026-09-26 03:38: named games; Kafelki: History as a table, a frame round the board, tile looks explained
 *(not packaged)*
 

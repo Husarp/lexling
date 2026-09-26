@@ -166,7 +166,9 @@ export function checkWord(dict, lang, text) {
 //   you move") - the computer's never; the screen's rule.
 // hintMax: how many hints of each level a player may take - a number, or null for no limit (owner, 2026-09-26).
 export const STANDARD = { premiums: 'once', check: 'auto', exchange: 'bag7', bingo: BINGO, time: null, hints: true,
-  hintMax: { small: null, big: null, master: null }, hintCost: null, undo: false, open: false };
+  hintMax: { small: null, big: null, master: null }, hintCost: null, undo: false, open: false, rating: true };
+// rating: false - a game without move ratings for anyone (owner, 2026-09-26): nothing under the board, no rating in
+// History, none at the end; each player's own setting ("Rate my moves") applies only when it is true.
 // hintCost: null, or 'low' / 'high' - a hint takes a share of the points of the move it shows off its player's score, a
 // bigger share for a better level (owner, 2026-09-26: "a better hint should cost more") - HINT_COST below.
 const OVERTIME = 10;

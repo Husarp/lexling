@@ -655,7 +655,7 @@ export function connectNewScreen(root, _, refresh) {
 const TL_NEW = () => ({ board: 'classic', players: [{ name: '', cpu: null }, { name: '', cpu: 'normal' }], first: null, rules: { ...STANDARD }, rulesOpen: false });
 const TL_TIMES = { move: [30, 60, 120, 180], game: [600, 1200, 1500, 1800] };   // seconds: per move, per game
 const TL_RULES = [['premiums', ['once', 'always']], ['check', ['auto', 'challenge']], ['exchange', ['bag7', 'always']], ['bingo', [50, 0]],
-  ['undo', [false, true]], ['open', [false, true]]];
+  ['undo', [false, true]], ['open', [false, true]], ['rating', [true, false]]];
 // hints: how many of each level a player may take (null = no limit, 0 = that level off)
 const TL_HINT_MAX = [0, 1, 3, 5, 10, null];
 let tlPending = null;
@@ -753,7 +753,7 @@ export function tilesNewScreen(root, _, refresh) {
     const friends = o.players.filter(x => !x.cpu).length > 1;
     const seg = (key, vals, label) => `<div class="seg">${vals.map(v => `<button type="button" data-rule="${key}" data-v="${v}" class="${on(String(r[key]) === String(v))}">${label(v)}</button>`).join('')}</div>`;
     $('.rules-body').innerHTML = TL_RULES.filter(([k]) => (k !== 'undo' || vsCpu) && (k !== 'open' || friends)).map(([k, vals]) => `<div class="rule"><span class="eyebrow">${t('tiles.r.' + k)}</span>${seg(k, vals, v => t(`tiles.r.${k}.${v}`))}${
-      ['check', 'undo', 'open'].includes(k) ? `<p class="help">${t(`tiles.r.${k}Help`)}</p>` : ''}</div>`).join('')
+      ['check', 'undo', 'open', 'rating'].includes(k) ? `<p class="help">${t(`tiles.r.${k}Help`)}</p>` : ''}</div>`).join('')
       + `<div class="rule"><span class="eyebrow">${t('tiles.r.time')}</span><div class="seg">${['none', 'move', 'game'].map(v =>
         `<button type="button" data-time="${v}" class="${on(per === v)}">${t('tiles.r.time.' + v)}</button>`).join('')}</div>${per === 'none' ? '' : `<div class="seg">${TL_TIMES[per].map(s =>
         `<button type="button" data-secs="${s}" class="${on(r.time.seconds === s)}">${s < 60 ? t('tiles.sec', { n: s }) : t('tiles.min', { n: s / 60 })}</button>`).join('')}</div><p class="help">${t('tiles.r.timeHelp.' + per)}</p>`}</div>`;

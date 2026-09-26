@@ -179,7 +179,7 @@ export async function tilesGameScreen(root, id) {
   </div></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main'), play = app.querySelector('.tl-play');
-  wireGear(root, [['tilesRate', t('tiles.rate.setting'), t('tiles.rate.settingHelp'), RATE_LOOKS.map(([v, k]) => [v, t('tiles.rate.look.' + k)])], ['tilesColours', t('tiles.colours'), t('tiles.coloursHelp'), COLOUR_LOOKS.map(([v, k]) => [v, t('tiles.colours.' + k)])], ['tiles3d', t('tiles.raised'), t('tiles.raisedHelp')], ['tilesBonus', t('tiles.bonus'), t('tiles.bonusHelp'), BONUS_LOOKS.map(([v, k]) => [v, t('tiles.bonus.' + k)])]],
+  wireGear(root, [...(game.state.rules.rating === false ? [] : [['tilesRate', t('tiles.rate.setting'), t('tiles.rate.settingHelp'), RATE_LOOKS.map(([v, k]) => [v, t('tiles.rate.look.' + k)])]]), ['tilesColours', t('tiles.colours'), t('tiles.coloursHelp'), COLOUR_LOOKS.map(([v, k]) => [v, t('tiles.colours.' + k)])], ['tiles3d', t('tiles.raised'), t('tiles.raisedHelp')], ['tilesBonus', t('tiles.bonus'), t('tiles.bonusHelp'), BONUS_LOOKS.map(([v, k]) => [v, t('tiles.bonus.' + k)])]],
     () => { if (S.over) return; paintStatus(); paintRate(); paintBoard(); paintMore(); });
   const $ = s => play.querySelector(s);
   const status = $('.status'), boardEl = $('.tl-board'), tb = $('.tb'), say = $('.say'), rackEl = $('.tl-rack'), dock = $('.tl-dock');
@@ -378,7 +378,7 @@ export async function tilesGameScreen(root, id) {
   // the panel: history, letters left, check a word - or the guide
   function histHtml() {
     const words = m => m.words.map(x => wordLink(x.w, lang)).join(', ');
-    const rated = settings.tilesRate !== false;
+    const rated = rateOn();
     const rows = S.moves.map((m, i) => {
       if (histOf !== null && m.p !== histOf) return '';
       const quiet = m.kind !== 'play';
@@ -387,7 +387,7 @@ export async function tilesGameScreen(root, id) {
         : m.kind === 'swap' ? t('tiles.hist.exchanged', { n: m.n }) : m.kind === 'pass' ? t('tiles.hist.passed')
           : m.kind === 'timeout' ? t('tiles.hist.timeout') : m.kind === 'withdrawn' ? `${words(m)} · ${t('tiles.hist.withdrawn')}`
             : t(m.ok ? 'tiles.hist.challengeWon' : 'tiles.hist.challengeLost');
-      const ev = settings.tilesRate !== false && m.kind === 'play' && !m.hinted && game.evals?.[i], r = ev && rateOf(m.score, ev.best);
+      const ev = rated && m.kind === 'play' && !m.hinted && game.evals?.[i], r = ev && rateOf(m.score, ev.best);
       const best = r && settings.tilesRate === true && m.score < ev.best ? `<small class="best">${bestWas(ev)}</small>` : '';
       return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${i + 1}</span><span class="w">${w}${best}</span><span class="r">${m.kind === 'hint' ? (m.cost ? '−' + m.cost : '–') : quiet ? '–' : m.score}</span>${
         rated ? `<span class="pct">${r ? `<small class="rate rate-${r}">${pctOf(m.score, ev.best)}%</small>` : ''}</span>` : ''}<span class="who">${esc(nameOf(S, m.p))}</span></li>`;
@@ -460,7 +460,7 @@ export async function tilesGameScreen(root, id) {
     const p = S.turn, before = S;
     if (!cpu(p)) action = { ...action, ms: game.turnMs || 0 };
     // the best move there was this turn - for rating it (settings: "Rate my moves"; History)
-    const top = ['place', 'exchange', 'pass', 'timeout'].includes(action.type) ? bestMove(S, dict) : undefined;
+    const top = S.rules.rating !== false && ['place', 'exchange', 'pass', 'timeout'].includes(action.type) ? bestMove(S, dict) : undefined;
     try { S = apply(S, action, isWord); } catch (e) { msg = { html: esc(e.message), err: true }; paintSay(); return false; }
     game.state = S;
     game.turnMs = 0;
@@ -501,12 +501,14 @@ export async function tilesGameScreen(root, id) {
     }
     return null;
   }
+  // ratings shown: the game allows them (New game) and the player's setting has them on
+  const rateOn = () => S.rules.rating !== false && settings.tilesRate !== false;
   const bestWas = ev => t('tiles.rate.bestWas', { w: `<b>${esc(ev.word.toUpperCase())}</b>`, n: ev.best });
   let rating = null;        // the box under the board: how good the last person's move was - { who, badge, best }
   const paintRate = () => {
-    const inner = settings.tilesRate !== false && !S.over && rating ? rating.badge + (settings.tilesRate === true ? rating.best : '') : '';
+    const inner = rateOn() && !S.over && rating ? rating.badge + (settings.tilesRate === true ? rating.best : '') : '';
     rateEl.innerHTML = inner ? `<span class="rbox">${rating.who ? `<b>${rating.who}:</b>` : ''}${inner}</span>` : '';
-    rateEl.parentElement.classList.toggle('rated', settings.tilesRate !== false);   // its room kept while ratings are on
+    rateEl.parentElement.classList.toggle('rated', rateOn());   // its room kept while ratings are on
   };
   // Whose turn now: a computer thinks; between people the device changes hands first, the rack hidden.
   function next() {
@@ -992,7 +994,7 @@ export async function tilesGameScreen(root, id) {
     // was, then every turn - who, what, its rating, the best move. It replays the game, so it comes a moment after the rest.
     setTimeout(() => {
       const box = main.querySelector('.tl-look');
-      if (!box?.isConnected) return;
+      if (!box?.isConnected || S.rules.rating === false) return;   // a game without ratings: none at the end either
       let rows;
       try { rows = lookBack(S, dict, true); } catch { return; }
       if (!rows.length) return;

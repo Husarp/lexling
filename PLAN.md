@@ -526,7 +526,8 @@ Order: the game itself first, then these; all of them are in the design prompt, 
       over their letters; a tapped tile back on a second tap or after 5 s; a frame round the whole board; every tile
       look explained in How to play (owner, 2026-09-26). 0.45.0
 - [ ] **The rating box redesigned** - the owner designs it from a prompt (sent 2026-09-26), then it is built.
-- [ ] Blank and hinted tiles look alike with the player colours on (both dashed) - asked whether one should change.
+- [x] A blank paler and without dashes, so it is not taken for a hinted tile (owner); **a game without ratings** - a rule
+      on New game: nobody sees any rating in that game, History still lists the moves (owner). 0.46.0
 - [x] **Word meanings** (owner, 2026-09-26) - not downloaded ("too much"): a word opens its meaning in the browser,
       sjp.pl for Polish, Wiktionary for English - Check a word and History in Kafelki, the guesses in Znaczenie, the
       end cards of every game. 0.40.0

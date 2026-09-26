@@ -846,8 +846,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .t .p:empty{display:none}
 /* 15 squares under ~24px: the points are unreadable, so they go until the board zooms in */
 @container (max-width:380px){.tb.n15:not(.zoom) .t .p{display:none}}
-/* a blank once down: paler, dashed ring, its letter and no points */
-.t.bl{background:var(--tl-blank);box-shadow:inset 0 0 0 var(--rw) var(--ring);border:calc(var(--cs) * .06) dashed rgba(26,26,26,.5)}
+/* a blank once down: paler, its letter and no points - no dashes, those mean a hint (owner, 2026-09-26) */
+.t.bl{background:var(--tl-blank);box-shadow:inset 0 0 0 var(--rw) var(--ring)}
 .t.bl .p{display:none}
 /* who played it: the letter colour (setting on, the default) */
 .tb.own .t.y{color:var(--tl-you)}
@@ -1345,3 +1345,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .topbar .eyebrow.gname{display:flex;gap:.45em}
 .topbar .gname .nm{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .topbar .gname .no{flex:none}
+/* a blank in a player's colour: that colour, paler - told apart from a hinted tile by that, not by dashes */
+.tb.own .t.bl:is(.p0,.p1,.p2,.p3,.p4){background:color-mix(in srgb,var(--pt) 50%,#fff)}
+.tb.raised.own .t.bl:is(.p0,.p1,.p2,.p3,.p4):not(.hint){--face:color-mix(in srgb,var(--pt) 50%,#fff)}

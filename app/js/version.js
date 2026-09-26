@@ -1,3 +1,3 @@
-﻿export const VERSION = '0.45.0';
+﻿export const VERSION = '0.46.0';
 // "owner/repo" on GitHub whose releases are the update feed; empty until the repository exists (PLAN.md M5).
 export const REPO = 'Husarp/lexling';
