@@ -882,11 +882,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-drag i{position:absolute;right:5px;bottom:6px;font:700 12px/1 var(--font-body);font-style:normal}
 
 /* ── the message line: the move's words + points, or why it can't be played ── */
-[data-screen=tiles] .say{grid-area:say;min-height:24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:0 6px;text-align:center;font-size:14px;line-height:1.3;color:var(--text-muted)}
-[data-screen=tiles] .say b{color:var(--text);font-weight:600;text-transform:uppercase}
-[data-screen=tiles] .say .pts{font:800 20px/1 var(--font-display);color:var(--accent)}
-[data-screen=tiles] .say.err{color:var(--error)}
-[data-screen=tiles] .say.err b{color:var(--error)}
 
 /* ── the rack ── */
 .tl-rack{grid-area:rack;container-type:inline-size;display:flex;justify-content:center;gap:6px;padding-top:6px}
@@ -1009,8 +1004,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
   .tl-bag{padding:4px 20px 5px 9px}
   .tl-side .num,.tl-bag .num{font-size:24px}
   .tl-chev{bottom:7px}
-  [data-screen=tiles] .say{min-height:20px;font-size:13px}
-  [data-screen=tiles] .say .pts{font-size:18px}
   .tl-rack{padding-top:4px}
   .tl-tool{min-height:46px;gap:3px;padding:4px 2px}
   .tl-tool svg{width:20px;height:20px}
@@ -1062,7 +1055,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-check .res.ok{color:var(--success,#79B851)}.tl-check .res.no{color:var(--error)}
 .tl-row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);font-size:14px}
 /* the guide: the same topics as on New game, from the "?" in the top bar */
-.tl-q{min-width:36px;min-height:36px;padding:0;font:700 16px/1 var(--font-body)}
 .tl-topics{display:grid;gap:var(--space-2)}
 .tl-topics details{border-top:1px solid var(--line-soft);padding-top:var(--space-2)}
 .tl-topics summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);min-height:40px;cursor:pointer;font-weight:600}
@@ -1178,8 +1170,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .gs-row strong{font-weight:600}
 .gs-row .row-text span{font-size:13px;line-height:1.4;color:var(--text-muted)}
 /* on a narrow phone the game's name gives way to the gear (and Tiles' "?") - it is on the saved-games list anyway */
-.topbar .gs-open,.topbar .tl-q{flex:none}
-@media (max-width:374px){.topbar .side.end:has(.gs-open, .tl-q)>.eyebrow{display:none}}
+.topbar .gs-open{flex:none}
+@media (max-width:374px){.topbar .side.end:has(.gs-open)>.eyebrow{display:none}}
 /* 0.40.0: what a word means (owner, 2026-09-26) - a button under a word, or the word itself as a link, opening the
    browser (sjp.pl, Wiktionary) */
 .btn.mean svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -1199,7 +1191,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-theme=light] .rate-good{--rate-ink:#1F5FA8}
 [data-theme=light] .rate-fair{--rate-ink:#8A5A00}
 [data-theme=light] .rate-weak{--rate-ink:#B32020}
-[data-screen=tiles] .say .best-was{font-size:12px;color:var(--text-dim)}
 .tl-hist .pct{text-align:center}
 .tl-hist .pct .rate{padding:1px 5px;font-size:10px}
 .tl-evals{list-style:none;padding:0;margin:0;display:grid;gap:6px}
@@ -1213,7 +1204,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tb.tint .q.l2{color:var(--tb-2l-txt)}.tb.tint .q.l3{color:var(--tb-3l-txt)}.tb.tint .q.w2{color:var(--tb-2w-txt)}.tb.tint .q.w3{color:var(--tb-3w-txt)}
 /* a choice of three, on its own line under its label (History, the gear) */
 .tl-row.col,.gs-row.col{flex-direction:column;align-items:stretch;gap:var(--space-2)}
-.gs-row .seg button,.tl-row .seg button{min-height:38px;font-size:11px;padding:0 6px;letter-spacing:.03em}
+.gs-row .seg button,.tl-row .seg button{min-height:38px;font-size:11px;padding:0 6px;letter-spacing:.03em;white-space:normal;line-height:1.15}
 #bonus{margin-top:var(--space-2)}
 /* raised tiles (a setting, owner 2026-09-26: "true 3D - over the tiles above, the letter centred"): the tile's face is
    lifted a sixth of a square, over the square above; below it the tile's thickness - its own colour, darker - fills down
@@ -1228,17 +1219,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
    (owner, 2026-09-26: "orange in both top corners" - a zoomed-in 2S square behind a rounder corner) */
 [data-screen=tiles] .tl-panel{border-radius:8px}
 /* in the end review a long rating may wrap rather than run into the next column */
-/* the message line above the rack, much bigger (owner, 2026-09-26: "way bigger - everything shown there") */
-[data-screen=tiles] .say{font-size:18px;line-height:1.35;min-height:30px;gap:2px 8px}
-[data-screen=tiles] .say b{font:700 22px/1.1 var(--font-display);letter-spacing:.01em}
-[data-screen=tiles] .say .pts{font-size:30px}
-[data-screen=tiles] .say .rate{font-size:14px;padding:3px 9px}
-[data-screen=tiles] .say .best-was{font-size:15px}
-@container (max-width:480px){
-  [data-screen=tiles] .say{font-size:17px;min-height:28px}
-  [data-screen=tiles] .say b{font-size:21px}
-  [data-screen=tiles] .say .pts{font-size:27px}
-}
 /* a tile tapped on the board shows the square under it for a moment */
 .tb .t.peek{opacity:.12;transition:opacity 120ms var(--ease)}
 /* the final board on the end screen is only to look at: a finger on it scrolls the page (in the game the board keeps every
@@ -1273,14 +1253,10 @@ input,textarea{-webkit-user-select:text;user-select:text}
   .ps .nm,.ps-bag .nm{font-size:10.5px;letter-spacing:.03em}
   .ps-bag{padding:5px 8px 6px}
 }
-/* the rating of the last move directly under the board, inside the board's own space (owner, 2026-09-26): the board stays
-   at the top of that space and keeps its place - the rating's room is kept while ratings are on, whether a rating shows
-   or not, and the board is the largest square that fits above it; the message line below, the word and its points apart */
+/* the board at the top of its space, the largest square that fits (the rating that sat under it is in the move cards
+   since 0.50.2) */
 [data-screen=tiles] .tl-bwrap{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;--rate-h:0px}
-[data-screen=tiles] .tl-bwrap.rated{--rate-h:34px}
 [data-screen=tiles] .tl-bwrap .tl-board{flex:none;width:min(100cqw,calc(100cqh - var(--rate-h)))}
-[data-screen=tiles] .tl-rate{flex:none;height:var(--rate-h);width:100%;margin:0;display:flex;flex-wrap:nowrap;align-items:center;justify-content:center;gap:4px 10px;overflow:hidden;font-size:16px;line-height:1.3;color:var(--text-muted);text-align:center;white-space:nowrap}
-[data-screen=tiles] .say{gap:2px 14px}
 /* Settings on a phone: a row's choices fill its width instead of stopping at 320 px with empty space beside them (owner,
    2026-09-26: "why are some sections so stretched out with so much unused space?") */
 @media (max-width:480px){[data-screen=settings] .row .seg{flex:1 1 100%;max-width:none}}
@@ -1288,10 +1264,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-pick-head .acts{display:flex;gap:var(--space-2);margin-left:auto}
 /* the board has a frame on every side (--fr on .tb, owner 2026-09-26: "make the grey line at the top a frame round the
    whole board"), raised tiles or not - a raised tile in the top row stands up into it instead of being cut off */
-/* the message line keeps room for two lines, so the board above does not move when the text changes length (owner,
-   2026-09-26) */
-[data-screen=tiles].fit .say{min-height:64px;align-content:center}
-@container (max-width:480px){[data-screen=tiles].fit .say{min-height:58px}}
 /* New game: Hints, a section of its own - on / off, and how many of each level per player (owner, 2026-09-26) */
 .tl-hints{display:grid;gap:var(--space-2);padding:var(--space-3) var(--space-4)}
 .tl-hints .rule{display:grid;gap:8px}
@@ -1339,26 +1311,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 :root[data-tilecolour=wood]{--tl-tile:#E3B888;--tl-blank:#F2DDC6}
 :root[data-tilecolour=mint]{--tl-tile:#BDE8D0;--tl-blank:#E4F6EC}
 .sw{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:5px;background:var(--sw);color:#1A1A1A;font:800 14px/1 var(--font-display);box-shadow:inset 0 -2px 0 rgba(0,0,0,.2),0 0 0 1px rgba(0,0,0,.3)}
-/* the rating under the board (owner, 2026-09-26: "still looks bad"): a card as wide as the board - the band and its
-   percent on the left in the band's colour, the best move there was on the right, a bar along the bottom to the percent */
-[data-screen=tiles] .tl-bwrap.rated{--rate-h:48px}
-[data-screen=tiles] .tl-rate{padding-top:6px;align-items:stretch}
-[data-screen=tiles] .tl-rate .rbox{position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-width:0;box-sizing:border-box;padding:0 12px 3px;border:1.5px solid color-mix(in srgb,var(--rate-ink) 45%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--rate-ink) 9%,var(--surface));overflow:hidden}
-[data-screen=tiles] .tl-rate .rbox::after{content:"";position:absolute;left:0;bottom:0;width:var(--pct,0%);height:3px;background:var(--rate-ink)}
-.rbox .rl,.rbox .rr{display:flex;align-items:baseline;gap:8px;min-width:0}
-.rbox .rl{flex:none}
-.rbox .who{font:600 11px/1 var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
-.rbox .band{font:800 18px/1 var(--font-display);letter-spacing:.02em;text-transform:uppercase;color:var(--rate-ink)}
-.rbox .pc{font:800 22px/1 var(--font-display);font-variant-numeric:tabular-nums;color:var(--text)}
-.rbox .rr{overflow:hidden}
-.rbox .lbl{flex:none;font:600 10px/1 var(--font-body);letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
-.rbox .rr b{min-width:0;overflow:hidden;text-overflow:ellipsis;font:800 18px/1 var(--font-display);text-transform:uppercase;color:var(--text)}
-.rbox .pts{flex:none;font:800 18px/1 var(--font-display);color:var(--accent)}
-.rbox.rate-none{--rate-ink:var(--text-muted)}
-/* a move from a hint: rated like any other, the hint's lightbulb before its rating (owner, 2026-09-26) */
-.rbox .hi{align-self:center;display:inline-flex;color:var(--text-muted)}
-.rbox .hi svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-@container (max-width:360px){[data-screen=tiles] .tl-rate .rbox{gap:8px;padding:0 10px 3px}.rbox .band,.rbox .rr b,.rbox .pts{font-size:16px}.rbox .pc{font-size:19px}.rbox .lbl{display:none}}
 /* the end review as a table (owner, 2026-09-26): played, rating, best, player - each column lined up, names not dots */
 .tl-look .pct{text-align:center}
 .tl-look .pct .rate{padding:1px 5px;font-size:10px}
@@ -1414,3 +1366,56 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-look .w .hi svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 /* the letters just drawn from the bag, outlined on the rack for a few seconds (owner, 2026-09-26) */
 .rt.fresh{outline:2px solid var(--accent);outline-offset:2px}
+/* ── Tiles, 0.50.2 (owner, 2026-09-26) ── */
+/* under the board, two move cards - yours and the latest other move - in one grid, so name, words, points and rating
+   line up as in History; the best move there was under a move; the letters just drawn from the bag below them */
+[data-screen=tiles] .tl-moves{grid-area:say;display:grid;gap:4px;min-width:0;min-height:108px;align-content:start}
+.tl-moves .mcards{display:grid;grid-template-columns:minmax(0,max-content) minmax(0,1fr) auto auto;column-gap:10px;row-gap:4px}
+.tl-moves .mc{grid-column:1 / -1;display:grid;grid-template-columns:subgrid;align-items:center;row-gap:2px;min-height:42px;padding:5px 10px;border:1px solid var(--line-soft);border-radius:10px;background:var(--surface)}
+.tl-moves .mc.me{border-color:var(--line)}
+.tl-moves .mc.live{border-color:var(--accent)}
+.tl-moves .mc.err{border-color:var(--error)}
+.tl-moves .who{max-width:12ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 11px/1.2 var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--pt)}
+[data-theme=light] .tl-moves .who{color:var(--pc)}
+.tl-moves .w{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 19px/1.1 var(--font-display);text-transform:uppercase;color:var(--text)}
+.tl-moves .w small{font:500 12px/1 var(--font-body);color:var(--text-muted)}
+.tl-moves .w.quiet{font:500 14px/1.2 var(--font-body);text-transform:none;color:var(--text-muted)}
+.tl-moves .pt{font:800 22px/1 var(--font-display);font-variant-numeric:tabular-nums;color:var(--accent);text-align:right}
+.tl-moves .rr{justify-self:end;min-width:0}
+.tl-moves .rr .rate{font-size:11px;padding:2px 7px}
+.tl-moves .hlv{font:600 11px/1 var(--font-body);color:var(--text-muted);white-space:nowrap}
+.tl-moves .bw{grid-column:2 / -1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text-muted)}
+.tl-moves .bw b{font:700 14px/1 var(--font-display);color:var(--text)}
+.tl-moves .msg{grid-column:2 / -1;min-width:0;font-size:14px;line-height:1.3;color:var(--text-muted)}
+.tl-moves .msg b{color:var(--text);font-weight:600;text-transform:uppercase}
+.tl-moves .msg .pts{font:800 18px/1 var(--font-display);color:var(--accent)}
+.tl-moves .mc.err .msg,.tl-moves .mc.err .msg b{color:var(--error)}
+.tl-moves .hi{display:inline-flex;vertical-align:-2px;margin-right:4px;color:var(--text-muted)}
+.tl-moves .hi svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tl-moves .mc-bag{margin:0;min-height:16px;font-size:12px;line-height:16px;text-align:center;color:var(--text-muted)}
+.tl-moves .mc-bag b{color:var(--text);letter-spacing:.06em}
+@container (max-width:400px){.tl-moves .rate .bn{display:none}.tl-moves .w{font-size:17px}.tl-moves .pt{font-size:20px}}
+/* the row under the scores: Save and exit, the check, Options */
+[data-screen=tiles] .status-actions .tl-exit,[data-screen=tiles] .status-actions .tl-opts{display:inline-flex;align-items:center;gap:6px}
+[data-screen=tiles] .status-actions .tl-exit{margin-right:auto}
+.tl-exit svg,.tl-opts svg{flex:none;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* Options: History and How to play; Settings and Look, one open at a time; Give up */
+.op-go{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 6px}
+.op-go .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 8px}
+.op-go svg{flex:none;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.op-go b{font:800 17px/1 var(--font-display)}
+.op-sec{border-top:1px solid var(--line-soft)}
+.op-sec summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;cursor:pointer;list-style:none;font-weight:600}
+.op-sec summary::-webkit-details-marker{display:none}
+.op-sec summary .arrow{color:var(--text-muted);transition:transform var(--dur) var(--ease)}
+.op-sec[open] summary .arrow{transform:rotate(90deg)}
+.op-quit{width:100%;margin-top:10px}
+/* Undo and Redo beside Play, on its row */
+.tl-dock .br{flex-basis:100%;height:0}
+.tl-dock .ur{flex:none;width:52px;min-height:48px;padding:0}
+.tl-dock:has(.ur) .play{flex:1 1 0}
+/* a person's time, on their chip's name line */
+.ps{grid-template-columns:auto minmax(0,1fr) auto}
+.ps .tm{font:600 11px/1 var(--font-body);font-variant-numeric:tabular-nums;color:var(--text-muted)}
+/* the settings windows on the narrowest phones: wider, less padding - three choices keep their words whole */
+@media (max-width:360px){.game-settings{width:calc(100vw - 16px);padding:var(--space-3) var(--space-3)}.game-settings .seg button{font-size:10px;letter-spacing:0;padding:0 3px}}

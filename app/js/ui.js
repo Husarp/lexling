@@ -47,42 +47,52 @@ export function flashTap(el) {
 }
 export const wireGear = (root, extra = [], onChange = () => {}) =>
   wireDialog(root, '.gs-open', t('set.title'), [['sound', t('set.sound'), t('set.soundDesc')], ...extra], onChange);
-// A small settings window opened by `trigger` (the gear; Tiles' palette): switches, and choices - [value, label, name],
-// the label may be a picture (a colour swatch), `name` then says it.
+// A small settings window opened by `trigger` (the gear): its rows, changed as they are tapped.
 export function wireDialog(root, trigger, title, items, onChange = () => {}) {
   root.firstElementChild.addEventListener('click', e => {        // the screen, which goes when it is replaced
     if (!e.target.closest(trigger)) return;
-    const dlg = document.createElement('dialog');
-    dlg.className = 'card game-settings';
-    dlg.innerHTML = `<div class="gs-head"><span class="eyebrow">${title}</span><button class="btn btn-ghost gs-close" type="button" aria-label="${t('tiles.close')}">✕</button></div>${
-      items.map(([key, label, help, choices]) => choices
-        ? `<div class="gs-row col"><div class="row-text"><strong>${label}</strong><span>${help}</span></div><div class="seg" role="radiogroup">${choices.map(([v, text, name]) =>
-          `<button type="button" data-key="${key}" data-v="${v}" class="${settings[key] === v ? 'on' : ''}"${name ? ` aria-label="${name}" title="${name}"` : ''}>${text}</button>`).join('')}</div></div>`
-        : `<div class="gs-row"><div class="row-text"><strong>${label}</strong><span>${help}</span></div><button type="button" class="toggle${settings[key] ? ' on' : ''}" role="switch" aria-checked="${!!settings[key]}" aria-label="${label}" data-key="${key}"></button></div>`).join('')}`;
-    const keys = e => {
-      e.stopPropagation();
-      if (e.key === 'Escape') { e.preventDefault(); close(); }
-    };
-    const close = () => { window.removeEventListener('keydown', keys, true); dlg.close(); dlg.remove(); };
-    window.addEventListener('keydown', keys, true);
-    dlg.addEventListener('click', e => {
-      const toggle = e.target.closest('[data-key]');
-      if (toggle) {
-        const key = toggle.dataset.key, v = toggle.dataset.v;
-        if (v === undefined) {
-          settings[key] = !settings[key];
-          toggle.classList.toggle('on', settings[key]);
-          toggle.setAttribute('aria-checked', settings[key]);
-        } else {
-          settings[key] = v === 'true' ? true : v === 'false' ? false : v;
-          dlg.querySelectorAll(`[data-key="${key}"]`).forEach(b => b.classList.toggle('on', b === toggle));
-        }
-        saveSettings();
-        if (key === 'sound') click(); else onChange(key);
-      } else if (e.target === dlg || e.target.closest('.gs-close')) close();   // the backdrop, or ✕
-    });
-    document.body.append(dlg);
-    dlg.showModal();
+    wireSettingRows(openDialog(title, settingRows(items)).dlg, onChange);
+  });
+}
+// A small window over the screen: a head with the title and ✕; Esc, ✕ or a tap outside closes it. (Tiles' Options is
+// one too, with more in it - owner, 2026-09-26.) Returns the dialog and its close().
+export function openDialog(title, body) {
+  const dlg = document.createElement('dialog');
+  dlg.className = 'card game-settings';
+  dlg.innerHTML = `<div class="gs-head"><span class="eyebrow">${title}</span><button class="btn btn-ghost gs-close" type="button" aria-label="${t('tiles.close')}">✕</button></div>${body}`;
+  const keys = e => {
+    e.stopPropagation();
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+  };
+  const close = () => { window.removeEventListener('keydown', keys, true); dlg.close(); dlg.remove(); };
+  window.addEventListener('keydown', keys, true);
+  dlg.addEventListener('click', e => { if (e.target === dlg || e.target.closest('.gs-close')) close(); });   // the backdrop, or ✕
+  document.body.append(dlg);
+  dlg.showModal();
+  return { dlg, close };
+}
+// Settings as rows: [key, label, help] a switch; [key, label, help, choices] a choice - each [value, label, name], the
+// label may be a picture (a colour swatch), `name` then says it.
+export const settingRows = items => items.map(([key, label, help, choices]) => choices
+  ? `<div class="gs-row col"><div class="row-text"><strong>${label}</strong><span>${help}</span></div><div class="seg" role="radiogroup">${choices.map(([v, text, name]) =>
+    `<button type="button" data-key="${key}" data-v="${v}" class="${settings[key] === v ? 'on' : ''}"${name ? ` aria-label="${name}" title="${name}"` : ''}>${text}</button>`).join('')}</div></div>`
+  : `<div class="gs-row"><div class="row-text"><strong>${label}</strong><span>${help}</span></div><button type="button" class="toggle${settings[key] ? ' on' : ''}" role="switch" aria-checked="${!!settings[key]}" aria-label="${label}" data-key="${key}"></button></div>`).join('');
+// A tap on one of those rows: the setting changes and is saved, then onChange(key) - Sound answers with its click.
+export function wireSettingRows(el, onChange = () => {}) {
+  el.addEventListener('click', e => {
+    const toggle = e.target.closest('[data-key]');
+    if (!toggle) return;
+    const key = toggle.dataset.key, v = toggle.dataset.v;
+    if (v === undefined) {
+      settings[key] = !settings[key];
+      toggle.classList.toggle('on', settings[key]);
+      toggle.setAttribute('aria-checked', settings[key]);
+    } else {
+      settings[key] = v === 'true' ? true : v === 'false' ? false : v;
+      el.querySelectorAll(`[data-key="${key}"]`).forEach(b => b.classList.toggle('on', b === toggle));
+    }
+    saveSettings();
+    if (key === 'sound') click(); else onChange(key);
   });
 }
 
