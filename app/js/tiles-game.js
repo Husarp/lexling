@@ -49,6 +49,10 @@ export const coloursSeg = () => `<div class="seg" role="radiogroup">${COLOUR_LOO
   `<button type="button" data-colours="${v}" class="${settings.tilesColours === v ? 'on' : ''}">${t('tiles.colours.' + k)}</button>`).join('')}</div>`;
 export const bonusSeg = () => `<div class="seg" role="radiogroup">${BONUS_LOOKS.map(([v, k]) =>
   `<button type="button" data-bonus="${v}" class="${settings.tilesBonus === v ? 'on' : ''}">${t('tiles.bonus.' + k)}</button>`).join('')}</div>`;
+// the rating after a move: with the best move there was, the rating alone (find the better move yourself), or off
+export const RATE_LOOKS = [[true, 'best'], ['score', 'score'], [false, 'off']];
+export const rateSeg = () => `<div class="seg" role="radiogroup">${RATE_LOOKS.map(([v, k]) =>
+  `<button type="button" data-rate="${v}" class="${settings.tilesRate === v ? 'on' : ''}">${t('tiles.rate.look.' + k)}</button>`).join('')}</div>`;
 export const bonusOf = v => v === 'true' ? true : v === 'false' ? false : v;
 
 // A player's name as shown: the one typed on New game, or - in the interface language - "You" / "Computer" when
@@ -170,7 +174,7 @@ export async function tilesGameScreen(root, id) {
   </div></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main'), play = app.querySelector('.tl-play');
-  wireGear(root, [['tilesRate', t('tiles.rate.setting'), t('tiles.rate.settingHelp')], ['tilesColours', t('tiles.colours'), t('tiles.coloursHelp'), COLOUR_LOOKS.map(([v, k]) => [v, t('tiles.colours.' + k)])], ['tiles3d', t('tiles.raised'), t('tiles.raisedHelp')], ['tilesBonus', t('tiles.bonus'), t('tiles.bonusHelp'), BONUS_LOOKS.map(([v, k]) => [v, t('tiles.bonus.' + k)])]],
+  wireGear(root, [['tilesRate', t('tiles.rate.setting'), t('tiles.rate.settingHelp'), RATE_LOOKS.map(([v, k]) => [v, t('tiles.rate.look.' + k)])], ['tilesColours', t('tiles.colours'), t('tiles.coloursHelp'), COLOUR_LOOKS.map(([v, k]) => [v, t('tiles.colours.' + k)])], ['tiles3d', t('tiles.raised'), t('tiles.raisedHelp')], ['tilesBonus', t('tiles.bonus'), t('tiles.bonusHelp'), BONUS_LOOKS.map(([v, k]) => [v, t('tiles.bonus.' + k)])]],
     () => { if (S.over) return; paintStatus(); paintRate(); paintBoard(); paintMore(); });
   const $ = s => play.querySelector(s);
   const status = $('.status'), boardEl = $('.tl-board'), tb = $('.tb'), say = $('.say'), rackEl = $('.tl-rack'), dock = $('.tl-dock');
@@ -491,6 +495,7 @@ export async function tilesGameScreen(root, id) {
   const paintRate = () => {
     rateEl.innerHTML = settings.tilesRate !== false && !S.over ? rating : '';
     rateEl.parentElement.classList.toggle('rated', settings.tilesRate !== false);   // its room kept while ratings are on
+    rateEl.classList.toggle('no-best', settings.tilesRate === 'score');
   };
   // Whose turn now: a computer thinks; between people the device changes hands first, the rack hidden.
   function next() {

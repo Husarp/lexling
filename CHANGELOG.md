@@ -6,6 +6,17 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.43.1 — 2026-09-26 02:43: Kafelki: "Rating only", a tidier ⚙ window
+*(not packaged)*
+
+- **"Oceniaj moje ruchy" has three choices** (owner): Z najlepszym / Tylko ocena / Wyłączone - in Settings and in the
+  game's ⚙. "Tylko ocena" shows how good your move was but not the best move you could have played, so you can look
+  for it yourself; the end-of-game review still shows the best moves.
+- **The ⚙ window**: rows with three choices were stretched with big empty gaps; now they are as tall as their text,
+  and the whole window fits on a phone.
+- Several hints in one turn stay allowed (owner).
+- Checked in headless Edge: the choice in Settings at 320 px, the best move hidden and shown again from ⚙ mid-game.
+
 ## 0.43.0 — 2026-09-26 02:33: Kafelki: hints that cost points, hinted moves marked
 *(not packaged)*
 

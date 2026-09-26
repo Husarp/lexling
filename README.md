@@ -61,7 +61,8 @@ Playable in **Polish and English** (both the UI and the word libraries).
   hints off or limited per level, hints that cost points, undo against the computer, everyone's tiles shown between
   friends), moves played from a hint marked on the board, each score's "+points" of the
   last turn,
-  move ratings (after each of your moves, and for every player at the end: points against the best move there was),
+  move ratings (after each of your moves - with the best move there was, or the rating alone - and for every player at
+  the end: points against the best move there was),
   raised tiles and three looks for the bonus squares, and its own statistics by language and level. Points stay in this one - scoring is the game.
 
 ## Run it (development)

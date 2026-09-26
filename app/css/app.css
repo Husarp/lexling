@@ -1315,3 +1315,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tb .t.hinted{border:calc(var(--cs) * .08) dashed rgba(0,0,0,.55)}
 .rate-hint{--rate-bg:rgba(150,150,150,.18);--rate-ink:var(--text-muted)}
 .tl-hist .w .tag{font:600 10px/1 var(--font-body);letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);border:1px dashed var(--text-dim);border-radius:4px;padding:2px 4px;vertical-align:middle}
+/* "Rating only": the best move there was stays hidden while playing (owner, 2026-09-26) */
+[data-screen=tiles] .tl-rate.no-best .best-was{display:none}
+/* a column row (the ⚙ window's choices): .row-text's 220px base is a width, not a height */
+.tl-row.col .row-text,.gs-row.col .row-text{flex:none}

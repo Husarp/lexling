@@ -569,6 +569,11 @@ name gives way in the top bar (to the gear, or Kafelki's "?") - it is on the sav
   "Z podpowiedzi" instead of a percentage; the end review marks it and leaves it out of that player's rating.
 - **Raised tiles in the top row** (0.42.3): the grid leaves a sixth of a square at the top of the board, so their faces
   are not cut off by its edge; a tap is measured on the grid as drawn.
+- **The rating in three looks** (0.43.1, owner): settings.tilesRate - true (with the best move there was), 'score'
+  (the rating alone: the best move stays hidden while playing - find it yourself; the end review still shows it), or
+  false (off). Settings and the in-game ⚙, like the colour and bonus looks.
+- **Several hints in one turn stay allowed** (0.43.1, owner: "the user can use all 3 if he wants"): Big is the most
+  points now, Master weighs the letters kept and the answer too, so the levels differ; each one counts and costs.
 - **How good a move was**: its points against the best move there was on that board with that rack (the move finder)
   - the best, excellent (85 %+), good (65 %+), fair (40 %+), weak. "Oceniaj moje ruchy / Rate my moves" (on at first;
   the gear, Settings) shows it after each of your moves on the message line, where it stays while the computer answers,
