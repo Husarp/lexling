@@ -1,4 +1,4 @@
-// Kafelki / Tiles - the rules, with no screen attached (PLAN.md M13). A game of letter tiles on a board for
+// Tiles - the rules, with no screen attached (PLAN.md M13). A game of letter tiles on a board for
 // 2-5 players, people or the computer, in the manner of the classic crossword board game: the boards, the letter
 // sets, the bag and racks, checking and scoring a move, exchanging, passing, challenges, the clock and the end
 // of the game. Finding moves (the computer, hints, the look-back) is tiles-moves.js; the word list lives in a
@@ -53,7 +53,7 @@ export const BOARDS = {
     '...T.......T...',
     't...d..D..d...t',
   ],
-  // Romb (owner, 2026-09-25: yes to the proposal): the bonuses on diamond rings round the centre, the triple words
+  // Diamond (owner, 2026-09-25: yes to the proposal): the bonuses on diamond rings round the centre, the triple words
   // at the middle of each edge. 4 T, 21 D, 12 t, 28 d.
   romb: [
     't..d...T...d..t',
@@ -382,8 +382,7 @@ function challenge(state, isWord) {
   return back.zeros >= 2 * state.racks.length ? finish(back, 'passes') : back;
 }
 
-// Every player passing (or exchanging) twice in a row ends the game - the Polish rule, "gdy wszyscy gracze
-// spasują dwa razy z rzędu"; exchanges count too, so a game where nobody can move cannot run for ever.
+// Every player passing (or exchanging) twice in a row ends the game - the Polish rule, "when every player passes twice in a row"; exchanges count too, so a game where nobody can move cannot run for ever.
 function scoreless(state, entry) {
   const zeros = state.zeros + 1;
   const after = { ...state, zeros, moves: [...state.moves, entry], turn: next(state, state.turn) };

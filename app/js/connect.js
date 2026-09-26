@@ -1,4 +1,4 @@
-// Connect mode (Połącz) - the rules, with no screen attached (PLAN.md M14, design v4 "Lexling Connect").
+// Connect mode - the rules, with no screen attached (PLAN.md M14, design v4 "Lexling Connect").
 // A circle of 4-7 letters, taken from one common word; a small crossword of words made from them.
 import { resolve } from './engine.js';
 import { pool } from './letters.js';

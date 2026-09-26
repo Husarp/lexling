@@ -1,4 +1,4 @@
-// The Tiles game screen (Kafelki, design v5 "Lexling Tiles"): the board, the rack, the tools, the computer's
+// The Tiles game screen (design v5 "Lexling Tiles"): the board, the rack, the tools, the computer's
 // turns, the hand-over between people, the panel (history, letters left, check a word), the end and the
 // look-back. The rules are tiles.js; finding moves - the computer, hints, the look-back - is tiles-moves.js.
 import { t, esc, clock, plural } from './i18n.js';

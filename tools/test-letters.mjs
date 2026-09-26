@@ -140,7 +140,7 @@ check('every Polish word Letters may hide is in the word-game dictionary (sjp.pl
 const plNormal = new Set(pool(pl, { len: 5, diff: 'normal' }).map(i => pl.words[i])), plHard = new Set(pool(pl, { len: 5, diff: 'hard' }).map(i => pl.words[i]));
 check('sedan, patio, omega: never below Hard, still on Hard', [['sedan', 'patio', 'omega'].filter(w => plNormal.has(w)), ['sedan', 'patio', 'omega'].every(w => plHard.has(w))], [[], true]);
 check('everyday words keep their level (beton, notes)', ['beton', 'notes'].every(w => plNormal.has(w)), true);
-// Znaczenie's secrets go through the same list (owner, 2026-09-25)
+// Guess's secrets go through the same list (owner, 2026-09-25)
 const { secretPool } = await import('../app/js/engine.js');
 const guessPl = new Set(['relaxed', 'easy', 'normal', 'hard'].flatMap(diff => secretPool(pl, { cat: 'all', band: 'any', diff })).map(i => pl.words[i]));
 check('Znaczenie never hides them either', ['szer', 'video', 'nokia', 'reebok', 'toshiba', 'download'].filter(w => guessPl.has(w)), []);

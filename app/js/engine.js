@@ -22,7 +22,7 @@ async function readWords(lang) {
     fetch(base + 'ac.txt').then(r => r.text()),
     fetch(base + 'ac.bin').then(r => r.arrayBuffer()),
     fetch(base + 'extra.txt').then(r => r.text()),
-    // words Litery and Połącz never hide (tools/build-pool-fix.mjs); an app without the file hides as before
+    // words Letters and Connect never hide (tools/build-pool-fix.mjs); an app without the file hides as before
     fetch(base + 'pool.json').then(r => r.json()).catch(() => ({ drop: [], restore: [], hard: [] })),
   ]);
   const { words } = vocab;

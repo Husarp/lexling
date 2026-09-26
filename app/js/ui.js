@@ -25,7 +25,7 @@ document.addEventListener('click', e => {
   const el = e.target.closest?.('[data-mean]');
   if (el) openExternal(meaningUrl(el.dataset.mean, el.dataset.lang));
 });
-// a word link takes no focus: typing stays in the game's field (Znaczenie)
+// a word link takes no focus: typing stays in the game's field (Guess)
 document.addEventListener('pointerdown', e => { if (e.target.closest?.('.mw')) e.preventDefault(); });
 
 // The gear in every game's top bar (owner, 2026-09-26: "a settings button, the usual icon only"): the settings that

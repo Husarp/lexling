@@ -83,7 +83,7 @@ const STR = {
     'game.hintNone': 'You are one word away — no hint left to give.',
     'game.hintFail': 'No hint to give here.',
 
-    // ── Kafelki / Tiles (design/v5 strings.json, and the parts it did not draw) ──
+    // ── Tiles (design/v5 strings.json, and the parts it did not draw) ──
     'mode.tiles.d': 'Lay words on a board, against the computer or friends.',
     'diff.expert': 'Expert',
     'tiles.you': 'You',
@@ -521,7 +521,7 @@ const STR = {
     'game.hintNone': 'Jesteś o jedno słowo od celu — nie ma już czego podpowiadać.',
     'game.hintFail': 'Brak podpowiedzi w tym miejscu.',
 
-    // ── Kafelki / Tiles (design/v5 strings.json, and the parts it did not draw) ──
+    // ── Tiles (design/v5 strings.json, and the parts it did not draw) ──
     'mode.tiles.d': 'Układaj słowa na planszy – z komputerem albo znajomymi.',
     'diff.expert': 'Ekspert',
     'tiles.you': 'Ty',

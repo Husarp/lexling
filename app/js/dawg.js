@@ -1,12 +1,12 @@
 // A word graph (a DAWG - "directed acyclic word graph"): every word of a list in a few typed arrays, with
 // shared beginnings AND shared endings stored once. Small enough to hold the whole Polish list, and quick
-// to walk letter by letter, which is what Kafelki's move finder does all day (tiles-moves.js).
+// to walk letter by letter, which is what Tiles' move finder does all day (tiles-moves.js).
 // Built with the incremental algorithm for sorted input (Daciuk, Mihov, Watson & Watson, 2000).
 
 // `words`: any order, duplicates allowed; `alphabet`: every letter a word may use (other words are left
 // out). A node is a number; its edges sit together in `letter` / `target`, from first[node] to
 // first[node + 1], in alphabet order. Node 0 is the root. `tag` = a hash of the word list (FNV-1a): a
-// saved game records it, so it is known which list checked its words (owner's plan: "hash wersji słownika").
+// saved game records it, so it is known which list checked its words (owner's plan: "a hash of the dictionary version").
 export function buildDawg(words, alphabet) {
   const letters = [...alphabet].sort();                 // code-point order = the order the words sort in
   const index = new Map(letters.map((ch, i) => [ch, i]));

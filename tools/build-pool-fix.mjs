@@ -1,5 +1,5 @@
-// Builds app/data/<lang>/pool.json: words Litery, Połącz and Znaczenie must never hide, on top of their own rules
-// (owner, 2026-09-25: "some words are not intuitive - SZER on Normal? - rule out weird words"; Znaczenie too: yes).
+// Builds app/data/<lang>/pool.json: words Letters, Connect and Guess must never hide, on top of their own rules
+// (owner, 2026-09-25: "some words are not intuitive - SZER on Normal? - rule out weird words"; Guess too: yes).
 // Run: node tools/build-pool-fix.mjs   (needs tools/raw/tiles/slowa.txt - see tools/build-tiles-words.mjs)
 //
 // Polish: every word the word-game list (sjp.pl) does not know - English words, brands, abbreviations, fragments
@@ -54,18 +54,18 @@ const HAND = {
     // the count belongs to something else: an abbreviation (szer. = szerokość, bryg. = brygada), a set phrase (wodzić
     // rej), a particle or a prefix; and inflected forms taken for base words
     + 'szer rej kard spid czyż mikro bryg causa staje wali żarty tam września osi ucha dań badan '
-    // Znaczenie's own list: brands and a fragment
+    // Guess's own list: brands and a fragment
     + 'retriever reebok torx acer toshiba boeing stradivarius ować',
   en: 'non kinda asap corp cred pct inst vii viii kph bps bpm meg bbl ftp cert choc google christian fab',
 };
 
 for (const lang of ['pl', 'en']) {
   const m = await loadWords(lang);
-  // start from what the rules alone let each game hide: Litery's pool (Połącz uses the same), and Znaczenie's secrets
+  // start from what the rules alone let each game hide: Letters' pool (Connect uses the same), and Guess's secrets
   const all = [...new Set([...pool({ ...m, poolFix: undefined }, { diff: 'random', marks: true }),
     ...m.secret, ...Object.values(m.cats).flat()].map(i => m.words[i]))];
   const drop = new Set(HAND[lang].split(' '));
-  // never a slur or a vulgar word (offensive.js) - Litery and Połącz check that themselves, Znaczenie did not
+  // never a slur or a vulgar word (offensive.js) - Letters and Connect check that themselves, Guess did not
   for (const w of all) if (offensiveWord(lang, w)) drop.add(w);
   if (lang === 'pl') {
     if (!existsSync(new URL('slowa.txt', RAW))) throw new Error('tools/raw/tiles/slowa.txt is missing - see tools/build-tiles-words.mjs');

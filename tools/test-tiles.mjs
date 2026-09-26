@@ -1,4 +1,4 @@
-// Tests for Kafelki / Tiles: the rules (app/js/tiles.js), the word graph (app/js/dawg.js) and the move
+// Tests for Tiles: the rules (app/js/tiles.js), the word graph (app/js/dawg.js) and the move
 // finder (app/js/tiles-moves.js), against the real word data.
 // Run: node tools/test-tiles.mjs
 import assert from 'node:assert/strict';

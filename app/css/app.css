@@ -214,7 +214,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
    Letting these boxes shrink is also what lets fit.js see the labels overflow and shrink them. */
 .field,.seg{min-width:0}
 /* …and on a phone the design's 12px side padding is most of a 77px button, which would shrink the
-   Polish labels ("DOWOLNE", "KRÓTKIE") to 9px. Fluid padding keeps the design's spacing from ~600px up. */
+   Polish labels (Any, Short) to 9px. Fluid padding keeps the design's spacing from ~600px up. */
 .seg button{padding:0 clamp(4px,2vw,12px)}
 .btn.wrapped,.seg button.wrapped,.chip.wrapped{white-space:normal;text-align:center;line-height:1.15;padding-top:6px;padding-bottom:6px}
 .btn[disabled]{opacity:.4;pointer-events:none}
@@ -404,7 +404,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
    A button that is only text does not read as a button: Save & exit, Give up, Rename / Delete, Hint,
    the back buttons in the top bar and Menu on the end cards all get a frame, app-wide. */
 .btn-ghost{border-color:var(--text-dim)}
-.btn-ghost:hover{border-color:var(--accent)}
+@media (hover:hover){.btn-ghost:hover{border-color:var(--accent)}}   /* a touch screen kept it after a tap (owner, 2026-09-26) */
 .btn-ghost.btn-danger{border-color:var(--error)}
 
 /* ═══ STATUS ROW — asked 2026-09-25, both games ═══
@@ -456,7 +456,7 @@ html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;g
 /* the drawn ✓ / ✕: centred by the circle's grid, sized to it */
 .outcome .mark svg{width:58%;height:58%}
 /* difficulty + Random switch share a row like Tries + Unlimited; with Random on, the levels step back */
-.tries .seg{flex:1 1 320px}   /* four Polish levels need ~80 px each - below that the switch goes under them (owner: "Normalny" did not fit) */
+.tries .seg{flex:1 1 320px}   /* four Polish levels need ~80 px each - below that the switch goes under them (owner: the Polish "Normal" did not fit) */
 .seg.off{opacity:.45}
 
 /* ═══ LEXLING · FOUR GAMES — new CSS, goes below the shared block and the Letters block ═══ */
@@ -533,7 +533,7 @@ html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;g
 [data-screen=stats] .tabs4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
 @container (max-width:499px){[data-screen=stats] .tabs4{grid-template-columns:1fr 1fr}}
 [data-screen=stats] .tabs4 button{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-width:0}
-@media (max-width:340px){[data-screen=stats] .tabs4 button{gap:4px;padding-left:4px;padding-right:4px}}   /* 320 px: "Znaczenie" and its glyph did not fit (owner: check the Polish labels) */
+@media (max-width:340px){[data-screen=stats] .tabs4 button{gap:4px;padding-left:4px;padding-right:4px}}   /* 320 px: the Polish name of Guess and its glyph did not fit (owner: check the Polish labels) */
 [data-screen=stats] .tabs4 button.on .glyph{filter:brightness(1.15)}
 [data-screen=stats] .stats-sum{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--space-2) var(--space-3)}
 [data-screen=stats] .stats-sum .num{font-size:clamp(56px,14vw,88px);line-height:.85}
@@ -622,7 +622,7 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
 
 /* ── Settings: the row that turns the on-screen keyboard off ── uses .row / .toggle as is */
 
-/* ═══ CONNECT (Połącz) — new CSS, goes below the shared block, the Letters block and menu.css
+/* ═══ CONNECT — new CSS, goes below the shared block, the Letters block and menu.css
    (menu.css carries .glyph.connect). Reuses from the app: .topbar, .mode-tag, .btn, .seg, .stepper,
    .tries, .polish, .readout, .summary, .outcome, .result, .save, the stats cards. ═══ */
 
@@ -652,8 +652,10 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
 [data-theme=light] :is(.cw,.cw-legend) .c{background:var(--lt-empty);border-color:var(--lt-edge)}
 /* found by the player: the Letters green */
 :is(.cw,.cw-legend) .c.hit{background:var(--lt-hit);border-color:var(--lt-hit);color:#fff}
-/* a hinted letter in a word that is complete: green, but the hint's dashed edge stays (owner, 2026-09-25) */
-:is(.cw,.cw-legend) .c.hit.hinted{border-style:dashed;border-color:rgba(0,0,0,.4)}
+/* a hinted letter in a word that is complete: the hint's own look - no fill, dashed edge - with the letter and the edge
+   in green (owner, 2026-09-26: "the same way as not guessed, but green - no green background") */
+:is(.cw,.cw-legend) .c.hit.hinted{background:transparent;border-style:dashed;border-color:var(--lt-hit);color:var(--lt-hit)}
+[data-theme=light] :is(.cw,.cw-legend) .c.hit.hinted{background:transparent;border-color:#5E9E3A;color:#3F7A22}
 /* shown by a hint: no fill, dashed edge, muted letter — the same "the game did this for you" look
    Guess gives a hint row (.guess.tip). Never green, so it can't be read as found. */
 :is(.cw,.cw-legend) .c.hint{background:transparent;border-style:dashed;border-color:var(--text-muted);color:var(--text-muted)}
@@ -716,7 +718,7 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
 @keyframes cn-bump{0%,100%{transform:none}50%{transform:scale(1.18);border-color:var(--accent)}}
 .cn-bonus.bump{animation:cn-bump 150ms var(--ease) 300ms}
 /* labels appear once there's room: stacked under the icon on a half-screen phone (the side columns
-   are ~100px there — "PODPOWIEDŹ" fits at 10px), beside it on a computer */
+   are ~100px there — the Polish "Hint" fits at 10px), beside it on a computer */
 @container (min-width:420px){.cn-tool{width:auto;min-width:max-content;height:auto;min-height:56px;padding:8px 10px;flex-direction:column;gap:5px}.cn-tool .lbl{display:block;font-size:10px;letter-spacing:.1em}.cn-bonus{min-width:64px;min-height:56px}}
 @container (min-width:560px){.cn-tool{flex-direction:row;gap:var(--space-2);min-height:48px;padding:0 var(--space-4)}.cn-tool .lbl{font-size:13px}}
 /* bonus words: a small list over the board, anchored to the counter; tap outside to close */
@@ -755,7 +757,7 @@ body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 input,textarea{-webkit-user-select:text;user-select:text}
 
 
-/* ═══ KAFELKI / TILES — new CSS, goes below the shared block, the Letters block and menu.css
+/* ═══ TILES — new CSS, goes below the shared block, the Letters block and menu.css
    (menu.css carries .glyph.tiles). Reuses from the app: .topbar, .mode-tag, .btn, .seg, .tries, .chip,
    .summary, .cta, .outcome, .result, .save, the stats cards, and the .key look of keyboard.css. ═══ */
 
@@ -1016,11 +1018,11 @@ input,textarea{-webkit-user-select:text;user-select:text}
 }
 /* points are hidden on the small unzoomed board, so the letter can take more of the square */
 @container (max-width:380px){.tb.n15:not(.zoom) .t{font-size:calc(var(--cs) * .68)}}
-/* "PODPOWIEDŹ" is the longest label: Hint gets a wider share, and the labels lose their tracking on a phone */
+/* the Polish "Hint" is the longest label: Hint gets a wider share, and the labels lose their tracking on a phone */
 .tl-dock .tl-tool:nth-child(4){flex-grow:1.35}
 @container (max-width:360px){.tl-tool .lbl{font-size:9.5px;letter-spacing:0}}
 
-/* ═══ KAFELKI / TILES — what the first design did not draw, built in its style (0.35.0): up to five players,
+/* ═══ TILES — what the first design did not draw, built in its style (0.35.0): up to five players,
    the hand-over between people, hints in two steps, check a word, rules, the clock, the look-back, the guide. ═══ */
 /* Who put a tile down (0.36.0, owner: "no frames for players - colour the tiles"): the tile itself in that player's
    colour, the letter always dark ink. Five light tints, none of them the bonus squares' hues (light blue, blue, orange,
@@ -1176,7 +1178,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .gs-row .row-text{display:grid;gap:4px}
 .gs-row strong{font-weight:600}
 .gs-row .row-text span{font-size:13px;line-height:1.4;color:var(--text-muted)}
-/* on a narrow phone the game's name gives way to the gear (and Kafelki's "?") - it is on the saved-games list anyway */
+/* on a narrow phone the game's name gives way to the gear (and Tiles' "?") - it is on the saved-games list anyway */
 .topbar .gs-open,.topbar .tl-q{flex:none}
 @media (max-width:374px){.topbar .side.end:has(.gs-open, .tl-q)>.eyebrow{display:none}}
 /* 0.40.0: what a word means (owner, 2026-09-26) - a button under a word, or the word itself as a link, opening the
@@ -1320,7 +1322,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-looks .t.own{background:var(--pt)}
 .tl-looks .t.peek{opacity:.22}
 .save-name .save-no{color:var(--text-muted);font-weight:500}
-/* History on a narrow phone: the other columns slimmer, so a word (or "Podpowiedź") keeps its line */
+/* History on a narrow phone: the other columns slimmer, so a word (or the Polish "Hint") keeps its line */
 @media (max-width:400px){
   .tl-hist,.tl-hist li,.tl-look ol,.tl-look li{column-gap:6px}
   :is(.tl-hist,.tl-look) .who{font-size:10px;letter-spacing:.03em}

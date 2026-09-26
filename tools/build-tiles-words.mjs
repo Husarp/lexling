@@ -1,4 +1,4 @@
-// Builds the word files Kafelki / Tiles looks words up in: app/data/<lang>/tiles.bin, a word graph (dawg.js).
+// Builds the word files Tiles looks words up in: app/data/<lang>/tiles.bin, a word graph (dawg.js).
 // Run: node tools/build-tiles-words.mjs      (after the app's own word data exists: node tools/build-data.mjs)
 //
 // The lists (owner's choice, 2026-09-25), downloaded into tools/raw/tiles/ (not in git):

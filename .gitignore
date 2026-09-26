@@ -28,6 +28,11 @@ android/keystore.properties
 # Private notes and plans. Put new ones in notes/ and they are ignored automatically.
 notes/
 letterex-plan(scrabble).md
+# The working documents - kept and updated on disk, not in the repository (owner, 2026-09-26: "they do not need to be
+# in the repo"). README.md is the project's public description.
+CHANGELOG.md
+DESIGN.md
+PLAN.md
 
 # Design working material: the handoff pages the UI was built from, the conversation exports and
 # the delivery archives. Kept on disk, not shipped - DESIGN.md still describes what they contained.

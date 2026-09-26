@@ -1,4 +1,4 @@
-// Kafelki / Tiles - finding moves: every legal move for a rack, and which one the computer plays
+// Tiles - finding moves: every legal move for a rack, and which one the computer plays
 // (PLAN.md M13). The rules themselves are tiles.js; the word list is a word graph (dawg.js).
 //
 // The method is the classic one for this kind of game (Appel & Jacobson, "The World's Fastest Scrabble
