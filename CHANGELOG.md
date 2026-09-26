@@ -6,6 +6,18 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.48.0 — 2026-09-26 04:38: remember my New game choices
+*(not packaged)*
+
+- **Settings → "Zapamiętuj moje wybory w nowej grze"** (owner): switched on, every New game screen starts from the
+  choices of your last game of that kind - in Kafelki the board, the players and their names, who starts, all the
+  rules and the hints; in the others their category, length, level and so on. Never the game's name or a friend's
+  word. Off (as before): the defaults each time. The language carries over either way.
+- The Kafelki looks - player colours, tile colour, raised tiles, bonus squares - were already kept between games and
+  after a restart; checked again.
+- Checked in headless Edge at 360 px: a Kafelki game (Szybka, three players, Bez ocen) and a Connect game remembered for
+  the next New game, the defaults back with the switch off, a tile colour kept over a restart.
+
 ## 0.47.0 — 2026-09-26 04:24: Kafelki: the palette back with tile colours, a new rating box, a wood frame
 *(not packaged)*
 

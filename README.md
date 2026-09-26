@@ -36,7 +36,7 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - **Autocomplete / suggestions** while typing, restricted to words the game knows
   (with diacritic-insensitive matching for Polish — typing `zolw` finds `żółw`).
 - Multiple games at once: save, resume, give up (reveals the word); name a game on New game or rename it later -
-  it shows as "Name (Game 12)".
+  it shows as "Name (Game 12)". Settings can remember your New game choices for next time.
 - Statistics for each game (no achievements, since 0.23.0).
 - Polish + English, switchable.
 - **Letters mode**: one box per letter, its own on-screen keyboard (keys coloured by what the guesses

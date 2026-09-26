@@ -29,8 +29,11 @@ export const settings = read('wg.settings', {
   tiles3d: false,
   // Tiles: the tiles' own colour - yellow, white, cream, wood or mint (owner, 2026-09-26)
   tilesTile: 'yellow',
-  // Only the language carries over between games; everything else starts from NEW_GAME each time.
+  // The language always carries over between games; the rest only with rememberSetup (owner, 2026-09-26: "remember my
+  // setup choices") - setup then holds each mode's last choices, else a New game starts from its defaults.
   newGame: { lang: null },
+  rememberSetup: false,
+  setup: {},
 });
 export const saveSettings = () => write('wg.settings', settings);
 

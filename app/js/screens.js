@@ -251,11 +251,16 @@ const howTo = mode => `<details class="card howto" data-mode="${mode}">
 
 // Every game starts from the same footing - the settings of the last one are rarely what you want for
 // the next. The language is the exception: that is a preference, not a per-game choice.
+// "Remember my New game choices" (Settings, owner 2026-09-26): each New game screen starts from the choices of the last
+// game of its kind, saved as it starts - never its name, never a friend's word; off, from the defaults.
+const remembered = mode => settings.rememberSetup ? settings.setup?.[mode] ?? {} : {};
+const remember = (mode, choices) => { if (settings.rememberSetup) settings.setup = { ...settings.setup, [mode]: choices }; };
+
 const NEW_GAME = { cat: 'all', band: 'any', diff: 'normal', friend: false };
 let pending = null;   // choices half-made, kept only across the re-render that a language switch causes
 
 export function newGameScreen(root, _, refresh) {
-  const o = pending ?? { ...NEW_GAME, lang: settings.newGame.lang || settings.lang };
+  const o = pending ?? { ...NEW_GAME, ...remembered('guess'), lang: settings.newGame.lang || settings.lang };
   pending = null;
   root.innerHTML = `<div class="app" data-screen="new">
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.guess}">${t('back.games')}</a>`, right: modeTag('guess') })}
@@ -364,7 +369,8 @@ export function newGameScreen(root, _, refresh) {
       err.hidden = false;
       return;
     }
-    settings.newGame = { lang: o.lang };   // the next game starts from NEW_GAME again
+    settings.newGame = { lang: o.lang };   // the next game starts from NEW_GAME again - or from these, remembered
+    remember('guess', { cat: o.cat, band: o.band, diff: o.diff, friend: o.friend });
     saveSettings();
     const game = newGame({ ...o, secret: m.words[idx], name: typedName() });
     location.replace('#/game/' + game.id);   // Back from the game goes to the picker, not to this form
@@ -377,7 +383,7 @@ const LT_NEW = { cat: 'all', len: 5, anyLen: false, tries: 6, unlimited: false, 
 let ltPending = null;
 
 export function lettersNewScreen(root, _, refresh) {
-  const o = ltPending ?? { ...LT_NEW, lang: settings.newGame.lang || settings.lang, marks: settings.polish?.letters ?? true };
+  const o = ltPending ?? { ...LT_NEW, ...remembered('letters'), lang: settings.newGame.lang || settings.lang, marks: settings.polish?.letters ?? true };
   ltPending = null;
   const lengths = Array.from({ length: LEN_MAX - LEN_MIN + 1 }, (_, i) => LEN_MIN + i);
   const stepper = (id, less, more) => `<div class="stepper" id="${id}"><button type="button" data-step="-1" aria-label="${less}">−</button><output></output><button type="button" data-step="1" aria-label="${more}">+</button></div>`;
@@ -540,6 +546,8 @@ export function lettersNewScreen(root, _, refresh) {
     if (idx < 0) { err.hidden = false; return; }
     settings.newGame = { lang: o.lang };
     saveSettings();
+    remember('letters', Object.fromEntries(Object.keys(LT_NEW).map(k => [k, o[k]])));
+    saveSettings();
     const game = newGame({ name: typedName(), mode: 'letters', lang: o.lang, cat: o.cat, len: [...m.words[idx]].length, tries: o.unlimited ? 0 : o.tries,
       diff: o.diff, marks: marks(), secret: m.words[idx] });
     location.replace('#/game/' + game.id);   // Back from the game goes to the picker, not to this form
@@ -553,7 +561,7 @@ const CN_NEW = { letters: 6, diff: 'normal' };
 let cnPending = null;
 
 export function connectNewScreen(root, _, refresh) {
-  const o = cnPending ?? { ...CN_NEW, lang: settings.newGame.lang || settings.lang, marks: settings.polish?.connect ?? true };
+  const o = cnPending ?? { ...CN_NEW, ...remembered('connect'), lang: settings.newGame.lang || settings.lang, marks: settings.polish?.connect ?? true };
   cnPending = null;
   root.innerHTML = `<div class="app" data-screen="new">
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.connect}">${t('back.games')}</a>`, right: modeTag('connect') })}
@@ -642,6 +650,8 @@ export function connectNewScreen(root, _, refresh) {
     if (!puzzle) { err.textContent = t('cn.errNone'); err.hidden = false; return; }
     settings.newGame = { lang: o.lang };
     saveSettings();
+    remember('connect', Object.fromEntries(Object.keys(CN_NEW).map(k => [k, o[k]])));
+    saveSettings();
     const game = newGame({ name: typedName(), mode: 'connect', lang: o.lang, letters: o.letters, diff, marks: marks(),
       ring: puzzle.ring, key: puzzle.key, board: puzzle.board, found: [], shown: [], bonus: [], hints: 0 });
     location.replace('#/game/' + game.id);   // Back from the game goes to the list, not to this form
@@ -672,7 +682,12 @@ const boardCard = b => {
 };
 
 export function tilesNewScreen(root, _, refresh) {
-  const o = tlPending ?? { ...TL_NEW(), lang: settings.newGame.lang || settings.lang };
+  const o = tlPending ?? (() => {
+    const r = remembered('tiles'), fresh = { ...TL_NEW(), lang: settings.newGame.lang || settings.lang };
+    if (!r.board) return fresh;
+    const players = r.players.map(x => ({ ...x }));
+    return { ...fresh, board: r.board, players, first: players[r.first] ?? null, rules: { ...STANDARD, ...r.rules } };
+  })();
   tlPending = null;
   root.innerHTML = `<div class="app" data-screen="new">
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.tiles}">${t('back.games')}</a>`, right: modeTag('tiles') })}
@@ -858,6 +873,8 @@ export function tilesNewScreen(root, _, refresh) {
     settings.newGame = { lang: o.lang };
     saveSettings();
     const players = o.players.map(x => ({ name: x.name.trim(), cpu: x.cpu })), first = o.players.indexOf(o.first);
+    remember('tiles', { board: o.board, players, first, rules: o.rules });
+    saveSettings();
     const humans = players.filter(x => !x.cpu).length, vsCpu = humans === 1 && players.some(x => x.cpu);
     const state = tilesGame({ lang: o.lang, board: o.board, players, first: first >= 0 ? first : undefined, words: dict.tag,
       rules: { ...o.rules, undo: vsCpu && o.rules.undo, open: humans > 1 && o.rules.open } });
@@ -1007,6 +1024,7 @@ export async function settingsScreen(root, _, refresh) {
     `<button type="button" data-accent="${name}" class="${on(settings.accent === name)}" style="--swatch:${hex}" aria-label="${name}"></button>`).join('')}</div></div>
       <div class="row"><div class="row-text"><strong>${t('set.fuzzy')}</strong><span>${t('set.fuzzyDesc')}</span></div><button type="button" class="toggle ${on(settings.fuzzy)}" data-toggle="fuzzy" role="switch" aria-checked="${settings.fuzzy}" aria-label="${t('set.fuzzy')}"></button></div>
       <div class="row"><div class="row-text"><strong>${t('set.sound')}</strong><span>${t('set.soundDesc')}</span></div><button type="button" class="toggle ${on(settings.sound)}" data-toggle="sound" role="switch" aria-checked="${settings.sound}" aria-label="${t('set.sound')}"></button></div>
+      <div class="row"><div class="row-text"><strong>${t('set.remember')}</strong><span>${t('set.rememberDesc')}</span></div><button type="button" class="toggle ${on(settings.rememberSetup)}" data-toggle="rememberSetup" role="switch" aria-checked="${!!settings.rememberSetup}" aria-label="${t('set.remember')}"></button></div>
     </section>
     <section class="group">
       <h2 class="title">${t('mode.letters')}</h2>

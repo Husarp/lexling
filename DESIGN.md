@@ -569,6 +569,12 @@ name gives way in the top bar (to the gear, or Kafelki's "?") - it is on the sav
   "Z podpowiedzi" instead of a percentage; the end review marks it and leaves it out of that player's rating.
 - **Raised tiles in the top row** (0.42.3): the grid leaves a sixth of a square at the top of the board, so their faces
   are not cut off by its edge; a tap is measured on the grid as drawn.
+- **Remember my New game choices** (0.48.0, owner): a switch in Settings (off by default - as before, a New game
+  starts from its defaults). On: each mode's choices are saved as its game starts (settings.setup) and the next New game
+  of that kind starts from them - Guess: category, word length, difficulty, friend; Letters and Connect: their options;
+  Tiles: board, players (names too), who starts (kept as a place in the list), every rule and the hints. Never the
+  game's name or a friend's word. The language carries over either way, and the looks (colours, tile colour, raised
+  tiles, bonus squares) are settings of their own, always kept.
 - **The palette is back** (0.47.0, owner): a 🎨 button between ≡ and ⚙ opens "Wygląd" - player colours, **tile colour**
   (new), raised tiles, bonus squares; ⚙ keeps sound and the rating. Under 390 px the four icons are 32 px, so the two
   labels stay on one line from 340 px.

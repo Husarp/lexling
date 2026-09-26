@@ -528,6 +528,8 @@ Order: the game itself first, then these; all of them are in the design prompt, 
 - [x] **The rating box redesigned** (a card: band, percent, best move, a bar); **the palette back** with a new tile
       colour (white among five); brighter letter colours; a wood frame; names never cut; the end review a table with
       names like History (owner). 0.47.0
+- [x] **Remember my New game choices** - a switch in Settings; each New game starts from the last game of its kind
+      (owner). The Tiles looks were already kept. 0.48.0
 - [x] A blank paler and without dashes, so it is not taken for a hinted tile (owner); **a game without ratings** - a rule
       on New game: nobody sees any rating in that game, History still lists the moves (owner). 0.46.0
 - [x] **Word meanings** (owner, 2026-09-26) - not downloaded ("too much"): a word opens its meaning in the browser,
