@@ -1,8 +1,8 @@
 // The game screen - markup from design/handoff/game.html (states: 0 guesses / mid-game / won).
 import { t, plural, esc, num, clock } from './i18n.js';
-import { settings, stats, getSave, putSave, recordGuess, recordEnd, gameName, playClock } from './store.js';
+import { settings, stats, getSave, putSave, recordGuess, recordEnd, playClock } from './store.js';
 import { load, resolve, suggest, rankAll, pct, hint, HINT_FLOOR } from './engine.js';
-import { topbar, fillColor, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink } from './ui.js';
+import { topbar, fillColor, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink, gameTitle } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 
@@ -16,7 +16,7 @@ export async function gameScreen(root, id) {
   const rank = rankAll(m, secretIdx);
 
   root.innerHTML = `<div class="app" data-screen="game">
-  ${topbar({ left: `<a class="btn btn-ghost" href="#/games/guess">${t('back.games')}</a>`, right: `<span class="eyebrow">${esc(gameName(game))}</span>${gearButton()}` })}
+  ${topbar({ left: `<a class="btn btn-ghost" href="#/games/guess">${t('back.games')}</a>`, right: `${gameTitle(game)}${gearButton()}` })}
   <main class="main">
     <div class="status"></div>
     <div id="entry"></div>

@@ -569,6 +569,21 @@ name gives way in the top bar (to the gear, or Kafelki's "?") - it is on the sav
   "Z podpowiedzi" instead of a percentage; the end review marks it and leaves it out of that player's rating.
 - **Raised tiles in the top row** (0.42.3): the grid leaves a sixth of a square at the top of the board, so their faces
   are not cut off by its edge; a tap is measured on the grid as drawn.
+- **Named games** (0.45.0, owner, every mode): an optional name on New game, just above Start (its placeholder is the
+  number the game will get); shown with its number, "Name (Game 12)" - on the Your games card (the number quieter) and
+  in the game's top bar, where a long name gives way ("…") and the number stays. Rename in Your games; an empty name
+  gives the game back its number alone.
+- **History as a table** (0.45.0, owner): fixed columns - move no., the words (the best move under them), points,
+  rating, player - and a head row, so every row lines up; narrower columns on phones under 400 px. **A score chip
+  opens that player's History only** ("Historia · Ania"); the ≡ button, everyone's.
+- **The board's frame** (0.45.0, owner): the grid sits inset on every side (1.6 % of the board), raised tiles or not;
+  a raised tile in the top row stands up into it. Pan and pinch are measured on the grid itself.
+- **Dashes drawn inside** (0.45.0): a hint's tiles and a hinted move's tiles get their dashes as an outline inside the
+  tile, not a border, so the letter and its points keep their places (owner: "numbers over letters").
+- **A tapped tile** stays see-through until it is tapped again, or 5 s (was 1.5 s).
+- **How to play shows every tile look** (0.45.0, owner): plain, a player's colour, blank, this turn's, a move that
+  cannot be played, a hint's word, played from a hint, tapped - drawn as on the board.
+- **The score chips' hover** only where there is a mouse: a touch screen kept the orange frame on the last chip tapped.
 - **The rating in a box, and History as the list of every move's rating** (0.44.0, owner: "1 c, 2 keep both"): the
   line under the board is a small card - the badge, then "najlepszy: WORD n" - drawn from its parts as the setting
   says, so a change in ⚙ shows at once. History has each player's name on the right (in their colour) and, under a

@@ -829,7 +829,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
    labels and the score bubble all grow together and stay sharp. 200ms in and out. */
 .tl-bwrap{grid-area:board;min-width:0;min-height:0;container-type:size;display:grid;place-items:start center}
 .tl-board{position:relative;width:min(100cqw,100cqh);aspect-ratio:1;overflow:hidden;border-radius:8px;background:var(--tb-grid);container-type:inline-size;touch-action:none;user-select:none;-webkit-user-select:none}
-.tb{--g:1px;--cs:calc((100cqi - (var(--n) - 1) * var(--g)) / var(--n));position:absolute;inset:0;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));grid-template-rows:repeat(var(--n),minmax(0,1fr));gap:var(--g);--pitch:calc((100% + 1px) / var(--n));background-color:var(--tb-sq);background-image:repeating-linear-gradient(90deg,transparent 0 calc(var(--pitch) - 1px),var(--tb-grid) calc(var(--pitch) - 1px) var(--pitch)),repeating-linear-gradient(180deg,transparent 0 calc(var(--pitch) - 1px),var(--tb-grid) calc(var(--pitch) - 1px) var(--pitch));transform-origin:0 0;transform:scale(var(--z,1)) translate(var(--tx,0%),var(--ty,0%));transition:transform 200ms var(--ease)}
+.tb{--g:1px;--fr:calc(100cqi * .016);--cs:calc((100cqi - 2 * var(--fr) - (var(--n) - 1) * var(--g)) / var(--n));position:absolute;inset:var(--fr);display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));grid-template-rows:repeat(var(--n),minmax(0,1fr));gap:var(--g);--pitch:calc((100% + 1px) / var(--n));background-color:var(--tb-sq);background-image:repeating-linear-gradient(90deg,transparent 0 calc(var(--pitch) - 1px),var(--tb-grid) calc(var(--pitch) - 1px) var(--pitch)),repeating-linear-gradient(180deg,transparent 0 calc(var(--pitch) - 1px),var(--tb-grid) calc(var(--pitch) - 1px) var(--pitch));transform-origin:0 0;transform:scale(var(--z,1)) translate(var(--tx,0%),var(--ty,0%));transition:transform 200ms var(--ease)}
 .q{position:relative;min-width:0;min-height:0;display:grid;place-items:center;background:var(--tb-sq);border-radius:calc(var(--cs) * .1);font:700 max(7px,calc(var(--cs) * .34))/1 var(--font-body);letter-spacing:-.02em;color:var(--tb-lbl)}
 .q.l2{background:var(--tb-2l);color:var(--tb-2l-ink)}
 .q.l3{background:var(--tb-3l);color:var(--tb-3l-ink)}
@@ -861,7 +861,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .t.new{--ring:var(--accent);--rw:calc(var(--cs) * .1)}
 .t.new.bad{--ring:var(--error)}
 /* a hint: the look every Lexling hint has — no fill, dashed edge, muted letter */
-.t.hint{background:var(--surface);color:var(--text-muted);box-shadow:none;border:calc(var(--cs) * .07) dashed var(--text-muted)}
+.t.hint{background:var(--surface);color:var(--text-muted);box-shadow:none;outline:calc(var(--cs) * .06) dashed var(--text-muted);outline-offset:calc(var(--cs) * -.07)}
 .t.hint .p{color:var(--text-muted)}
 /* dragging: the square under the finger */
 .q.drop{z-index:2;box-shadow:inset 0 0 0 calc(var(--cs) * .12) var(--accent);background:var(--accent-soft)}
@@ -931,11 +931,11 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-x svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 @container (min-width:900px){.tl-panel{grid-area:panel;align-self:stretch;box-shadow:none;border-color:var(--line-soft)}.tl-x{display:none}}
 .tl-hist{list-style:none;padding:0;display:grid}
-.tl-hist li{display:grid;grid-template-columns:2.5ch minmax(0,1fr) auto auto;align-items:center;gap:var(--space-3);min-height:40px;padding:var(--space-1) 0;border-bottom:1px solid var(--line-soft);font-size:14px}
+.tl-hist li{display:grid;grid-template-columns:2.5ch minmax(0,1fr) 32px 68px;align-items:center;gap:var(--space-3);min-height:40px;padding:var(--space-1) 0;border-bottom:1px solid var(--line-soft);font-size:14px}
 .tl-hist .i{color:var(--text-dim);font-variant-numeric:tabular-nums}
-.tl-hist .who{max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;font:600 11px/1.2 var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--pt)}
+.tl-hist .who{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;font:600 11px/1.2 var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--pt)}
 [data-theme=light] .tl-hist .who{color:var(--pc)}
-.tl-hist .w{font:700 17px/1.1 var(--font-display);text-transform:uppercase;letter-spacing:-.01em;overflow-wrap:anywhere}
+.tl-hist .w{font:700 17px/1.1 var(--font-display);text-transform:uppercase;letter-spacing:-.01em;overflow-wrap:break-word}
 .tl-hist .w small{font:500 12px/1 var(--font-body);text-transform:none;letter-spacing:0;color:var(--accent)}
 .tl-hist .quiet .w{font:500 14px/1.2 var(--font-body);text-transform:none;color:var(--text-muted)}
 .tl-hist .r{font:800 18px/1 var(--font-display);font-variant-numeric:tabular-nums;text-align:right}
@@ -1204,7 +1204,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-theme=light] .rate-fair{--rate-ink:#8A5A00}
 [data-theme=light] .rate-weak{--rate-ink:#B32020}
 [data-screen=tiles] .say .best-was{font-size:12px;color:var(--text-dim)}
-.tl-hist .r small.rate{margin-left:6px;padding:1px 5px;font-size:10px}
+.tl-hist .pct{text-align:center}
+.tl-hist .pct .rate{padding:1px 5px;font-size:10px}
 .tl-evals{list-style:none;padding:0;margin:0;display:grid;gap:6px}
 .tl-evals li{display:grid;grid-template-columns:12px minmax(0,1fr) auto;align-items:center;gap:var(--space-2);font-size:15px}
 .tl-evals li i{width:10px;height:10px;border-radius:50%;background:var(--pc)}
@@ -1272,7 +1273,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .ps .sc .delta{font:700 13px/1 var(--font-body);color:var(--text-muted)}
 .ps-bag{flex:none;display:grid;align-content:space-between;gap:4px;padding:7px 11px 8px;text-align:left;border:1.5px dashed var(--text-dim);border-radius:var(--radius-md)}
 .ps-bag .sc{font:800 26px/1 var(--font-display);font-variant-numeric:tabular-nums;color:var(--text)}
-.ps:hover,.ps-bag:hover{border-color:var(--accent)}
+@media (hover:hover){.ps:hover,.ps-bag:hover{border-color:var(--accent)}}
 @container (max-width:480px){.ps{padding:5px 7px 6px}.ps-bag{padding:5px 9px 6px}.ps .sc,.ps-bag .sc{font-size:23px}.pb{width:20px;height:20px;font-size:12px}}
 /* the narrowest phones: tighter boxes, so "KOMPUTER" fits beside its badge in a two-player game */
 @container (max-width:360px){
@@ -1296,9 +1297,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 @media (max-width:480px){[data-screen=settings] .row .seg{flex:1 1 100%;max-width:none}}
 .tl-pick-head{flex-wrap:wrap}
 .tl-pick-head .acts{display:flex;gap:var(--space-2);margin-left:auto}
-/* raised tiles in the top row stand above their squares: the grid leaves them room at the top of the board instead of
-   being cut off by its edge (owner, 2026-09-26) - a sixth of a square, the squares a hair shorter (~1 %) */
-.tb.raised{top:calc(100cqi / var(--n) * .17)}
+/* the board has a frame on every side (--fr on .tb, owner 2026-09-26: "make the grey line at the top a frame round the
+   whole board"), raised tiles or not - a raised tile in the top row stands up into it instead of being cut off */
 /* the message line keeps room for two lines, so the board above does not move when the text changes length (owner,
    2026-09-26) */
 [data-screen=tiles].fit .say{min-height:64px;align-content:center}
@@ -1311,9 +1311,9 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-hints .hint-max .seg button{min-height:36px;padding:0 4px;font-size:13px}
 /* a move played from a hint keeps a hint edge on its tiles - in its player's colour (owner, 2026-09-26) - and says so in
    History, the rating and the end review, where it is left out of the player's rating */
-.tb .t.hinted{border:calc(var(--cs) * .08) dashed rgba(0,0,0,.55)}
+.t.hinted{outline:calc(var(--cs) * .05) dashed rgba(0,0,0,.55);outline-offset:calc(var(--cs) * -.08)}
 .rate-hint{--rate-bg:rgba(150,150,150,.18);--rate-ink:var(--text-muted)}
-.tl-hist .w .tag{font:600 10px/1 var(--font-body);letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);border:1px dashed var(--text-dim);border-radius:4px;padding:2px 4px;vertical-align:middle}
+.tl-hist .w .tag{white-space:nowrap;font:600 10px/1 var(--font-body);letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);border:1px dashed var(--text-dim);border-radius:4px;padding:2px 4px;vertical-align:middle}
 /* a column row (the ⚙ window's choices): .row-text's 220px base is a width, not a height */
 .tl-row.col .row-text,.gs-row.col .row-text{flex:none}
 /* the rating under the board in a box of its own (owner, 2026-09-26); History's best move under a move */
@@ -1321,3 +1321,27 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-screen=tiles] .tl-rate .rbox .rate{padding-block:3px}
 .tl-hist .w small.best{display:block;margin-top:4px;color:var(--text-muted)}
 .tl-hist .w small.best b{font:700 14px/1 var(--font-display);color:var(--text)}
+/* History as a table (owner, 2026-09-26): the move, its points, its rating, who - each in its own column, a head row */
+.tl-hist.rated li{grid-template-columns:2.5ch minmax(0,1fr) 32px 42px 68px}
+.tl-hist li{column-gap:8px}
+.tl-hist li.head{min-height:0;padding:0 0 6px;font:600 10px/1.2 var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
+.tl-hist li.head span:nth-child(3){text-align:right}
+.tl-hist li.head span:last-child{text-align:right}
+.tl-hist.rated li.head span:nth-child(4){text-align:center}
+/* the guide: every look a tile can have, drawn as on the board */
+.tl-looks{display:grid;gap:8px;margin:8px 0 0;padding:0;list-style:none}
+.tl-looks li{display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.35;color:var(--text-muted)}
+.tl-looks .t{--cs:30px;flex:none;width:30px;height:30px}
+.tl-looks .t.own{background:var(--pt)}
+.tl-looks .t.peek{opacity:.22}
+.save-name .save-no{color:var(--text-muted);font-weight:500}
+/* History on a narrow phone: the other columns slimmer, so a word (or "Podpowiedź") keeps its line */
+@media (max-width:400px){
+  .tl-hist li{column-gap:6px;grid-template-columns:2ch minmax(0,1fr) 30px 60px}
+  .tl-hist.rated li{grid-template-columns:2ch minmax(0,1fr) 30px 38px 60px}
+  .tl-hist .who{font-size:10px;letter-spacing:.03em}
+}
+/* a named game in the top bar: the name gives way ("…"), its number stays (owner, 2026-09-26) */
+.topbar .eyebrow.gname{display:flex;gap:.45em}
+.topbar .gname .nm{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.topbar .gname .no{flex:none}

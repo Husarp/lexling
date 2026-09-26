@@ -2,13 +2,13 @@
 // turns, the hand-over between people, the panel (history, letters left, check a word), the end and the
 // look-back. The rules are tiles.js; finding moves - the computer, hints, the look-back - is tiles-moves.js.
 import { t, esc, clock, plural } from './i18n.js';
-import { settings, saveSettings, getSave, putSave, gameName, recordTilesEnd, playClock } from './store.js';
+import { settings, saveSettings, getSave, putSave, recordTilesEnd, playClock } from './store.js';
 import { loadWords, resolve } from './engine.js';
 import { has } from './dawg.js';
 import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, checkMove, apply, canExchange,
   unseen, undo, loadTileWords, checkWord, fullBag, hintCost, BLANK } from './tiles.js';
 import { hint as bestMove, hintLevels, sameMove, computerMove, lookBack, LEVELS } from './tiles-moves.js';
-import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink } from './ui.js';
+import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink, gameTitle } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 
@@ -67,12 +67,16 @@ export function nameOf(state, p) {
 
 // How to play, topic by topic (owner, 2026-09-25): on New game all of them; in a game (the "?") the ones its rules use.
 export function topics(rules = null) {
-  const keys = ['goal', 'turn', 'points', 'blank', 'swap', 'end'];
+  const keys = ['goal', 'turn', 'points', 'looks', 'blank', 'swap', 'end'];
   if (!rules || rules.check === 'challenge') keys.push('challenge');
   if (!rules || rules.time) keys.push('clock');
   const legend = `<p class="tl-legend">${['l2', 'l3', 'w2', 'w3'].map(k => `<span><i class="q ${k}">${t('tiles.label.' + k)}</i></span>`).join('')}</p>`;
+  // every look a tile can have on the board, drawn as it is there (owner, 2026-09-26: "show what each tile style means")
+  const looks = `<ul class="tl-looks">${[['', 'plain'], ['p0 own', 'player'], ['bl', 'blank'], ['new', 'new'], ['new bad', 'bad'], ['hint', 'hint'],
+    ['p0 own hinted', 'hinted'], ['peek', 'peek']].map(([cls, k]) => `<li><b class="t ${cls}" aria-hidden="true">${k === 'blank' ? 'E' : 'A'}<i class="p">${
+    k === 'blank' ? '' : 1}</i></b><span>${t('tiles.looks.' + k)}</span></li>`).join('')}</ul>`;
   return `<div class="tl-topics">${keys.map(k => `<details><summary>${t('howto.tiles.' + k)}<span class="arrow" aria-hidden="true">›</span></summary><p class="help">${
-    t(`howto.tiles.${k}.t`)}</p>${k === 'points' ? legend : ''}</details>`).join('')}</div>`;
+    t(`howto.tiles.${k}.t`)}</p>${k === 'points' ? legend : k === 'looks' ? looks : ''}</details>`).join('')}</div>`;
 }
 
 // Check a word (owner, 2026-09-25: any time) - the Check tab of a game's panel.
@@ -154,7 +158,7 @@ export async function tilesGameScreen(root, id) {
   let blankFor = -1;          // the draft tile whose blank letter is being picked
   // 'hist' (tap the scores) / 'unseen' (the bag) / 'check' (the magnifier) / 'guide' (the "?") - each its own panel, no
   // tabs (owner, 2026-09-25); over the board on a phone, beside it when wide (History until another is opened)
-  let panel = null;
+  let panel = null, histOf = null;   // histOf: the player whose History a score chip opened, or null for everyone's
   let msg = null;             // what just happened, for the message line: { html, err }
   let landing = null;         // squares whose tiles just came down, to animate
   let thinking = false, toast = false, handOver = false, wide = false;
@@ -163,7 +167,7 @@ export async function tilesGameScreen(root, id) {
   const touches = new Map();
 
   root.innerHTML = `<div class="app fit" data-screen="tiles">
-  ${topbar({ left: modeTag('tiles'), right: `<span class="eyebrow">${esc(gameName(game))}</span><button class="btn btn-ghost tl-q" type="button" data-act="guide" aria-label="${t('tiles.guide')}">?</button>` })}
+  ${topbar({ left: modeTag('tiles'), right: `${gameTitle(game)}<button class="btn btn-ghost tl-q" type="button" data-act="guide" aria-label="${t('tiles.guide')}">?</button>` })}
   <main class="main"><div class="tl-play">
     <div class="status"></div>
     <div class="tl-bwrap"><div class="tl-board"><div class="tb"></div></div><p class="tl-rate" role="status"></p></div>
@@ -224,7 +228,7 @@ export async function tilesGameScreen(root, id) {
     // initial, the name, the score - the player to move ringed; the bag a dashed box of its own. With three players or more
     // the boxes scroll sideways, and the row follows the turn: the player to move slides to the front.
     const ini = initials(), tint = settings.tilesColours === true;
-    const chip = p => `<button type="button" class="ps pc${p}${!S.over && S.turn === p ? ' on' : ''}" data-open="hist" aria-label="${esc(nameOf(S, p))}: ${S.scores[p]}"><span class="pb${tint ? ' tint' : ''}" aria-hidden="true">${esc(ini[p])}</span><span class="nm">${esc(nameOf(S, p))}</span><span class="sc">${S.scores[p]}${last(p)}${
+    const chip = p => `<button type="button" class="ps pc${p}${!S.over && S.turn === p ? ' on' : ''}" data-open="hist" data-who="${p}" aria-label="${esc(nameOf(S, p))}: ${S.scores[p]}"><span class="pb${tint ? ' tint' : ''}" aria-hidden="true">${esc(ini[p])}</span><span class="nm">${esc(nameOf(S, p))}</span><span class="sc">${S.scores[p]}${last(p)}${
       thinking && S.turn === p ? `<span class="tl-dots" aria-label="${t('tiles.thinking')}"><i></i><i></i><i></i></span>` : ''}</span></button>`;
     const was = status.querySelector('.ps-row')?.scrollLeft ?? 0;
     status.innerHTML = `<div class="ps-row${np > 2 ? ' many' : ''}">${S.players.map((_, p) => chip(p)).join('')}</div>
@@ -374,7 +378,9 @@ export async function tilesGameScreen(root, id) {
   // the panel: history, letters left, check a word - or the guide
   function histHtml() {
     const words = m => m.words.map(x => wordLink(x.w, lang)).join(', ');
+    const rated = settings.tilesRate !== false;
     const rows = S.moves.map((m, i) => {
+      if (histOf !== null && m.p !== histOf) return '';
       const quiet = m.kind !== 'play';
       const w = m.kind === 'play' ? words(m) + (m.bingo && S.rules.bingo ? `<small> +${S.rules.bingo}</small>` : '') + (m.hinted ? ` <small class="tag">${t('tiles.rate.hinted')}</small>` : '')
         : m.kind === 'hint' ? t('tiles.hist.hint', { level: t('tiles.hint.' + m.level) })
@@ -383,10 +389,11 @@ export async function tilesGameScreen(root, id) {
             : t(m.ok ? 'tiles.hist.challengeWon' : 'tiles.hist.challengeLost');
       const ev = settings.tilesRate !== false && m.kind === 'play' && !m.hinted && game.evals?.[i], r = ev && rateOf(m.score, ev.best);
       const best = r && settings.tilesRate === true && m.score < ev.best ? `<small class="best">${bestWas(ev)}</small>` : '';
-      return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${i + 1}</span><span class="w">${w}${best}</span><span class="r">${m.kind === 'hint' ? (m.cost ? '−' + m.cost : '–') : quiet ? '–' : m.score}${
-        r ? `<small class="rate rate-${r}">${pctOf(m.score, ev.best)}%</small>` : ''}</span><span class="who">${esc(nameOf(S, m.p))}</span></li>`;
-    }).reverse();
-    return rows.length ? `<ol class="tl-hist">${rows.join('')}</ol>` : `<p class="help">${t('tiles.hist.empty')}</p>`;
+      return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${i + 1}</span><span class="w">${w}${best}</span><span class="r">${m.kind === 'hint' ? (m.cost ? '−' + m.cost : '–') : quiet ? '–' : m.score}</span>${
+        rated ? `<span class="pct">${r ? `<small class="rate rate-${r}">${pctOf(m.score, ev.best)}%</small>` : ''}</span>` : ''}<span class="who">${esc(nameOf(S, m.p))}</span></li>`;
+    }).filter(Boolean).reverse();
+    const head = `<li class="head"><span></span><span>${t('tiles.look.played')}</span><span>${t('tiles.hist.pts')}</span>${rated ? `<span>${t('tiles.hist.rating')}</span>` : ''}<span>${t('tiles.hist.who')}</span></li>`;
+    return rows.length ? `<ol class="tl-hist${rated ? ' rated' : ''}">${head}${rows.join('')}</ol>` : `<p class="help">${t('tiles.hist.empty')}</p>`;
   }
   function unseenHtml() {
     // as the player on screen sees it; with nobody's rack on screen, every tile not on the board
@@ -405,7 +412,7 @@ export async function tilesGameScreen(root, id) {
     if (which === 'guide') {
       html = `<div class="tl-panel" role="dialog" aria-label="${t('tiles.guide')}"><div class="tl-panel-head"><span class="eyebrow grow">${t('tiles.guide')}</span><button class="btn btn-ghost" type="button" data-act="close">${t('tiles.close')}</button></div>${topics(S.rules)}</div>`;
     } else if (which) {
-      const title = t({ hist: 'tiles.history', unseen: 'tiles.unseen', check: 'tiles.check' }[which]);
+      const title = which === 'hist' && histOf !== null ? `${t('tiles.history')} · ${esc(nameOf(S, histOf))}` : t({ hist: 'tiles.history', unseen: 'tiles.unseen', check: 'tiles.check' }[which]);
       html = `<div class="tl-panel" role="dialog" aria-label="${title}"><div class="tl-panel-head"><span class="eyebrow grow">${title}</span>
         <button class="btn btn-ghost tl-x" type="button" data-act="close" aria-label="${t('tiles.close')}">${CLOSE}</button></div>${{ hist: histHtml, unseen: unseenHtml, check: checkHtml }[which]()}</div>`;
     }
@@ -614,7 +621,7 @@ export async function tilesGameScreen(root, id) {
       next();
     },
     guide() { if (!S.over) { panel = panel === 'guide' ? null : 'guide'; paintMore(); } },
-    close() { panel = null; paintMore(); },
+    close() { panel = null; histOf = null; paintMore(); },
     show() { handOver = false; shown = S.turn; paintAll(); },
     pickCancel() {
       if (draft[blankFor] && !draft[blankFor].ch) draft.splice(blankFor, 1);   // a blank with no letter goes back
@@ -708,6 +715,8 @@ export async function tilesGameScreen(root, id) {
 
   // the square under a point on the screen, through the zoom - or null off the board
   // measured on the grid as it is drawn (zoomed, panned, and a little lower with raised tiles), inside the board's frame
+  // the grid as laid out (inside the board's frame, before any zoom)
+  const gridBox = () => { const b = boardEl.getBoundingClientRect(); return { left: b.left + tb.offsetLeft, top: b.top + tb.offsetTop, width: tb.offsetWidth, height: tb.offsetHeight }; };
   function squareAt(x, y) {
     const box = boardEl.getBoundingClientRect();
     if (x < box.left || y < box.top || x >= box.right || y >= box.bottom) return null;
@@ -735,7 +744,7 @@ export async function tilesGameScreen(root, id) {
     dragEl.style.setProperty('--y', y - pb.top + 'px');
     // near the edge of a zoomed board, the board pans
     if (zoom.z > 1) {
-      const b = boardEl.getBoundingClientRect(), fx = (x - b.left) / b.width, fy = (y - b.top) / b.height;
+      const b = gridBox(), fx = (x - b.left) / b.width, fy = (y - b.top) / b.height;
       if (fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1) {
         const dx = fx < 0.08 ? 0.02 : fx > 0.92 ? -0.02 : 0, dy = fy < 0.08 ? 0.02 : fy > 0.92 ? -0.02 : 0;
         if (dx || dy) { zoom = { ...zoom, x: clampPan(zoom.x + dx, zoom.z), y: clampPan(zoom.y + dy, zoom.z) }; applyZoom(true); }
@@ -764,13 +773,14 @@ export async function tilesGameScreen(root, id) {
     // a computer: click a square to type there, again to turn across ↔ down
     if (desk) cursor = cursor && cursor.r === sq.r && cursor.c === sq.c ? { ...cursor, down: !cursor.down } : { r: sq.r, c: sq.c, down: cursor?.down ?? false };
   }
-  // A tile tapped on the board fades for a moment and shows the square under it - a bonus or a plain one (owner, 2026-09-26:
-  // "click a letter to see if there is a bonus under it"). Any time, whoever's turn it is.
+  // A tile tapped on the board fades and shows the square under it - a bonus or a plain one (owner, 2026-09-26:
+  // "click a letter to see if there is a bonus under it"). Any time, whoever's turn it is; back on a second tap, or by
+  // itself after 5 s.
   let peekAt = -1, peekTimer = 0;
   function peek(i) {
-    peekAt = i;
+    peekAt = peekAt === i ? -1 : i;
     clearTimeout(peekTimer);
-    peekTimer = setTimeout(() => { peekAt = -1; if (app.isConnected && !S.over) paintBoard(); }, 1500);
+    if (peekAt >= 0) peekTimer = setTimeout(() => { peekAt = -1; if (app.isConnected && !S.over) paintBoard(); }, 5000);
     paintBoard();
   }
   function drop(p, x, y) {
@@ -811,7 +821,7 @@ export async function tilesGameScreen(root, id) {
       // one finger pans a zoomed board
       if (zoom.z === 1) return;
       press.drag = true;
-      const b = boardEl.getBoundingClientRect();
+      const b = gridBox();
       zoom = { ...zoom, x: clampPan(press.pan.x + dx / b.width / zoom.z, zoom.z), y: clampPan(press.pan.y + dy / b.height / zoom.z, zoom.z) };
       return applyZoom(true);
     }
@@ -857,7 +867,7 @@ export async function tilesGameScreen(root, id) {
   const movePinch = () => { pinchFrame ||= requestAnimationFrame(() => { pinchFrame = 0; pinchStep(); }); };
   function pinchStep() {
     if (!pinch || touches.size < 2) return;
-    const [a, b] = [...touches.values()], box = boardEl.getBoundingClientRect();
+    const [a, b] = [...touches.values()], box = gridBox();
     const z = Math.min(ZOOM_MAX, Math.max(1, pinch.z * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.d));
     const u = (pinch.m[0] - box.left) / box.width / pinch.z - pinch.x, v = (pinch.m[1] - box.top) / box.height / pinch.z - pinch.y;
     const mx = ((a[0] + b[0]) / 2 - box.left) / box.width, my = ((a[1] + b[1]) / 2 - box.top) / box.height;
@@ -869,7 +879,9 @@ export async function tilesGameScreen(root, id) {
     const el = e.target.closest('[data-act], [data-open], [data-ch], [data-level]');
     if (!el || S.over) return;
     if (el.dataset.open) {
-      panel = !wide && panel === el.dataset.open ? null : el.dataset.open;
+      const who = el.dataset.who === undefined ? null : +el.dataset.who;   // a score chip: that player's History only
+      panel = !wide && panel === el.dataset.open && histOf === who ? null : el.dataset.open;
+      histOf = who;
       paintMore();
       if (panel === 'check') more.querySelector('.tl-check input')?.focus();   // ready to type
       return;

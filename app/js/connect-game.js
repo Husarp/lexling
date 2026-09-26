@@ -1,10 +1,10 @@
 // The Connect game screen (design v4, "Lexling Connect"): the crossword, the circle of letters and
 // the end. The rules - what a word is, the hints, when the board is done - are in connect.js.
 import { t, esc } from './i18n.js';
-import { getSave, putSave, gameName, recordConnectEnd, playClock } from './store.js';
+import { getSave, putSave, recordConnectEnd, playClock } from './store.js';
 import { loadWords } from './engine.js';
 import { WORD_MIN, cellsOf, visible, isDone, nextHint, judge } from './connect.js';
-import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear, wordLink } from './ui.js';
+import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear, wordLink, gameTitle } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 
@@ -47,7 +47,7 @@ export async function connectGameScreen(root, id) {
   const state = () => ({ found: game.found, shown: game.shown, bonus: game.bonus });
 
   root.innerHTML = `<div class="app" data-screen="connect">
-  ${topbar({ left: modeTag('connect'), right: `<span class="eyebrow">${esc(gameName(game))}</span>${gearButton()}` })}
+  ${topbar({ left: modeTag('connect'), right: `${gameTitle(game)}${gearButton()}` })}
   <main class="main"></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main');

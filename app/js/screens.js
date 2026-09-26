@@ -132,7 +132,7 @@ export function games(root, mode, refresh) {
     const best = g.guesses.reduce((b, x) => !b || x.rank < b.rank ? x : b, null);
     return `<article class="card save" data-id="${g.id}">
   <div>
-    <h2 class="save-name">${esc(gameName(g))}</h2>
+    <h2 class="save-name">${nameHtml(g)}</h2>
     <div class="save-meta">${saveMeta(g)}</div>
   </div>
   ${actions(g)}
@@ -145,7 +145,7 @@ export function games(root, mode, refresh) {
     const used = g.guesses.length, last = g.guesses.at(-1);
     return `<article class="card save" data-id="${g.id}">
   <div>
-    <h2 class="save-name">${esc(gameName(g))}</h2>
+    <h2 class="save-name">${nameHtml(g)}</h2>
     <div class="save-meta">${lettersMeta(g)}</div>
   </div>
   ${actions(g)}
@@ -161,7 +161,7 @@ export function games(root, mode, refresh) {
     const done = marks.filter(Boolean).length;
     return `<article class="card save" data-id="${g.id}">
   <div>
-    <h2 class="save-name">${esc(gameName(g))}</h2>
+    <h2 class="save-name">${nameHtml(g)}</h2>
     <div class="save-meta">${connectMeta(g)}</div>
   </div>
   ${actions(g)}
@@ -178,7 +178,7 @@ export function games(root, mode, refresh) {
     const turn = alone && !s.players[s.turn].cpu ? t('tiles.save.yourTurn') : t('tiles.save.turn', { name: esc(nameOf(s, s.turn)) });
     return `<article class="card save" data-id="${g.id}">
   <div>
-    <h2 class="save-name">${esc(gameName(g))}</h2>
+    <h2 class="save-name">${nameHtml(g)}</h2>
     <div class="save-meta">${tilesMeta(g)}</div>
   </div>
   ${actions(g)}
@@ -205,12 +205,23 @@ export function games(root, mode, refresh) {
   });
 }
 
+// a card's title: the name, and the number beside it in a quieter colour
+const nameHtml = g => g.name ? `${esc(g.name)} <span class="save-no">(${t('games.defaultName', { n: g.auto ?? 1 })})</span>` : esc(gameName(g));
+// New game: an optional name (owner, 2026-09-26), just above Start - every mode
+const nameField = () => `<div class="field">
+        <span class="eyebrow">${t('games.nameLabel')}</span>
+        <input class="input" type="text" id="game-name" maxlength="40" autocomplete="off" placeholder="${esc(t('games.defaultName', { n: stats.gameNo + 1 }))}" aria-label="${t('games.nameLabel')}">
+        <p class="help">${t('new.nameHelp')}</p>
+      </div>`;
+const typedName = () => document.querySelector('#game-name')?.value.trim() ?? '';
+
 function rename(el, game, refresh) {
   const title = el.querySelector('.save-name');
   if (title.querySelector('input')) return;
   title.innerHTML = `<input class="input" type="text" maxlength="40" aria-label="${t('games.nameLabel')}">`;
   const input = title.firstChild;
-  input.value = gameName(game);
+  input.value = game.name;
+  input.placeholder = t('games.defaultName', { n: game.auto ?? 1 });
   input.focus();
   input.select();
   let done = false;
@@ -218,7 +229,7 @@ function rename(el, game, refresh) {
     if (done) return;
     done = true;
     const name = input.value.trim();
-    if (keep && name && name !== game.name) { game.name = name; putSave(game); }
+    if (keep && name !== game.name) { game.name = name; putSave(game); }   // empty: back to its number alone
     refresh();
   };
   input.addEventListener('keydown', e => {
@@ -284,6 +295,7 @@ export function newGameScreen(root, _, refresh) {
           <p class="help"><span class="arrow">→</span> <span id="forms-help"></span></p>
         </div>
       </div>
+      ${nameField()}
       <div class="cta">
         <p class="summary"></p>
         <p class="help err" id="new-err" role="alert" hidden></p>
@@ -354,7 +366,7 @@ export function newGameScreen(root, _, refresh) {
     }
     settings.newGame = { lang: o.lang };   // the next game starts from NEW_GAME again
     saveSettings();
-    const game = newGame({ ...o, secret: m.words[idx] });
+    const game = newGame({ ...o, secret: m.words[idx], name: typedName() });
     location.replace('#/game/' + game.id);   // Back from the game goes to the picker, not to this form
   });
 }
@@ -415,6 +427,7 @@ export function lettersNewScreen(root, _, refresh) {
         </div>
         <p class="help"><span class="arrow">→</span> <span id="polish-help"></span></p>
       </div>
+      ${nameField()}
       <div class="cta">
         <p class="summary"></p>
         <p class="help err" id="new-err" role="alert" hidden></p>
@@ -527,7 +540,7 @@ export function lettersNewScreen(root, _, refresh) {
     if (idx < 0) { err.hidden = false; return; }
     settings.newGame = { lang: o.lang };
     saveSettings();
-    const game = newGame({ mode: 'letters', lang: o.lang, cat: o.cat, len: [...m.words[idx]].length, tries: o.unlimited ? 0 : o.tries,
+    const game = newGame({ name: typedName(), mode: 'letters', lang: o.lang, cat: o.cat, len: [...m.words[idx]].length, tries: o.unlimited ? 0 : o.tries,
       diff: o.diff, marks: marks(), secret: m.words[idx] });
     location.replace('#/game/' + game.id);   // Back from the game goes to the picker, not to this form
   });
@@ -571,6 +584,7 @@ export function connectNewScreen(root, _, refresh) {
         </div>
         <p class="help"><span class="arrow">→</span> <span id="polish-help"></span></p>
       </div>
+      ${nameField()}
       <div class="cta">
         <p class="summary"></p>
         <p class="help err" id="new-err" role="alert" hidden></p>
@@ -628,7 +642,7 @@ export function connectNewScreen(root, _, refresh) {
     if (!puzzle) { err.textContent = t('cn.errNone'); err.hidden = false; return; }
     settings.newGame = { lang: o.lang };
     saveSettings();
-    const game = newGame({ mode: 'connect', lang: o.lang, letters: o.letters, diff, marks: marks(),
+    const game = newGame({ name: typedName(), mode: 'connect', lang: o.lang, letters: o.letters, diff, marks: marks(),
       ring: puzzle.ring, key: puzzle.key, board: puzzle.board, found: [], shown: [], bonus: [], hints: 0 });
     location.replace('#/game/' + game.id);   // Back from the game goes to the list, not to this form
   });
@@ -691,6 +705,7 @@ export function tilesNewScreen(root, _, refresh) {
         <summary><span class="eyebrow">${t('tiles.rules')} <span class="muted"></span></span><span class="arrow" aria-hidden="true">›</span></summary>
         <div class="rules-body"></div>
       </details>
+      ${nameField()}
       <div class="cta">
         <p class="summary"></p>
         <button class="btn btn-primary btn-lg btn-block" type="submit">${t('new.start')} <span class="arrow">→</span></button>
@@ -842,7 +857,7 @@ export function tilesNewScreen(root, _, refresh) {
     const humans = players.filter(x => !x.cpu).length, vsCpu = humans === 1 && players.some(x => x.cpu);
     const state = tilesGame({ lang: o.lang, board: o.board, players, first: first >= 0 ? first : undefined, words: dict.tag,
       rules: { ...o.rules, undo: vsCpu && o.rules.undo, open: humans > 1 && o.rules.open } });
-    const game = newGame({ mode: 'tiles', lang: o.lang, state, firstSet: first >= 0, order: [], turnMs: 0 });
+    const game = newGame({ name: typedName(), mode: 'tiles', lang: o.lang, state, firstSet: first >= 0, order: [], turnMs: 0 });
     location.replace('#/game/' + game.id);   // Back from the game goes to the list, not to this form
   });
 }

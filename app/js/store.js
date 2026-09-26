@@ -79,7 +79,8 @@ export function deleteSave(id) {
 
 // An unnamed game keeps its number, not a baked-in "Game 4": gameName() spells it in whatever language
 // the interface is in right now. A name the player typed is theirs and is left alone.
-export const gameName = g => g.name || t('games.defaultName', { n: g.auto ?? 1 });
+// A named game still shows its number (owner, 2026-09-26): "Name (Game 12)".
+export const gameName = g => { const no = t('games.defaultName', { n: g.auto ?? 1 }); return g.name ? `${g.name} (${no})` : no; };
 
 // `fields` is the game's own settings: Guess { lang, cat, band, diff, friend, secret },
 // Letters { mode: 'letters', lang, cat, len, tries (0 = unlimited), diff, marks, secret },

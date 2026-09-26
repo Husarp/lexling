@@ -1,6 +1,11 @@
-import { settings, saveSettings } from './store.js';
+import { settings, saveSettings, gameName } from './store.js';
 import { t, esc } from './i18n.js';
 import { click } from './sound.js';
+
+// A game's name in its top bar (owner, 2026-09-26: "Name (Game 12)"): a long name gives way, its number always shows.
+export const gameTitle = g => g.name
+  ? `<span class="eyebrow gname"><span class="nm">${esc(g.name)}</span><span class="no">(${t('games.defaultName', { n: g.auto ?? 1 })})</span></span>`
+  : `<span class="eyebrow">${esc(gameName(g))}</span>`;
 
 // A word's meaning (owner, 2026-09-26: no dictionary inside the app - too big - "open the browser with the word"): sjp.pl
 // for Polish (it knows every form, and says which word it comes from), Wiktionary for English. In the phone's own

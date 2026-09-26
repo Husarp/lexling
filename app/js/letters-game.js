@@ -2,10 +2,10 @@
 // game-letters-end.html (won / lost / gave up), with the dummy text replaced by t(...) and live data.
 // The on-screen keyboard and editing a tile are design v4 ("Lexling Letters Keyboard").
 import { t, plural, esc } from './i18n.js';
-import { settings, stats, saveStats, getSave, putSave, gameName, recordLettersEnd, playClock } from './store.js';
+import { settings, stats, saveStats, getSave, putSave, recordLettersEnd, playClock } from './store.js';
 import { loadWords, resolve } from './engine.js';
 import { feedback, typeLetter, eraseLetter, skipTile, keyStates, MARKED } from './letters.js';
-import { topbar, modeTag, confirmClick, TILE, outcome, gearButton, wireGear, meaningButton } from './ui.js';
+import { topbar, modeTag, confirmClick, TILE, outcome, gearButton, wireGear, meaningButton, gameTitle } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 import { offensive } from './offensive.js';
@@ -36,7 +36,7 @@ export async function lettersGameScreen(root, id) {
   // stuck). Saves from 0.28.2-0.33.3 may still carry `hinted`; it is ignored.
 
   root.innerHTML = `<div class="app" data-screen="letters">
-  ${topbar({ left: modeTag('letters'), right: `<span class="eyebrow">${esc(gameName(game))}</span>${gearButton()}` })}
+  ${topbar({ left: modeTag('letters'), right: `${gameTitle(game)}${gearButton()}` })}
   <main class="main"></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main');

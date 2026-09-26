@@ -6,6 +6,28 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.45.0 — 2026-09-26 03:38: named games; Kafelki: History as a table, a frame round the board, tile looks explained
+*(not packaged)*
+
+- **Name your games** (owner, every mode): a "Nazwa gry" field on New game, just above Start - optional. A named game
+  shows as **"Name (Gra 12)"** on its card in Twoje gry and in its top bar, where a long name gives way ("…") but the
+  number stays. Zmień nazwę in Twoje gry works as before; clearing the name gives the game back its number alone.
+- **History is a table** (owner): the words, points, rating and player each in their own column, with a head row
+  (zagrane · pkt · ocena · gracz), so every row lines up - on narrow phones too.
+- **Tap a score chip to see only that player's moves** ("Historia · Komputer"); the ≡ button shows everyone's.
+- **Fix**: after tapping a score chip its orange frame stayed lit until another chip was tapped (a touch screen keeps
+  "hover" on the last thing touched) - now the frame is only for a mouse.
+- **Fix**: on tiles from a hint the small numbers ran into the letters - the dashes are now drawn inside the tile.
+- **A tapped tile** stays see-through until you tap it again, or for 5 s (was 1.5 s).
+- **A frame round the whole board** (owner): the grey line raised tiles left at the top is now an even frame on every
+  side, raised tiles or not.
+- **Jak grać → "Płytki na planszy"** (owner): every look a tile can have, drawn as on the board - a plain letter, a
+  player's colour, a blank, this turn's tile, a move that cannot be played, a hint's word, played from a hint, tapped.
+- Checked in headless Edge at 320, 360 and 480 px: the name field in all four New game screens, the name in the top bar
+  and on its card, a name cleared; History from a chip and from ≡, its columns at the same place in every row; a tile
+  tapped twice; the frame (5-6 px); the tile looks in the guide; hint tiles close up at 4× with raised tiles.
+  286 Connect, 264 Letters and 270 Tiles tests.
+
 ## 0.44.0 — 2026-09-26 02:56: Kafelki: the rating in a box, History as the rating list
 *(not packaged)*
 
