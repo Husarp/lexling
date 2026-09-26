@@ -6,7 +6,7 @@ import { menu, games, newGameScreen, lettersNewScreen, connectNewScreen, tilesNe
 import { gameScreen } from './game.js';
 import { lettersGameScreen } from './letters-game.js';
 import { connectGameScreen } from './connect-game.js';
-import { tilesGameScreen } from './tiles-game.js';
+import { tilesGameScreen, applyTileLook } from './tiles-game.js';
 import { VERSION } from './version.js';
 
 // Routes name the mode where it matters: #/new is Guess, #/new/letters, #/new/connect, #/new/tiles the others,
@@ -38,6 +38,7 @@ async function render(navigated = true) {
 
 setLang(settings.lang);
 applyTheme();
+applyTileLook();
 applyAccent();
 
 // A phone keyboard eats about half the screen, and that is the state the game is played in. When the

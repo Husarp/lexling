@@ -35,16 +35,19 @@ const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44
 export const gearButton = (cls = '') => `<button class="btn btn-ghost gs-open${cls ? ' ' + cls : ''}" type="button" aria-label="${t('set.title')}" title="${t('set.title')}">${GEAR}</button>`;
 // `extra` = the game's own settings, [[key, label, help]] - a switch - or [key, label, help, [[value, text], ...]] - a
 // choice; `onChange()` repaints what they change.
-export function wireGear(root, extra = [], onChange = () => {}) {
+export const wireGear = (root, extra = [], onChange = () => {}) =>
+  wireDialog(root, '.gs-open', t('set.title'), [['sound', t('set.sound'), t('set.soundDesc')], ...extra], onChange);
+// A small settings window opened by `trigger` (the gear; Tiles' palette): switches, and choices - [value, label, name],
+// the label may be a picture (a colour swatch), `name` then says it.
+export function wireDialog(root, trigger, title, items, onChange = () => {}) {
   root.firstElementChild.addEventListener('click', e => {        // the screen, which goes when it is replaced
-    if (!e.target.closest('.gs-open')) return;
-    const items = [['sound', t('set.sound'), t('set.soundDesc')], ...extra];
+    if (!e.target.closest(trigger)) return;
     const dlg = document.createElement('dialog');
     dlg.className = 'card game-settings';
-    dlg.innerHTML = `<div class="gs-head"><span class="eyebrow">${t('set.title')}</span><button class="btn btn-ghost gs-close" type="button" aria-label="${t('tiles.close')}">✕</button></div>${
+    dlg.innerHTML = `<div class="gs-head"><span class="eyebrow">${title}</span><button class="btn btn-ghost gs-close" type="button" aria-label="${t('tiles.close')}">✕</button></div>${
       items.map(([key, label, help, choices]) => choices
-        ? `<div class="gs-row col"><div class="row-text"><strong>${label}</strong><span>${help}</span></div><div class="seg" role="radiogroup">${choices.map(([v, text]) =>
-          `<button type="button" data-key="${key}" data-v="${v}" class="${settings[key] === v ? 'on' : ''}">${text}</button>`).join('')}</div></div>`
+        ? `<div class="gs-row col"><div class="row-text"><strong>${label}</strong><span>${help}</span></div><div class="seg" role="radiogroup">${choices.map(([v, text, name]) =>
+          `<button type="button" data-key="${key}" data-v="${v}" class="${settings[key] === v ? 'on' : ''}"${name ? ` aria-label="${name}" title="${name}"` : ''}>${text}</button>`).join('')}</div></div>`
         : `<div class="gs-row"><div class="row-text"><strong>${label}</strong><span>${help}</span></div><button type="button" class="toggle${settings[key] ? ' on' : ''}" role="switch" aria-checked="${!!settings[key]}" aria-label="${label}" data-key="${key}"></button></div>`).join('')}`;
     const keys = e => {
       e.stopPropagation();

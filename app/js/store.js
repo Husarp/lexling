@@ -27,6 +27,8 @@ export const settings = read('wg.settings', {
   tilesRate: true,
   // Tiles: the tiles on the board raised, like real ones - easier to see (owner, 2026-09-26)
   tiles3d: false,
+  // Tiles: the tiles' own colour - yellow, white, cream, wood or mint (owner, 2026-09-26)
+  tilesTile: 'yellow',
   // Only the language carries over between games; everything else starts from NEW_GAME each time.
   newGame: { lang: null },
 });

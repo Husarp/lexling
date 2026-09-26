@@ -569,6 +569,22 @@ name gives way in the top bar (to the gear, or Kafelki's "?") - it is on the sav
   "Z podpowiedzi" instead of a percentage; the end review marks it and leaves it out of that player's rating.
 - **Raised tiles in the top row** (0.42.3): the grid leaves a sixth of a square at the top of the board, so their faces
   are not cut off by its edge; a tap is measured on the grid as drawn.
+- **The palette is back** (0.47.0, owner): a 🎨 button between ≡ and ⚙ opens "Wygląd" - player colours, **tile colour**
+  (new), raised tiles, bonus squares; ⚙ keeps sound and the rating. Under 390 px the four icons are 32 px, so the two
+  labels stay on one line from 340 px.
+- **The tiles' own colour** (0.47.0, owner: "normally yellow - let me choose, white too"): settings.tilesTile - yellow,
+  white, cream, wood, mint - set on <html> (data-tilecolour), so the rack, the letter by each name (when the player
+  colours are not "tiles") and the board's tiles follow it on every screen; each has its own paler blank. In the light
+  theme a white tile gets a thin grey edge. Also in Settings and on New game.
+- **Brighter letter colours** for "Litery" (0.47.0, owner) - they suit white tiles; on yellow they are a little softer.
+- **The rating box, redesigned** (0.47.0, owner: "looks bad"): a card as wide as the board - the band and its percent
+  in the band's colour on the left, "najlepszy" and the best move with its points on the right, a bar along the bottom
+  filled to the percent; a hint's move and a pass in grey. Under 360 px the "najlepszy" label goes.
+- **The board's frame in wood** (0.47.0, owner: "grey is boring"): walnut in the dark theme, oak in the light one, a
+  little wider (2.2 % of the board).
+- **Tables sized by their contents** (0.47.0, owner: "names cut - KOMPUT…"): History and the end review are grids whose
+  rows are subgrids, so a column is as wide as its longest entry and still lines up; the end review has the same
+  columns as History - played, rating, best, player - with names instead of dots.
 - **A game without ratings** (0.46.0, owner): rules.rating - "Oceny ruchów: Dozwolone / Bez ocen" in the Rules on New
   game. Without: nothing under the board (and no room kept for it), History with no rating column and no best moves,
   no rating box at the end, no rating choice in the game's ⚙, and the best move is not even worked out. Allowed: each

@@ -64,7 +64,7 @@ Playable in **Polish and English** (both the UI and the word libraries).
   last turn,
   move ratings (a game can be set to have none; after each of your moves - with the best move there was, or the rating alone - in History for every
   move with the best move under it, and for every player at the end: points against the best move there was),
-  raised tiles and three looks for the bonus squares, and its own statistics by language and level. Points stay in this one - scoring is the game.
+  raised tiles, three looks for the bonus squares and five tile colours (the 🎨 button), and its own statistics by language and level. Points stay in this one - scoring is the game.
 
 ## Run it (development)
 

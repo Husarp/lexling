@@ -6,6 +6,25 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.47.0 — 2026-09-26 04:24: Kafelki: the palette back with tile colours, a new rating box, a wood frame
+*(not packaged)*
+
+- **The 🎨 button is back** (owner), next to ⚙: **Wygląd** - Kolory graczy, **Kolor płytek** (new), Wypukłe płytki,
+  Pola premiowe. ⚙ now has only Dźwięk and Oceniaj moje ruchy.
+- **Kolor płytek** (owner): żółte, **białe**, kremowe, drewniane, miętowe - the tiles on your rack, the letter by each
+  name, and the board's tiles when they are not in a player's colour. Also in Settings and on New game.
+- **Brighter letter colours** for Kolory graczy → Litery (owner).
+- **A new rating box** under the board (owner: "looks bad"): a card as wide as the board - the rating and its percent
+  in its colour, the best move and its points on the right, and a bar along the bottom showing how close you came.
+- **The board's frame is wood** (owner: "grey is boring") - dark walnut, or light oak in the light theme.
+- **Names are never cut** (owner: "KOMPUT…"): History's columns are as wide as their longest entry and still line up.
+- **The end-of-game list is a table like History** (owner): zagrane · ocena · najlepszy · gracz, with the players'
+  names instead of coloured dots.
+- The Zapisz i wyjdź / Poddaję się labels stay on one line with the four icons from 340 px up; they fit again after
+  a change in the palette too. White tiles get a thin grey edge in the light theme.
+- Checked in headless Edge at 320-412 px, dark and light: the palette and white tiles on the rack, a real move rated
+  in the new box, History and the end review with full names and lined-up columns, Settings and New game. 270 Tiles tests.
+
 ## 0.46.0 — 2026-09-26 03:56: Kafelki: a game without ratings, blanks told apart from hints
 *(not packaged)*
 

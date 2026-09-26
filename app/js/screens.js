@@ -6,7 +6,7 @@ import { load, loadWords, preload, resolve, pickSecret, lengthStats } from './en
 import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js';
 import { makePuzzle, RANGE, RING_MIN, RING_MAX, visible, isDone } from './connect.js';
 import { BOARDS, STANDARD, LEVEL_ORDER, PLAYERS_MAX, newGame as tilesGame, loadTileWords, valueOf, fullBag } from './tiles.js';
-import { nameOf, topics, LABEL, bonusSeg, bonusOf, coloursSeg, rateSeg } from './tiles-game.js';
+import { nameOf, topics, LABEL, bonusSeg, bonusOf, coloursSeg, rateSeg, tileSeg, applyTileLook } from './tiles-game.js';
 import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYPH, modeTag, TILE, squares } from './ui.js';
 import { fitAll } from './fit.js';
 import { click } from './sound.js';
@@ -696,6 +696,9 @@ export function tilesNewScreen(root, _, refresh) {
         <div class="row"><div class="row-text"><strong>${t('tiles.colours')}</strong></div></div>
         <div id="colour-looks">${coloursSeg()}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.coloursHelp')}</p>
+        <div class="row"><div class="row-text"><strong>${t('tiles.tile')}</strong></div></div>
+        <div id="tile-looks">${tileSeg()}</div>
+        <p class="help"><span class="arrow">→</span> ${t('tiles.tileHelp')}</p>
         <div class="row"><div class="row-text"><strong>${t('tiles.bonus')}</strong></div></div>
         <div id="bonus">${bonusSeg()}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.bonusHelp')}</p>
@@ -798,6 +801,7 @@ export function tilesNewScreen(root, _, refresh) {
   }));
   root.querySelectorAll('[data-board]').forEach(b => b.addEventListener('click', () => { o.board = b.dataset.board; sync(); }));
   $('#colour-looks').addEventListener('click', e => { const b = e.target.closest('[data-colours]'); if (b) { settings.tilesColours = bonusOf(b.dataset.colours); saveSettings(); sync(); } });
+  $('#tile-looks').addEventListener('click', e => { const b = e.target.closest('[data-tc]'); if (b) { settings.tilesTile = b.dataset.tc; saveSettings(); applyTileLook(); $('#tile-looks').innerHTML = tileSeg(); } });
   $('#bonus').addEventListener('click', e => { const b = e.target.closest('[data-bonus]'); if (b) { settings.tilesBonus = bonusOf(b.dataset.bonus); saveSettings(); sync(); } });
   $('.tl-rules').addEventListener('toggle', e => { o.rulesOpen = e.target.open; });
   $('.tl-players').addEventListener('input', e => {
@@ -1011,6 +1015,7 @@ export async function settingsScreen(root, _, refresh) {
     <section class="group">
       <h2 class="title">${t('set.tiles')}</h2>
       <div class="row"><div class="row-text"><strong>${t('tiles.colours')}</strong><span>${t('tiles.coloursHelp')}</span></div>${coloursSeg()}</div>
+      <div class="row"><div class="row-text"><strong>${t('tiles.tile')}</strong><span>${t('tiles.tileHelp')}</span></div>${tileSeg()}</div>
       <div class="row"><div class="row-text"><strong>${t('tiles.bonus')}</strong><span>${t('tiles.bonusHelp')}</span></div>${bonusSeg()}</div>
       <div class="row"><div class="row-text"><strong>${t('tiles.raised')}</strong><span>${t('tiles.raisedHelp')}</span></div><button type="button" class="toggle ${on(settings.tiles3d)}" data-toggle="tiles3d" role="switch" aria-checked="${!!settings.tiles3d}" aria-label="${t('tiles.raised')}"></button></div>
       <div class="row"><div class="row-text"><strong>${t('tiles.rate.setting')}</strong><span>${t('tiles.rate.settingHelp')}</span></div>${rateSeg()}</div>
@@ -1062,6 +1067,12 @@ export async function settingsScreen(root, _, refresh) {
     settings.tilesBonus = bonusOf(b.dataset.bonus);
     saveSettings();
     root.querySelectorAll('[data-bonus]').forEach(x => x.classList.toggle('on', x === b));
+  }));
+  root.querySelectorAll('[data-tc]').forEach(b => b.addEventListener('click', () => {
+    settings.tilesTile = b.dataset.tc;
+    saveSettings();
+    applyTileLook();
+    root.querySelectorAll('[data-tc]').forEach(x => x.classList.toggle('on', x === b));
   }));
   root.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => {
     settings.tilesRate = bonusOf(b.dataset.rate);

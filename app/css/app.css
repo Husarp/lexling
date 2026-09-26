@@ -828,8 +828,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
    .tb is the grid; zoom is ONE transform on it (scale, then translate in % of the board), so tiles,
    labels and the score bubble all grow together and stay sharp. 200ms in and out. */
 .tl-bwrap{grid-area:board;min-width:0;min-height:0;container-type:size;display:grid;place-items:start center}
-.tl-board{position:relative;width:min(100cqw,100cqh);aspect-ratio:1;overflow:hidden;border-radius:8px;background:var(--tb-grid);container-type:inline-size;touch-action:none;user-select:none;-webkit-user-select:none}
-.tb{--g:1px;--fr:calc(100cqi * .016);--cs:calc((100cqi - 2 * var(--fr) - (var(--n) - 1) * var(--g)) / var(--n));position:absolute;inset:var(--fr);display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));grid-template-rows:repeat(var(--n),minmax(0,1fr));gap:var(--g);--pitch:calc((100% + 1px) / var(--n));background-color:var(--tb-sq);background-image:repeating-linear-gradient(90deg,transparent 0 calc(var(--pitch) - 1px),var(--tb-grid) calc(var(--pitch) - 1px) var(--pitch)),repeating-linear-gradient(180deg,transparent 0 calc(var(--pitch) - 1px),var(--tb-grid) calc(var(--pitch) - 1px) var(--pitch));transform-origin:0 0;transform:scale(var(--z,1)) translate(var(--tx,0%),var(--ty,0%));transition:transform 200ms var(--ease)}
+.tl-board{position:relative;width:min(100cqw,100cqh);aspect-ratio:1;overflow:hidden;border-radius:8px;background:var(--tb-frame);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);container-type:inline-size;touch-action:none;user-select:none;-webkit-user-select:none}
+.tb{--g:1px;--fr:calc(100cqi * .022);--cs:calc((100cqi - 2 * var(--fr) - (var(--n) - 1) * var(--g)) / var(--n));position:absolute;inset:var(--fr);display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));grid-template-rows:repeat(var(--n),minmax(0,1fr));gap:var(--g);--pitch:calc((100% + 1px) / var(--n));background-color:var(--tb-sq);background-image:repeating-linear-gradient(90deg,transparent 0 calc(var(--pitch) - 1px),var(--tb-grid) calc(var(--pitch) - 1px) var(--pitch)),repeating-linear-gradient(180deg,transparent 0 calc(var(--pitch) - 1px),var(--tb-grid) calc(var(--pitch) - 1px) var(--pitch));transform-origin:0 0;transform:scale(var(--z,1)) translate(var(--tx,0%),var(--ty,0%));transition:transform 200ms var(--ease)}
 .q{position:relative;min-width:0;min-height:0;display:grid;place-items:center;background:var(--tb-sq);border-radius:calc(var(--cs) * .1);font:700 max(7px,calc(var(--cs) * .34))/1 var(--font-body);letter-spacing:-.02em;color:var(--tb-lbl)}
 .q.l2{background:var(--tb-2l);color:var(--tb-2l-ink)}
 .q.l3{background:var(--tb-3l);color:var(--tb-3l-ink)}
@@ -930,11 +930,11 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-x{width:44px;min-width:44px;padding:0}
 .tl-x svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 @container (min-width:900px){.tl-panel{grid-area:panel;align-self:stretch;box-shadow:none;border-color:var(--line-soft)}.tl-x{display:none}}
-.tl-hist{list-style:none;padding:0;display:grid}
-.tl-hist li{display:grid;grid-template-columns:2.5ch minmax(0,1fr) 32px 68px;align-items:center;gap:var(--space-3);min-height:40px;padding:var(--space-1) 0;border-bottom:1px solid var(--line-soft);font-size:14px}
+.tl-hist{list-style:none;padding:0;display:grid;grid-template-columns:2.5ch minmax(0,1fr) auto auto;column-gap:8px}
+.tl-hist li{display:grid;grid-column:1 / -1;grid-template-columns:subgrid;align-items:center;gap:var(--space-3);min-height:40px;padding:var(--space-1) 0;border-bottom:1px solid var(--line-soft);font-size:14px}
 .tl-hist .i{color:var(--text-dim);font-variant-numeric:tabular-nums}
-.tl-hist .who{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;font:600 11px/1.2 var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--pt)}
-[data-theme=light] .tl-hist .who{color:var(--pc)}
+:is(.tl-hist,.tl-look) .who{max-width:13ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;font:600 11px/1.2 var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--pt)}
+[data-theme=light] :is(.tl-hist,.tl-look) .who{color:var(--pc)}
 .tl-hist .w{font:700 17px/1.1 var(--font-display);text-transform:uppercase;letter-spacing:-.01em;overflow-wrap:break-word}
 .tl-hist .w small{font:500 12px/1 var(--font-body);text-transform:none;letter-spacing:0;color:var(--accent)}
 .tl-hist .quiet .w{font:500 14px/1.2 var(--font-body);text-transform:none;color:var(--text-muted)}
@@ -1103,14 +1103,14 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-places li.first b{color:var(--accent)}
 /* the look-back after the game */
 .tl-look{display:grid;gap:var(--space-2)}
-.tl-look ol{list-style:none;padding:0;margin:0;display:grid}
-.tl-look li{display:grid;grid-template-columns:2.5ch minmax(0,1fr) minmax(0,1fr);gap:var(--space-3);align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:14px}
+.tl-look ol{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:2.5ch minmax(0,1fr) auto minmax(0,1fr) auto;column-gap:8px}
+.tl-look li{display:grid;grid-column:1 / -1;grid-template-columns:subgrid;column-gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:14px}
 .tl-look .i{color:var(--text-dim);font-variant-numeric:tabular-nums}
 .tl-look .w{font:700 16px/1.15 var(--font-display);text-transform:uppercase;overflow-wrap:anywhere}
 .tl-look .w small{font:500 12px/1 var(--font-body);text-transform:none;color:var(--text-muted)}
 .tl-look .best .w{color:var(--text-muted)}
 .tl-look li.same .best .w{color:var(--lt-hit)}
-.tl-look .head{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim)}
+.tl-look .head{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim)}
 /* check a word from the games list */
 /* the game screen's wiring (0.35.0): the panel and the overlays sit in .tl-play's grid through these wrappers */
 .tl-more,.tl-over{display:contents}
@@ -1209,8 +1209,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-evals{list-style:none;padding:0;margin:0;display:grid;gap:6px}
 .tl-evals li{display:grid;grid-template-columns:12px minmax(0,1fr) auto;align-items:center;gap:var(--space-2);font-size:15px}
 .tl-evals li i{width:10px;height:10px;border-radius:50%;background:var(--pc)}
-.tl-look .w .dot{display:inline-block;width:8px;height:8px;margin-right:6px;border-radius:50%;background:var(--pc);vertical-align:middle}
-.tl-look .w .rate{margin-left:4px}
 /* the bonus squares, "labels only" (owner, 2026-09-26): a plain square, the label in the bonus colour (brighter on dark,
    deeper on light, so it reads) */
 :root{--tb-2l-txt:#8CC8EA;--tb-3l-txt:#6FA5EE;--tb-2w-txt:#F29B55;--tb-3w-txt:#F2665F}
@@ -1219,7 +1217,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tb.tint .q.l2{color:var(--tb-2l-txt)}.tb.tint .q.l3{color:var(--tb-3l-txt)}.tb.tint .q.w2{color:var(--tb-2w-txt)}.tb.tint .q.w3{color:var(--tb-3w-txt)}
 /* a choice of three, on its own line under its label (History, the gear) */
 .tl-row.col,.gs-row.col{flex-direction:column;align-items:stretch;gap:var(--space-2)}
-.gs-row .seg button,.tl-row .seg button{min-height:38px;font-size:11px}
+.gs-row .seg button,.tl-row .seg button{min-height:38px;font-size:11px;padding:0 6px;letter-spacing:.03em}
 #bonus{margin-top:var(--space-2)}
 /* raised tiles (a setting, owner 2026-09-26: "true 3D - over the tiles above, the letter centred"): the tile's face is
    lifted a sixth of a square, over the square above; below it the tile's thickness - its own colour, darker - fills down
@@ -1235,7 +1233,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
    (owner, 2026-09-26: "orange in both top corners" - a zoomed-in 2S square behind a rounder corner) */
 [data-screen=tiles] .tl-panel{border-radius:8px}
 /* in the end review a long rating may wrap rather than run into the next column */
-.tl-look .w .rate{white-space:normal;max-width:100%}
 /* the message line above the rack, much bigger (owner, 2026-09-26: "way bigger - everything shown there") */
 [data-screen=tiles] .say{font-size:18px;line-height:1.35;min-height:30px;gap:2px 8px}
 [data-screen=tiles] .say b{font:700 22px/1.1 var(--font-display);letter-spacing:.01em}
@@ -1257,7 +1254,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
    scroll sideways (two in view) and the row follows the turn. The bag: a dashed box of its own, always in view. ═══ */
 /* the letter colours (a choice: player colours "Letters"), dark enough on the yellow tile - the design's five inks, in
    the hues of the tinted tiles where they can be (seat 5's yellow has no ink on yellow: teal) */
-:root{--tl-i0:#245A0C;--tl-i1:#5B2386;--tl-i2:#9E1830;--tl-i3:#3F4653;--tl-i4:#005F66}
+:root{--tl-i0:#2B8C0E;--tl-i1:#7B2FDB;--tl-i2:#DB1F5A;--tl-i3:#44618E;--tl-i4:#00909C}
 .pc0,.t.p0{--pi:var(--tl-i0)}.pc1,.t.p1{--pi:var(--tl-i1)}.pc2,.t.p2{--pi:var(--tl-i2)}.pc3,.t.p3{--pi:var(--tl-i3)}.pc4,.t.p4{--pi:var(--tl-i4)}
 .tb.inks .t:is(.p0,.p1,.p2,.p3,.p4){color:var(--pi)}
 .ps-row{flex:1 1 0;min-width:0;display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}
@@ -1288,9 +1285,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-screen=tiles] .tl-bwrap.rated{--rate-h:34px}
 [data-screen=tiles] .tl-bwrap .tl-board{flex:none;width:min(100cqw,calc(100cqh - var(--rate-h)))}
 [data-screen=tiles] .tl-rate{flex:none;height:var(--rate-h);width:100%;margin:0;display:flex;flex-wrap:nowrap;align-items:center;justify-content:center;gap:4px 10px;overflow:hidden;font-size:16px;line-height:1.3;color:var(--text-muted);text-align:center;white-space:nowrap}
-[data-screen=tiles] .tl-rate .rate{font-size:15px;padding:4px 11px}
-[data-screen=tiles] .tl-rate .best-was b{color:var(--text);font:700 18px/1 var(--font-display)}
-[data-screen=tiles] .tl-rate>b{color:var(--text);font-weight:600}
 [data-screen=tiles] .say{gap:2px 14px}
 /* Settings on a phone: a row's choices fill its width instead of stopping at 320 px with empty space beside them (owner,
    2026-09-26: "why are some sections so stretched out with so much unused space?") */
@@ -1303,7 +1297,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
    2026-09-26) */
 [data-screen=tiles].fit .say{min-height:64px;align-content:center}
 @container (max-width:480px){[data-screen=tiles].fit .say{min-height:58px}}
-@container (max-width:360px){[data-screen=tiles] .tl-rate{font-size:14px}[data-screen=tiles] .tl-rate .rate{font-size:13px;padding:3px 8px}[data-screen=tiles] .tl-rate .best-was b{font-size:16px}}
 /* New game: Hints, a section of its own - on / off, and how many of each level per player (owner, 2026-09-26) */
 .tl-hints{display:grid;gap:var(--space-2);padding:var(--space-3) var(--space-4)}
 .tl-hints .rule{display:grid;gap:8px}
@@ -1313,16 +1306,14 @@ input,textarea{-webkit-user-select:text;user-select:text}
    History, the rating and the end review, where it is left out of the player's rating */
 .t.hinted{outline:calc(var(--cs) * .05) dashed rgba(0,0,0,.55);outline-offset:calc(var(--cs) * -.08)}
 .rate-hint{--rate-bg:rgba(150,150,150,.18);--rate-ink:var(--text-muted)}
-.tl-hist .w .tag{white-space:nowrap;font:600 10px/1 var(--font-body);letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);border:1px dashed var(--text-dim);border-radius:4px;padding:2px 4px;vertical-align:middle}
+:is(.tl-hist,.tl-look) .w .tag{white-space:nowrap;font:600 10px/1 var(--font-body);letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);border:1px dashed var(--text-dim);border-radius:4px;padding:2px 4px;vertical-align:middle}
 /* a column row (the ⚙ window's choices): .row-text's 220px base is a width, not a height */
 .tl-row.col .row-text,.gs-row.col .row-text{flex:none}
 /* the rating under the board in a box of its own (owner, 2026-09-26); History's best move under a move */
-[data-screen=tiles] .tl-rate .rbox{display:inline-flex;align-items:center;gap:10px;max-width:100%;height:100%;box-sizing:border-box;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden}
-[data-screen=tiles] .tl-rate .rbox .rate{padding-block:3px}
 .tl-hist .w small.best{display:block;margin-top:4px;color:var(--text-muted)}
 .tl-hist .w small.best b{font:700 14px/1 var(--font-display);color:var(--text)}
 /* History as a table (owner, 2026-09-26): the move, its points, its rating, who - each in its own column, a head row */
-.tl-hist.rated li{grid-template-columns:2.5ch minmax(0,1fr) 32px 42px 68px}
+.tl-hist.rated{grid-template-columns:2.5ch minmax(0,1fr) auto auto auto}
 .tl-hist li{column-gap:8px}
 .tl-hist li.head{min-height:0;padding:0 0 6px;font:600 10px/1.2 var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
 .tl-hist li.head span:nth-child(3){text-align:right}
@@ -1337,9 +1328,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .save-name .save-no{color:var(--text-muted);font-weight:500}
 /* History on a narrow phone: the other columns slimmer, so a word (or "Podpowiedź") keeps its line */
 @media (max-width:400px){
-  .tl-hist li{column-gap:6px;grid-template-columns:2ch minmax(0,1fr) 30px 60px}
-  .tl-hist.rated li{grid-template-columns:2ch minmax(0,1fr) 30px 38px 60px}
-  .tl-hist .who{font-size:10px;letter-spacing:.03em}
+  .tl-hist,.tl-hist li,.tl-look ol,.tl-look li{column-gap:6px}
+  :is(.tl-hist,.tl-look) .who{font-size:10px;letter-spacing:.03em}
 }
 /* a named game in the top bar: the name gives way ("…"), its number stays (owner, 2026-09-26) */
 .topbar .eyebrow.gname{display:flex;gap:.45em}
@@ -1348,3 +1338,44 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* a blank in a player's colour: that colour, paler - told apart from a hinted tile by that, not by dashes */
 .tb.own .t.bl:is(.p0,.p1,.p2,.p3,.p4){background:color-mix(in srgb,var(--pt) 50%,#fff)}
 .tb.raised.own .t.bl:is(.p0,.p1,.p2,.p3,.p4):not(.hint){--face:color-mix(in srgb,var(--pt) 50%,#fff)}
+/* the board's frame (owner, 2026-09-26: "grey is boring"): warm wood, lit along its inner edge */
+:root{--tb-frame:linear-gradient(150deg,#5C4231 0%,#3B2A1E 55%,#2B1F16 100%)}
+[data-theme=light]{--tb-frame:linear-gradient(150deg,#E4C8A2 0%,#CDA676 55%,#B88E5F 100%)}
+.tb{box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+/* the tiles' own colour (owner, 2026-09-26) - set on <html> from Settings, New game or the palette; a blank is paler */
+:root[data-tilecolour=white]{--tl-tile:#FFFFFF;--tl-blank:#E3E3E3}
+:root[data-tilecolour=cream]{--tl-tile:#F3E7D0;--tl-blank:#FBF6EC}
+:root[data-tilecolour=wood]{--tl-tile:#E3B888;--tl-blank:#F2DDC6}
+:root[data-tilecolour=mint]{--tl-tile:#BDE8D0;--tl-blank:#E4F6EC}
+.sw{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:5px;background:var(--sw);color:#1A1A1A;font:800 14px/1 var(--font-display);box-shadow:inset 0 -2px 0 rgba(0,0,0,.2),0 0 0 1px rgba(0,0,0,.3)}
+/* the rating under the board (owner, 2026-09-26: "still looks bad"): a card as wide as the board - the band and its
+   percent on the left in the band's colour, the best move there was on the right, a bar along the bottom to the percent */
+[data-screen=tiles] .tl-bwrap.rated{--rate-h:48px}
+[data-screen=tiles] .tl-rate{padding-top:6px;align-items:stretch}
+[data-screen=tiles] .tl-rate .rbox{position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-width:0;box-sizing:border-box;padding:0 12px 3px;border:1.5px solid color-mix(in srgb,var(--rate-ink) 45%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--rate-ink) 9%,var(--surface));overflow:hidden}
+[data-screen=tiles] .tl-rate .rbox::after{content:"";position:absolute;left:0;bottom:0;width:var(--pct,0%);height:3px;background:var(--rate-ink)}
+.rbox .rl,.rbox .rr{display:flex;align-items:baseline;gap:8px;min-width:0}
+.rbox .rl{flex:none}
+.rbox .who{font:600 11px/1 var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
+.rbox .band{font:800 18px/1 var(--font-display);letter-spacing:.02em;text-transform:uppercase;color:var(--rate-ink)}
+.rbox .pc{font:800 22px/1 var(--font-display);font-variant-numeric:tabular-nums;color:var(--text)}
+.rbox .rr{overflow:hidden}
+.rbox .lbl{flex:none;font:600 10px/1 var(--font-body);letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
+.rbox .rr b{min-width:0;overflow:hidden;text-overflow:ellipsis;font:800 18px/1 var(--font-display);text-transform:uppercase;color:var(--text)}
+.rbox .pts{flex:none;font:800 18px/1 var(--font-display);color:var(--accent)}
+.rbox.rate-none,.rbox.rate-hint{--rate-ink:var(--text-muted)}
+@container (max-width:360px){[data-screen=tiles] .tl-rate .rbox{gap:8px;padding:0 10px 3px}.rbox .band,.rbox .rr b,.rbox .pts{font-size:16px}.rbox .pc{font-size:19px}.rbox .lbl{display:none}}
+/* the end review as a table (owner, 2026-09-26): played, rating, best, player - each column lined up, names not dots */
+.tl-look .pct{text-align:center}
+.tl-look .pct .rate{padding:1px 5px;font-size:10px}
+.tl-look .head span:nth-child(3){text-align:center}
+.tl-look .head span:last-child{text-align:right}
+/* four icons in the row (the palette back, 2026-09-26): on phones under 390 px they and the gaps get a little narrower,
+   so Zapisz i wyjdź / Poddaję się stay on one line */
+@container (max-width:389px){
+  [data-screen=tiles] .status-actions:not(:has([data-act=undo])){gap:4px}
+  [data-screen=tiles] .status-actions .tl-find{min-width:32px;width:32px}
+  [data-screen=tiles] .status-actions:not(:has([data-act=undo])) .btn:not(.tl-find){padding:0 6px}
+}
+/* white tiles on the light board's near-white squares: a thin grey edge, so a tile still stands out (a new tile's ring wins) */
+:root[data-theme=light][data-tilecolour=white] .t:not(.new):not(.hint){--ring:#BFC5D0;--rw:1px}

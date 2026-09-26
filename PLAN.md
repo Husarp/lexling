@@ -525,7 +525,9 @@ Order: the game itself first, then these; all of them are in the design prompt, 
       score chip opens that player's History; the chip's orange frame no longer sticks; hint tiles' numbers no longer
       over their letters; a tapped tile back on a second tap or after 5 s; a frame round the whole board; every tile
       look explained in How to play (owner, 2026-09-26). 0.45.0
-- [ ] **The rating box redesigned** - the owner designs it from a prompt (sent 2026-09-26), then it is built.
+- [x] **The rating box redesigned** (a card: band, percent, best move, a bar); **the palette back** with a new tile
+      colour (white among five); brighter letter colours; a wood frame; names never cut; the end review a table with
+      names like History (owner). 0.47.0
 - [x] A blank paler and without dashes, so it is not taken for a hinted tile (owner); **a game without ratings** - a rule
       on New game: nobody sees any rating in that game, History still lists the moves (owner). 0.46.0
 - [x] **Word meanings** (owner, 2026-09-26) - not downloaded ("too much"): a word opens its meaning in the browser,
