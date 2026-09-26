@@ -641,7 +641,9 @@ export function connectNewScreen(root, _, refresh) {
 const TL_NEW = () => ({ board: 'classic', players: [{ name: '', cpu: null }, { name: '', cpu: 'normal' }], first: null, rules: { ...STANDARD }, rulesOpen: false });
 const TL_TIMES = { move: [30, 60, 120, 180], game: [600, 1200, 1500, 1800] };   // seconds: per move, per game
 const TL_RULES = [['premiums', ['once', 'always']], ['check', ['auto', 'challenge']], ['exchange', ['bag7', 'always']], ['bingo', [50, 0]],
-  ['hints', [true, false]], ['undo', [false, true]], ['open', [false, true]]];
+  ['undo', [false, true]], ['open', [false, true]]];
+// hints: how many of each level a player may take (null = no limit, 0 = that level off)
+const TL_HINT_MAX = [0, 1, 3, 5, 10, null];
 let tlPending = null;
 
 const boardCard = b => {
@@ -684,6 +686,7 @@ export function tilesNewScreen(root, _, refresh) {
         <div id="bonus">${bonusSeg()}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.bonusHelp')}</p>
       </div>
+      <div class="card tl-hints" id="hints"></div>
       <details class="card tl-rules"${o.rulesOpen ? ' open' : ''}>
         <summary><span class="eyebrow">${t('tiles.rules')} <span class="muted"></span></span><span class="arrow" aria-hidden="true">›</span></summary>
         <div class="rules-body"></div>
@@ -714,6 +717,15 @@ export function tilesNewScreen(root, _, refresh) {
         <button type="button" class="chip ${on(first < 0)}" data-first="-1"><span class="num">?</span>${t('tiles.first.random')}</button>${
       o.players.map((_, p) => `<button type="button" class="chip pc${p} ${on(first === p)}" data-first="${p}"><i class="dot-p" aria-hidden="true"></i>${esc(nameAt(p))}</button>`).join('')}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.first.help')}</p></div>`;
+  }
+  // Hints, a section of its own (owner, 2026-09-26): on or off, and how many of each level every player may take
+  function paintHints() {
+    const allowed = o.rules.hints !== false, max = o.rules.hintMax ?? {};
+    $('#hints').innerHTML = `<div class="rule"><span class="eyebrow">${t('tiles.r.hints')}</span><div class="seg">${[true, false].map(v =>
+      `<button type="button" data-hints="${v}" class="${on(o.rules.hints !== false === v)}">${t('tiles.r.hints.' + v)}</button>`).join('')}</div></div>${allowed ? `
+      <div class="rule"><span class="eyebrow">${t('tiles.hints.max')}</span>${['small', 'big', 'master'].map(l => `<div class="hint-max"><span>${t('tiles.hint.' + l)}</span><div class="seg">${
+        TL_HINT_MAX.map(v => `<button type="button" data-level="${l}" data-max="${v}" class="${on((max[l] ?? null) === v)}">${v === null ? '∞' : v}</button>`).join('')}</div></div>`).join('')}
+        <p class="help"><span class="arrow">→</span> ${t('tiles.hints.maxHelp')}</p></div>` : ''}`;
   }
   function paintRules() {
     const r = o.rules, per = r.time?.per ?? 'none';
@@ -748,6 +760,7 @@ export function tilesNewScreen(root, _, refresh) {
     $('#colour-looks').innerHTML = coloursSeg();
     $('#bonus').innerHTML = bonusSeg();
     paintPlayers();
+    paintHints();
     paintRules();
     paintSummary();
     fitAll(root);
@@ -791,6 +804,17 @@ export function tilesNewScreen(root, _, refresh) {
     else if (b.dataset.add !== undefined) o.players.push({ name: '', cpu: 'normal' });
     else return;
     sync();
+  });
+  $('#hints').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.hints) o.rules.hints = b.dataset.hints === 'true';
+    else if (b.dataset.level) o.rules.hintMax = { ...(o.rules.hintMax ?? {}), [b.dataset.level]: b.dataset.max === 'null' ? null : +b.dataset.max };
+    else return;
+    paintHints();
+    paintSummary();
+    $('.tl-rules .muted').textContent = t(standard() ? 'tiles.rules.standard' : 'tiles.rules.own');
+    fitAll(root);
   });
   $('.rules-body').addEventListener('click', e => {
     const b = e.target.closest('button');

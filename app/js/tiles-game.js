@@ -161,8 +161,7 @@ export async function tilesGameScreen(root, id) {
   ${topbar({ left: modeTag('tiles'), right: `<span class="eyebrow">${esc(gameName(game))}</span><button class="btn btn-ghost tl-q" type="button" data-act="guide" aria-label="${t('tiles.guide')}">?</button>` })}
   <main class="main"><div class="tl-play">
     <div class="status"></div>
-    <div class="tl-bwrap"><div class="tl-board"><div class="tb"></div></div></div>
-    <p class="tl-rate" role="status"></p>
+    <div class="tl-bwrap"><div class="tl-board"><div class="tb"></div></div><p class="tl-rate" role="status"></p></div>
     <p class="say" role="status"></p>
     <div class="tl-rack"></div>
     <div class="tl-dock"></div>
@@ -345,7 +344,8 @@ export async function tilesGameScreen(root, id) {
       const ok = picks.size && canExchange(S, picks.size);
       dock.innerHTML = `${cancel}<button class="btn btn-primary play${ok ? '' : ' off'}" type="button" data-act="swap">${t('tiles.exchangeN', { n: picks.size })} <span class="arrow">→</span></button>`;
     } else if (mode === 'hint') {
-      dock.innerHTML = ['small', 'big', 'master'].map(l => `<button class="btn btn-outline lvl${levels && fadedWhy(l) ? ' off' : ''}" type="button" data-level="${l}"${levels ? '' : ' disabled'}>${t('tiles.hint.' + l)}</button>`).join('')
+      dock.innerHTML = ['small', 'big', 'master'].map(l => { const left = hintsLeft(l);
+        return `<button class="btn btn-outline lvl${levels && fadedWhy(l) ? ' off' : ''}" type="button" data-level="${l}"${levels ? '' : ' disabled'}>${t('tiles.hint.' + l)}${Number.isFinite(left) ? ` · ${Math.max(0, left)}` : ''}</button>`; }).join('')
         + cancel;
     } else if (mode === 'pass') {
       dock.innerHTML = `${cancel}<button class="btn btn-primary play" type="button" data-act="passYes">${t('tiles.passConfirm')} <span class="arrow">→</span></button>`;
@@ -355,7 +355,7 @@ export async function tilesGameScreen(root, id) {
         draft.length ? tool('recall') : tool('shuffle', shown < 0 ? 'off' : ''),
         tool('exchange', off || !canExchange(S, 1) ? 'off' : ''),   // stays tappable to say why (design)
         tool('pass', off ? 'off' : ''),
-        S.rules.hints === false ? '' : tool('hint', off ? 'off' : ''),
+        hintsOn() ? tool('hint', off ? 'off' : '') : '',
         !off && S.pending ? tool('challenge', 'chal') : '',
         `<button class="btn btn-primary play${ok ? '' : ' off'}" type="button" data-act="play">${t('tiles.play')}${ok ? ` <span class="num">${res.score}</span>` : ''}</button>`,
       ].join('');
@@ -483,7 +483,10 @@ export async function tilesGameScreen(root, id) {
   }
   const rated = (played, ev) => `${played ? rateBadge(played, ev.best) : ''}${played < ev.best ? ` <span class="best-was">${t('tiles.rate.bestWas', { w: `<b>${esc(ev.word.toUpperCase())}</b>`, n: ev.best })}</span>` : ''}`;
   let rating = '';          // the line under the board: how good the last person's move was
-  const paintRate = () => { rateEl.innerHTML = settings.tilesRate !== false && !S.over ? rating : ''; };
+  const paintRate = () => {
+    rateEl.innerHTML = settings.tilesRate !== false && !S.over ? rating : '';
+    rateEl.parentElement.classList.toggle('rated', settings.tilesRate !== false);   // its room kept while ratings are on
+  };
   // Whose turn now: a computer thinks; between people the device changes hands first, the rack hidden.
   function next() {
     if (S.over) return;
@@ -551,7 +554,7 @@ export async function tilesGameScreen(root, id) {
     // the move goes straight onto the board as dashed tiles, in its place, with its points: Play plays it, Recall takes
     // it back. A level that would show the same move as a smaller one is faded, and says so when tapped.
     hint() {
-      if (!myTurn() || S.rules.hints === false) return;
+      if (!myTurn() || !hintsOn()) return;
       quiet();
       msg = { html: t('tiles.hint.wait') };
       mode = 'hint';
@@ -612,11 +615,19 @@ export async function tilesGameScreen(root, id) {
     },
   };
   // why a hint level is faded - it would show the same move as a smaller one, or (Small) there is no common-word move
+  // how many hints of a level the player to move has left: Infinity with no limit (rules.hintMax - New game)
+  const hintsLeft = level => { const max = S.rules.hintMax?.[level]; return max == null ? Infinity : max - (game.hintsBy?.[S.turn]?.[level] ?? 0); };
+  const hintsOn = () => S.rules.hints !== false && ['small', 'big', 'master'].some(l => S.rules.hintMax?.[l] !== 0);
   function fadedWhy(level) {
+    const name = t('tiles.hint.' + level);
+    if (S.rules.hintMax?.[level] === 0) return t('tiles.hint.offLevel', { level: name });
+    if (hintsLeft(level) <= 0) return t('tiles.hint.noneLeft', { level: name });
     const { small, big, master } = levels, same = (a, b) => t('tiles.hint.same', { a: t('tiles.hint.' + a), b: t('tiles.hint.' + b) });
+    // "the same as a smaller one" only counts when that one can still be taken (not off, not used up)
+    const usable = l => S.rules.hintMax?.[l] !== 0 && hintsLeft(l) > 0 && levels[l];
     if (level === 'small') return small ? null : t('tiles.hint.noSmall');
-    if (level === 'big') return sameMove(big, small) ? same('big', 'small') : null;
-    return sameMove(master, big) ? same('master', 'big') : sameMove(master, small) ? same('master', 'small') : null;
+    if (level === 'big') return usable('small') && sameMove(big, small) ? same('big', 'small') : null;
+    return usable('big') && sameMove(master, big) ? same('master', 'big') : usable('small') && sameMove(master, small) ? same('master', 'small') : null;
   }
   function pickHint(level) {
     if (!myTurn() || mode !== 'hint' || !levels) return;
@@ -630,6 +641,8 @@ export async function tilesGameScreen(root, id) {
     });
     mode = 'play'; levels = null; msg = null; sel = -1; cursor = null;
     S = hinted(S);             // one hint, whichever level
+    game.hintsBy = S.players.map((_, p) => ({ small: 0, big: 0, master: 0, ...game.hintsBy?.[p] }));
+    game.hintsBy[S.turn][level]++;   // and one of this level, for the limits (New game)
     game.state = S;
     putSave(game);
     follow();
@@ -673,10 +686,12 @@ export async function tilesGameScreen(root, id) {
   }
 
   // the square under a point on the screen, through the zoom - or null off the board
+  // measured on the grid as it is drawn (zoomed, panned, and a little lower with raised tiles), inside the board's frame
   function squareAt(x, y) {
-    const box = boardEl.getBoundingClientRect(), fx = (x - box.left) / box.width, fy = (y - box.top) / box.height;
-    if (fx < 0 || fy < 0 || fx >= 1 || fy >= 1) return null;
-    return { r: Math.floor((fy / zoom.z - zoom.y) * n), c: Math.floor((fx / zoom.z - zoom.x) * n) };
+    const box = boardEl.getBoundingClientRect();
+    if (x < box.left || y < box.top || x >= box.right || y >= box.bottom) return null;
+    const g = tb.getBoundingClientRect(), r = Math.floor((y - g.top) / g.height * n), c = Math.floor((x - g.left) / g.width * n);
+    return r >= 0 && c >= 0 && r < n && c < n ? { r, c } : null;
   }
   const overRack = (x, y) => { const b = rackEl.getBoundingClientRect(); return x >= b.left - 8 && x <= b.right + 8 && y >= b.top - 20 && y <= b.bottom + 20; };
   function gapAt(x) {

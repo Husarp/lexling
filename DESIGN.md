@@ -551,7 +551,14 @@ name gives way in the top bar (to the gear, or Kafelki's "?") - it is on the sav
 
 ### Kafelki: ratings and looks (0.41.0, owner, 2026-09-26)
 - **The rating has a line of its own, directly under the board** (0.42.2, owner), until that person's next move; the
-  move's message is the line below it. On a phone the board sits at the bottom of its space, so nothing comes between.
+  move's message is the line below it. Since 0.42.3 the rating sits inside the board's own space, right under the board,
+  its room kept while ratings are on - and the board stays at the top, in place (owner: "the board moves when the text
+  below it changes"): the message line always keeps room for two lines of its big type.
+- **Hints, a section of their own on New game** (0.42.3, owner): on / off, and how many of each level every player may
+  take - 0, 1, 3, 5, 10 or ∞ (rules.hintMax). The hint menu shows what is left ("Mała · 1"); a level used up or off is
+  faded and says so; "the same move as a smaller level" only fades a level when that smaller one can still be taken.
+- **Raised tiles in the top row** (0.42.3): the grid leaves a sixth of a square at the top of the board, so their faces
+  are not cut off by its edge; a tap is measured on the grid as drawn.
 - **How good a move was**: its points against the best move there was on that board with that rack (the move finder)
   - the best, excellent (85 %+), good (65 %+), fair (40 %+), weak. "Oceniaj moje ruchy / Rate my moves" (on at first;
   the gear, Settings) shows it after each of your moves on the message line, where it stays while the computer answers,

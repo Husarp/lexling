@@ -6,6 +6,18 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.42.3 — 2026-09-26 02:06: Kafelki: hint limits, the board held in place, raised tiles not cut off
+*(not packaged)*
+
+- **A "Podpowiedzi" / "Hints" section on New game** (owner): hints on or off, and **how many of each level** every
+  player may take - Mała, Duża, Mistrzowska: 0, 1, 3, 5, 10 or ∞. The hint menu shows how many are left ("Mała · 1");
+  one used up or switched off is faded and says why.
+- **The board stays in place, at the top** (owner: "it moves when the text below changes"): the rating sits right
+  under the board inside its own space, with its room kept, and the message line always keeps room for two lines.
+- **Raised tiles in the top row are no longer cut off** by the board's edge (owner).
+- Checked in headless Edge at 320 and 480 px: the board does not move when you tap a tile or a move is played; the
+  limits (Small 1, Big off) through two turns; a blank taken back with touch taps. 262 Tiles tests.
+
 ## 0.42.2 — 2026-09-26 01:52: Kafelki: the rating under the board, a smaller Small hint, taking a blank back
 *(not packaged)*
 

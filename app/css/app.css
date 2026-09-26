@@ -1281,22 +1281,32 @@ input,textarea{-webkit-user-select:text;user-select:text}
   .ps .nm,.ps-bag .nm{font-size:10.5px;letter-spacing:.03em}
   .ps-bag{padding:5px 8px 6px}
 }
-/* the rating of the last move on a line of its own, directly under the board (owner, 2026-09-26); the message line
-   below it, the word and its points further apart */
-[data-screen=tiles] .tl-play{grid-template-rows:auto minmax(0,1fr) auto auto auto auto;grid-template-areas:"status" "board" "rate" "say" "rack" "dock"}
-@container (min-width:900px){
-  [data-screen=tiles] .tl-play{grid-template-rows:auto auto auto auto auto minmax(0,1fr) auto;grid-template-areas:"board status" "board rate" "board say" "board rack" "board dock" "board panel" "board keys"}
-}
-[data-screen=tiles] .tl-rate{grid-area:rate;margin:0;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 10px;font-size:16px;line-height:1.3;color:var(--text-muted);text-align:center}
-[data-screen=tiles] .tl-rate:empty{display:none}
+/* the rating of the last move directly under the board, inside the board's own space (owner, 2026-09-26): the board stays
+   at the top of that space and keeps its place - the rating's room is kept while ratings are on, whether a rating shows
+   or not, and the board is the largest square that fits above it; the message line below, the word and its points apart */
+[data-screen=tiles] .tl-bwrap{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;--rate-h:0px}
+[data-screen=tiles] .tl-bwrap.rated{--rate-h:34px}
+[data-screen=tiles] .tl-bwrap .tl-board{flex:none;width:min(100cqw,calc(100cqh - var(--rate-h)))}
+[data-screen=tiles] .tl-rate{flex:none;height:var(--rate-h);width:100%;margin:0;display:flex;flex-wrap:nowrap;align-items:center;justify-content:center;gap:4px 10px;overflow:hidden;font-size:16px;line-height:1.3;color:var(--text-muted);text-align:center;white-space:nowrap}
 [data-screen=tiles] .tl-rate .rate{font-size:15px;padding:4px 11px}
 [data-screen=tiles] .tl-rate .best-was b{color:var(--text);font:700 18px/1 var(--font-display)}
 [data-screen=tiles] .tl-rate>b{color:var(--text);font-weight:600}
 [data-screen=tiles] .say{gap:2px 14px}
-/* on a phone the board sits at the bottom of its space, so the rating line is directly under it (owner, 2026-09-26) */
-@container (max-width:899px){[data-screen=tiles] .tl-bwrap{place-items:end center}}
 /* Settings on a phone: a row's choices fill its width instead of stopping at 320 px with empty space beside them (owner,
    2026-09-26: "why are some sections so stretched out with so much unused space?") */
 @media (max-width:480px){[data-screen=settings] .row .seg{flex:1 1 100%;max-width:none}}
 .tl-pick-head{flex-wrap:wrap}
 .tl-pick-head .acts{display:flex;gap:var(--space-2);margin-left:auto}
+/* raised tiles in the top row stand above their squares: the grid leaves them room at the top of the board instead of
+   being cut off by its edge (owner, 2026-09-26) - a sixth of a square, the squares a hair shorter (~1 %) */
+.tb.raised{top:calc(100cqi / var(--n) * .17)}
+/* the message line keeps room for two lines, so the board above does not move when the text changes length (owner,
+   2026-09-26) */
+[data-screen=tiles].fit .say{min-height:64px;align-content:center}
+@container (max-width:480px){[data-screen=tiles].fit .say{min-height:58px}}
+@container (max-width:360px){[data-screen=tiles] .tl-rate{font-size:14px}[data-screen=tiles] .tl-rate .rate{font-size:13px;padding:3px 8px}[data-screen=tiles] .tl-rate .best-was b{font-size:16px}}
+/* New game: Hints, a section of its own - on / off, and how many of each level per player (owner, 2026-09-26) */
+.tl-hints{display:grid;gap:var(--space-2);padding:var(--space-3) var(--space-4)}
+.tl-hints .rule{display:grid;gap:8px}
+.tl-hints .hint-max{display:grid;grid-template-columns:minmax(0,7.5em) minmax(0,1fr);align-items:center;gap:var(--space-2);font-size:14px}
+.tl-hints .hint-max .seg button{min-height:36px;padding:0 4px;font-size:13px}

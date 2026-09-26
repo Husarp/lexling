@@ -164,7 +164,9 @@ export function checkWord(dict, lang, text) {
 // undo: moves can be taken back - one person against the computer only (owner, 2026-09-25) - see undo() below.
 // open: every person sees the other people's tiles all the time (owner, 2026-09-25: "so a friend can think while
 //   you move") - the computer's never; the screen's rule.
-export const STANDARD = { premiums: 'once', check: 'auto', exchange: 'bag7', bingo: BINGO, time: null, hints: true, undo: false, open: false };
+// hintMax: how many hints of each level a player may take - a number, or null for no limit (owner, 2026-09-26).
+export const STANDARD = { premiums: 'once', check: 'auto', exchange: 'bag7', bingo: BINGO, time: null, hints: true,
+  hintMax: { small: null, big: null, master: null }, undo: false, open: false };
 const OVERTIME = 10;
 
 // ── A game ───────────────────────────────────────────────────────────────────────────────────────
