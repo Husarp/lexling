@@ -42,7 +42,7 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - **Letters mode**: one box per letter, its own on-screen keyboard (keys coloured by what the guesses
   showed; tap a tile to edit it; Space leaves a tile empty, ← → move along the row; the phone's keyboard
   as an option), no hints (since 0.34.0 - run out of tries and it is over), and its own statistics.
-- **Connect mode** (Połącz): drag across a circle of 4–10 letters to fill a small crossword; other real
+- **Connect mode**: drag across a circle of 4–10 letters to fill a small crossword; other real
   words are bonus words; free hints, a random letter at a time, until half of a word shows (rounded up); a hinted
   letter stays marked, in green, once its word is done. Its own statistics.
 - **How to play** on every New game screen: a short card, closed until you open it.
@@ -51,7 +51,7 @@ Playable in **Polish and English** (both the UI and the word libraries).
   English (no dictionary inside the app: it would be far too big).
 - **No scores anywhere** (since 0.29.0): the games are for fun; statistics show how you are doing,
   hints used included.
-- **Tiles mode** (Kafelki, since 0.35.0), the classic crossword-tile game for 2–5 players - people passing
+- **Tiles mode** (since 0.35.0), the classic crossword-tile game for 2–5 players - people passing
   one device and/or the computer (five levels, Relaxed to Expert), in the order you set, the first chosen or
   drawn. Four boards (Classic, Bonus, Diamond; Quick - 11 × 11 with about half the tiles), the
   full 100-tile sets, sjp.pl / ENABLE word lists. Place tiles by dragging, by tapping, or by typing on a PC;
@@ -147,7 +147,7 @@ node tools/build-data.mjs
 ```
 
 Takes ~2 minutes and prints a report (category samples, weakest category members, most generic
-words, sanity checks such as *pies → kot close, śruba far*). It needs:
+words, sanity checks such as *pies (dog) → kot (cat) close, śruba (screw) far*). It needs:
 
 - `tools/raw/cc.pl.300.vec.gz` and `tools/raw/cc.en.300.vec.gz` (2.6 GB, git-ignored) from
   https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/ ;
@@ -156,11 +156,11 @@ words, sanity checks such as *pies → kot close, śruba far*). It needs:
 
 Tiles has word files of its own, `app/data/<lang>/tiles.bin` (a word graph, `app/js/dawg.js`), built from
 two word-game lists by `node tools/build-tiles-words.mjs` (~20 s). It needs, in `tools/raw/tiles/` (git-ignored):
-`slowa.txt` from sjp.pl's "słownik do gier" (https://sjp.pl/sl/growy/ - unzip `sjp-YYYYMMDD.zip`) and
+`slowa.txt` from sjp.pl's "słownik do gier" (word-games dictionary; https://sjp.pl/sl/growy/ - unzip `sjp-YYYYMMDD.zip`) and
 `enable1.txt` (https://raw.githubusercontent.com/dolph/dictionary/master/enable1.txt), plus the LibreOffice
 dictionaries above (to leave out every form of a slur or vulgar word).
 
-`app/data/<lang>/pool.json` - the words Litery, Połącz and Znaczenie never hide (not in the word-game list, plain English,
+`app/data/<lang>/pool.json` - the words Letters, Connect and Guess never hide (not in the word-game list, plain English,
 abbreviations riding on a real word) and the words let back in (gra, muzyka) - is built by
 `node tools/build-pool-fix.mjs` from the same `slowa.txt`, sjp.pl's inflection list `tools/raw/tiles/odm.txt`
 (https://sjp.pl/sl/odmiany/ - unzip `sjp-odm-YYYYMMDD.zip`) and `tools/raw/cc.pl.tokens.txt`.
@@ -176,7 +176,7 @@ when it is distributed (to-do in PLAN.md M5). Not legal advice; check the terms 
 | sjp.pl Polish Hunspell dictionary (M. Futrega) | Polish words + inflection | GPL / LGPL / MPL / Apache 2.0 / CC SA (your choice) |
 | SCOWL `en_US` Hunspell dictionary | English words + inflection | permissive (BSD-like), attribution |
 | WordNet-based LibreOffice thesaurus | English parts of speech | WordNet licence (permissive, attribution) |
-| SJP.PL "słownik do gier" (sjp.pl) | Tiles: Polish words (`app/data/pl/tiles.bin`; changed: slurs and vulgar words left out) | GPL 2 or CC BY 4.0 — we use CC BY 4.0: attribution |
+| SJP.PL "słownik do gier" (word-games dictionary, sjp.pl) | Tiles: Polish words (`app/data/pl/tiles.bin`; changed: slurs and vulgar words left out) | GPL 2 or CC BY 4.0 — we use CC BY 4.0: attribution |
 | ENABLE word list | Tiles: English words (`app/data/en/tiles.bin`) | public domain |
 | SJP.PL "odmiany" (sjp.pl inflection list) | Letters / Connect: which words are base words (`app/data/pl/pool.json`) | GPL 2, LGPL 2.1, Apache 2.0 or CC BY 4.0 — we use CC BY 4.0: attribution |
 | Barlow Condensed, Inter | fonts | SIL OFL (licence files in `app/fonts/`) |

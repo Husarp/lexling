@@ -20,6 +20,9 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
   end adding to the move rating.
 - The Windows build's "nothing from the network" check no longer trips on an inline SVG's xmlns name
   (www.w3.org/2000/svg, a label that is never fetched) - it had stopped every Windows build since 0.35.0.
+- After the release (owner: "no Polish in the project and release descriptions"): the README and the notes of v0.13.3,
+  v0.22.2, v0.29.6 and v0.49.0 use the English names only - Tiles, Letters, Connect, Guess, Relaxed to Expert. Polish
+  stays only where it is Polish itself: its letters, example words, category word lists, the sjp.pl dictionary's name.
 
 ## 0.48.1 — 2026-09-26 04:44: Kafelki: words from hints rated and counted; the button row fixed
 *(not packaged)*
