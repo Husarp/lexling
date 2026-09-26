@@ -519,8 +519,8 @@ Order: the game itself first, then these; all of them are in the design prompt, 
       in the player's colour, History, the rating, left out of the end review's rating (owner). 0.43.0
 - [x] **"Rating only"**: the rating can hide the best move while playing (Settings and ⚙: With best move / Rating
       only / Off); several hints per turn stay allowed (owner); the ⚙ window's choice rows no longer stretched. 0.43.1
-- [ ] The rating under the board in a box of its own, and/or a rating list (every move, players' names, their ratings,
-      maybe the best moves) behind a button next to ⚙ (owner, 2026-09-26) - asked which.
+- [x] The rating under the board in a box of its own, **and** History as the rating list: players' names on the right,
+      the best move under each move, a list button next to ⚙ (tapping the scores still opens it) (owner). 0.44.0
 - [x] **Word meanings** (owner, 2026-09-26) - not downloaded ("too much"): a word opens its meaning in the browser,
       sjp.pl for Polish, Wiktionary for English - Check a word and History in Kafelki, the guesses in Znaczenie, the
       end cards of every game. 0.40.0

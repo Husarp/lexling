@@ -25,6 +25,7 @@ const ICON = {
 };
 const CLOSE = svg('<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>');
 const FIND = svg('<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>');
+const LIST = svg('<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"></path>');
 const DOT = '<span class="dot">·</span>';
 const ERR = { line: 'tiles.err.line', gap: 'tiles.err.gap', alone: 'tiles.err.touch', centre: 'tiles.err.centre', single: 'tiles.err.single' };
 // motion and zoom (design NOTES): the computer "thinks" 900 ms, who-starts shows 1200 ms; the board zooms in on
@@ -195,6 +196,7 @@ export async function tilesGameScreen(root, id) {
   const inDraft = i => draft.some(d => d.slot === i);
   const free = (r, c, skip = -1) => r >= 0 && c >= 0 && r < n && c < n && !S.cells[r * n + c] && !draft.some((d, j) => j !== skip && d.r === r && d.c === c);
   const placedOf = () => draft.map(({ r, c, ch, blank }) => ({ r, c, ch, blank }));
+  const keyOf = placed => placed.map(x => `${x.r},${x.c},${x.ch}`).sort().join(' ');
 
   // The move as it stands: { error } or { words, score }. With challenges the words go down unchecked, so the
   // screen does not tell either - except for a move that uses the last tiles, which is checked at once.
@@ -230,7 +232,7 @@ export async function tilesGameScreen(root, id) {
       ${S.rules.time ? `<div class="tl-clock"><span class="eyebrow">${t('tiles.r.time')}</span><span class="num"></span></div>` : ''}
       ${open ? othersHtml() : ''}
       <div class="status-actions"><a class="btn btn-ghost" href="#/games/tiles">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button>${
-        canUndo ? `<button class="btn btn-ghost" type="button" data-act="undo"${undo(S, isWord, 0) ? '' : ' disabled'}>${t('tiles.undo')}</button>` : ''}<button class="btn btn-ghost tl-find" type="button" data-open="check" aria-label="${t('tiles.check')}" title="${t('tiles.check')}">${FIND}</button>${gearButton('tl-find')}</div>`;
+        canUndo ? `<button class="btn btn-ghost" type="button" data-act="undo"${undo(S, isWord, 0) ? '' : ' disabled'}>${t('tiles.undo')}</button>` : ''}<button class="btn btn-ghost tl-find" type="button" data-open="check" aria-label="${t('tiles.check')}" title="${t('tiles.check')}">${FIND}</button><button class="btn btn-ghost tl-find" type="button" data-open="hist" aria-label="${t('tiles.history')}" title="${t('tiles.history')}">${LIST}</button>${gearButton('tl-find')}</div>`;
     confirmClick(status.querySelector('#give-up'), giveUp, refit);
     paintClock();
     const row = status.querySelector('.ps-row.many'), cur = row?.querySelector('.ps.on');
@@ -380,8 +382,9 @@ export async function tilesGameScreen(root, id) {
           : m.kind === 'timeout' ? t('tiles.hist.timeout') : m.kind === 'withdrawn' ? `${words(m)} · ${t('tiles.hist.withdrawn')}`
             : t(m.ok ? 'tiles.hist.challengeWon' : 'tiles.hist.challengeLost');
       const ev = settings.tilesRate !== false && m.kind === 'play' && !m.hinted && game.evals?.[i], r = ev && rateOf(m.score, ev.best);
-      return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${i + 1}</span><span class="who" title="${esc(nameOf(S, m.p))}"></span><span class="w">${w}</span><span class="r">${m.kind === 'hint' ? (m.cost ? '−' + m.cost : '–') : quiet ? '–' : m.score}${
-        r ? `<small class="rate rate-${r}">${pctOf(m.score, ev.best)}%</small>` : ''}</span></li>`;
+      const best = r && settings.tilesRate === true && m.score < ev.best ? `<small class="best">${bestWas(ev)}</small>` : '';
+      return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${i + 1}</span><span class="w">${w}${best}</span><span class="r">${m.kind === 'hint' ? (m.cost ? '−' + m.cost : '–') : quiet ? '–' : m.score}${
+        r ? `<small class="rate rate-${r}">${pctOf(m.score, ev.best)}%</small>` : ''}</span><span class="who">${esc(nameOf(S, m.p))}</span></li>`;
     }).reverse();
     return rows.length ? `<ol class="tl-hist">${rows.join('')}</ol>` : `<p class="help">${t('tiles.hist.empty')}</p>`;
   }
@@ -442,7 +445,7 @@ export async function tilesGameScreen(root, id) {
 
   // ── turns ──
   function resetTurn() {
-    draft = []; sel = -1; mode = 'play'; picks = new Set(); levels = null; cursor = null; blankFor = -1;
+    draft = []; sel = -1; mode = 'play'; picks = new Set(); levels = null; cursor = null; blankFor = -1; turnHints = [];
     zoomOut();
   }
   // Every action goes through here: into the engine (apply), the save, what the message line says, the next turn.
@@ -475,9 +478,10 @@ export async function tilesGameScreen(root, id) {
     const name = esc(nameOf(S, p)), m = S.moves.at(-1);
     // a person's own turn, rated (the setting): on its own line under the board (owner, 2026-09-26), until their next move
     if (!cpu(p) && ['place', 'exchange', 'pass', 'timeout'].includes(action.type)) {
-      rating = settings.tilesRate === false ? '' : (people.length > 1 ? `<b>${name}:</b> ` : '')
-        + (action.type === 'place' && m?.hinted ? `<span class="rate rate-hint">${t('tiles.rate.hinted')}</span>` : ev?.best > 0 ? rated(action.type === 'place' ? m.score : 0, ev) : '');
-      if (rating.endsWith(':</b> ')) rating = '';
+      const played = action.type === 'place' ? m.score : 0, hint = action.type === 'place' && m?.hinted;
+      rating = { who: people.length > 1 ? name : '',
+        badge: hint ? `<span class="rate rate-hint">${t('tiles.rate.hinted')}</span>` : played && ev?.best > 0 ? rateBadge(played, ev.best) : '',
+        best: !hint && ev?.best > played ? `<span class="best-was">${bestWas(ev)}</span>` : '' };
     }
     if (action.type === 'place') return { html: `${t('tiles.say.played', { name })} ${wordsLine(m.words, m.score, m.bingo)}` };
     if (action.type === 'exchange') return { html: t('tiles.say.swapped', { name, n: action.tiles.length }) };
@@ -490,12 +494,12 @@ export async function tilesGameScreen(root, id) {
     }
     return null;
   }
-  const rated = (played, ev) => `${played ? rateBadge(played, ev.best) : ''}${played < ev.best ? ` <span class="best-was">${t('tiles.rate.bestWas', { w: `<b>${esc(ev.word.toUpperCase())}</b>`, n: ev.best })}</span>` : ''}`;
-  let rating = '';          // the line under the board: how good the last person's move was
+  const bestWas = ev => t('tiles.rate.bestWas', { w: `<b>${esc(ev.word.toUpperCase())}</b>`, n: ev.best });
+  let rating = null;        // the box under the board: how good the last person's move was - { who, badge, best }
   const paintRate = () => {
-    rateEl.innerHTML = settings.tilesRate !== false && !S.over ? rating : '';
+    const inner = settings.tilesRate !== false && !S.over && rating ? rating.badge + (settings.tilesRate === true ? rating.best : '') : '';
+    rateEl.innerHTML = inner ? `<span class="rbox">${rating.who ? `<b>${rating.who}:</b>` : ''}${inner}</span>` : '';
     rateEl.parentElement.classList.toggle('rated', settings.tilesRate !== false);   // its room kept while ratings are on
-    rateEl.classList.toggle('no-best', settings.tilesRate === 'score');
   };
   // Whose turn now: a computer thinks; between people the device changes hands first, the rack hidden.
   function next() {
@@ -582,7 +586,9 @@ export async function tilesGameScreen(root, id) {
     challenge() { if (myTurn() && S.pending) { quiet(); act({ type: 'challenge' }); } },
     play() {
       const res = judge();
-      if (myTurn() && res && !res.error) act({ type: 'place', placed: placedOf(), ...(draft[0]?.hint ? { hint: draft[0].hint } : {}) });
+      // a hint's move, or the same move put down by hand after its tiles went back to the rack
+      const hint = draft[0]?.hint ?? turnHints.find(h => h.key === keyOf(placedOf()))?.level;
+      if (myTurn() && res && !res.error) act({ type: 'place', placed: placedOf(), ...(hint ? { hint } : {}) });
     },
     cancel() { mode = 'play'; picks = new Set(); levels = null; msg = null; paintTurn(); },
     swap() {
@@ -603,7 +609,7 @@ export async function tilesGameScreen(root, id) {
       thinking = false;
       resetTurn();
       msg = { html: t('tiles.say.undone') };
-      rating = '';
+      rating = null;
       putSave(game);
       next();
     },
@@ -649,6 +655,7 @@ export async function tilesGameScreen(root, id) {
       used.add(slot);
       return { slot, r: x.r, c: x.c, ch: x.ch, blank: x.blank, hint: level };
     });
+    turnHints.push({ level, key: keyOf(levels[level].placed) });
     mode = 'play'; msg = null; sel = -1; cursor = null;
     hintPaid = hintCost(S.rules, level, levels);
     S = apply(S, { type: 'hint', level, cost: hintPaid }, isWord);   // one hint, whichever level; its cost off the score
@@ -661,7 +668,7 @@ export async function tilesGameScreen(root, id) {
     paintStatus();   // the score, when the hint cost points
     paintTurn();
   }
-  let hintPaid = 0;
+  let hintPaid = 0, turnHints = [];   // the moves the hints showed this turn
   function pickLetter(ch) {
     if (blankFor < 0 || !draft[blankFor]) return;
     draft[blankFor].ch = ch;

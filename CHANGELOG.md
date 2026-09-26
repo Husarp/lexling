@@ -6,6 +6,20 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.44.0 — 2026-09-26 02:56: Kafelki: the rating in a box, History as the rating list
+*(not packaged)*
+
+- **The rating under the board is a box of its own** (owner): the rating badge ("Przeciętny · 64%") and, beside it,
+  the best move there was ("najlepszy: BIOZY 22"); with "Tylko ocena" the badge alone.
+- **History is the list of every move and its rating** (owner): each player's name on the right, in their colour, and
+  under a move that was not the best, the best move there was (hidden with "Tylko ocena"). **A new list button next to
+  ⚙ opens it**; tapping the scores still does too.
+- **Fix**: a hinted move is now marked even when its tiles were taken back (Recall) and the same move was put down by
+  hand.
+- Checked in headless Edge at 320 and 480 px, playing by taps: a rated move in the box, a hint recalled and replayed by
+  hand (still marked, dashed tiles), History from the new button. At 320 px the "Zapisz i wyjdź" and "Poddaję się"
+  labels wrap to two lines; from 340 px up they stay on one.
+
 ## 0.43.1 — 2026-09-26 02:43: Kafelki: "Rating only", a tidier ⚙ window
 *(not packaged)*
 
