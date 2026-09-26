@@ -1400,3 +1400,15 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* a hint given: the Hint button's frame flashes orange for a moment (owner, 2026-09-26) */
 @keyframes tap-flash{0%,55%{border-color:var(--accent);color:var(--accent)}}
 .btn-ghost.tap-flash{animation:tap-flash 500ms var(--ease)}
+/* the end: the help each person used (owner, 2026-09-26), and the switch counting the moves from hints */
+.tl-fair{display:grid;gap:var(--space-3);padding:var(--space-4) var(--space-5)}
+.tl-fair .fair-p{display:grid;gap:6px}
+.tl-fair .fair-who{font:700 16px/1.1 var(--font-display);text-transform:uppercase}
+.tl-fair dl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;margin:0;font-size:14px}
+.tl-fair dt{color:var(--text-muted)}
+.tl-fair dd{margin:0;text-align:right;font-weight:600}
+.tl-fair .fair-ok{margin:0;font-weight:600;color:var(--lt-hit)}
+.tl-hsw{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;color:var(--text-muted)}
+/* the end review's word column is narrow: a move from a hint gets the hint's lightbulb there, not the "From a hint" tag */
+.tl-look .w .hi{display:inline-flex;vertical-align:-2px;color:var(--text-muted)}
+.tl-look .w .hi svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
