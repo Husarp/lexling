@@ -305,7 +305,7 @@ export function lookBack(state, dict, everyone = false) {
     if (!['place', 'exchange', 'pass', 'timeout'].includes(a.type) || (!everyone && before.players[before.turn].cpu)) return;
     const best = hint(before, dict);
     const made = a.type === 'place' ? wordsMade(before, a.placed) : null;
-    out.push({ i, p: before.turn, kind: a.type, played: made ? made.score : 0, word: made?.words[0]?.w ?? '',
+    out.push({ i, p: before.turn, kind: a.type, played: made ? made.score : 0, word: made?.words[0]?.w ?? '', hinted: a.hint ?? null,
       best: best && { word: best.word, score: best.score, placed: best.placed } });
   });
   return out;

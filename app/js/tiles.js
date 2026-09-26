@@ -166,7 +166,9 @@ export function checkWord(dict, lang, text) {
 //   you move") - the computer's never; the screen's rule.
 // hintMax: how many hints of each level a player may take - a number, or null for no limit (owner, 2026-09-26).
 export const STANDARD = { premiums: 'once', check: 'auto', exchange: 'bag7', bingo: BINGO, time: null, hints: true,
-  hintMax: { small: null, big: null, master: null }, undo: false, open: false };
+  hintMax: { small: null, big: null, master: null }, hintCost: null, undo: false, open: false };
+// hintCost: null, or 'low' / 'high' - a hint takes a share of the points of the move it shows off its player's score, a
+// bigger share for a better level (owner, 2026-09-26: "a better hint should cost more") - HINT_COST below.
 const OVERTIME = 10;
 
 // ── A game ───────────────────────────────────────────────────────────────────────────────────────
@@ -296,7 +298,9 @@ export function checkMove(state, placed, isWord) {
 // The engine as one function (the owner's plan: "apply(state, action) -> state"). Everything that happens in a
 // game is one of these, and goes into `log`, so a game can be rebuilt from its start (replay):
 // { type: 'place', placed } | { type: 'exchange', tiles } | { type: 'pass' } | { type: 'challenge' }
-// | { type: 'timeout' } | { type: 'resign', p } | { type: 'shuffle', seed } (the bag shuffled again: undo() below).
+// | { type: 'timeout' } | { type: 'resign', p } | { type: 'shuffle', seed } (the bag shuffled again: undo() below)
+// | { type: 'hint', level, cost } (a hint taken: counted, its cost off the score; the turn goes on). A 'place' may carry
+// `hint` = the level of the hint it plays, and the move and its tiles remember it.
 // Any of them may carry `ms`, the time the player took.
 // An action that is not allowed throws, and the state stays as it was. Each returns a new state.
 export function apply(state, action, isWord) {
@@ -304,16 +308,17 @@ export function apply(state, action, isWord) {
   if (action.type === 'challenge' && !state.pending) throw new Error('nothing to challenge');
   let s = state;
   // any other action accepts the move waiting for a challenge (shuffling the bag is no move)
-  if (s.pending && action.type !== 'challenge' && action.type !== 'shuffle') s = { ...s, pending: null };
+  if (s.pending && !['challenge', 'shuffle', 'hint'].includes(action.type)) s = { ...s, pending: null };
   if (action.ms) s = { ...s, clock: s.clock.map((t, p) => p === s.turn ? t + action.ms : t) };
   s = { ...s, log: [...s.log, action] };
-  const after = action.type === 'place' ? place(s, action.placed, isWord)
+  const after = action.type === 'place' ? place(s, action.placed, isWord, action.hint)
     : action.type === 'exchange' ? swap(s, action.tiles)
     : action.type === 'pass' ? scoreless(s, { p: s.turn, kind: 'pass' })
     : action.type === 'timeout' ? scoreless(s, { p: s.turn, kind: 'timeout' })
     : action.type === 'challenge' ? challenge(s, isWord)
     : action.type === 'resign' ? finish(s, 'resign', -1, action.p ?? s.turn)
     : action.type === 'shuffle' ? reshuffle(s, action.seed)
+    : action.type === 'hint' ? tookHint(s, action)
     : null;
   if (!after) throw new Error('no such action: ' + action.type);
   return after;
@@ -331,7 +336,7 @@ export const canExchange = (state, k = 1) => state.rules?.exchange === 'always' 
 const next = (state, p) => (p + 1) % state.racks.length;
 const rackPoints = (lang, rack) => rack.reduce((s, t) => s + valueOf(lang, t), 0);
 
-function place(state, placed, isWord) {
+function place(state, placed, isWord, hint) {
   const p = state.turn, n = sizeOf(state.board);
   const out = placed.length === state.racks[p].length && !state.bag.length;
   // with challenges on, only the placement is checked now - the words wait for the next player
@@ -341,12 +346,12 @@ function place(state, placed, isWord) {
   if (made.error) throw new Error('not a legal move: ' + made.error);
   const cells = [...state.cells], rack = [...state.racks[p]];
   for (const t of placed) {
-    cells[t.r * n + t.c] = t.blank ? { ch: t.ch, blank: true, by: p } : { ch: t.ch, by: p };
+    cells[t.r * n + t.c] = { ch: t.ch, ...(t.blank ? { blank: true } : {}), by: p, ...(hint ? { hint } : {}) };
     rack.splice(rack.indexOf(t.blank ? BLANK : t.ch), 1);
   }
   const d = draw(state.bag, rack);
   const moves = [...state.moves, { p, kind: 'play', placed, words: made.words.map(x => ({ w: x.w, score: x.score })),
-    score: made.score, bingo: placed.length === RACK }];
+    score: made.score, bingo: placed.length === RACK, ...(hint ? { hinted: hint } : {}) }];
   const after = { ...state, cells, bag: d.bag, racks: state.racks.map((r, i) => i === p ? d.rack : r),
     scores: state.scores.map((s, i) => i === p ? s + made.score : s), moves, zeros: 0, turn: next(state, p),
     pending: challenged ? { before: state, p } : null };
@@ -420,7 +425,7 @@ export function undo(state, isWord, seed = Math.floor(Math.random() * 2 ** 32)) 
   const states = replay(state, isWord);
   for (let i = state.log.length - 1; i >= 0; i--) {
     const before = states[i];
-    if (state.log[i].type === 'shuffle' || before.players[before.turn].cpu) continue;
+    if (['shuffle', 'hint'].includes(state.log[i].type) || before.players[before.turn].cpu) continue;
     return { ...apply(before, { type: 'shuffle', seed }), hints: state.hints };
   }
   return null;
@@ -430,6 +435,23 @@ const reshuffle = (state, seed) => { const { list, seed: s } = shuffle(state.bag
 // A hint was shown to the player whose turn it is (the move itself: hint() in tiles-moves.js). Counted, as in
 // the other games.
 export const hinted = state => ({ ...state, hints: state.hints.map((h, p) => p === state.turn ? h + 1 : h) });
+// The same as an action (the screen's way since 0.43.0): counted, its cost off the score, a quiet entry in the history.
+function tookHint(state, { level, cost = 0 }) {
+  const p = state.turn;
+  return { ...hinted(state), scores: state.scores.map((s, i) => i === p ? s - cost : s), moves: [...state.moves, { p, kind: 'hint', level, cost }] };
+}
+// What a hint costs with the rules' hintCost: a share of the points of the move it shows (owner, 2026-09-26) - and never
+// less than a smaller level costs, as Master's move can score fewer points than Big's (it weighs the rack too).
+// levels: { small, big, master } - each the move that level shows, or null.
+export const HINT_COST = { low: { small: 0.1, big: 0.2, master: 0.3 }, high: { small: 0.25, big: 0.4, master: 0.6 } };
+export function hintCost(rules, level, levels) {
+  if (!rules?.hintCost) return 0;
+  let cost = 0;
+  for (const l of ['small', 'big', 'master']) {
+    if (levels[l]) cost = Math.max(cost, Math.ceil(levels[l].score * HINT_COST[rules.hintCost][l]));
+    if (l === level) return cost;
+  }
+}
 
 // The tiles player `p` has not seen (owner, 2026-09-25: yes): what is in the bag and on everyone else's
 // racks, worked out as p sees it - the full set, minus the board, minus p's own rack. { letter: count } in

@@ -515,8 +515,9 @@ Order: the game itself first, then these; all of them are in the design prompt, 
       can be taken back alone ("Zdejmij" beside Cancel); the Small hint really small (owner). 0.42.2
 - [x] Raised tiles not cut at the top of the board; the board fixed in place at the top, the rating right under it;
       **a Hints section on New game**: on / off, how many of each level per player (owner). 0.42.3
-- [ ] Other hint options - suggestions sent (points off per hint, one per turn, hide the best move in the rating, mark
-      hinted moves in History and leave them out of the game's rating).
+- [x] **Hints cost points** (No / A little / A lot - a better hint costs more) and **hinted moves marked**: dashed tiles
+      in the player's colour, History, the rating, left out of the end review's rating (owner). 0.43.0
+- [ ] Other hint options still asked about: one hint per turn; hide the best move in the rating line.
 - [x] **Word meanings** (owner, 2026-09-26) - not downloaded ("too much"): a word opens its meaning in the browser,
       sjp.pl for Polish, Wiktionary for English - Check a word and History in Kafelki, the guesses in Znaczenie, the
       end cards of every game. 0.40.0

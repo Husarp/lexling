@@ -557,6 +557,16 @@ name gives way in the top bar (to the gear, or Kafelki's "?") - it is on the sav
 - **Hints, a section of their own on New game** (0.42.3, owner): on / off, and how many of each level every player may
   take - 0, 1, 3, 5, 10 or ∞ (rules.hintMax). The hint menu shows what is left ("Mała · 1"); a level used up or off is
   faded and says so; "the same move as a smaller level" only fades a level when that smaller one can still be taken.
+- **Hints can cost points** (0.43.0, owner: "a better hint should cost more - Small does not help much, Master is a
+  game-changer, sometimes 70+ points"): rules.hintCost No / A little / A lot. Taking a hint takes a share of the points
+  of the move it shows off the player's score at once - A little: Small 10 %, Big 20 %, Master 30 %; A lot: 25 %, 40 %,
+  60 % (rounded up) - and a level never costs less than a smaller one (Master's move can score fewer points than Big's,
+  as it weighs the rack too). The hint menu shows each level's price. A hint is an action in the log ({ type: 'hint' }),
+  so it replays, and undo takes back the move but not the hint it cost.
+- **A move played from a hint is marked** (0.43.0, owner: "the whole hinted word should have a different tile design,
+  but in the player's colour"): its tiles keep a dashed edge on the board for the rest of the game, in the player's
+  colour; History tags it "Z podpowiedzi" and lists the hint taken with its cost; the rating under the board says
+  "Z podpowiedzi" instead of a percentage; the end review marks it and leaves it out of that player's rating.
 - **Raised tiles in the top row** (0.42.3): the grid leaves a sixth of a square at the top of the board, so their faces
   are not cut off by its edge; a tap is measured on the grid as drawn.
 - **How good a move was**: its points against the best move there was on that board with that rack (the move finder)

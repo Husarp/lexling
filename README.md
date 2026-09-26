@@ -58,7 +58,8 @@ Playable in **Polish and English** (both the UI and the word libraries).
   letters-left list, check any word, each player's tiles in their colour and coloured bonus squares (both
   switchable, also mid-game), rule options
   (bonus squares every time, challenges, exchanges always, no seven-tile bonus, a clock per move or per game,
-  hints off, undo against the computer, everyone's tiles shown between friends), each score's "+points" of the
+  hints off or limited per level, hints that cost points, undo against the computer, everyone's tiles shown between
+  friends), moves played from a hint marked on the board, each score's "+points" of the
   last turn,
   move ratings (after each of your moves, and for every player at the end: points against the best move there was),
   raised tiles and three looks for the bonus squares, and its own statistics by language and level. Points stay in this one - scoring is the game.

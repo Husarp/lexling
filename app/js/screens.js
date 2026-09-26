@@ -725,7 +725,10 @@ export function tilesNewScreen(root, _, refresh) {
       `<button type="button" data-hints="${v}" class="${on(o.rules.hints !== false === v)}">${t('tiles.r.hints.' + v)}</button>`).join('')}</div></div>${allowed ? `
       <div class="rule"><span class="eyebrow">${t('tiles.hints.max')}</span>${['small', 'big', 'master'].map(l => `<div class="hint-max"><span>${t('tiles.hint.' + l)}</span><div class="seg">${
         TL_HINT_MAX.map(v => `<button type="button" data-level="${l}" data-max="${v}" class="${on((max[l] ?? null) === v)}">${v === null ? '∞' : v}</button>`).join('')}</div></div>`).join('')}
-        <p class="help"><span class="arrow">→</span> ${t('tiles.hints.maxHelp')}</p></div>` : ''}`;
+        <p class="help"><span class="arrow">→</span> ${t('tiles.hints.maxHelp')}</p></div>
+      <div class="rule"><span class="eyebrow">${t('tiles.hints.cost')}</span><div class="seg">${[null, 'low', 'high'].map(v =>
+        `<button type="button" data-cost="${v}" class="${on((o.rules.hintCost ?? null) === v)}">${t('tiles.hints.cost.' + (v ?? 'none'))}</button>`).join('')}</div>
+        <p class="help"><span class="arrow">→</span> ${t('tiles.hints.costHelp')}</p></div>` : ''}`;
   }
   function paintRules() {
     const r = o.rules, per = r.time?.per ?? 'none';
@@ -810,6 +813,7 @@ export function tilesNewScreen(root, _, refresh) {
     if (!b) return;
     if (b.dataset.hints) o.rules.hints = b.dataset.hints === 'true';
     else if (b.dataset.level) o.rules.hintMax = { ...(o.rules.hintMax ?? {}), [b.dataset.level]: b.dataset.max === 'null' ? null : +b.dataset.max };
+    else if (b.dataset.cost) o.rules.hintCost = b.dataset.cost === 'null' ? null : b.dataset.cost;
     else return;
     paintHints();
     paintSummary();

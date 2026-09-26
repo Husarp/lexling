@@ -464,4 +464,21 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   check('rating a game: without "everyone", only the person', lookBack(s, dicts.en).every(x => x.p === 0), true);
 }
 
+// ── a hint as an action (owner, 2026-09-26): its cost off the score, counted, replayed; a move from it marked ──
+{
+  const isWord = w => has(dicts.en, w);
+  let s = newGame({ lang: 'en', players: [{ name: 'Ada' }, { cpu: 'easy' }], first: 0, seed: 44, words: dicts.en.tag, rules: { hintCost: 'high', undo: true } });
+  const best = hint(s, dicts.en), cost = T.hintCost(s.rules, 'big', { big: best });
+  check('a hint\'s cost: a share of the move it shows (high, Big: 40 %)', cost, Math.ceil(best.score * 0.4));
+  const h = apply(s, { type: 'hint', level: 'big', cost }, isWord);
+  check('a hint taken: cost off the score, counted, the turn goes on', [h.scores[0], h.hints[0], h.turn, h.moves.at(-1).kind], [-cost, 1, 0, 'hint']);
+  const p = apply(h, { type: 'place', placed: best.placed, hint: 'big' }, isWord);
+  check('the move played from it is marked, and so are its tiles', [p.moves.at(-1).hinted, best.placed.every(x => p.cells[x.r * 15 + x.c].hint === 'big')], ['big', true]);
+  check('the game still replays, hint and all', replay(p, isWord).at(-1).scores, p.scores);
+  check('undo takes the move back, not the hint it cost', T.undo(p, isWord, 9).scores[0], -cost);
+  check('the look-back knows the hinted move', lookBack(p, dicts.en).at(-1).hinted, 'big');
+  check('no cost without the rule', T.hintCost({}, 'master', { master: { score: 70 } }), 0);
+  check('a better hint never costs less than a smaller one', T.hintCost({ hintCost: 'low' }, 'master', { small: { score: 10 }, big: { score: 40 }, master: { score: 20 } }), 8);
+}
+
 console.log(`all ${passed} Tiles tests passed`);

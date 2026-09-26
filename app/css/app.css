@@ -1310,3 +1310,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-hints .rule{display:grid;gap:8px}
 .tl-hints .hint-max{display:grid;grid-template-columns:minmax(0,7.5em) minmax(0,1fr);align-items:center;gap:var(--space-2);font-size:14px}
 .tl-hints .hint-max .seg button{min-height:36px;padding:0 4px;font-size:13px}
+/* a move played from a hint keeps a hint edge on its tiles - in its player's colour (owner, 2026-09-26) - and says so in
+   History, the rating and the end review, where it is left out of the player's rating */
+.tb .t.hinted{border:calc(var(--cs) * .08) dashed rgba(0,0,0,.55)}
+.rate-hint{--rate-bg:rgba(150,150,150,.18);--rate-ink:var(--text-muted)}
+.tl-hist .w .tag{font:600 10px/1 var(--font-body);letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);border:1px dashed var(--text-dim);border-radius:4px;padding:2px 4px;vertical-align:middle}

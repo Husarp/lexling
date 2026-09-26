@@ -6,6 +6,20 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.43.0 — 2026-09-26 02:33: Kafelki: hints that cost points, hinted moves marked
+*(not packaged)*
+
+- **Hints can cost points** (owner: "a better hint should cost more"): a new choice in the Podpowiedzi section of New
+  game - Nie / Trochę / Dużo. A hint takes a share of the points of the move it shows off your score as you take it:
+  Trochę - Mała 10 %, Duża 20 %, Mistrzowska 30 %; Dużo - 25 %, 40 %, 60 %. A better level never costs less than a
+  smaller one. The hint menu shows the price of each level ("Kosztuje: Mała −2 · Duża −9 · Mistrzowska −14").
+- **A move played from a hint is marked** (owner): its tiles keep a dashed edge on the board, in the player's colour;
+  History shows "Z podpowiedzi" on it and a row for the hint taken with its cost; the rating under the board says
+  "Z podpowiedzi" instead of a percentage; the end review marks it and leaves it out of that player's rating.
+- A hint is now kept in the game's record, so a saved game replays with it; undo takes back the move, not the hint.
+- Checked in headless Edge at 360 and 480 px: the price in the menu, the score after taking a hint, the dashed tiles,
+  History, the rating line and the end review. 270 Tiles tests.
+
 ## 0.42.3 — 2026-09-26 02:06: Kafelki: hint limits, the board held in place, raised tiles not cut off
 *(not packaged)*
 

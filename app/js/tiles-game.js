@@ -5,8 +5,8 @@ import { t, esc, clock, plural } from './i18n.js';
 import { settings, saveSettings, getSave, putSave, gameName, recordTilesEnd, playClock } from './store.js';
 import { loadWords, resolve } from './engine.js';
 import { has } from './dawg.js';
-import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, checkMove, apply, canExchange, hinted,
-  unseen, undo, loadTileWords, checkWord, fullBag, BLANK } from './tiles.js';
+import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, checkMove, apply, canExchange,
+  unseen, undo, loadTileWords, checkWord, fullBag, hintCost, BLANK } from './tiles.js';
 import { hint as bestMove, hintLevels, sameMove, computerMove, lookBack, LEVELS } from './tiles-moves.js';
 import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink } from './ui.js';
 import { fitAll } from './fit.js';
@@ -108,7 +108,7 @@ function boardInner(S, { draft = [], bad = false, cursor = null, drop = -1, hint
   // who put a tile down: its class pN tints it in that player's colour (owner, 2026-09-25: coloured tiles, no frames)
   // each row above the one before it, so a raised tile's face goes over the tile above (css .tb.raised)
   const tile = (i, ch, blank, cls) => `<b class="t ${cls}${blank ? ' bl' : ''}" data-i="${i}" style="${at(i)};z-index:${2 + Math.floor(i / n)}">${esc(ch)}<i class="p">${blank || !ch ? '' : valueOf(S.lang, ch)}</i></b>`;
-  S.cells.forEach((x, i) => { if (x) html += tile(i, x.ch, x.blank, (hinted.has(i) ? 'hint' : 'p' + x.by) + (i === peek ? ' peek' : '')); });
+  S.cells.forEach((x, i) => { if (x) html += tile(i, x.ch, x.blank, (hinted.has(i) ? 'hint' : 'p' + x.by + (x.hint ? ' hinted' : '')) + (i === peek ? ' peek' : '')); });
   for (const [i, d] of fresh) html += tile(i, d.ch, d.blank, d.hint ? 'hint' : bad ? 'new bad' : 'new');
   return html;
 }
@@ -213,7 +213,7 @@ export async function tilesGameScreen(root, id) {
   function paintStatus() {
     const np = S.players.length;
     // beside each score what that player's last turn brought (owner, 2026-09-25): +23, or +0 for a pass or exchange
-    const last = p => { const m = S.moves.findLast(x => x.p === p); return m ? `<small class="delta">+${m.kind === 'play' ? m.score : 0}</small>` : ''; };
+    const last = p => { const m = S.moves.findLast(x => x.p === p && x.kind !== 'hint'); return m ? `<small class="delta">+${m.kind === 'play' ? m.score : 0}</small>` : ''; };
     // The scores (design "Lexling Tiles Scores", on top - owner, 2026-09-26): a box per player - a tile badge with the
     // initial, the name, the score - the player to move ringed; the bag a dashed box of its own. With three players or more
     // the boxes scroll sideways, and the row follows the turn: the player to move slides to the front.
@@ -309,9 +309,11 @@ export async function tilesGameScreen(root, id) {
     const res = judge();
     if (mode === 'exchange') html = t('tiles.ex.pick', { n: picks.size });
     else if (mode === 'pass') html = t('tiles.pass.ask');
-    else if (mode === 'hint') html = msg?.html ?? t('tiles.hint.pick');
+    else if (mode === 'hint') html = msg?.html ?? (levels?.big && S.rules.hintCost ? t('tiles.hint.pickCost', Object.fromEntries(['small', 'big', 'master'].map(l => [l, levels[l] ? hintCost(S.rules, l, levels) : '–'])))
+      : t('tiles.hint.pick'));
     else if (res?.error) { err = true; html = res.error === 'word' ? t('tiles.err.unknown', { w: esc(res.bad[0].toUpperCase()) }) : t(ERR[res.error]); }
-    else if (res) html = (draft[0].hint ? t('tiles.say.hint', { level: t('tiles.hint.' + draft[0].hint) }) + ' ' : '') + wordsLine(res.words, res.score, draft.length === 7);
+    else if (res) html = (draft[0].hint ? (hintPaid ? t('tiles.say.hintCost', { level: t('tiles.hint.' + draft[0].hint), n: hintPaid }) : t('tiles.say.hint', { level: t('tiles.hint.' + draft[0].hint) })) + ' ' : '')
+      + wordsLine(res.words, res.score, draft.length === 7);
     else if (msg) { html = msg.html; err = !!msg.err; }
     else if (thinking) html = t('tiles.say.think', { name: esc(nameOf(S, S.turn)) });
     else if (myTurn()) html = sel >= 0 ? t('tiles.say.tap') : !S.cells.some(Boolean) ? t('tiles.say.first')
@@ -368,12 +370,13 @@ export async function tilesGameScreen(root, id) {
     const words = m => m.words.map(x => wordLink(x.w, lang)).join(', ');
     const rows = S.moves.map((m, i) => {
       const quiet = m.kind !== 'play';
-      const w = m.kind === 'play' ? words(m) + (m.bingo && S.rules.bingo ? `<small> +${S.rules.bingo}</small>` : '')
+      const w = m.kind === 'play' ? words(m) + (m.bingo && S.rules.bingo ? `<small> +${S.rules.bingo}</small>` : '') + (m.hinted ? ` <small class="tag">${t('tiles.rate.hinted')}</small>` : '')
+        : m.kind === 'hint' ? t('tiles.hist.hint', { level: t('tiles.hint.' + m.level) })
         : m.kind === 'swap' ? t('tiles.hist.exchanged', { n: m.n }) : m.kind === 'pass' ? t('tiles.hist.passed')
           : m.kind === 'timeout' ? t('tiles.hist.timeout') : m.kind === 'withdrawn' ? `${words(m)} · ${t('tiles.hist.withdrawn')}`
             : t(m.ok ? 'tiles.hist.challengeWon' : 'tiles.hist.challengeLost');
-      const ev = settings.tilesRate !== false && m.kind === 'play' && game.evals?.[i], r = ev && rateOf(m.score, ev.best);
-      return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${i + 1}</span><span class="who" title="${esc(nameOf(S, m.p))}"></span><span class="w">${w}</span><span class="r">${quiet ? '–' : m.score}${
+      const ev = settings.tilesRate !== false && m.kind === 'play' && !m.hinted && game.evals?.[i], r = ev && rateOf(m.score, ev.best);
+      return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${i + 1}</span><span class="who" title="${esc(nameOf(S, m.p))}"></span><span class="w">${w}</span><span class="r">${m.kind === 'hint' ? (m.cost ? '−' + m.cost : '–') : quiet ? '–' : m.score}${
         r ? `<small class="rate rate-${r}">${pctOf(m.score, ev.best)}%</small>` : ''}</span></li>`;
     }).reverse();
     return rows.length ? `<ol class="tl-hist">${rows.join('')}</ol>` : `<p class="help">${t('tiles.hist.empty')}</p>`;
@@ -468,7 +471,9 @@ export async function tilesGameScreen(root, id) {
     const name = esc(nameOf(S, p)), m = S.moves.at(-1);
     // a person's own turn, rated (the setting): on its own line under the board (owner, 2026-09-26), until their next move
     if (!cpu(p) && ['place', 'exchange', 'pass', 'timeout'].includes(action.type)) {
-      rating = settings.tilesRate !== false && ev?.best > 0 ? (people.length > 1 ? `<b>${name}:</b> ` : '') + rated(action.type === 'place' ? m.score : 0, ev) : '';
+      rating = settings.tilesRate === false ? '' : (people.length > 1 ? `<b>${name}:</b> ` : '')
+        + (action.type === 'place' && m?.hinted ? `<span class="rate rate-hint">${t('tiles.rate.hinted')}</span>` : ev?.best > 0 ? rated(action.type === 'place' ? m.score : 0, ev) : '');
+      if (rating.endsWith(':</b> ')) rating = '';
     }
     if (action.type === 'place') return { html: `${t('tiles.say.played', { name })} ${wordsLine(m.words, m.score, m.bingo)}` };
     if (action.type === 'exchange') return { html: t('tiles.say.swapped', { name, n: action.tiles.length }) };
@@ -572,7 +577,7 @@ export async function tilesGameScreen(root, id) {
     challenge() { if (myTurn() && S.pending) { quiet(); act({ type: 'challenge' }); } },
     play() {
       const res = judge();
-      if (myTurn() && res && !res.error) act({ type: 'place', placed: placedOf() });
+      if (myTurn() && res && !res.error) act({ type: 'place', placed: placedOf(), ...(draft[0]?.hint ? { hint: draft[0].hint } : {}) });
     },
     cancel() { mode = 'play'; picks = new Set(); levels = null; msg = null; paintTurn(); },
     swap() {
@@ -639,15 +644,19 @@ export async function tilesGameScreen(root, id) {
       used.add(slot);
       return { slot, r: x.r, c: x.c, ch: x.ch, blank: x.blank, hint: level };
     });
-    mode = 'play'; levels = null; msg = null; sel = -1; cursor = null;
-    S = hinted(S);             // one hint, whichever level
+    mode = 'play'; msg = null; sel = -1; cursor = null;
+    hintPaid = hintCost(S.rules, level, levels);
+    S = apply(S, { type: 'hint', level, cost: hintPaid }, isWord);   // one hint, whichever level; its cost off the score
     game.hintsBy = S.players.map((_, p) => ({ small: 0, big: 0, master: 0, ...game.hintsBy?.[p] }));
     game.hintsBy[S.turn][level]++;   // and one of this level, for the limits (New game)
+    levels = null;
     game.state = S;
     putSave(game);
     follow();
+    paintStatus();   // the score, when the hint cost points
     paintTurn();
   }
+  let hintPaid = 0;
   function pickLetter(ch) {
     if (blankFor < 0 || !draft[blankFor]) return;
     draft[blankFor].ch = ch;
@@ -963,13 +972,13 @@ export async function tilesGameScreen(root, id) {
       let rows;
       try { rows = lookBack(S, dict, true); } catch { return; }
       if (!rows.length) return;
-      const sum = (p, k) => rows.filter(x => x.p === p).reduce((a, x) => a + (k === 'best' ? x.best?.score ?? 0 : x.played), 0);
+      const sum = (p, k) => rows.filter(x => x.p === p && !x.hinted).reduce((a, x) => a + (k === 'best' ? x.best?.score ?? 0 : x.played), 0);
       const overall = S.players.map((_, p) => { const best = sum(p, 'best'), got = sum(p, 'played'), r = rateOf(got, best);
         return `<li class="pc${p}"><i></i><span>${esc(nameOf(S, p))}</span>${r ? `<span class="rate rate-${r}">${t('tiles.rate.' + r)} · ${pctOf(got, best)}%</span>` : '<span>—</span>'}</li>`; }).join('');
       box.innerHTML = `<span class="eyebrow">${t('tiles.eval')}</span><ul class="tl-evals">${overall}</ul><p class="help">${t('tiles.eval.help')}</p><ol><li class="head"><span></span><span>${t('tiles.look.played')}</span><span>${t('tiles.look.best')}</span></li>${rows.map((x, k) => {
-        const same = !x.best || x.played >= x.best.score;
+        const same = !x.hinted && (!x.best || x.played >= x.best.score);
         const played = x.kind === 'place' ? `${esc(x.word)} <small>${x.played}</small>` : `<small>${t(x.kind === 'exchange' ? 'tiles.look.swap' : 'tiles.look.pass')}</small>`;
-        return `<li class="pc${x.p}${same ? ' same' : ''}"><span class="i">${k + 1}</span><span class="w"><i class="dot" title="${esc(nameOf(S, x.p))}"></i>${played}${x.best ? ' ' + rateBadge(x.played, x.best.score) : ''}</span><span class="best"><span class="w">${
+        return `<li class="pc${x.p}${same ? ' same' : ''}"><span class="i">${k + 1}</span><span class="w"><i class="dot" title="${esc(nameOf(S, x.p))}"></i>${played}${x.hinted ? ` <span class="rate rate-hint">${t('tiles.rate.hinted')}</span>` : x.best ? ' ' + rateBadge(x.played, x.best.score) : ''}</span><span class="best"><span class="w">${
           x.best ? `${esc(x.best.word)} <small>${x.best.score}</small>` : '—'}</span></span></li>`;
       }).join('')}</ol>`;
       box.hidden = false;
