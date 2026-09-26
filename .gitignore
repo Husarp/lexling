@@ -33,6 +33,8 @@ letterex-plan(scrabble).md
 CHANGELOG.md
 DESIGN.md
 PLAN.md
+# Claude Code's own settings here (the preview's dev-server command, launch.json) - a tool's, not the app's
+.claude/
 
 # Design working material: the handoff pages the UI was built from, the conversation exports and
 # the delivery archives. Kept on disk, not shipped - DESIGN.md still describes what they contained.
