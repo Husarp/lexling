@@ -843,8 +843,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .t .p:empty{display:none}
 /* 15 squares under ~24px: the points are unreadable, so they go until the board zooms in */
 @container (max-width:380px){.tb.n15:not(.zoom) .t .p{display:none}}
-/* a blank once down: paler, its letter and no points - no dashes, those mean a hint (owner, 2026-09-26) */
-.t.bl{background:var(--tl-blank);box-shadow:inset 0 0 0 var(--rw) var(--ring)}
+/* a blank once down: a tile like any other, its letter and no number - no paler colour, no dashes (owner, 2026-09-26:
+   "it is enough that there is no number") */
 .t.bl .p{display:none}
 /* who played it: the letter colour (setting on, the default) */
 .tb.own .t.y{color:var(--tl-you)}
@@ -1116,7 +1116,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* a player's colour on the history dot, the saved card and a blank in the best word */
 [data-screen=games] .save-last .vs{flex-wrap:wrap}
 [data-screen=games] .save-last .vs i[class*=pc]{background:var(--pc)}
-.mtl.bl{background:var(--tl-blank)}
 /* statistics: language and level filters above the Tiles numbers */
 .tl-filters{display:grid;gap:var(--space-2)}
 .tl-filters .chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -1224,7 +1223,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tb.raised .t:not(.hint){--face:var(--tl-tile);--side:color-mix(in srgb,var(--face) 60%,#000);translate:0 calc(var(--cs) * -.16);
   box-shadow:inset 0 0 0 var(--rw) var(--ring),inset 0 calc(var(--cs) * .06) 0 rgba(255,255,255,.45),inset 0 calc(var(--cs) * -.03) 0 rgba(0,0,0,.12),
     0 calc(var(--cs) * .16) 0 var(--side),0 calc(var(--cs) * .2) calc(var(--cs) * .14) rgba(0,0,0,.5)}
-.tb.raised .t.bl:not(.hint){--face:var(--tl-blank)}
 .tb.raised.own .t:is(.p0,.p1,.p2,.p3,.p4):not(.hint){--face:var(--pt)}
 /* the panel over the board has the board's own corners (8 px), so no sliver of a square shows past its top corners
    (owner, 2026-09-26: "orange in both top corners" - a zoomed-in 2S square behind a rounder corner) */
@@ -1331,9 +1329,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .topbar .eyebrow.gname{display:flex;gap:.45em}
 .topbar .gname .nm{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .topbar .gname .no{flex:none}
-/* a blank in a player's colour: that colour, paler - told apart from a hinted tile by that, not by dashes */
-.tb.own .t.bl:is(.p0,.p1,.p2,.p3,.p4){background:color-mix(in srgb,var(--pt) 50%,#fff)}
-.tb.raised.own .t.bl:is(.p0,.p1,.p2,.p3,.p4):not(.hint){--face:color-mix(in srgb,var(--pt) 50%,#fff)}
 /* the board's frame (owner, 2026-09-26: "grey is boring"): warm wood, lit along its inner edge */
 :root{--tb-frame:linear-gradient(150deg,#5C4231 0%,#3B2A1E 55%,#2B1F16 100%)}
 [data-theme=light]{--tb-frame:linear-gradient(150deg,#E4C8A2 0%,#CDA676 55%,#B88E5F 100%)}
@@ -1400,3 +1395,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-screen=stats] .scell .num .unit{font:500 13px var(--font-body);color:var(--text-muted)}
 [data-screen=stats] .scell .sub{font-size:12px;line-height:1.3;color:var(--text-muted)}
 [data-screen=stats] .sgroup.dim .num{color:var(--text-dim)}
+/* History: the hints taken before a move, on its row as a second line (owner, 2026-09-26) */
+.tl-hist .w small.hl{display:block;margin-top:4px;font:500 12px/1.3 var(--font-body);text-transform:none;letter-spacing:0;color:var(--text-muted)}
+/* a hint given: the Hint button's frame flashes orange for a moment (owner, 2026-09-26) */
+@keyframes tap-flash{0%,55%{border-color:var(--accent);color:var(--accent)}}
+.btn-ghost.tap-flash{animation:tap-flash 500ms var(--ease)}

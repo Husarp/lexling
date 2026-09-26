@@ -40,7 +40,8 @@ export async function lettersGameScreen(root, id) {
   <main class="main"></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main');
-  wireGear(root);
+  // the phone's own keyboard: a Letters choice, so in its gear (owner, 2026-09-26) - read at each tap, nothing to repaint
+  wireGear(root, [['phoneKb', t('set.phoneKb'), t('set.phoneKbDesc')]]);
   const $ = sel => main.querySelector(sel);
   const refit = () => fitAll(root);
   let board, sink, kb;
@@ -343,7 +344,7 @@ export async function lettersGameScreen(root, id) {
       <span class="eyebrow">${t(won ? 'end.wordWon' : 'end.wordLost')}</span>
       <p class="display">${esc(game.secret)}</p>
       <div class="result-stats">${facts.join(dot)}</div>
-      <div class="result-actions"><a class="btn btn-primary" href="#/new/letters">${t('lt.again')} <span class="arrow">→</span></a><a class="btn btn-ghost" href="#/">${t('menu')}</a>${meaningButton(game.secret, game.lang)}</div>
+      <div class="result-actions"><a class="btn btn-ghost" href="#/">${t('menu')}</a><a class="btn btn-primary" href="#/new/letters">${t('lt.again')} <span class="arrow">→</span></a>${meaningButton(game.secret, game.lang)}</div>
     </div>`;
     app.classList.remove('fit', 'kbon');
     main.innerHTML = `${head}${card}<div class="lt-board" role="grid" aria-label="${t('game.guesses')}"></div>`;

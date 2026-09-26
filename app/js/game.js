@@ -2,7 +2,7 @@
 import { t, plural, esc, num, clock } from './i18n.js';
 import { settings, stats, getSave, putSave, recordGuess, recordEnd, playClock } from './store.js';
 import { load, resolve, suggest, rankAll, pct, hint, HINT_FLOOR } from './engine.js';
-import { topbar, fillColor, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink, gameTitle } from './ui.js';
+import { topbar, fillColor, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink, gameTitle, flashTap } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 
@@ -57,7 +57,7 @@ export async function gameScreen(root, id) {
         <span class="eyebrow">${t(won ? 'end.guessWordWon' : 'end.wordLost')}</span>
         <p class="display">${esc(game.secret)}</p>
         <div class="result-stats">${facts.filter(Boolean).join(dot)}</div>
-        <div class="result-actions"><a class="btn btn-primary" href="#/new">${t('games.new')} <span class="arrow">→</span></a><a class="btn btn-outline" href="#/">${t('menu')}</a>${meaningButton(game.secret, game.lang)}</div>
+        <div class="result-actions"><a class="btn btn-outline" href="#/">${t('menu')}</a><a class="btn btn-primary" href="#/new">${t('games.new')} <span class="arrow">→</span></a>${meaningButton(game.secret, game.lang)}</div>
       </div>
     </div>`;
       return;
@@ -134,6 +134,7 @@ export async function gameScreen(root, id) {
     const word = m.words[found.idx];
     game.guesses.push({ w: word, typed: '', rank: found.rank, pct: pct(found.rank, m.count), hint: true });
     putSave(game);
+    flashTap($('#hint'));
     click();
     say('');
     paintStatus();

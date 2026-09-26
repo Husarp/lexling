@@ -6,7 +6,7 @@ import { load, loadWords, preload, resolve, pickSecret, lengthStats } from './en
 import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js';
 import { makePuzzle, RANGE, RING_MIN, RING_MAX, visible, isDone } from './connect.js';
 import { BOARDS, STANDARD, LEVEL_ORDER, PLAYERS_MAX, newGame as tilesGame, loadTileWords, valueOf, fullBag } from './tiles.js';
-import { nameOf, topics, LABEL, bonusSeg, bonusOf, coloursSeg, rateSeg, tileSeg, applyTileLook } from './tiles-game.js';
+import { nameOf, topics, LABEL, bonusSeg, bonusOf, coloursSeg, tileSeg, applyTileLook } from './tiles-game.js';
 import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYPH, modeTag, TILE, squares } from './ui.js';
 import { fitAll } from './fit.js';
 import { click } from './sound.js';
@@ -1061,18 +1061,6 @@ export async function settingsScreen(root, _, refresh) {
       <div class="row"><div class="row-text"><strong>${t('set.remember')}</strong><span>${t('set.rememberDesc')}</span></div><button type="button" class="toggle ${on(settings.rememberSetup)}" data-toggle="rememberSetup" role="switch" aria-checked="${!!settings.rememberSetup}" aria-label="${t('set.remember')}"></button></div>
     </section>
     <section class="group">
-      <h2 class="title">${t('mode.letters')}</h2>
-      <div class="row"><div class="row-text"><strong>${t('set.phoneKb')}</strong><span>${t('set.phoneKbDesc')}</span></div><button type="button" class="toggle ${on(settings.phoneKb)}" data-toggle="phoneKb" role="switch" aria-checked="${settings.phoneKb}" aria-label="${t('set.phoneKb')}"></button></div>
-    </section>
-    <section class="group">
-      <h2 class="title">${t('set.tiles')}</h2>
-      <div class="row"><div class="row-text"><strong>${t('tiles.colours')}</strong><span>${t('tiles.coloursHelp')}</span></div>${coloursSeg()}</div>
-      <div class="row"><div class="row-text"><strong>${t('tiles.tile')}</strong><span>${t('tiles.tileHelp')}</span></div>${tileSeg()}</div>
-      <div class="row"><div class="row-text"><strong>${t('tiles.bonus')}</strong><span>${t('tiles.bonusHelp')}</span></div>${bonusSeg()}</div>
-      <div class="row"><div class="row-text"><strong>${t('tiles.raised')}</strong><span>${t('tiles.raisedHelp')}</span></div><button type="button" class="toggle ${on(settings.tiles3d)}" data-toggle="tiles3d" role="switch" aria-checked="${!!settings.tiles3d}" aria-label="${t('tiles.raised')}"></button></div>
-      <div class="row"><div class="row-text"><strong>${t('tiles.rate.setting')}</strong><span>${t('tiles.rate.settingHelp')}</span></div>${rateSeg()}</div>
-    </section>
-    <section class="group">
       <h2 class="title">${t('set.updates')}</h2>
       <div class="row"><div class="row-text"><strong>${t('set.version', { v: VERSION })}</strong><span id="update-line">${updateLine}</span></div>
         <div class="row-actions">${waiting
@@ -1109,27 +1097,6 @@ export async function settingsScreen(root, _, refresh) {
     el.classList.toggle('on', settings[key]);
     el.setAttribute('aria-checked', settings[key]);
     if (key === 'sound') click();
-  }));
-  root.querySelectorAll('[data-colours]').forEach(b => b.addEventListener('click', () => {
-    settings.tilesColours = bonusOf(b.dataset.colours);
-    saveSettings();
-    root.querySelectorAll('[data-colours]').forEach(x => x.classList.toggle('on', x === b));
-  }));
-  root.querySelectorAll('[data-bonus]').forEach(b => b.addEventListener('click', () => {
-    settings.tilesBonus = bonusOf(b.dataset.bonus);
-    saveSettings();
-    root.querySelectorAll('[data-bonus]').forEach(x => x.classList.toggle('on', x === b));
-  }));
-  root.querySelectorAll('[data-tc]').forEach(b => b.addEventListener('click', () => {
-    settings.tilesTile = b.dataset.tc;
-    saveSettings();
-    applyTileLook();
-    root.querySelectorAll('[data-tc]').forEach(x => x.classList.toggle('on', x === b));
-  }));
-  root.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => {
-    settings.tilesRate = bonusOf(b.dataset.rate);
-    saveSettings();
-    root.querySelectorAll('[data-rate]').forEach(x => x.classList.toggle('on', x === b));
   }));
   root.querySelectorAll('[data-accent]').forEach(el => el.addEventListener('click', () => {
     settings.accent = el.dataset.accent;

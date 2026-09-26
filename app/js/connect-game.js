@@ -4,7 +4,7 @@ import { t, esc } from './i18n.js';
 import { getSave, putSave, recordConnectEnd, playClock } from './store.js';
 import { loadWords } from './engine.js';
 import { WORD_MIN, cellsOf, visible, isDone, nextHint, judge } from './connect.js';
-import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear, wordLink, gameTitle } from './ui.js';
+import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear, wordLink, gameTitle, flashTap } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 
@@ -229,6 +229,7 @@ export async function connectGameScreen(root, id) {
     game.shown.push(h.cell);
     game.hints++;
     putSave(game);
+    flashTap($('.hint-btn'));
     const vis = visible(board, game.found, game.shown);
     const finished = board.words.find(x => h.words.includes(x.w) && isDone(x, game.found, vis));
     const chosen = board.words.find(x => x.w === pick);
@@ -387,7 +388,7 @@ export async function connectGameScreen(root, id) {
       ${won ? `<p class="display">${esc(game.key)}</p>` : `<p class="left-words">${left.map(x => `<span>${esc(x.w)}</span>`).join('')}</p>`}
       <div class="result-stats"><span><b>${count}</b> ${t('cn.wordsLow')}</span>${DOT}<span><b>${game.bonus.length}</b> ${t('cn.bonusLow')}</span>${DOT}<span><b>${game.hints}</b> ${t('cn.hintsLow')}</span></div>
       <p class="mean-words"><span class="eyebrow">${t('meaning.words')}</span>${board.words.map(x => wordLink(x.w, game.lang)).join('')}</p>
-      <div class="result-actions"><a class="btn btn-primary" href="#/new/connect">${t('lt.again')} <span class="arrow">→</span></a><a class="btn btn-ghost" href="#/">${t('menu')}</a></div>
+      <div class="result-actions"><a class="btn btn-ghost" href="#/">${t('menu')}</a><a class="btn btn-primary" href="#/new/connect">${t('lt.again')} <span class="arrow">→</span></a></div>
     </div>`;
     app.classList.remove('fit');
     main.innerHTML = `${head}${card}<div class="cw-flow">${boardHtml(40)}</div>

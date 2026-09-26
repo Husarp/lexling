@@ -35,6 +35,16 @@ const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44
 export const gearButton = (cls = '') => `<button class="btn btn-ghost gs-open${cls ? ' ' + cls : ''}" type="button" aria-label="${t('set.title')}" title="${t('set.title')}">${GEAR}</button>`;
 // `extra` = the game's own settings, [[key, label, help]] - a switch - or [key, label, help, [[value, text], ...]] - a
 // choice; `onChange()` repaints what they change.
+// A tap that did something: the button's frame flashes in the theme colour for a moment (owner, 2026-09-26 - a hint
+// was given). A touch screen has no hover to show it.
+export function flashTap(el) {
+  if (!el) return;
+  el.classList.remove('tap-flash');
+  void el.offsetWidth;                 // restarts the animation on a quick second tap
+  el.classList.add('tap-flash');
+  clearTimeout(el.flashTimer);
+  el.flashTimer = setTimeout(() => el.classList.remove('tap-flash'), 500);
+}
 export const wireGear = (root, extra = [], onChange = () => {}) =>
   wireDialog(root, '.gs-open', t('set.title'), [['sound', t('set.sound'), t('set.soundDesc')], ...extra], onChange);
 // A small settings window opened by `trigger` (the gear; Tiles' palette): switches, and choices - [value, label, name],

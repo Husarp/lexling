@@ -52,8 +52,6 @@ export const bonusSeg = () => `<div class="seg" role="radiogroup">${BONUS_LOOKS.
   `<button type="button" data-bonus="${v}" class="${settings.tilesBonus === v ? 'on' : ''}">${t('tiles.bonus.' + k)}</button>`).join('')}</div>`;
 // the rating after a move: with the best move there was, the rating alone (find the better move yourself), or off
 export const RATE_LOOKS = [[true, 'best'], ['score', 'score'], [false, 'off']];
-export const rateSeg = () => `<div class="seg" role="radiogroup">${RATE_LOOKS.map(([v, k]) =>
-  `<button type="button" data-rate="${v}" class="${settings.tilesRate === v ? 'on' : ''}">${t('tiles.rate.look.' + k)}</button>`).join('')}</div>`;
 // The tiles' own colour (owner, 2026-09-26: "normally yellow - let me choose, white too"): the rack, the letter by each
 // name, and the board's tiles when they are not in a player's colour. Set on <html>, so every screen draws them alike.
 export const TILE_LOOKS = [['yellow', '#F3C237'], ['white', '#FFFFFF'], ['cream', '#F3E7D0'], ['wood', '#E3B888'], ['mint', '#BDE8D0']];
@@ -390,7 +388,20 @@ export async function tilesGameScreen(root, id) {
   function histHtml() {
     const words = m => m.words.map(x => wordLink(x.w, lang)).join(', ');
     const rated = rateOn();
+    // a hint is not a move: it goes on the row of the move its player then made, as a second line (owner, 2026-09-26) -
+    // until that move is made, on a short row of its own
+    const hintsOf = new Map();
+    let waiting = [];
+    S.moves.forEach((m, i) => {
+      if (m.kind === 'hint') { waiting.push(m); return; }
+      const mine = waiting.filter(h => h.p === m.p);
+      if (mine.length) { hintsOf.set(i, mine); waiting = waiting.filter(h => h.p !== m.p); }
+    });
+    const hintLine = hs => `<small class="hl">${hs.map(h => t('tiles.hist.hint', { level: t('tiles.hint.' + h.level) }) + (h.cost ? ` −${h.cost}` : '')).join(' · ')}</small>`;
+    let no = 0;
     const rows = S.moves.map((m, i) => {
+      if (m.kind === 'hint' && !waiting.includes(m)) return '';
+      if (m.kind !== 'hint') no++;
       if (histOf !== null && m.p !== histOf) return '';
       const quiet = m.kind !== 'play';
       const w = m.kind === 'play' ? words(m) + (m.bingo && S.rules.bingo ? `<small> +${S.rules.bingo}</small>` : '') + (m.hinted ? ` <small class="tag">${t('tiles.rate.hinted')}</small>` : '')
@@ -400,7 +411,7 @@ export async function tilesGameScreen(root, id) {
             : t(m.ok ? 'tiles.hist.challengeWon' : 'tiles.hist.challengeLost');
       const ev = rated && m.kind === 'play' && game.evals?.[i], r = ev && rateOf(m.score, ev.best);
       const best = r && settings.tilesRate === true && m.score < ev.best ? `<small class="best">${bestWas(ev)}</small>` : '';
-      return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${i + 1}</span><span class="w">${w}${best}</span><span class="r">${m.kind === 'hint' ? (m.cost ? '−' + m.cost : '–') : quiet ? '–' : m.score}</span>${
+      return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${m.kind === 'hint' ? '' : no}</span><span class="w">${w}${best}${hintsOf.has(i) ? hintLine(hintsOf.get(i)) : ''}</span><span class="r">${m.kind === 'hint' ? (m.cost ? '−' + m.cost : '–') : quiet ? '–' : m.score}</span>${
         rated ? `<span class="pct">${r ? `<small class="rate rate-${r}">${pctOf(m.score, ev.best)}%</small>` : ''}</span>` : ''}<span class="who">${esc(nameOf(S, m.p))}</span></li>`;
     }).filter(Boolean).reverse();
     const head = `<li class="head"><span></span><span>${t('tiles.look.played')}</span><span>${t('tiles.hist.pts')}</span>${rated ? `<span>${t('tiles.hist.rating')}</span>` : ''}<span>${t('tiles.hist.who')}</span></li>`;
@@ -1002,7 +1013,7 @@ export async function tilesGameScreen(root, id) {
       <p class="calc">${why}${adjust}${late ? '<br>' + late : ''}</p>
       ${top ? `<div class="tl-best"><span class="eyebrow">${t('tiles.end.bestWord')}</span><span class="mt-row">${tilesOf(top)}</span><span class="num">${top.score}</span></div>` : ''}
       <div class="result-stats"><span><b>${bingos}</b> ${plural(bingos, 'tiles.end.bingos')}</span>${DOT}<span><b>${hints}</b> ${plural(hints, 'tiles.end.hints')}</span>${DOT}<span>${[t('tiles.board.' + S.board), levels].filter(Boolean).join(' · ')}</span></div>
-      <div class="result-actions"><a class="btn btn-primary" href="#/new/tiles">${t('lt.again')} <span class="arrow">→</span></a><a class="btn btn-ghost" href="#/">${t('menu')}</a></div>
+      <div class="result-actions"><a class="btn btn-ghost" href="#/">${t('menu')}</a><a class="btn btn-primary" href="#/new/tiles">${t('lt.again')} <span class="arrow">→</span></a></div>
     </div>
     <div class="tl-final"><div class="tl-board"><div class="tb n${n}${looks()}" style="--n:${n}">${boardInner(S)}</div></div></div>
     <div class="card tl-look" hidden></div>`;
