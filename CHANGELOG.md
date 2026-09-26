@@ -6,6 +6,17 @@ Format: `X.Y.Z — YYYY-MM-DD HH:MM: <description>`
 
 ---
 
+## 0.48.1 — 2026-09-26 04:44: Kafelki: words from hints rated and counted; the button row fixed
+*(not packaged)*
+
+- **A word played from a hint is rated like any other** (owner: "they should count but still show"): the box under the
+  board shows the hint's lightbulb, the rating and the best move; History and the end review rate it too (the
+  "Z podpowiedzi" tag stays), and it now counts in your rating for the game.
+- **Fix**: with the 🎨 button the ⚙ button fell to a second line at 480 px, and on a computer three icons did - the row
+  stays on one line now, on phones up to 600 px and in the desktop layout.
+- Checked in headless Edge: a Small hint played and rated (lightbulb, 50 %, the best move), counted at the end; the
+  row at 340-1280 px.
+
 ## 0.48.0 — 2026-09-26 04:38: remember my New game choices
 *(not packaged)*
 

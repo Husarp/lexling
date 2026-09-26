@@ -1155,7 +1155,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-find svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 @container (max-width:480px){[data-screen=tiles] .status-actions .tl-find{min-width:36px}}
 /* on phones the row stays one line - the labels give up their tracking first (fit.js) - unless Undo is there too */
-@container (max-width:470px){
+@container (max-width:600px){
   [data-screen=tiles] .status-actions:not(:has([data-act=undo])){flex-wrap:nowrap;gap:6px;min-width:0}
   [data-screen=tiles] .status-actions:not(:has([data-act=undo])) .btn{min-width:0;padding:0 var(--space-2)}
   [data-screen=tiles] .status-actions .tl-find{flex:none;min-width:36px}
@@ -1305,7 +1305,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* a move played from a hint keeps a hint edge on its tiles - in its player's colour (owner, 2026-09-26) - and says so in
    History, the rating and the end review, where it is left out of the player's rating */
 .t.hinted{outline:calc(var(--cs) * .05) dashed rgba(0,0,0,.55);outline-offset:calc(var(--cs) * -.08)}
-.rate-hint{--rate-bg:rgba(150,150,150,.18);--rate-ink:var(--text-muted)}
 :is(.tl-hist,.tl-look) .w .tag{white-space:nowrap;font:600 10px/1 var(--font-body);letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);border:1px dashed var(--text-dim);border-radius:4px;padding:2px 4px;vertical-align:middle}
 /* a column row (the ⚙ window's choices): .row-text's 220px base is a width, not a height */
 .tl-row.col .row-text,.gs-row.col .row-text{flex:none}
@@ -1363,7 +1362,10 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .rbox .lbl{flex:none;font:600 10px/1 var(--font-body);letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
 .rbox .rr b{min-width:0;overflow:hidden;text-overflow:ellipsis;font:800 18px/1 var(--font-display);text-transform:uppercase;color:var(--text)}
 .rbox .pts{flex:none;font:800 18px/1 var(--font-display);color:var(--accent)}
-.rbox.rate-none,.rbox.rate-hint{--rate-ink:var(--text-muted)}
+.rbox.rate-none{--rate-ink:var(--text-muted)}
+/* a move from a hint: rated like any other, the hint's lightbulb before its rating (owner, 2026-09-26) */
+.rbox .hi{align-self:center;display:inline-flex;color:var(--text-muted)}
+.rbox .hi svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 @container (max-width:360px){[data-screen=tiles] .tl-rate .rbox{gap:8px;padding:0 10px 3px}.rbox .band,.rbox .rr b,.rbox .pts{font-size:16px}.rbox .pc{font-size:19px}.rbox .lbl{display:none}}
 /* the end review as a table (owner, 2026-09-26): played, rating, best, player - each column lined up, names not dots */
 .tl-look .pct{text-align:center}
@@ -1379,3 +1381,9 @@ input,textarea{-webkit-user-select:text;user-select:text}
 }
 /* white tiles on the light board's near-white squares: a thin grey edge, so a tile still stands out (a new tile's ring wins) */
 :root[data-theme=light][data-tilecolour=white] .t:not(.new):not(.hint){--ring:#BFC5D0;--rw:1px}
+/* the desktop layout's side column is 360 px wide - the same one-line row as a narrow phone (four icons since 0.47.0) */
+@container (min-width:900px){
+  [data-screen=tiles] .status-actions:not(:has([data-act=undo])){flex-wrap:nowrap;gap:4px;min-width:0}
+  [data-screen=tiles] .status-actions:not(:has([data-act=undo])) .btn:not(.tl-find){min-width:0;padding:0 6px}
+  [data-screen=tiles] .status-actions .tl-find{flex:none;min-width:32px;width:32px}
+}

@@ -398,7 +398,7 @@ export async function tilesGameScreen(root, id) {
         : m.kind === 'swap' ? t('tiles.hist.exchanged', { n: m.n }) : m.kind === 'pass' ? t('tiles.hist.passed')
           : m.kind === 'timeout' ? t('tiles.hist.timeout') : m.kind === 'withdrawn' ? `${words(m)} · ${t('tiles.hist.withdrawn')}`
             : t(m.ok ? 'tiles.hist.challengeWon' : 'tiles.hist.challengeLost');
-      const ev = rated && m.kind === 'play' && !m.hinted && game.evals?.[i], r = ev && rateOf(m.score, ev.best);
+      const ev = rated && m.kind === 'play' && game.evals?.[i], r = ev && rateOf(m.score, ev.best);
       const best = r && settings.tilesRate === true && m.score < ev.best ? `<small class="best">${bestWas(ev)}</small>` : '';
       return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${i + 1}</span><span class="w">${w}${best}</span><span class="r">${m.kind === 'hint' ? (m.cost ? '−' + m.cost : '–') : quiet ? '–' : m.score}</span>${
         rated ? `<span class="pct">${r ? `<small class="rate rate-${r}">${pctOf(m.score, ev.best)}%</small>` : ''}</span>` : ''}<span class="who">${esc(nameOf(S, m.p))}</span></li>`;
@@ -498,9 +498,9 @@ export async function tilesGameScreen(root, id) {
     if (!cpu(p) && ['place', 'exchange', 'pass', 'timeout'].includes(action.type)) {
       const played = action.type === 'place' ? m.score : 0, hint = action.type === 'place' && m?.hinted;
       rating = { who: people.length > 1 ? name : '',
-        band: hint ? 'hint' : played && ev?.best > 0 ? rateOf(played, ev.best) : 'none', pct: !hint && played && ev?.best > 0 ? pctOf(played, ev.best) : 0,
+        band: played && ev?.best > 0 ? rateOf(played, ev.best) : 'none', pct: played && ev?.best > 0 ? pctOf(played, ev.best) : 0, hint: !!hint,
         what: action.type === 'exchange' ? t('tiles.look.swap') : action.type === 'place' ? '' : t('tiles.look.pass'),
-        best: !hint && ev?.best > played ? ev : null };
+        best: ev?.best > played ? ev : null };
     }
     if (action.type === 'place') return { html: `${t('tiles.say.played', { name })} ${wordsLine(m.words, m.score, m.bingo)}` };
     if (action.type === 'exchange') return { html: t('tiles.say.swapped', { name, n: action.tiles.length }) };
@@ -522,7 +522,8 @@ export async function tilesGameScreen(root, id) {
   const paintRate = () => {
     const r = rateOn() && !S.over ? rating : null, best = settings.tilesRate === true ? r?.best : null;
     rateEl.innerHTML = r && (r.band !== 'none' || best) ? `<div class="rbox rate-${r.band}"${r.pct ? ` style="--pct:${r.pct}%"` : ''}><span class="rl">${
-      r.who ? `<b class="who">${r.who}</b>` : ''}<span class="band">${r.band === 'hint' ? t('tiles.rate.hinted') : r.band === 'none' ? r.what : t('tiles.rate.' + r.band)}</span>${
+      r.who ? `<b class="who">${r.who}</b>` : ''}${r.hint ? `<span class="hi" title="${t('tiles.rate.hinted')}" aria-label="${t('tiles.rate.hinted')}">${ICON.hint}</span>` : ''}<span class="band">${
+      r.band === 'none' ? r.what : t('tiles.rate.' + r.band)}</span>${
       r.pct ? `<span class="pc">${r.pct}%</span>` : ''}</span>${best ? `<span class="rr"><span class="lbl">${t('tiles.rate.bestLabel')}</span><b>${esc(best.word.toUpperCase())}</b><span class="pts">${
       best.best}</span></span>` : ''}</div>` : '';
     rateEl.parentElement.classList.toggle('rated', rateOn());   // its room kept while ratings are on
@@ -1015,13 +1016,13 @@ export async function tilesGameScreen(root, id) {
       let rows;
       try { rows = lookBack(S, dict, true); } catch { return; }
       if (!rows.length) return;
-      const sum = (p, k) => rows.filter(x => x.p === p && !x.hinted).reduce((a, x) => a + (k === 'best' ? x.best?.score ?? 0 : x.played), 0);
+      const sum = (p, k) => rows.filter(x => x.p === p).reduce((a, x) => a + (k === 'best' ? x.best?.score ?? 0 : x.played), 0);
       const overall = S.players.map((_, p) => { const best = sum(p, 'best'), got = sum(p, 'played'), r = rateOf(got, best);
         return `<li class="pc${p}"><i></i><span>${esc(nameOf(S, p))}</span>${r ? `<span class="rate rate-${r}">${t('tiles.rate.' + r)} · ${pctOf(got, best)}%</span>` : '<span>—</span>'}</li>`; }).join('');
       box.innerHTML = `<span class="eyebrow">${t('tiles.eval')}</span><ul class="tl-evals">${overall}</ul><p class="help">${t('tiles.eval.help')}</p><ol><li class="head"><span></span><span>${t('tiles.look.played')}</span><span>${t('tiles.hist.rating')}</span><span>${t('tiles.look.best')}</span><span>${t('tiles.hist.who')}</span></li>${rows.map((x, k) => {
-        const same = !x.hinted && (!x.best || x.played >= x.best.score);
+        const same = !x.best || x.played >= x.best.score;
         const played = x.kind === 'place' ? `${esc(x.word)} <small>${x.played}</small>` : `<small>${t(x.kind === 'exchange' ? 'tiles.look.swap' : 'tiles.look.pass')}</small>`;
-        const r = !x.hinted && x.best && rateOf(x.played, x.best.score);
+        const r = x.best && rateOf(x.played, x.best.score);
         return `<li class="pc${x.p}${same ? ' same' : ''}"><span class="i">${k + 1}</span><span class="w">${played}${x.hinted ? ` <small class="tag">${t('tiles.rate.hinted')}</small>` : ''}</span><span class="pct">${
           r ? `<small class="rate rate-${r}">${pctOf(x.played, x.best.score)}%</small>` : ''}</span><span class="best"><span class="w">${
           x.best ? `${esc(x.best.word)} <small>${x.best.score}</small>` : '—'}</span></span><span class="who">${esc(nameOf(S, x.p))}</span></li>`;

@@ -569,6 +569,11 @@ name gives way in the top bar (to the gear, or Kafelki's "?") - it is on the sav
   "Z podpowiedzi" instead of a percentage; the end review marks it and leaves it out of that player's rating.
 - **Raised tiles in the top row** (0.42.3): the grid leaves a sixth of a square at the top of the board, so their faces
   are not cut off by its edge; a tap is measured on the grid as drawn.
+- **A word from a hint is rated and counts** (0.48.1, owner: "they should count but still show - after the move and at
+  the end"): the box shows the hint's lightbulb before its rating; History and the end review rate it (its "Z podpowiedzi"
+  tag stays) and it counts in the player's rating for the game. (0.43.0-0.48.0 left it out.)
+- **The button row on one line** (0.48.1): with four icons the phone rules hold up to 600 px, and the desktop layout's
+  360 px side column gets the narrow-phone row (32 px icons).
 - **Remember my New game choices** (0.48.0, owner): a switch in Settings (off by default - as before, a New game
   starts from its defaults). On: each mode's choices are saved as its game starts (settings.setup) and the next New game
   of that kind starts from them - Guess: category, word length, difficulty, friend; Letters and Connect: their options;
