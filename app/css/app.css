@@ -1412,3 +1412,5 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* the end review's word column is narrow: a move from a hint gets the hint's lightbulb there, not the "From a hint" tag */
 .tl-look .w .hi{display:inline-flex;vertical-align:-2px;color:var(--text-muted)}
 .tl-look .w .hi svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* the letters just drawn from the bag, outlined on the rack for a few seconds (owner, 2026-09-26) */
+.rt.fresh{outline:2px solid var(--accent);outline-offset:2px}

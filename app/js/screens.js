@@ -210,7 +210,7 @@ const nameHtml = g => g.name ? `${esc(g.name)} <span class="save-no">(${t('games
 // New game: an optional name (owner, 2026-09-26), just above Start - every mode
 const nameField = () => `<div class="field">
         <span class="eyebrow">${t('games.nameLabel')}</span>
-        <input class="input" type="text" id="game-name" maxlength="40" autocomplete="off" placeholder="${esc(t('games.defaultName', { n: stats.gameNo + 1 }))}" aria-label="${t('games.nameLabel')}">
+        <input class="input" type="text" id="game-name" maxlength="30" autocomplete="off" placeholder="${esc(t('games.defaultName', { n: stats.gameNo + 1 }))}" aria-label="${t('games.nameLabel')}">
         <p class="help">${t('new.nameHelp')}</p>
       </div>`;
 const typedName = () => document.querySelector('#game-name')?.value.trim() ?? '';
@@ -218,7 +218,7 @@ const typedName = () => document.querySelector('#game-name')?.value.trim() ?? ''
 function rename(el, game, refresh) {
   const title = el.querySelector('.save-name');
   if (title.querySelector('input')) return;
-  title.innerHTML = `<input class="input" type="text" maxlength="40" aria-label="${t('games.nameLabel')}">`;
+  title.innerHTML = `<input class="input" type="text" maxlength="30" aria-label="${t('games.nameLabel')}">`;
   const input = title.firstChild;
   input.value = game.name;
   input.placeholder = t('games.defaultName', { n: game.auto ?? 1 });

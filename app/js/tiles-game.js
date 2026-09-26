@@ -346,8 +346,14 @@ export async function tilesGameScreen(root, id) {
     const tiles = rackOf(shown), hintDraft = !!draft[0]?.hint, dragging = press?.drag && press.kind === 'rack';
     let order = tiles.map((_, i) => i).filter(i => hintDraft || !inDraft(i));
     if (dragging && rackGap >= 0) { order = order.filter(i => i !== press.slot); order.splice(rackGap, 0, press.slot); }
+    const drawn = new Set();
+    if (fresh?.p === shown) {
+      const want = [...fresh.letters];
+      for (let i = tiles.length - 1; i >= 0 && want.length; i--) { const k = want.indexOf(tiles[i]); if (k >= 0) { want.splice(k, 1); drawn.add(i); } }
+    }
     rackEl.innerHTML = order.map(i => {
       const x = tiles[i], cls = ['rt'];
+      if (drawn.has(i)) cls.push('fresh');
       if (hintDraft && inDraft(i)) cls.push('used');
       if (dragging && press.slot === i) cls.push('gap');
       if (sel === i) cls.push('sel');
@@ -479,12 +485,13 @@ export async function tilesGameScreen(root, id) {
   }
   // Every action goes through here: into the engine (apply), the save, what the message line says, the next turn.
   function act(action) {
-    const p = S.turn, before = S;
+    const p = S.turn, before = S, rackBefore = [...S.racks[p]];
     if (!cpu(p)) action = { ...action, ms: game.turnMs || 0 };
     // the best move there was this turn - for rating it (settings: "Rate my moves"; History)
     const top = S.rules.rating !== false && ['place', 'exchange', 'pass', 'timeout'].includes(action.type) ? bestMove(S, dict) : undefined;
     try { S = apply(S, action, isWord); } catch (e) { msg = { html: esc(e.message), err: true }; paintSay(); return false; }
     game.state = S;
+    if (!cpu(p) && ['place', 'exchange'].includes(action.type)) drew(p, rackBefore, action.type === 'place' ? action.placed.map(x => x.blank ? BLANK : x.ch) : action.tiles);
     game.turnMs = 0;
     // game.evals lines up with S.moves: { best, word } for a turn a player took, null for anything else
     game.evals = (game.evals ?? []).slice(0, before.moves.length);
@@ -653,6 +660,7 @@ export async function tilesGameScreen(root, id) {
       resetTurn();
       msg = { html: t('tiles.say.undone') };
       rating = null;
+      fresh = null;
       putSave(game);
       next();
     },
@@ -712,6 +720,18 @@ export async function tilesGameScreen(root, id) {
     paintTurn();
   }
   let hintPaid = 0, turnHints = [], ratedInStats = false;
+  // The letters a person just drew from the bag: outlined on their rack for 5 s, or until a rack tile is touched (owner,
+  // 2026-09-26). The rack after the move less what stayed of the rack before it.
+  let fresh = null, freshTimer = 0;
+  function drew(p, before, gone) {
+    const kept = [...before];
+    for (const x of gone) { const k = kept.indexOf(x); if (k >= 0) kept.splice(k, 1); }
+    const letters = [...S.racks[p]];
+    for (const x of kept) { const k = letters.indexOf(x); if (k >= 0) letters.splice(k, 1); }
+    fresh = letters.length ? { p, letters } : null;
+    clearTimeout(freshTimer);
+    if (fresh) freshTimer = setTimeout(() => { fresh = null; if (app.isConnected && !S.over) paintRack(); }, 5000);
+  }
   // help used, per player, for the end's card: how often the best move was shown to them, how often they undid a move
   const count = (what, p) => { if (p < 0) return; game.aids ??= {}; (game.aids[what] ??= [])[p] = (game.aids[what][p] || 0) + 1; };   // the moves the hints showed this turn
   function pickLetter(ch) {
@@ -846,6 +866,7 @@ export async function tilesGameScreen(root, id) {
     const di = cell ? draft.findIndex(d => d.r === cell.r && d.c === cell.c) : -1;
     press = { id: e.pointerId, x: e.clientX, y: e.clientY, drag: false, cell, di, slot: rt ? +rt.dataset.slot : -1, pan: { ...zoom },
       kind: rt ? 'rack' : di >= 0 && myTurn() && !draft[di].hint ? 'tile' : 'board' };
+    if (rt && fresh) { fresh = null; clearTimeout(freshTimer); }
     try { play.setPointerCapture(e.pointerId); } catch { /* not a real pointer (tests) */ }
     e.preventDefault();
   });
