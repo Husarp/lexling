@@ -32,10 +32,13 @@ export const settings = read('wg.settings', {
   // The language always carries over between games; the rest only with rememberSetup (owner, 2026-09-26: "remember my
   // setup choices") - setup then holds each mode's last choices, else a New game starts from its defaults.
   newGame: { lang: null },
-  rememberSetup: false,
+  rememberSetup: true,   // on by default since 0.51.1 (owner)
   setup: {},
 });
 export const saveSettings = () => write('wg.settings', settings);
+// Remembering New game choices became the default in 0.51.1 (owner) - switched on once for those whose settings still
+// carry the old default (off); off again after that stays off.
+if (!settings.rememberSetupOn) { settings.rememberSetup = true; settings.rememberSetupOn = true; saveSettings(); }
 
 export const stats = read('wg.stats', {
   // wonGuesses / wonRated are the average-win stat; they count only the wins that qualify (see recordEnd)

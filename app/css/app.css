@@ -1419,3 +1419,5 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .ps .tm{font:600 11px/1 var(--font-body);font-variant-numeric:tabular-nums;color:var(--text-muted)}
 /* the settings windows on the narrowest phones: wider, less padding - three choices keep their words whole */
 @media (max-width:360px){.game-settings{width:calc(100vw - 16px);padding:var(--space-3) var(--space-3)}.game-settings .seg button{font-size:10px;letter-spacing:0;padding:0 3px}}
+/* the result: a computer's level beside its name */
+.tl-fs .lv,.tl-places .lv{color:var(--text-muted);font-weight:500}

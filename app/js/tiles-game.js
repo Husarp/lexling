@@ -1025,9 +1025,11 @@ export async function tilesGameScreen(root, id) {
       ? `<div class="outcome draw" role="status"><span class="mark" aria-hidden="true">=</span><span class="what">${what}</span><span class="count">${pts}<small>${t('tiles.end.pts')}</small></span></div>`
       : outcome(tone === 'won', what, pts, t('tiles.end.pts'));
     const order = S.players.map((_, p) => p).sort((a, b) => S.scores[b] - S.scores[a]);
+    // a computer's level beside its name (owner, 2026-09-26: "the difficulty is not shown")
+    const nameLv = p => esc(nameOf(S, p)) + (S.players[p].cpu ? ` <span class="lv">· ${t('diff.' + S.players[p].cpu)}</span>` : '');
     const scores = np === 2
-      ? `<div class="tl-fs">${[0, 1].map(p => `<span class="${S.scores[p] < best || !inPlay(p) ? 'lose' : ''}"><small class="eyebrow">${esc(nameOf(S, p))}</small><b>${S.scores[p]}</b></span>`).join('<span class="colon">:</span>')}</div>`
-      : `<ol class="tl-places">${order.map((p, k) => `<li class="pc${p}${S.scores[p] === best && inPlay(p) ? ' first' : ''}"><span>${k + 1}.</span><i></i><span>${esc(nameOf(S, p))}</span><b>${S.scores[p]}</b></li>`).join('')}</ol>`;
+      ? `<div class="tl-fs">${[0, 1].map(p => `<span class="${S.scores[p] < best || !inPlay(p) ? 'lose' : ''}"><small class="eyebrow">${nameLv(p)}</small><b>${S.scores[p]}</b></span>`).join('<span class="colon">:</span>')}</div>`
+      : `<ol class="tl-places">${order.map((p, k) => `<li class="pc${p}${S.scores[p] === best && inPlay(p) ? ' first' : ''}"><span>${k + 1}.</span><i></i><span>${nameLv(p)}</span><b>${S.scores[p]}</b></li>`).join('')}</ol>`;
     // what the leftover tiles did to the scores (and the clock, per game)
     const sign = v => v > 0 ? '+' + v : v < 0 ? '−' + -v : '0';
     const why = o.reason === 'out' ? (o.by === solo ? t('tiles.end.outYou') : t('tiles.end.out', { name: esc(nameOf(S, o.by)) }))
@@ -1042,7 +1044,6 @@ export async function tilesGameScreen(root, id) {
       return [...m.words[0].w].map(ch => { const b = blanks[ch] > 0 && blanks[ch]--; return `<i class="mtl${b ? ' bl' : ''}">${esc(ch)}<i class="p">${b ? '' : valueOf(lang, ch)}</i></i>`; }).join('');
     };
     const bingos = S.moves.filter(m => m.kind === 'play' && m.bingo && whose.includes(m.p)).length, hints = whose.reduce((s, p) => s + S.hints[p], 0);
-    const levels = [...new Set(S.players.filter(x => x.cpu).map(x => t('diff.' + x.cpu)))].join(', ');
     // Help used, person by person (owner, 2026-09-26: "tell exactly how the user was playing - any easier features, or
     // fair and square"): hints by level and their cost, the points hinted words brought, the best move shown, undo
     const fairOf = p => {
@@ -1067,7 +1068,7 @@ export async function tilesGameScreen(root, id) {
       <p class="calc">${why}${adjust}${late ? '<br>' + late : ''}</p>
       ${people.length ? `<p class="calc tl-times">${t('tiles.end.time')}: ${people.map(p => `${esc(nameOf(S, p))} ${mmss(S.clock?.[p] || 0)}`).join(' · ')}</p>` : ''}
       ${top ? `<div class="tl-best"><span class="eyebrow">${t('tiles.end.bestWord')}</span><span class="mt-row">${tilesOf(top)}</span><span class="num">${top.score}</span></div>` : ''}
-      <div class="result-stats"><span><b>${bingos}</b> ${plural(bingos, 'tiles.end.bingos')}</span>${DOT}<span><b>${hints}</b> ${plural(hints, 'tiles.end.hints')}</span>${DOT}<span>${[t('tiles.board.' + S.board), levels].filter(Boolean).join(' · ')}</span></div>
+      <div class="result-stats"><span><b>${bingos}</b> ${plural(bingos, 'tiles.end.bingos')}</span>${DOT}<span><b>${hints}</b> ${plural(hints, 'tiles.end.hints')}</span>${DOT}<span>${t('tiles.board.' + S.board)}</span></div>
       <div class="result-actions"><a class="btn btn-ghost" href="#/">${t('menu')}</a><a class="btn btn-primary" href="#/new/tiles">${t('lt.again')} <span class="arrow">→</span></a></div>
     </div>
     ${people.length ? `<div class="card tl-fair"><span class="eyebrow">${t('tiles.fair.title')}</span>${people.map(fairOf).join('')}</div>` : ''}
