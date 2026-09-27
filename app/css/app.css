@@ -841,8 +841,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .t{position:relative;min-width:0;min-height:0;z-index:1;display:grid;place-items:center;border-radius:calc(var(--cs) * .14);background:var(--tl-tile);color:var(--tl-ink);font:700 calc(var(--cs) * .62)/1 var(--font-body);font-style:normal;text-transform:uppercase}
 .t .p{position:absolute;right:9%;bottom:12%;font:700 calc(var(--cs) * .25)/1 var(--font-body);font-style:normal}
 .t .p:empty{display:none}
-/* 15 squares under ~24px: the points are unreadable, so they go until the board zooms in */
-@container (max-width:380px){.tb.n15:not(.zoom) .t .p{display:none}}
 /* a blank once down: a tile like any other, its letter and no number - no paler colour, no dashes (owner, 2026-09-26:
    "it is enough that there is no number") */
 .t.bl .p{display:none}
@@ -1442,3 +1440,22 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-moves .mc-link .tl-dots i{width:4px;height:4px}
 .tl-wait .tl-phone{margin:0;font-size:14px;color:var(--text-dim)}
 .tl-wait .tl-phone b{color:var(--text)}
+/* several phones (0.53.0): the host's list of seats in its wait, the reminder's buttons, the join screen's choice */
+.tl-seats{list-style:none;margin:0;padding:0;display:grid;gap:6px;width:100%;text-align:left}
+.tl-seats li{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line-soft);border-radius:var(--radius-sm);font-size:14px}
+.tl-seats li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.tl-seats li small{color:var(--text-muted)}
+.tl-seats li.in small{color:var(--lt-hit);font-weight:600}
+.tl-seats .dot-p{flex:none;width:10px;height:10px;border-radius:50%;background:var(--pc)}
+.gs-acts{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-3)}
+#net-kind{margin:0 0 var(--space-3)}
+[data-screen=new] #bt .seg{margin-top:var(--space-2)}
+/* Play online (0.53.0): the connection, then host or join - each a card to tap */
+.tl-kinds,.tl-roles{display:grid;gap:var(--space-2)}
+.tl-kind,.tl-role{display:grid;gap:2px;padding:var(--space-3) var(--space-4);text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);color:var(--text);font:inherit;text-decoration:none;cursor:pointer}
+.tl-kind strong,.tl-role strong{font-size:16px}
+.tl-kind.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.tl-role strong .arrow{color:var(--accent)}
+@media (hover:hover){.tl-kind:hover,.tl-role:hover{border-color:var(--accent)}}
+.tl-online-kind{margin:0 0 var(--space-3)}
+.tl-online-kind .eyebrow{margin-right:6px}

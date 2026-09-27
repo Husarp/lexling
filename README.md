@@ -52,10 +52,12 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - **No scores anywhere** (since 0.29.0): the games are for fun; statistics show how you are doing,
   hints used included.
 - **Tiles mode** (since 0.35.0), the classic crossword-tile game for 2–5 players - people passing
-  one device and/or the computer, or two people on two Android phones over Bluetooth (since 0.52.0: one starts the
-  game, the other joins it; a dropped connection or a closed app picks up where it was) (five levels, Relaxed to Expert), in the order you set, the first chosen or
+  one device and/or the computer (five levels, Relaxed to Expert), in the order you set, the first chosen or
   drawn. Four boards (Classic, Bonus, Diamond; Quick - 11 × 11 with about half the tiles), the
-  full 100-tile sets, sjp.pl / ENABLE word lists. Place tiles by dragging, by tapping, or by typing on a PC;
+  full 100-tile sets, sjp.pl / ENABLE word lists. **Play online** (Android, since 0.53.0): 2–5 people, a phone each,
+  over Bluetooth or the local network (Wi-Fi) - one phone hosts the game (it alone keeps it; it lets each phone in),
+  the others join; nobody moves while a phone is missing, a phone that drops out goes back to its own seat, and a
+  saved game can be opened again later for any phones to take the seats. Everyone's statistics count the game. Place tiles by dragging, by tapping, or by typing on a PC;
   the board zooms in on a phone (and pinches). Hints in three levels (Small, Big, Master), exchange, pass, a
   letters-left list, check any word, each player's tiles in their colour and coloured bonus squares (both
   switchable, also mid-game), rule options
@@ -83,7 +85,7 @@ from `file://`.)
 > **Android APK**. What is still open is in [PLAN.md](PLAN.md).
 
 The Letters, Connect and Tiles rules have tests against the real data: `node tools/test-letters.mjs`,
-`node tools/test-connect.mjs` and `node tools/test-tiles.mjs`; the two-phone sync `node tools/test-link.mjs`.
+`node tools/test-connect.mjs` and `node tools/test-tiles.mjs`; the online games' protocol `node tools/test-session.mjs`.
 
 **Size:** Windows installer 52 MB, 65 MB installed; Android APK 34.5 MB (40 MB of it is the
 game, 39 MB word data).
@@ -206,8 +208,9 @@ app/                the game itself — single-page app, no build step, no depen
   js/tiles-moves.js Tiles move finder (every legal move for a rack) and the computer player's levels
   js/tiles-game.js  the Tiles game screen: board, rack, zoom, placing, the computer's turns, the hand-over
                     between people, the history / letters-left / check panel, the end and the look-back
-  js/link.js        one game on two devices kept in step by its numbered actions (tests: tools/test-link.mjs)
-  js/bt.js          Bluetooth for Tiles on two phones (the Android plugin, BluetoothLinkPlugin.java)
+  js/session.js     Tiles online: what the host and the joining phones say (tests: tools/test-session.mjs)
+  js/net.js         Tiles online: the connections - Bluetooth or Wi-Fi (the Android plugins BluetoothLinkPlugin,
+                    LanLinkPlugin and their shared Links)
   js/dawg.js        the word graph Tiles looks words up in (build, save to bytes, load, walk)
   data/<lang>/tiles.bin  Tiles' word graphs (tools/build-tiles-words.mjs)
   js/engine.js      word data loading, rank scoring, form→lemma, autocomplete, secret picking

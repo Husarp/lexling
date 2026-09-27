@@ -1,6 +1,7 @@
 import { settings, saveSettings, gameName } from './store.js';
 import { t, esc } from './i18n.js';
 import { click } from './sound.js';
+import { btStillOn, btLetBe, btSettings } from './net.js';
 
 // A game's name in its top bar (owner, 2026-09-26: "Name (Game 12)"): a long name gives way, its number always shows.
 export const gameTitle = g => g.name
@@ -70,6 +71,18 @@ export function openDialog(title, body) {
   document.body.append(dlg);
   dlg.showModal();
   return { dlg, close };
+}
+// Bluetooth still on after a game on several phones, and Lexling switched it on: say so, with a way to switch it off
+// (owner, 2026-09-27) - Android lets no app do that itself, so the button opens its Bluetooth settings. Settings has a
+// switch for this reminder (on by default). Called on leaving: shown only once the next screen is not a game or joining.
+export function remindBt() {
+  setTimeout(async () => {
+    if (/^#\/(game|join)\//.test(location.hash) || !settings.btRemind || !(await btStillOn())) return;
+    const { dlg, close } = openDialog(t('net.remind.title'), `<p class="help">${t('net.remind.text')}</p><div class="gs-acts"><button class="btn btn-ghost" type="button" data-ok>${
+      t('net.remind.ok')}</button><button class="btn btn-primary" type="button" data-off>${t('net.remind.off')}</button></div>`);
+    dlg.querySelector('[data-ok]').addEventListener('click', () => { btLetBe(); close(); });
+    dlg.querySelector('[data-off]').addEventListener('click', () => { btLetBe(); btSettings(); close(); });
+  }, 400);
 }
 // Settings as rows: [key, label, help] a switch; [key, label, help, choices] a choice - each [value, label, name], the
 // label may be a picture (a colour swatch), `name` then says it.

@@ -13,6 +13,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Build;
+import android.provider.Settings;
 
 import androidx.activity.result.ActivityResult;
 
@@ -27,21 +28,17 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 /**
- * Tiles on two phones over Bluetooth (owner, 2026-09-27). One phone hosts - it listens - and the other joins it; then
- * the two exchange lines of text (JSON, one message a line; app/js/link.js is what they say). Classic Bluetooth
- * (RFCOMM), "insecure", so no pairing dialog: the joining phone finds the host by searching nearby, or among the phones
- * it is already paired with.
+ * Tiles on several phones over Bluetooth (owner, 2026-09-27). The phone that starts the game hosts: it listens and
+ * takes each phone that joins, several at once; a joining phone connects to it. Classic Bluetooth (RFCOMM),
+ * "insecure", so no pairing dialog: a joining phone finds the host by searching nearby, or among the phones it is
+ * already paired with. The connections themselves are Links (also used over Wi-Fi, LanLinkPlugin).
  *
- * Events to the page: "found" {name, address} while searching, "searchDone", "connected" {name, address, role},
- * "message" {text}, "disconnected".
+ * Events to the page: "found" {name, address} while searching, "searchDone", and from Links "connected", "message",
+ * "disconnected".
  */
 @CapacitorPlugin(
     name = "BluetoothLink",
@@ -59,9 +56,8 @@ public class BluetoothLinkPlugin extends Plugin {
 
     private BluetoothAdapter adapter;
     private BluetoothServerSocket server;
-    private BluetoothSocket socket;
-    private OutputStream out;
     private BroadcastReceiver finder;
+    private final Links links = new Links(this::notifyListeners);
 
     @Override
     public void load() {
@@ -73,7 +69,7 @@ public class BluetoothLinkPlugin extends Plugin {
 
     private boolean allowed() { return getPermissionState(alias()) == PermissionState.GRANTED; }
 
-    /** Is there Bluetooth, is it on, may the app use it - and this phone's Bluetooth name (what the other phone lists). */
+    /** Is there Bluetooth, is it on, may the app use it - and this phone's Bluetooth name (what the other phones list). */
     @SuppressLint("MissingPermission")
     @PluginMethod
     public void state(PluginCall call) {
@@ -84,7 +80,7 @@ public class BluetoothLinkPlugin extends Plugin {
         r.put("supported", adapter != null);
         r.put("on", adapter != null && adapter.isEnabled());
         r.put("allowed", allowed());
-        r.put("connected", socket != null && socket.isConnected());
+        r.put("connected", links.count() > 0);
         call.resolve(r);
     }
 
@@ -102,7 +98,7 @@ public class BluetoothLinkPlugin extends Plugin {
         call.resolve(r);
     }
 
-    /** Asks the system to switch Bluetooth on. */
+    /** Asks the system to switch Bluetooth on. (Switching it off is the person's own: Android lets no app do that.) */
     @SuppressLint("MissingPermission")
     @PluginMethod
     public void turnOn(PluginCall call) {
@@ -119,7 +115,16 @@ public class BluetoothLinkPlugin extends Plugin {
         call.resolve(r);
     }
 
-    /** Asks the system to make this phone findable for a while, so the other phone's search sees it. */
+    /** Android's Bluetooth settings, where the person can switch it off (the reminder after a game). */
+    @PluginMethod
+    public void openSettings(PluginCall call) {
+        Intent settings = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
+        settings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(settings);
+        call.resolve();
+    }
+
+    /** Asks the system to make this phone findable for a while, so the other phones' search sees it. */
     @SuppressLint("MissingPermission")
     @PluginMethod
     public void beVisible(PluginCall call) {
@@ -181,100 +186,81 @@ public class BluetoothLinkPlugin extends Plugin {
         call.resolve();
     }
 
-    /** Hosts a game: waits for the other phone (a "connected" event when it comes). Resolves once listening. */
+    /** Hosts a game: takes every phone that joins ("connected" for each) until stopHosting. Resolves once listening. */
     @SuppressLint("MissingPermission")
     @PluginMethod
     public void host(PluginCall call) {
         if (adapter == null || !allowed()) { call.reject("permission"); return; }
-        closeAll();
+        if (server != null) { call.resolve(); return; }
+        final BluetoothServerSocket listening;
         try {
-            server = adapter.listenUsingInsecureRfcommWithServiceRecord("Lexling", SERVICE);
+            listening = adapter.listenUsingInsecureRfcommWithServiceRecord("Lexling", SERVICE);
         } catch (IOException e) { call.reject("cannot host: " + e.getMessage()); return; }
-        final BluetoothServerSocket listening = server;
+        server = listening;
         new Thread(() -> {
-            try {
-                BluetoothSocket s = listening.accept();          // one other phone: then no more listening
-                closeQuietly(listening);
-                if (server == listening) server = null;
-                opened(s, "host");
-            } catch (IOException e) { /* closed while waiting (the game left): nothing to say */ }
+            while (server == listening) {
+                try {
+                    BluetoothSocket s = listening.accept();
+                    BluetoothDevice d = s.getRemoteDevice();
+                    String name = null;
+                    try { name = d.getName(); } catch (SecurityException e) { /* address only */ }
+                    links.add(s, s.getInputStream(), s.getOutputStream(), name, d.getAddress(), "host");
+                } catch (IOException e) { break; }   // stopped hosting (or Bluetooth went off)
+            }
         }, "lexling-bt-host").start();
         call.resolve();
     }
 
-    /** Joins the phone at `address`, which hosts. Resolves when connected. */
+    /** No more phones taken (the ones in stay). */
+    @PluginMethod
+    public void stopHosting(PluginCall call) {
+        stopServer();
+        call.resolve();
+    }
+
+    /** Joins the phone at `address`, which hosts. Resolves with the connection's id once connected. */
     @SuppressLint("MissingPermission")
     @PluginMethod
     public void join(PluginCall call) {
         String address = call.getString("address");
         if (adapter == null || !allowed()) { call.reject("permission"); return; }
         if (address == null || !BluetoothAdapter.checkBluetoothAddress(address)) { call.reject("no such phone"); return; }
-        closeAll();
         new Thread(() -> {
             adapter.cancelDiscovery();                           // a running search slows a connection right down
             try {
-                BluetoothSocket s = adapter.getRemoteDevice(address).createInsecureRfcommSocketToServiceRecord(SERVICE);
+                BluetoothDevice d = adapter.getRemoteDevice(address);
+                BluetoothSocket s = d.createInsecureRfcommSocketToServiceRecord(SERVICE);
                 s.connect();
-                opened(s, "guest");
-                call.resolve();
+                String name = null;
+                try { name = d.getName(); } catch (SecurityException e) { /* address only */ }
+                JSObject r = new JSObject();
+                r.put("id", links.add(s, s.getInputStream(), s.getOutputStream(), name, address, "guest"));
+                call.resolve(r);
             } catch (IOException e) { call.reject("cannot connect: " + e.getMessage()); }
         }, "lexling-bt-join").start();
     }
 
-    /** One message to the other phone. */
+    /** One line: to the connection `id`, or to every one. */
     @PluginMethod
     public void send(PluginCall call) {
-        String text = call.getString("text", "");
-        OutputStream o = out;
-        if (o == null) { call.reject("not connected"); return; }
-        try {
-            synchronized (this) { o.write((text.replace("\n", " ") + "\n").getBytes(StandardCharsets.UTF_8)); o.flush(); }
-            call.resolve();
-        } catch (IOException e) { call.reject("send failed"); dropped(); }
+        String id = call.getString("id"), text = call.getString("text", "");
+        if (id == null) { links.sendAll(text); call.resolve(); return; }
+        if (links.send(id, text)) call.resolve(); else call.reject("not connected");
     }
 
-    /** Closes the connection (and stops listening). */
+    /** Closes the connection `id` - or, without one, every connection and the hosting. */
     @PluginMethod
     public void close(PluginCall call) {
-        closeAll();
+        String id = call.getString("id");
+        if (id != null) links.close(id);
+        else { links.closeAll(); stopServer(); }
         call.resolve();
     }
 
-    // a connection made: remember it, tell the page, read its lines until it breaks
-    @SuppressLint("MissingPermission")
-    private void opened(BluetoothSocket s, String role) {
-        socket = s;
-        try { out = s.getOutputStream(); } catch (IOException e) { dropped(); return; }
-        JSObject who = describe(s.getRemoteDevice());
-        who.put("role", role);
-        notifyListeners("connected", who);
-        new Thread(() -> {
-            try (BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = in.readLine()) != null) {
-                    JSObject m = new JSObject();
-                    m.put("text", line);
-                    notifyListeners("message", m);
-                }
-            } catch (IOException e) { /* broken: below */ }
-            if (socket == s) dropped();
-        }, "lexling-bt-read").start();
-    }
-
-    private void dropped() {
-        closeQuietly(socket);
-        socket = null;
-        out = null;
-        notifyListeners("disconnected", new JSObject());
-    }
-
-    private void closeAll() {
-        closeQuietly(server);
+    private void stopServer() {
+        BluetoothServerSocket s = server;
         server = null;
-        BluetoothSocket s = socket;
-        socket = null;
-        out = null;
-        closeQuietly(s);
+        Links.closeQuietly(s);
     }
 
     private void stopFinder() {
@@ -293,14 +279,10 @@ public class BluetoothLinkPlugin extends Plugin {
         return o;
     }
 
-    private static void closeQuietly(java.io.Closeable c) {
-        if (c == null) return;
-        try { c.close(); } catch (IOException e) { /* closing anyway */ }
-    }
-
     @Override
     protected void handleOnDestroy() {
         stopFinder();
-        closeAll();
+        links.closeAll();
+        stopServer();
     }
 }

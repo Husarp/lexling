@@ -34,6 +34,9 @@ export const settings = read('wg.settings', {
   newGame: { lang: null },
   rememberSetup: true,   // on by default since 0.51.1 (owner)
   setup: {},
+  // Tiles on several phones: after a game, a reminder when Bluetooth is still on and Lexling switched it on (owner,
+  // 2026-09-27: on by default, can be switched off)
+  btRemind: true,
 });
 export const saveSettings = () => write('wg.settings', settings);
 // Remembering New game choices became the default in 0.51.1 (owner) - switched on once for those whose settings still
@@ -71,16 +74,24 @@ for (const g of saves) {
   if (auto) { g.auto = +auto[2]; g.name = ''; }
   g.mode ||= 'guess';   // every save from before Letters existed is a Guess game
 }
+// Tiles on several phones: since 0.53.0 only the phone that started a game keeps it (owner, 2026-09-27) - the copies
+// the joining phone saved in 0.52 go
+saves = saves.filter(g => g.link?.role !== 'guest');
 const persistSaves = () => write('wg.saves', saves);
 
 export const listSaves = () => [...saves].sort((a, b) => b.updated - a.updated);
-export const getSave = id => saves.find(s => s.id === id);
+// A game this phone joined on someone else's phone (Tiles on several phones): here only while it is played - never
+// saved, never listed (owner, 2026-09-27: "the game isn't saved on his device").
+const live = new Map();
+export const getSave = id => saves.find(s => s.id === id) ?? live.get(id);
 export function putSave(game) {
   game.updated = Date.now();
+  if (game.live) { live.set(game.id, game); return; }
   if (!saves.includes(game)) saves.push(game);
   persistSaves();
 }
 export function deleteSave(id) {
+  live.delete(id);
   saves = saves.filter(s => s.id !== id);
   persistSaves();
 }
@@ -88,7 +99,8 @@ export function deleteSave(id) {
 // An unnamed game keeps its number, not a baked-in "Game 4": gameName() spells it in whatever language
 // the interface is in right now. A name the player typed is theirs and is left alone.
 // A named game still shows its number (owner, 2026-09-26): "Name (Game 12)".
-export const gameName = g => { const no = t('games.defaultName', { n: g.auto ?? 1 }); return g.name ? `${g.name} (${no})` : no; };
+// A game joined on another phone shows the title the host's phone gives it, as it is.
+export const gameName = g => { if (g.title) return g.title; const no = t('games.defaultName', { n: g.auto ?? 1 }); return g.name ? `${g.name} (${no})` : no; };
 
 // `fields` is the game's own settings: Guess { lang, cat, band, diff, friend, secret },
 // Letters { mode: 'letters', lang, cat, len, tries (0 = unlimited), diff, marks, secret },
