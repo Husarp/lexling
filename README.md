@@ -57,7 +57,7 @@ Playable in **Polish and English** (both the UI and the word libraries).
   full 100-tile sets, sjp.pl / ENABLE word lists. **Play online** (Android, since 0.53.0): 2–5 people, a phone each,
   over Bluetooth or the local network (Wi-Fi) - one phone hosts the game (it alone keeps it; it lets each phone in),
   the others join, the host choosing which player each phone takes over; nobody moves while a phone is missing (after
-  2 minutes, or when the host says so, that player's turns are skipped), a phone that drops out goes back to its own
+  2 minutes the host can have that player's turns skipped), a phone that drops out goes back to its own
   seat, and a saved game can be opened again later for any phones to take the seats. The host can remove a player or
   end the game for everyone. Everyone's statistics count the game. With more than two players, whoever gives up just
   drops out - their tiles go back to the bag - and the rest play on (since 0.54.0, every Tiles game). Place tiles by dragging, by tapping, or by typing on a PC;

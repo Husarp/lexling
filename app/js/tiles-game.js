@@ -35,7 +35,7 @@ const DOT = '<span class="dot">·</span>';
 const ERR = { line: 'tiles.err.line', gap: 'tiles.err.gap', alone: 'tiles.err.touch', centre: 'tiles.err.centre', single: 'tiles.err.single' };
 // motion and zoom (design NOTES): the computer "thinks" 900 ms, who-starts shows 1200 ms; the board zooms in on
 // the move being built when its squares are under 32 px, and pinches up to 2.5 ×
-const SKIP_AFTER = 120000;   // several phones: a phone away this long has its player's turns skipped (owner: "some time")
+const SKIP_AFTER = 120000;   // several phones: a phone away this long - the host may then have its player's turns skipped (owner)
 const THINK_MS = 900, TOAST_MS = 1200, SMALL = 32, AUTO_ZOOM = 2, ZOOM_MAX = 2.5;
 const clampPan = (v, z) => Math.min(0, Math.max(-(1 - 1 / z), v));
 
@@ -160,8 +160,8 @@ export async function tilesGameScreen(root, id) {
   const kind = game.link?.kind ?? 'bt', wire = linked ? net(kind) : null;
   let party = null, linkUp = false, linkNote = '', retry = 0, beat = 0, myPhone = '', myWifi = true;
   let asked = null, hereList = [], ended = '', lostAt = 0;   // host: a phone waiting to be let in; guest: who is there, why it ended
-  // a phone gone: waited for SKIP_AFTER, then its player's turns are passed (owner: "gives them some time, but after that
-  // it starts skipping their turn") - or at once when the host says so; the host can also take a player out
+  // a phone gone: waited for SKIP_AFTER, then the host may have its player's turns passed (owner: nothing happens by itself
+  // - "the user can choose the option pass this user automatically"); Options lets the host skip or remove any time
   let skip = [], awaySince = [], askSeat = -1, skipArmed = 0, lastSkip = 0, skipTimer = 0, visibleDeclined = false, visAsking = false;
   const handles = [];
   // one person here (against computers, or on their own phone): their rack is always shown
@@ -388,10 +388,10 @@ export async function tilesGameScreen(root, id) {
     if (!host && !linkUp) return line('down', t('net.lost', { name: esc(nameOf(S, hostSeat())) }), true);
     const wait = holding();
     if (wait.length) {
-      // the host: how long until their turns are skipped, and a button to skip them now (asked twice - owner)
-      const left = host ? Math.min(...wait.map(p => awaySince[p] ? SKIP_AFTER - (Date.now() - awaySince[p]) : Infinity)) : Infinity;
-      return line('down', t('net.waitFor', { names: names(wait) }) + (left < Infinity ? ' ' + t('net.skipIn', { t: mmss(Math.max(0, left)) }) : ''), true,
-        host ? `<button class="btn btn-ghost mc-skip" type="button" data-act="netSkip">${t(skipArmed ? 'sure' : 'net.skip')}</button>` : '');
+      // the host: how long they still get, then a button to skip them automatically (asked twice - owner)
+      const left = host ? Math.min(...wait.map(p => awaySince[p] ? SKIP_AFTER - (Date.now() - awaySince[p]) : 0)) : Infinity;
+      return line('down', t('net.waitFor', { names: names(wait) }) + (host && left > 0 ? ' ' + t('net.skipIn', { t: mmss(left) }) : ''), true,
+        host && left <= 0 ? `<button class="btn btn-ghost mc-skip" type="button" data-act="netSkip">${t(skipArmed ? 'sure' : 'net.skipAuto')}</button>` : '');
     }
     const skipped = S.players.map((_, p) => skip[p] && !isOut(p) && !(host ? party?.here()[p] : hereList[p]) ? p : -1).filter(p => p >= 0);
     if (skipped.length) return line('down', t('net.skipping', { names: names(skipped) }));
@@ -675,13 +675,14 @@ export async function tilesGameScreen(root, id) {
     },
     netLetIn() { if (asked) party.letIn(asked.conn, askSeat); },
     netSeat(el) { askSeat = +el.dataset.seat; paintOver(); },
-    // the host: skip the players the game waits for - asked twice (owner)
+    // the host: skip the players whose time is up - asked twice (owner)
     netSkip() {
-      if (!host || !party) return;
+      const due = holding().filter(p => !awaySince[p] || Date.now() - awaySince[p] >= SKIP_AFTER);
+      if (!host || !party || !due.length) return;
       if (!skipArmed) { skipArmed = setTimeout(() => { skipArmed = 0; if (app.isConnected) paintSay(); }, 3000); return paintSay(); }
       clearTimeout(skipArmed);
       skipArmed = 0;
-      skipSeats(holding());
+      skipSeats(due);
     },
     netVisible() { visibleDeclined = false; paintOver(); askVisible(false); },
     netRefuse() { if (asked) party.refuse(asked.conn); },
@@ -1334,13 +1335,11 @@ export async function tilesGameScreen(root, id) {
         party?.tick();
         if (kind === 'bt' && party?.missing().length && !visibleDeclined) askVisible(true);
       }, 5000);
-      // every second: the ones away long enough get skipped; a skipped player's turn is passed for them
+      // every second: the countdown (then the Skip button); a skipped player's turn is passed for them
       skipTimer = setInterval(() => {
         if (!app.isConnected || !party) return clearInterval(skipTimer);
         if (S.over) return;
-        const late = party.missing().filter(p => !skip[p] && awaySince[p] && Date.now() - awaySince[p] > SKIP_AFTER);
-        if (late.length) return skipSeats(late);
-        if (holding().some(p => awaySince[p])) paintSay();   // the countdown
+        if (holding().some(p => awaySince[p] && Date.now() - awaySince[p] < SKIP_AFTER + 1500)) paintSay();
         if (skip[S.turn] && party.missing().includes(S.turn) && !holding().length && Date.now() - lastSkip > 1200) {
           lastSkip = Date.now();
           thinking = false;
