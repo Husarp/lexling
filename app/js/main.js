@@ -8,7 +8,7 @@ import { lettersGameScreen } from './letters-game.js';
 import { connectGameScreen } from './connect-game.js';
 import { tilesGameScreen, applyTileLook } from './tiles-game.js';
 import { VERSION } from './version.js';
-import { checkUpdate } from './update.js';
+import { checkUpdate, cleanUpdate } from './update.js';
 
 // Routes name the mode where it matters: #/new is Guess, #/new/letters, #/new/connect, #/new/tiles the others,
 // and #/game/<id> takes the mode from the save itself.
@@ -106,5 +106,6 @@ document.documentElement.dataset.ready = VERSION;
 watchResize(root);
 window.addEventListener('hashchange', () => render());
 // a newer version: looked for on opening, and on coming back to the app (update.js - not more than every few minutes)
+cleanUpdate();
 checkUpdate();
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });

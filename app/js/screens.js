@@ -14,7 +14,7 @@ import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYP
 import { fitAll } from './fit.js';
 import { click } from './sound.js';
 import { VERSION, REPO } from './version.js';
-import { checkUpdate, newer, updateShown, updateUrl, openUrl } from './update.js';
+import { checkUpdate, newer, updateShown, updateUrl, openUrl, getUpdate, downloadState, openDownloads } from './update.js';
 
 const CATS = ['all', 'animals', 'food', 'household', 'clothing', 'tools', 'tech', 'vehicles', 'buildings',
   'nature', 'weather', 'body', 'people', 'jobs', 'school', 'science', 'sport', 'music', 'feelings',
@@ -80,20 +80,29 @@ export function menu(root, _, refresh) {
   root.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => switchLang(b.dataset.lang, refresh)));
   // a newer version (owner, 2026-09-27): at the bottom - Download, or ✕ (that version not shown again)
   const slot = root.querySelector('.upd-slot');
+  // on Android the download runs here (update.js): its progress, then Install - the phone's Downloads, where the file is
+  // opened with the phone's own installer
+  let handed = false;
   menuUpdate = () => {
     if (!slot.isConnected) return;
-    slot.innerHTML = updateShown() ? `<div class="upd" role="status"><span class="upd-text">${t('upd.available', { v: esc(settings.latest) })}</span><div class="upd-acts"><button class="btn btn-primary upd-get" type="button">${
-      t('upd.get')} <span class="arrow">→</span></button><button class="btn btn-ghost upd-x" type="button" aria-label="${t('upd.close')}" title="${t('upd.close')}">✕</button></div><span class="upd-note" hidden></span></div>` : '';
+    const d = downloadState(), v = esc(settings.latest);
+    const x = `<button class="btn btn-ghost upd-x" type="button" aria-label="${t('upd.close')}" title="${t('upd.close')}">✕</button>`;
+    const btn = (cls, key) => `<button class="btn btn-primary ${cls}" type="button">${t(key)} <span class="arrow">→</span></button>`;
+    slot.innerHTML = !updateShown() && d.phase === 'idle' ? ''
+      : d.phase === 'running' ? `<div class="upd" role="status"><span class="upd-text">${t('upd.getting', { v, pct: d.pct })}</span><span class="upd-bar"><i style="width:${d.pct}%"></i></span></div>`
+      : d.phase === 'done' ? `<div class="upd" role="status"><span class="upd-text">${t('upd.got', { v })}</span><div class="upd-acts">${btn('upd-install', 'upd.install')}</div><span class="upd-note">${t('upd.installHow', { name: esc(d.name) })}</span></div>`
+      : d.phase === 'failed' ? `<div class="upd" role="status"><span class="upd-text">${t(d.why === 'offline' ? 'upd.offline' : 'upd.failed')}</span><div class="upd-acts">${btn('upd-get', 'upd.again')}${x}</div></div>`
+      : `<div class="upd" role="status"><span class="upd-text">${t('upd.available', { v })}</span><div class="upd-acts">${btn('upd-get', 'upd.get')}${x}</div>${
+        handed ? `<span class="upd-note">${t(navigator.onLine === false ? 'upd.offline' : 'upd.opened')}</span>` : ''}</div>`;
   };
   menuUpdate();
-  slot.addEventListener('click', e => {
+  slot.addEventListener('click', async e => {
     if (e.target.closest('.upd-x')) { settings.updateDismissed = settings.latest; saveSettings(); return menuUpdate(); }
+    if (e.target.closest('.upd-install')) return openDownloads();
     if (!e.target.closest('.upd-get')) return;
-    const note = slot.querySelector('.upd-note');
-    note.hidden = false;
-    if (navigator.onLine === false) { note.textContent = t('upd.offline'); return; }
-    openUrl(updateUrl());
-    note.textContent = t('upd.opened');
+    if (navigator.onLine === false) { handed = true; return menuUpdate(); }
+    handed = !(await getUpdate());
+    menuUpdate();
   });
 }
 
@@ -1292,7 +1301,8 @@ export async function settingsScreen(root, _, refresh) {
   // ordinary one, which Capacitor hands to the system browser.
   const open = openUrl;
   // the file for this device (update.js): the APK on Android, the installer on Windows, else the release page
-  root.querySelector('#get')?.addEventListener('click', () => open(updateUrl()));
+  // on Android the download runs in the app: the menu shows how it goes
+  root.querySelector('#get')?.addEventListener('click', async () => { if (await getUpdate()) location.hash = '#/'; });
   // "Check manually" (owner, 2026-09-25: the check sometimes fails): straight to the releases page on GitHub
   root.querySelector('#manual')?.addEventListener('click', () => open(`https://github.com/${REPO}/releases`));
 

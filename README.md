@@ -26,7 +26,10 @@ Playable in **Polish and English** (both the UI and the word libraries).
   **Capacitor** into an APK.
 - Windows gets the same **Setup.exe install/update system** as Lockdown and Reckless Driving:
   run the setup, it installs/updates in place, saves live outside the program folder and are
-  never touched by an update. Update check asks GitHub for the latest release.
+  never touched by an update. Update check asks GitHub for the latest release - on opening and on coming back to the
+  app; a newer one shows at the bottom of the menu (since 0.56.0). On Android it downloads through Android's own
+  download service and installs with the phone's own installer, so Lexling needs no permission to install apps; the
+  downloaded file (named with its version) is removed once the new version runs (since 0.57.0).
 
 ## Features
 

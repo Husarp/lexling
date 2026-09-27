@@ -1487,3 +1487,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .upd-text{font-weight:600;color:var(--text)}
 .upd-acts{display:flex;align-items:center;gap:6px}
 .upd-note{grid-column:1 / -1;font-size:13px;line-height:1.4;color:var(--text-muted)}
+/* the update downloading (0.57.0): its progress */
+.upd-bar{grid-column:1 / -1;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.upd-bar i{display:block;height:100%;background:var(--accent);transition:width 300ms var(--ease)}
