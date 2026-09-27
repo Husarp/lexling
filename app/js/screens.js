@@ -691,8 +691,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     const r = remembered('tiles'), fresh = { ...TL_NEW(), lang: settings.newGame.lang || settings.lang };
     if (!r.board) return fresh;
     const players = r.players.map(x => ({ ...x }));
-    // Undo is never carried over: each New game starts with it off (owner, 2026-09-27)
-    return { ...fresh, board: r.board, players, first: players[r.first] ?? null, rules: { ...STANDARD, ...r.rules, undo: false } };
+    return { ...fresh, board: r.board, players, first: players[r.first] ?? null, rules: { ...STANDARD, ...r.rules } };
   })();
   tlPending = null;
   // hosting an online game (Play online → the connection → Host): people only, the first of them on this phone; undo
