@@ -945,6 +945,10 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
 // ── Tiles: Play online (owner, 2026-09-27: "a button that says just play online ... first the type of connection ...
 // then join or host") ── the connection (Bluetooth, or the local network - Wi-Fi), then: host a game (New game, online)
 // or join one. The connection chosen is remembered for next time.
+// which phones can play (owner, 2026-09-27, after a Pixel would not connect over Bluetooth: "add an alert that only some
+// devices support it")
+const devicesInfo = () => `<div class="card tl-hostinfo"><span class="eyebrow">${t('net.devices.title')}</span><ul>${
+  ['android', 'version', 'bt'].map(k => `<li>${t('net.devices.' + k, { v: VERSION })}</li>`).join('')}</ul></div>`;
 export function tilesOnlineScreen(root) {
   const kinds = netKinds();
   let kind = kinds.includes(settings.netKind) ? settings.netKind : kinds[0] ?? 'bt';
@@ -952,6 +956,7 @@ export function tilesOnlineScreen(root) {
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.tiles}">${t('back.games')}</a>`, right: modeTag('tiles') })}
   <main class="main">
     <h1 class="title">${t('net.online')}</h1>
+    ${devicesInfo()}
     <div class="field">
       <span class="eyebrow">${t('net.step.kind')}</span>
       <div class="tl-kinds" role="radiogroup">${kinds.map(k => `<button type="button" class="tl-kind" data-kind-net="${k}" role="radio"><strong>${t('net.kind.' + k)}</strong><span class="help">${
