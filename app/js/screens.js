@@ -14,6 +14,7 @@ import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYP
 import { fitAll } from './fit.js';
 import { click } from './sound.js';
 import { VERSION, REPO } from './version.js';
+import { checkUpdate, newer, updateShown, updateUrl, openUrl } from './update.js';
 
 const CATS = ['all', 'animals', 'food', 'household', 'clothing', 'tools', 'tech', 'vehicles', 'buildings',
   'nature', 'weather', 'body', 'people', 'jobs', 'school', 'science', 'sport', 'music', 'feelings',
@@ -42,6 +43,10 @@ const READY = new Set(['guess', 'letters', 'connect', 'tiles']);
 const NEW_OF = { guess: '#/new', letters: '#/new/letters', connect: '#/new/connect', tiles: '#/new/tiles' };
 const LIST_OF = { guess: '#/games/guess', letters: '#/games/letters', connect: '#/games/connect', tiles: '#/games/tiles' };
 
+// the menu's update banner, painted again when a check brings news (update.js)
+let menuUpdate = null;
+window.addEventListener('lexling:update', () => menuUpdate?.());
+
 export function menu(root, _, refresh) {
   // One compact row per game, all the same size and weight - only the icon differs. Four of the old
   // big cards pushed Statistics and Settings off a phone's first screen. No count of games in progress
@@ -67,11 +72,29 @@ export function menu(root, _, refresh) {
         <a class="btn btn-outline" href="#/stats">${t('menu.stats')} <span class="arrow">→</span></a>
         <a class="btn btn-outline" href="#/settings">${t('menu.settings')} <span class="arrow">→</span></a>
       </nav>
+      <div class="upd-slot"></div>
     </div>
   </section>
   <footer class="footer"><span>v${VERSION}</span></footer>
 </div>`;
   root.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => switchLang(b.dataset.lang, refresh)));
+  // a newer version (owner, 2026-09-27): at the bottom - Download, or ✕ (that version not shown again)
+  const slot = root.querySelector('.upd-slot');
+  menuUpdate = () => {
+    if (!slot.isConnected) return;
+    slot.innerHTML = updateShown() ? `<div class="upd" role="status"><span class="upd-text">${t('upd.available', { v: esc(settings.latest) })}</span><div class="upd-acts"><button class="btn btn-primary upd-get" type="button">${
+      t('upd.get')} <span class="arrow">→</span></button><button class="btn btn-ghost upd-x" type="button" aria-label="${t('upd.close')}" title="${t('upd.close')}">✕</button></div><span class="upd-note" hidden></span></div>` : '';
+  };
+  menuUpdate();
+  slot.addEventListener('click', e => {
+    if (e.target.closest('.upd-x')) { settings.updateDismissed = settings.latest; saveSettings(); return menuUpdate(); }
+    if (!e.target.closest('.upd-get')) return;
+    const note = slot.querySelector('.upd-note');
+    note.hidden = false;
+    if (navigator.onLine === false) { note.textContent = t('upd.offline'); return; }
+    openUrl(updateUrl());
+    note.textContent = t('upd.opened');
+  });
 }
 
 // `chosen` = the player picked the interface language themselves (menu switch or Settings). Until they
@@ -1195,11 +1218,6 @@ export function statsScreen(root, _, refresh) {
 }
 
 let dataIndex;
-function newer(a, b) {
-  const x = a.split('.').map(Number), y = b.split('.').map(Number);
-  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
-  return false;
-}
 
 export async function settingsScreen(root, _, refresh) {
   dataIndex ??= await fetch('data/index.json').then(r => r.json());
@@ -1272,12 +1290,9 @@ export async function settingsScreen(root, _, refresh) {
   // APK on it. It has to leave the app, and each of the three places this runs needs asking
   // differently - the desktop wrapper through its Python bridge, Android and a browser through the
   // ordinary one, which Capacitor hands to the system browser.
-  const open = url => {
-    const api = window.pywebview?.api;
-    if (api?.open_url) api.open_url(url);
-    else window.open(url, '_blank', 'noopener');
-  };
-  root.querySelector('#get')?.addEventListener('click', () => open(`https://github.com/${REPO}/releases/latest`));
+  const open = openUrl;
+  // the file for this device (update.js): the APK on Android, the installer on Windows, else the release page
+  root.querySelector('#get')?.addEventListener('click', () => open(updateUrl()));
   // "Check manually" (owner, 2026-09-25: the check sometimes fails): straight to the releases page on GitHub
   root.querySelector('#manual')?.addEventListener('click', () => open(`https://github.com/${REPO}/releases`));
 
@@ -1285,16 +1300,9 @@ export async function settingsScreen(root, _, refresh) {
   check?.addEventListener('click', async () => {
     check.disabled = true;
     check.textContent = t('set.checking');
-    try {
-      const release = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } }).then(r => r.json());
-      settings.latest = (release.tag_name || '').replace(/^v/i, '');
-      settings.lastCheck = Date.now();
-      saveSettings();
-      refresh();
-    } catch {
-      root.querySelector('#update-line').textContent = t('set.failed');
-      check.disabled = false;
-      check.textContent = t('set.check');
-    }
+    if (await checkUpdate(true)) return refresh();
+    root.querySelector('#update-line').textContent = t('set.failed');
+    check.disabled = false;
+    check.textContent = t('set.check');
   });
 }
