@@ -165,7 +165,7 @@ export function checkWord(dict, lang, text) {
 // open: every person sees the other people's tiles all the time (owner, 2026-09-25: "so a friend can think while
 //   you move") - the computer's never; the screen's rule.
 // hintMax: how many hints of each level a player may take - a number, or null for no limit (owner, 2026-09-26).
-export const STANDARD = { premiums: 'once', check: 'auto', exchange: 'bag7', bingo: BINGO, time: null, hints: true,
+export const STANDARD = { premiums: 'once', check: 'auto', exchange: 'bag7', bingo: BINGO, time: null, hints: false,   // hints off by default since 0.51.3 (owner)
   hintMax: { small: null, big: null, master: null }, hintCost: null, undo: false, open: false, rating: true };
 // rating: false - a game without move ratings for anyone (owner, 2026-09-26): nothing under the board, no rating in
 // History, none at the end; each player's own setting ("Rate my moves") applies only when it is true.

@@ -19,16 +19,16 @@ export const settings = read('wg.settings', {
   // game its own choice (owner, 2026-09-25)
   polish: { letters: true, connect: true },
   // Tiles: each player's letters in their own colour (design v5) - also switched in a game's History panel
-  tilesColours: true,
+  tilesColours: 'letters',   // letters in the players' colours - the default since 0.51.3 (owner)
   // Tiles: the bonus squares in their colours - off: one quiet grey with the labels only (owner, 2026-09-25: "too many
   // colours on the board")
-  tilesBonus: true,
+  tilesBonus: 'text',        // labels only - the default since 0.51.3 (owner)
   // Tiles: after each of your moves, how good it was - its points against the best move there was (owner, 2026-09-26)
   tilesRate: true,
   // Tiles: the tiles on the board raised, like real ones - easier to see (owner, 2026-09-26)
   tiles3d: false,
   // Tiles: the tiles' own colour - yellow, white, cream, wood or mint (owner, 2026-09-26)
-  tilesTile: 'yellow',
+  tilesTile: 'white',        // the default since 0.51.3 (owner)
   // The language always carries over between games; the rest only with rememberSetup (owner, 2026-09-26: "remember my
   // setup choices") - setup then holds each mode's last choices, else a New game starts from its defaults.
   newGame: { lang: null },

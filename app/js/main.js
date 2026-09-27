@@ -52,7 +52,11 @@ function keyboardCheck() {
   document.documentElement.toggleAttribute('data-kb', typing && height < KEYBOARD_BELOW);
   // the visible height, for the Letters screen: with the keyboard open it becomes exactly this tall
   document.documentElement.style.setProperty('--vvh', height + 'px');
+  // the height with no keyboard: Tiles keeps its layout at that while one is open - the keyboard covers the rack instead
+  // of squeezing the board away (owner, 2026-09-27: checking a word squashed everything)
+  if (!typing) document.documentElement.style.setProperty('--vvh-full', height + 'px');
 }
+keyboardCheck();
 for (const event of ['focusin', 'focusout', 'resize', 'orientationchange']) window.addEventListener(event, keyboardCheck);
 window.visualViewport?.addEventListener('resize', keyboardCheck);
 

@@ -780,7 +780,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 
 /* ── the screen fits the window while playing (as Letters / Connect .fit) ── */
 [data-screen=tiles].app{container-type:inline-size}
-[data-screen=tiles].app.fit{height:var(--vvh,100dvh);min-height:0}
+[data-screen=tiles].app.fit{height:var(--vvh-full,100dvh);min-height:0}
 [data-screen=tiles].fit .main{min-height:0;padding-top:var(--space-3);padding-bottom:calc(var(--space-3) + var(--safe-b));gap:var(--space-2)}
 /* one grid, two layouts: phone = a column (status, board, message, rack, buttons);
    from 900px the board on the left and everything else in a 360px column beside it */

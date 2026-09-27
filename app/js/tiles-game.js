@@ -56,11 +56,11 @@ export const bonusSeg = () => `<div class="seg" role="radiogroup">${BONUS_LOOKS.
 export const RATE_LOOKS = [[true, 'best'], ['score', 'score'], [false, 'off']];
 // The tiles' own colour (owner, 2026-09-26: "normally yellow - let me choose, white too"): the rack, the letter by each
 // name, and the board's tiles when they are not in a player's colour. Set on <html>, so every screen draws them alike.
-export const TILE_LOOKS = [['yellow', '#F3C237'], ['white', '#FFFFFF'], ['cream', '#F3E7D0'], ['wood', '#E3B888'], ['mint', '#BDE8D0']];
+export const TILE_LOOKS = [['white', '#FFFFFF'], ['yellow', '#F3C237'], ['cream', '#F3E7D0'], ['wood', '#E3B888'], ['mint', '#BDE8D0']];
 export const tileSwatch = c => `<b class="sw" style="--sw:${c}" aria-hidden="true">A</b>`;
 export const tileSeg = () => `<div class="seg" role="radiogroup">${TILE_LOOKS.map(([k, c]) =>
-  `<button type="button" data-tc="${k}" class="${(settings.tilesTile ?? 'yellow') === k ? 'on' : ''}" aria-label="${t('tiles.tile.' + k)}" title="${t('tiles.tile.' + k)}">${tileSwatch(c)}</button>`).join('')}</div>`;
-export const applyTileLook = () => { document.documentElement.dataset.tilecolour = settings.tilesTile ?? 'yellow'; };
+  `<button type="button" data-tc="${k}" class="${(settings.tilesTile ?? 'white') === k ? 'on' : ''}" aria-label="${t('tiles.tile.' + k)}" title="${t('tiles.tile.' + k)}">${tileSwatch(c)}</button>`).join('')}</div>`;
+export const applyTileLook = () => { document.documentElement.dataset.tilecolour = settings.tilesTile ?? 'white'; };
 export const bonusOf = v => v === 'true' ? true : v === 'false' ? false : v;
 
 // A player's name as shown: the one typed on New game, or - in the interface language - "You" / "Computer" when
