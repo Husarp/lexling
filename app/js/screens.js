@@ -2,6 +2,8 @@
 // (design/handoff/*.html), with the dummy text replaced by t(...) and live data.
 import { t, plural, esc, num, decimal, clock, ago, dateTime, setLang, getLang, LANG_NAMES } from './i18n.js';
 import { settings, saveSettings, stats, listSaves, getSave, putSave, deleteSave, newGame, gameName, HARD_WIN } from './store.js';
+import { bt, btAvailable, btReady } from './bt.js';
+import { PROTOCOL } from './link.js';
 import { load, loadWords, preload, resolve, pickSecret, lengthStats } from './engine.js';
 import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js';
 import { makePuzzle, RANGE, RING_MIN, RING_MAX, visible, isDone } from './connect.js';
@@ -114,7 +116,7 @@ function connectMeta(g) {
 // and whose turn it is.
 function tilesMeta(g) {
   const s = g.state, levels = s.players.filter(x => x.cpu).map(x => t('diff.' + x.cpu));
-  return [LANG_NAMES[g.lang], t('tiles.board.' + s.board), levels.length ? [...new Set(levels)].join(', ') : t('stats.tiles.people'), ago(g.updated)]
+  return [LANG_NAMES[g.lang], t('tiles.board.' + s.board), g.link ? t('tiles.bt.tag') : levels.length ? [...new Set(levels)].join(', ') : t('stats.tiles.people'), ago(g.updated)]
     .map(v => `<span>${v}</span>`).join(DOT);
 }
 
@@ -175,7 +177,7 @@ export function games(root, mode, refresh) {
     const vs = np === 2
       ? `<span class="vs"><i class="pc0"></i>${esc(nameOf(s, 0))} <b class="num">${s.scores[0]}</b> : <b class="num">${s.scores[1]}</b> ${esc(nameOf(s, 1))}<i class="pc1"></i></span>`
       : `<span class="vs">${s.players.map((_, p) => `<i class="pc${p}"></i>${esc(nameOf(s, p))} <b class="num">${s.scores[p]}</b>`).join(' ')}</span>`;
-    const turn = alone && !s.players[s.turn].cpu ? t('tiles.save.yourTurn') : t('tiles.save.turn', { name: esc(nameOf(s, s.turn)) });
+    const turn = (g.link ? s.turn === g.link.me : alone && !s.players[s.turn].cpu) ? t('tiles.save.yourTurn') : t('tiles.save.turn', { name: esc(nameOf(s, s.turn)) });
     return `<article class="card save" data-id="${g.id}">
   <div>
     <h2 class="save-name">${nameHtml(g)}</h2>
@@ -186,15 +188,17 @@ export function games(root, mode, refresh) {
 </article>`;
   };
   const card = { guess: guessCard, letters: lettersCard, connect: connectCard, tiles: tilesCard }[mode];
+  // Tiles on two phones: the phone that did not start the game joins it from here (only where there is Bluetooth)
+  const join = mode === 'tiles' && btAvailable() ? `<a class="btn btn-outline" href="#/join/tiles">${t('tiles.bt.join')}</a>` : '';
   const start = big => `<a class="btn btn-primary${big ? ' btn-lg' : ''}" href="${NEW_OF[mode]}">${t('games.new')} <span class="arrow">→</span></a>`;
   root.innerHTML = `<div class="app" data-screen="games">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>`, right: modeTag(mode) })}
   <main class="main">
-    <div class="head"><h1 class="title">${t('games.title')}</h1>${saves.length ? start() : ''}</div>
+    <div class="head"><h1 class="title">${t('games.title')}</h1>${saves.length ? `<div class="head-acts">${join}${start()}</div>` : ''}</div>
     ${saves.length ? `<div class="saves">${saves.map(card).join('')}</div>` : `<div class="card empty">
       <p class="display">${t('games.emptyTitle')}</p>
       <p class="help" style="max-width:36ch">${t('games.emptyText')}</p>
-      ${start(true)}
+      ${start(true)}${join}
     </div>`}
   </main>
 </div>`;
@@ -665,7 +669,7 @@ export function connectNewScreen(root, _, refresh) {
 const TL_NEW = () => ({ board: 'classic', players: [{ name: '', cpu: null }, { name: '', cpu: 'normal' }], first: null, rules: { ...STANDARD }, rulesOpen: false });
 const TL_TIMES = { move: [30, 60, 120, 180], game: [600, 1200, 1500, 1800] };   // seconds: per move, per game
 const TL_RULES = [['premiums', ['once', 'always']], ['check', ['auto', 'challenge']], ['exchange', ['bag7', 'always']], ['bingo', [50, 0]],
-  ['undo', [false, true]], ['open', [false, true]], ['rating', [true, false]]];
+  ['undo', [false, true]], ['open', [false, true]], ['rating', [true, 'score', false]]];
 // hints: how many of each level a player may take (null = no limit, 0 = that level off)
 const TL_HINT_MAX = [0, 1, 3, 5, 10, null];
 let tlPending = null;
@@ -723,10 +727,11 @@ export function tilesNewScreen(root, _, refresh) {
         <summary><span class="eyebrow">${t('tiles.rules')} <span class="muted"></span></span><span class="arrow" aria-hidden="true">›</span></summary>
         <div class="rules-body"></div>
       </details>
+      ${btAvailable() ? `<div class="card friend" id="bt"></div>` : ''}
       ${nameField()}
       <div class="cta">
         <p class="summary"></p>
-        <button class="btn btn-primary btn-lg btn-block" type="submit">${t('new.start')} <span class="arrow">→</span></button>
+        <button class="btn btn-primary btn-lg btn-block" type="submit"></button>
       </div>
     </form>
   </main>
@@ -742,10 +747,10 @@ export function tilesNewScreen(root, _, refresh) {
         <div class="top"><i class="dot-p" aria-hidden="true"></i><input class="input" type="text" maxlength="16" data-name="${p}" value="${esc(x.name)}" placeholder="${esc(nameOf(list(), p))}" aria-label="${t('tiles.nameAria', { n: p + 1 })}"><span class="acts">
           <button type="button" class="btn btn-ghost mv" data-up="${p}" aria-label="${esc(t('tiles.up', { name: nameAt(p) }))}"${p === 0 ? ' disabled' : ''}>↑</button><button type="button" class="btn btn-ghost mv" data-down="${p}" aria-label="${esc(t('tiles.down', { name: nameAt(p) }))}"${p === last ? ' disabled' : ''}>↓</button>${
       o.players.length > 2 ? `<button type="button" class="btn btn-ghost rm" data-rm="${p}" aria-label="${esc(t('tiles.remove', { name: nameAt(p) }))}">✕</button>` : ''}</span></div>
-        <div class="kind"><div class="seg">${['person', 'cpu'].map(k => `<button type="button" data-kind="${k}" data-p="${p}" class="${on((k === 'cpu') === !!x.cpu)}">${t(k === 'cpu' ? 'tiles.cpu' : 'tiles.person')}</button>`).join('')}</div></div>
+        ${o.bt ? `<p class="help"><span class="arrow">→</span> ${t(p ? 'tiles.bt.them' : 'tiles.bt.you')}</p>` : `<div class="kind"><div class="seg">${['person', 'cpu'].map(k => `<button type="button" data-kind="${k}" data-p="${p}" class="${on((k === 'cpu') === !!x.cpu)}">${t(k === 'cpu' ? 'tiles.cpu' : 'tiles.person')}</button>`).join('')}</div></div>`}
         ${x.cpu ? `<div class="lv">${LEVEL_ORDER.map(l => `<button type="button" class="chip ${on(x.cpu === l)}" data-lv="${l}" data-p="${p}">${t('diff.' + l)}</button>`).join('')}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.lvHelp.' + x.cpu)}</p>` : ''}
-      </div>`).join('') + (o.players.length < PLAYERS_MAX ? `<button type="button" class="btn btn-outline" data-add>${t('tiles.addPlayer')} +</button>` : '')
+      </div>`).join('') + (o.players.length < PLAYERS_MAX && !o.bt ? `<button type="button" class="btn btn-outline" data-add>${t('tiles.addPlayer')} +</button>` : '')
       + `<div class="tl-first"><span class="eyebrow">${t('tiles.first')}</span><div class="chips" role="radiogroup">
         <button type="button" class="chip ${on(first < 0)}" data-first="-1"><span class="num">?</span>${t('tiles.first.random')}</button>${
       o.players.map((_, p) => `<button type="button" class="chip pc${p} ${on(first === p)}" data-first="${p}"><i class="dot-p" aria-hidden="true"></i>${esc(nameAt(p))}</button>`).join('')}</div>
@@ -768,7 +773,7 @@ export function tilesNewScreen(root, _, refresh) {
     // Undo only when one person plays against the computer (owner, 2026-09-25)
     const vsCpu = o.players.filter(x => !x.cpu).length === 1 && o.players.some(x => x.cpu);
     // everyone's tiles: only with two people or more (owner, 2026-09-25: "play with your friend")
-    const friends = o.players.filter(x => !x.cpu).length > 1;
+    const friends = o.players.filter(x => !x.cpu).length > 1 && !o.bt;   // over Bluetooth each has their own phone
     const seg = (key, vals, label) => `<div class="seg">${vals.map(v => `<button type="button" data-rule="${key}" data-v="${v}" class="${on(String(r[key]) === String(v))}">${label(v)}</button>`).join('')}</div>`;
     $('.rules-body').innerHTML = TL_RULES.filter(([k]) => (k !== 'undo' || vsCpu) && (k !== 'open' || friends)).map(([k, vals]) => `<div class="rule"><span class="eyebrow">${t('tiles.r.' + k)}</span>${seg(k, vals, v => t(`tiles.r.${k}.${v}`))}${
       ['check', 'undo', 'open', 'rating'].includes(k) ? `<p class="help">${t(`tiles.r.${k}Help`)}</p>` : ''}</div>`).join('')
@@ -777,10 +782,16 @@ export function tilesNewScreen(root, _, refresh) {
         `<button type="button" data-secs="${s}" class="${on(r.time.seconds === s)}">${s < 60 ? t('tiles.sec', { n: s }) : t('tiles.min', { n: s / 60 })}</button>`).join('')}</div><p class="help">${t('tiles.r.timeHelp.' + per)}</p>`}</div>`;
     $('.tl-rules .muted').textContent = t(standard() ? 'tiles.rules.standard' : 'tiles.rules.own');
   }
+  // Play over Bluetooth (owner, 2026-09-27): the same setup, then Start waits for the other phone to join
+  function paintBt() {
+    if (!$('#bt')) return;
+    $('#bt').innerHTML = `<div class="row"><div class="row-text"><strong>${t('tiles.bt.play')}</strong><span>${t('tiles.bt.playHelp')}</span></div>
+      <button type="button" class="toggle${o.bt ? ' on' : ''}" role="switch" aria-checked="${!!o.bt}" aria-label="${t('tiles.bt.play')}" data-bt></button></div>`;
+  }
   function paintSummary() {
     const who = o.players.map((x, p) => esc(nameAt(p)) + (x.cpu ? ` (${t('diff.' + x.cpu)})` : '')).join(', ');
     const first = o.players.indexOf(o.first);
-    $('.summary').innerHTML = [LANG_NAMES[o.lang], t('tiles.board.' + o.board), who, first >= 0 && `${t('tiles.first')}: ${esc(nameAt(first))}`,
+    $('.summary').innerHTML = [LANG_NAMES[o.lang], t('tiles.board.' + o.board), o.bt && t('tiles.bt.tag'), who, first >= 0 && `${t('tiles.first')}: ${esc(nameAt(first))}`,
       !standard() && t('tiles.rules.own')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
   }
   const sync = () => {
@@ -798,7 +809,9 @@ export function tilesNewScreen(root, _, refresh) {
     paintPlayers();
     paintHints();
     paintRules();
+    paintBt();
     paintSummary();
+    $('[type=submit]').innerHTML = `${t(o.bt ? 'tiles.bt.start' : 'new.start')} <span class="arrow">→</span>`;
     fitAll(root);
   };
   sync();
@@ -819,6 +832,22 @@ export function tilesNewScreen(root, _, refresh) {
   $('#tile-looks').addEventListener('click', e => { const b = e.target.closest('[data-tc]'); if (b) { settings.tilesTile = b.dataset.tc; saveSettings(); applyTileLook(); $('#tile-looks').innerHTML = tileSeg(); } });
   $('#bonus').addEventListener('click', e => { const b = e.target.closest('[data-bonus]'); if (b) { settings.tilesBonus = bonusOf(b.dataset.bonus); saveSettings(); sync(); } });
   $('.tl-rules').addEventListener('toggle', e => { o.rulesOpen = e.target.open; });
+  // on: two people (the names kept), undo and the others' tiles off, no hints, ratings without the best move - all but
+  // undo can be changed again below (owner); off: the players as they were
+  $('#bt')?.addEventListener('click', e => {
+    if (!e.target.closest('[data-bt]')) return;
+    o.bt = !o.bt;
+    if (o.bt) {
+      o.before = o.players;
+      o.players = [0, 1].map(p => ({ name: o.players[p]?.cpu ? '' : o.players[p]?.name ?? '', cpu: null }));
+      if (!o.players.includes(o.first)) o.first = null;
+      o.rules = { ...o.rules, hints: false, undo: false, open: false, rating: o.rules.rating === false ? false : 'score' };
+    } else {
+      o.players = o.before ?? o.players;
+      if (o.rules.rating === 'score') o.rules.rating = true;
+    }
+    sync();
+  });
   $('.tl-players').addEventListener('input', e => {
     const p = e.target.dataset.name;
     if (p === undefined) return;
@@ -873,14 +902,102 @@ export function tilesNewScreen(root, _, refresh) {
     settings.newGame = { lang: o.lang };
     saveSettings();
     const players = o.players.map(x => ({ name: x.name.trim(), cpu: x.cpu })), first = o.players.indexOf(o.first);
-    remember('tiles', { board: o.board, players, first, rules: o.rules });
+    if (!o.bt) remember('tiles', { board: o.board, players, first, rules: o.rules });
     saveSettings();
     const humans = players.filter(x => !x.cpu).length, vsCpu = humans === 1 && players.some(x => x.cpu);
     const state = tilesGame({ lang: o.lang, board: o.board, players, first: first >= 0 ? first : undefined, words: dict.tag,
-      rules: { ...o.rules, undo: vsCpu && o.rules.undo, open: humans > 1 && o.rules.open } });
-    const game = newGame({ name: typedName(), mode: 'tiles', lang: o.lang, state, firstSet: first >= 0, order: [], turnMs: 0 });
+      rules: { ...o.rules, undo: vsCpu && o.rules.undo, open: humans > 1 && !o.bt && o.rules.open } });
+    const link = o.bt ? { link: { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), role: 'host', me: 0, met: false } } : {};
+    const game = newGame({ name: typedName(), mode: 'tiles', lang: o.lang, state, firstSet: first >= 0, order: [], turnMs: 0, ...link });
     location.replace('#/game/' + game.id);   // Back from the game goes to the list, not to this form
   });
+}
+
+// ── Tiles: Join over Bluetooth (owner, 2026-09-27) ── the phones nearby (and those paired already); tap the one that
+// started the game and waits for players, and its game comes over: the same board, bag and rules, this phone playing
+// the second player. The same game joined again (after the app closed) carries on from its save.
+export function tilesJoinScreen(root) {
+  const devices = new Map();   // address → name
+  let busy = false, gone = false, searching = false, got = null;
+  const handles = [];
+  root.innerHTML = `<div class="app" data-screen="new">
+  ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.tiles}">${t('back.games')}</a>`, right: modeTag('tiles') })}
+  <main class="main">
+    <h1 class="title">${t('tiles.bt.join')}</h1>
+    <p class="help">${t('tiles.bt.joinHelp')}</p>
+    <div class="card tl-join">
+      <p class="tl-join-note"></p>
+      <div class="tl-devices"></div>
+      <button class="btn btn-outline" type="button" data-search>${t('tiles.bt.searchAgain')}</button>
+    </div>
+  </main>
+</div>`;
+  const $ = sel => root.querySelector(sel);
+  const note = (key, vars, dots) => { $('.tl-join-note').innerHTML = (dots ? '<span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span> ' : '') + t(key, vars); };
+  const paint = () => {
+    $('.tl-devices').innerHTML = [...devices].map(([address, name]) =>
+      `<button type="button" class="tl-device" data-address="${esc(address)}"${busy ? ' disabled' : ''}><strong>${esc(name || address)}</strong>${name ? `<span class="help">${esc(address)}</span>` : ''}</button>`).join('');
+    $('[data-search]').disabled = busy || searching;
+  };
+  const on = async (event, fn) => { const h = await bt.on(event, fn); if (gone) h.remove(); else handles.push(h); };
+  async function search() {
+    searching = true;
+    paint();
+    note('tiles.bt.searching', {}, true);
+    try { await bt.search(); } catch { searching = false; paint(); note('tiles.bt.searchFailed'); }
+  }
+  async function join(address) {
+    busy = true;
+    got = null;
+    paint();
+    const name = devices.get(address) || address;
+    note('tiles.bt.joining', { name: esc(name) }, true);
+    await bt.stopSearch().catch(() => {});
+    try { await bt.join(address); } catch {
+      busy = false;
+      if (!gone) { paint(); note('tiles.bt.joinFailed', { name: esc(name) }); }
+      return;
+    }
+    // the game from the other phone: its first message
+    for (let i = 0; i < 40 && !got && !gone; i++) await new Promise(r => setTimeout(r, 250));
+    if (gone) return;
+    if (!got) { bt.close().catch(() => {}); busy = false; paint(); note('tiles.bt.noGame', { name: esc(name) }); return; }
+    const m = got, fail = key => { bt.close().catch(() => {}); busy = false; paint(); note(key); };
+    if (m.v !== PROTOCOL) return fail('tiles.bt.version');
+    const dict = await loadTileWords(m.setup.lang).catch(() => null);
+    if (!dict || dict.tag !== m.setup.words) return fail('tiles.bt.words');
+    const peer = { name: devices.get(address) || '', address };
+    let game = listSaves().find(g => g.mode === 'tiles' && g.link?.id === m.id);
+    if (game) { game.link = { ...game.link, peer }; putSave(game); }
+    else game = newGame({ name: m.name, mode: 'tiles', lang: m.setup.lang, state: tilesGame(m.setup), firstSet: true, order: [], turnMs: 0,
+      link: { id: m.id, role: 'guest', me: 1, peer, met: true } });
+    gone = true;   // connected: the game screen carries on with this connection
+    location.replace('#/game/' + game.id);
+  }
+  root.addEventListener('click', e => {
+    const d = e.target.closest('[data-address]');
+    if (d && !busy) join(d.dataset.address);
+    else if (e.target.closest('[data-search]') && !busy) search();
+  });
+  (async () => {
+    const ready = await btReady().catch(() => 'unsupported');
+    if (gone) return;
+    if (ready !== 'ok') { note('tiles.bt.' + ready); $('[data-search]').hidden = true; return; }
+    await on('found', d => { if (!devices.has(d.address) || d.name) { devices.set(d.address, d.name); if (!gone) paint(); } });
+    await on('searchDone', () => { searching = false; if (gone) return; paint(); if (!busy) note(devices.size ? 'tiles.bt.pick' : 'tiles.bt.none'); });
+    await on('message', ({ text }) => { try { const m = JSON.parse(text); if (m.t === 'setup') got = m; } catch { /* not for us */ } });
+    await on('disconnected', () => {});
+    const known = await bt.paired().catch(() => ({ devices: [] }));
+    for (const d of known.devices) devices.set(d.address, d.name);
+    if (!gone) search();
+  })();
+  return () => {
+    const joined = gone && location.hash.startsWith('#/game/');
+    gone = true;
+    handles.splice(0).forEach(h => h.remove());
+    bt.stopSearch().catch(() => {});
+    if (!joined) bt.close().catch(() => {});
+  };
 }
 
 let statsTab = 'guess';   // which game the stats screen shows, kept while the app is open

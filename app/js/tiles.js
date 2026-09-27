@@ -471,8 +471,9 @@ export function unseen(state, p = state.turn) {
 // several people included (owner, 2026-09-25: "it's the phone's statistics") - the computer's own moves never
 // do. `level` = the strongest computer in the game, or 'people'; `won` = a person beat the computer.
 export const LEVEL_ORDER = ['relaxed', 'easy', 'normal', 'hard', 'expert'];
-export function results(state) {
-  const people = state.players.map((x, p) => x.cpu ? -1 : p).filter(p => p >= 0);
+// `only`: one player's side alone - a game on two phones, where each phone counts its own player
+export function results(state, only = -1) {
+  const people = only >= 0 ? [only] : state.players.map((x, p) => x.cpu ? -1 : p).filter(p => p >= 0);
   const cpus = state.players.filter(x => x.cpu).map(x => LEVEL_ORDER.indexOf(x.cpu));
   const mine = state.moves.filter(m => people.includes(m.p));
   const plays = mine.filter(m => m.kind === 'play');

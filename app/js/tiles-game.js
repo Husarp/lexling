@@ -2,7 +2,9 @@
 // turns, the hand-over between people, the panel (history, letters left, check a word), the end and the
 // look-back. The rules are tiles.js; finding moves - the computer, hints, the look-back - is tiles-moves.js.
 import { t, esc, clock, plural } from './i18n.js';
-import { settings, saveSettings, getSave, putSave, recordTilesEnd, recordTilesRating, playClock } from './store.js';
+import { settings, saveSettings, getSave, putSave, deleteSave, recordTilesEnd, recordTilesRating, playClock } from './store.js';
+import { createLink, PROTOCOL } from './link.js';
+import { bt, btReady } from './bt.js';
 import { loadWords, resolve } from './engine.js';
 import { has } from './dawg.js';
 import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, checkMove, apply, canExchange,
@@ -148,8 +150,13 @@ export async function tilesGameScreen(root, id) {
   if (!lex && S.rules.hints !== false) loadWords(lang).then(m => { lex = m; }).catch(() => {});
   const cpu = p => !!S.players[p].cpu;
   const people = S.players.map((x, p) => x.cpu ? -1 : p).filter(p => p >= 0);
-  const solo = people.length === 1 ? people[0] : -1;    // one person against computers: their rack is always shown
-  const canUndo = solo >= 0 && S.rules.undo === true;   // undo: only one person against the computer (owner)
+  // two phones (Bluetooth): this one plays linkMe, and the other player's moves come over the link
+  const linked = !!game.link, linkMe = linked ? game.link.me : -1, remote = p => linked && p !== linkMe;
+  let link = null, linkUp = false, linkNote = '', retry = 0, beat = 0, askedVisible = false;   // the link to it (below)
+  const handles = [];
+  // one person here (against computers, or on their own phone): their rack is always shown
+  const solo = linked ? linkMe : people.length === 1 ? people[0] : -1;
+  const canUndo = solo >= 0 && S.rules.undo === true && !linked;   // undo: only one person against the computer (owner)
   // everyone's tiles shown (a rule): the people's racks stay in view, so nobody has to hand the device over
   const open = S.rules.open === true && people.length > 1;
   const desk = matchMedia('(pointer: fine)').matches;
@@ -195,7 +202,7 @@ export async function tilesGameScreen(root, id) {
   // the board's two colour switches (Settings, New game, the game): players' tiles tinted; bonus squares coloured
   const looks = () => (settings.tilesColours === 'letters' ? ' inks' : settings.tilesColours !== false ? ' own' : '') + (settings.tilesBonus === false ? ' mono' : settings.tilesBonus === 'text' ? ' tint' : '')
     + (settings.tiles3d ? ' raised' : '');
-  const myTurn = () => !S.over && !thinking && !toast && !handOver && !cpu(S.turn) && shown === S.turn;
+  const myTurn = () => !S.over && !thinking && !toast && !handOver && !cpu(S.turn) && shown === S.turn && !(linked && !game.link.met);
   // The rack in the order its player arranged it (reorder, shuffle): the saved order, then any tiles new to it.
   const rackOf = p => {
     const left = [...S.racks[p]], out = [];
@@ -330,7 +337,7 @@ export async function tilesGameScreen(root, id) {
     const band = play && ev?.best > 0 ? rateOf(m.score, ev.best) : null;
     // under it: Master's own reason (it weighs the rest of the game - owner 1a), or the best move there was
     const under = !ev ? '' : m.hinted === 'master' && band && m.score < ev.best ? t('tiles.rate.masterNote')
-      : settings.tilesRate === true && ev.best > (play ? m.score : 0) ? bestWas(ev) : '';
+      : bestOn() && ev.best > (play ? m.score : 0) ? bestWas(ev) : '';
     return `<div class="mc ${cls} pc${m.p}">${whoCell(m.p)}<span class="w${play ? '' : ' quiet'}">${m.hinted ? hintMark() : ''}${
       play ? cardWords(m.words, m.bingo) : t(m.kind === 'swap' ? 'tiles.look.swap' : 'tiles.look.pass')}</span><span class="pt">${play ? m.score : '–'}</span><span class="rr">${
       band ? `<small class="rate rate-${band}"><span class="bn">${t('tiles.rate.' + band)} · </span>${pctOf(m.score, ev.best)}%</small>` : ''}</span>${under ? `<span class="bw">${under}</span>` : ''}</div>`;
@@ -351,7 +358,8 @@ export async function tilesGameScreen(root, id) {
         draft[0].hint ? `<small class="hlv">${t('tiles.hint.' + draft[0].hint)}${hintPaid ? ' −' + hintPaid : ''}</small>` : ''}</span></div>`
       : mine >= 0 ? moveCard(mine, 'me')
       : `<div class="mc me pc${me}">${whoCell(me)}<span class="msg">${myTurn() ? t(S.cells.some(Boolean) ? (solo >= 0 ? 'tiles.say.turn' : 'tiles.say.turnOf') : 'tiles.say.first', { name: esc(nameOf(S, S.turn)) }) : ''}</span></div>`;
-    const other = thinking && S.turn !== me ? `<div class="mc them pc${S.turn}">${whoCell(S.turn)}<span class="msg">${t('tiles.say.thinking')}</span></div>`
+    const other = linked && !linkUp && game.link.met && !S.over ? `<div class="mc them pc${1 - linkMe}">${whoCell(1 - linkMe)}<span class="msg">${t(linkNote || 'tiles.bt.down')}</span></div>`
+      : thinking && S.turn !== me ? `<div class="mc them pc${S.turn}">${whoCell(S.turn)}<span class="msg">${t(remote(S.turn) ? 'tiles.bt.moving' : 'tiles.say.thinking')}</span></div>`
       : theirs >= 0 ? moveCard(theirs, 'them') : '';
     say.innerHTML = `<div class="mcards">${card}${other}</div><p class="mc-bag">${fresh?.p === me ? t('tiles.drew', { l: `<b>${fresh.letters.map(x => x === BLANK ? '?' : esc(x.toUpperCase())).join(' · ')}</b>` }) : ''}</p>`;
   }
@@ -432,7 +440,7 @@ export async function tilesGameScreen(root, id) {
           : m.kind === 'timeout' ? t('tiles.hist.timeout') : m.kind === 'withdrawn' ? `${words(m)} · ${t('tiles.hist.withdrawn')}`
             : t(m.ok ? 'tiles.hist.challengeWon' : 'tiles.hist.challengeLost');
       const ev = rated && m.kind === 'play' && game.evals?.[i], r = ev && rateOf(m.score, ev.best);
-      const best = r && settings.tilesRate === true && m.score < ev.best ? `<small class="best">${bestWas(ev)}</small>` : '';
+      const best = r && bestOn() && m.score < ev.best ? `<small class="best">${bestWas(ev)}</small>` : '';
       return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${m.kind === 'hint' ? '' : no}</span><span class="w">${w}${best}${hintsOf.has(i) ? hintLine(hintsOf.get(i)) : ''}</span><span class="r">${m.kind === 'hint' ? (m.cost ? '−' + m.cost : '–') : quiet ? '–' : m.score}</span>${
         rated ? `<span class="pct">${r ? `<small class="rate rate-${r}">${pctOf(m.score, ev.best)}%</small>` : ''}</span>` : ''}<span class="who">${esc(nameOf(S, m.p))}</span></li>`;
     }).filter(Boolean).reverse();
@@ -482,12 +490,16 @@ export async function tilesGameScreen(root, id) {
       const first = S.start.first;
       html += `<div class="tl-toast" role="status">${game.firstSet ? '' : `<span class="eyebrow">${t('tiles.drawn')}</span>`}<strong>${first === solo ? t('tiles.youStart') : t('tiles.starts', { name: esc(nameOf(S, first)) })}</strong></div>`;
     }
+    if (linked && !game.link.met) {
+      html += `<div class="tl-hand tl-wait" role="dialog"><span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span><strong>${t('tiles.bt.waiting')}</strong><p class="help">${
+        linkNote ? t(linkNote) : t('tiles.bt.waitingHelp')}</p><div class="acts">${linkNote ? `<button class="btn btn-primary" type="button" data-act="btRetry">${t('tiles.bt.retry')}</button>` : ''}<button class="btn btn-ghost" type="button" data-act="btCancel">${t('tiles.cancel')}</button></div></div>`;
+    }
     if (handOver) {
       html += `<div class="tl-hand pc${S.turn}" role="dialog"><i class="dot-big" aria-hidden="true"></i><strong>${t('tiles.hand.title', { name: esc(nameOf(S, S.turn)) })}</strong><p class="help">${
         t('tiles.hand.help')}</p><button class="btn btn-primary" type="button" data-act="show">${t('tiles.hand.show')} <span class="arrow">→</span></button></div>`;
     }
     over.innerHTML = html;
-    play.classList.toggle('tl-hidden', handOver);
+    play.classList.toggle('tl-hidden', handOver || (linked && !game.link.met));
     refit();
   }
 
@@ -500,15 +512,16 @@ export async function tilesGameScreen(root, id) {
     zoomOut();
   }
   // Every action goes through here: into the engine (apply), the save, what the message line says, the next turn.
-  function act(action) {
+  function act(action, fromLink = false) {
     const p = S.turn, before = S, rackBefore = [...S.racks[p]];
     if (!cpu(p)) redoStack = [];   // a new move: nothing to redo any more
-    if (!cpu(p)) action = { ...action, ms: game.turnMs || 0 };
+    if (!cpu(p) && !fromLink) action = { ...action, ms: game.turnMs || 0 };
     // the best move there was this turn - for rating it (settings: "Rate my moves"; History)
     const top = S.rules.rating !== false && ['place', 'exchange', 'pass', 'timeout'].includes(action.type) ? bestMove(S, dict) : undefined;
     try { S = apply(S, action, isWord); } catch (e) { msg = { html: esc(e.message), err: true }; paintSay(); return false; }
     game.state = S;
-    if (!cpu(p) && ['place', 'exchange'].includes(action.type)) drew(p, rackBefore, action.type === 'place' ? action.placed.map(x => x.blank ? BLANK : x.ch) : action.tiles);
+    link?.flush();   // to the other phone (one that came from it is not sent back)
+    if (!cpu(p) && !remote(p) && ['place', 'exchange'].includes(action.type)) drew(p, rackBefore, action.type === 'place' ? action.placed.map(x => x.blank ? BLANK : x.ch) : action.tiles);
     game.turnMs = 0;
     // game.evals lines up with S.moves: { best, word } for a turn a player took, null for anything else
     game.evals = (game.evals ?? []).slice(0, before.moves.length);
@@ -532,7 +545,7 @@ export async function tilesGameScreen(root, id) {
     // help used (the end's card): the best move there was, shown to this person under their move (not for Master's, which
     // shows its own reason there)
     const played = action.type === 'place' ? m.score : 0;
-    if (!cpu(p) && ['place', 'exchange', 'pass', 'timeout'].includes(action.type) && settings.tilesRate === true && rateOn() && ev?.best > played
+    if (!cpu(p) && !remote(p) && ['place', 'exchange', 'pass', 'timeout'].includes(action.type) && bestOn() && ev?.best > played
       && !(action.type === 'place' && m.hinted === 'master')) count('best', p);
     if (action.type === 'timeout') return { html: t('tiles.say.timeout'), keep: true };
     if (action.type === 'challenge') {
@@ -544,11 +557,13 @@ export async function tilesGameScreen(root, id) {
   }
   // ratings shown: the game allows them (New game) and the player's setting has them on
   const rateOn = () => S.rules.rating !== false && settings.tilesRate !== false;
+  const bestOn = () => settings.tilesRate === true && S.rules.rating !== 'score';
   const bestWas = ev => t('tiles.rate.bestWas', { w: `<b>${esc(ev.word.toUpperCase())}</b>`, n: ev.best });
   // Whose turn now: a computer thinks; between people the device changes hands first, the rack hidden.
   function next() {
     if (S.over) return;
     const p = S.turn;
+    if (remote(p)) { shown = solo; thinking = true; paintAll(); return; }   // their move comes over the link
     if (cpu(p)) { shown = solo; thinking = true; paintAll(); think(); return; }
     if (solo < 0 && !open && shown !== p) { handOver = true; shown = -1; } else shown = p;
     paintAll();
@@ -570,8 +585,9 @@ export async function tilesGameScreen(root, id) {
   }
   function finish() {
     thinking = false;
+    if (linked) setTimeout(stopLink, 2000);
     game.status = 'over';
-    recordTilesEnd(S, game.id);
+    recordTilesEnd(S, game.id, linked ? linkMe : -1);   // two phones: each counts its own player
     if (S.over.winner >= 0 && !cpu(S.over.winner)) chime();
     paintEnd();
   }
@@ -580,7 +596,7 @@ export async function tilesGameScreen(root, id) {
   function giveUp() {
     if (S.over) return;
     thinking = false;
-    act({ type: 'resign', p: !cpu(S.turn) ? S.turn : solo >= 0 ? solo : people[0] ?? S.turn });
+    act({ type: 'resign', p: linked ? linkMe : !cpu(S.turn) ? S.turn : solo >= 0 ? solo : people[0] ?? S.turn });
   }
 
   // ── the tools ──
@@ -597,6 +613,9 @@ export async function tilesGameScreen(root, id) {
     },
     recall() { quiet(); paintTurn(); paintOver(); },
     options() { openOptions(); },
+    // the host gives up waiting: that game never started, so it goes
+    btCancel() { stopLink(); deleteSave(game.id); location.replace('#/games/tiles'); },
+    btRetry() { linkNote = ''; paintOver(); paintSay(); connect(); },
     // Redo: the move an undo took back, returned - until a new move is made
     redo() {
       const back = !thinking && redoStack.pop();
@@ -725,6 +744,7 @@ export async function tilesGameScreen(root, id) {
     levels = null;
     game.state = S;
     putSave(game);
+    link?.flush();
     follow();
     paintStatus();   // the score, when the hint cost points
     paintTurn();
@@ -1088,7 +1108,7 @@ export async function tilesGameScreen(root, id) {
       // the people's moves into the statistics' move rating, once
       if (!ratedInStats) {
         ratedInStats = true;
-        const people = S.players.map((x, p) => x.cpu ? -1 : p).filter(p => p >= 0);
+        const people = linked ? [linkMe] : S.players.map((x, p) => x.cpu ? -1 : p).filter(p => p >= 0);
         // without the moves from hints - else it says nothing about the player (owner, 2026-09-26)
         recordTilesRating(S, people.reduce((a, p) => a + sum(p, 'played', false), 0), people.reduce((a, p) => a + sum(p, 'best', false), 0));
       }
@@ -1133,6 +1153,67 @@ export async function tilesGameScreen(root, id) {
     confirmClick(dlg.querySelector('.op-quit'), () => { close(); giveUp(); });
   }
 
+  // ── two phones (Bluetooth, owner 2026-09-27) ──
+  // The host listens (findable the first time, so the other phone's search sees it); the other phone joins by address.
+  // A dropped connection is tried again every few seconds; a connection that goes quiet for 15 s counts as dropped.
+  const setupMsg = () => ({ t: 'setup', v: PROTOCOL, id: game.link.id, name: game.name || '',
+    setup: { lang: S.lang, board: S.board, players: S.players, first: S.start.first, seed: S.start.seed, words: S.words, rules: S.rules } });
+  async function startLink() {
+    link = createLink({ game: game.link.id, send: text => { bt.send(text).catch(() => {}); }, actions: () => S.log,
+      apply: a => { thinking = false; act(a, true); }, onEvent: linkEvent });
+    const on = async (event, fn) => { const h = await bt.on(event, fn); if (app.isConnected) handles.push(h); else h.remove(); };
+    await on('connected', () => {
+      linkUp = true;
+      linkNote = '';
+      if (!game.link.met) { game.link.met = true; putSave(game); }
+      if (game.link.role === 'host') bt.send(JSON.stringify(setupMsg())).catch(() => {});
+      link.connected();
+      paintAll();
+      if (!S.over) next();
+    });
+    await on('message', ({ text }) => link?.receive(text));
+    await on('disconnected', () => {
+      if (!linkUp) return;
+      linkUp = false;
+      link.disconnected();
+      paintAll();
+      retryLater();
+    });
+    beat = setInterval(() => {
+      if (!app.isConnected) return clearInterval(beat);
+      if (!linkUp) return;
+      link.beat();
+      if (link.quietFor() > 15000) { linkUp = false; link.disconnected(); bt.close().catch(() => {}); paintAll(); retryLater(); }
+    }, 5000);
+    if ((await bt.state().catch(() => ({}))).connected) { linkUp = true; link.connected(); paintAll(); } else connect();
+  }
+  async function connect() {
+    clearTimeout(retry);
+    if (!app.isConnected || linkUp || S.over) return;
+    const ready = await btReady().catch(() => 'unsupported');
+    if (ready !== 'ok') { linkNote = 'tiles.bt.' + ready; paintOver(); paintSay(); return; }   // Try again asks once more
+    if (game.link.role === 'host') {
+      if (!game.link.met && !askedVisible) { askedVisible = true; await bt.beVisible(300).catch(() => {}); }
+      bt.host().catch(retryLater);
+    } else bt.join(game.link.peer.address).catch(retryLater);
+  }
+  const retryLater = () => { clearTimeout(retry); retry = setTimeout(connect, game.link.role === 'host' ? 1500 : 4000); };
+  function linkEvent(kind) {
+    const note = { bye: 'tiles.bt.left', diverged: 'tiles.bt.diverged', 'other-game': 'tiles.bt.otherGame', version: 'tiles.bt.version' }[kind];
+    if (note) linkNote = note;
+    if (kind === 'ready' || kind === 'synced') linkNote = '';
+    if (kind !== 'act') paintAll();
+  }
+  function stopLink() {
+    clearTimeout(retry);
+    clearInterval(beat);
+    if (link && linkUp) link.leave();
+    handles.splice(0).forEach(h => h.remove());
+    if (link) bt.close().catch(() => {});
+    linkUp = false;
+    link = null;
+  }
+
   // ── start ──
   function endToast() { if (!toast) return; toast = false; if (app.isConnected) next(); }
   wide = app.clientWidth >= 900;
@@ -1154,8 +1235,9 @@ export async function tilesGameScreen(root, id) {
     if (T.per === 'move' && game.turnMs >= T.seconds * 1000) { quiet(); act({ type: 'timeout' }); }
   }, 1000);
 
+  if (linked && !S.over) startLink();
   if (S.over) finish();                                   // never saved like this; a safeguard
-  else if (!S.log.length && !game.toasted) {
+  else if (!S.log.length && !game.toasted && !linked) {
     // who starts (drawn at random, or chosen on New game): a card over the board for 1.2 s or until the first tap
     game.toasted = true;
     putSave(game);
@@ -1168,6 +1250,7 @@ export async function tilesGameScreen(root, id) {
   document.addEventListener('keydown', onKey, true);   // before main.js's Esc-goes-back
   const stop = playClock(root, game, () => app.isConnected);
   return () => {
+    if (linked) stopLink();
     document.removeEventListener('keydown', onKey, true);
     clearInterval(tick);
     resize.disconnect();

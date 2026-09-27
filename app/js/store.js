@@ -171,8 +171,8 @@ export function recordLettersEnd(game) {
 // the longest word found - on the board or a bonus - is kept with the game's name and when.
 // A finished Tiles game into the statistics - every game on this device, several people included; the
 // computer's own moves never count (tiles.js results). `id` = its save, which goes.
-export function recordTilesEnd(state, id) {
-  const r = results(state), s = stats.tl[r.lang + '|' + r.level] ??= { played: 0, vsCpu: 0, won: 0, games: 0, points: 0,
+export function recordTilesEnd(state, id, only) {
+  const r = results(state, only), s = stats.tl[r.lang + '|' + r.level] ??= { played: 0, vsCpu: 0, won: 0, games: 0, points: 0,
     moves: 0, movePoints: 0, bingos: 0, passes: 0, hints: 0, bestGame: null, bestMove: null };
   for (const k of ['played', 'vsCpu', 'won', 'games', 'points', 'moves', 'movePoints', 'bingos', 'passes', 'hints']) s[k] += r[k];
   if (r.games && (s.bestGame === null || r.bestGame > s.bestGame)) s.bestGame = r.bestGame;

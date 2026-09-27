@@ -1421,3 +1421,16 @@ input,textarea{-webkit-user-select:text;user-select:text}
 @media (max-width:360px){.game-settings{width:calc(100vw - 16px);padding:var(--space-3) var(--space-3)}.game-settings .seg button{font-size:10px;letter-spacing:0;padding:0 3px}}
 /* the result: a computer's level beside its name */
 .tl-fs .lv,.tl-places .lv{color:var(--text-muted);font-weight:500}
+
+/* Tiles on two phones (0.52.0): the host's wait for the other phone, the join screen's list of phones */
+.tl-wait .acts{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--space-2)}
+.tl-wait .tl-dots i{width:8px;height:8px}
+.tl-wait strong{font-size:clamp(22px,6cqi,28px)}
+[data-screen=games] .head-acts{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.tl-join{display:grid;gap:var(--space-3);padding:var(--space-5)}
+.tl-join-note{display:flex;align-items:center;gap:var(--space-2);margin:0;color:var(--text-dim)}
+.tl-devices{display:grid;gap:var(--space-2)}
+.tl-devices:empty{display:none}
+.tl-device{display:grid;gap:2px;text-align:left;padding:var(--space-3) var(--space-4);background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius-md);color:var(--text);font:inherit;cursor:pointer}
+.tl-device:disabled{opacity:.5;cursor:default}
+@media (hover:hover){.tl-device:not(:disabled):hover{border-color:var(--accent)}}

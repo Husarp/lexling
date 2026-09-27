@@ -27,12 +27,13 @@ export function hashOf(actions) {
 // onEvent(kind, detail): 'ready' (in step), 'act' (an action came in), 'synced' (missing ones came in), 'bye',
 // 'version' / 'other-game' / 'diverged' (cannot go on together), 'down' (the connection is gone).
 export function createLink({ game, send, actions, apply, onEvent = () => {} }) {
-  let up = false, heard = 0;
+  let up = false, heard = 0, known = 0;   // known: how many actions the other side is known to have
   const say = m => { if (up) send(JSON.stringify(m)); };
   const hello = () => say({ t: 'hello', v: PROTOCOL, game, n: actions().length, h: hashOf(actions()) });
   const catchUp = (from, acts) => {
     const have = actions().length;
     if (from > have) { hello(); return false; }                 // a gap: say where this side is
+    known = from + acts.length;                                  // before applying: nothing of it goes back
     for (const a of acts.slice(have - from)) apply(a);
     return true;
   };
@@ -42,8 +43,14 @@ export function createLink({ game, send, actions, apply, onEvent = () => {} }) {
     quietFor: () => up ? Date.now() - heard : Infinity,
     connected() { up = true; heard = Date.now(); hello(); },
     disconnected() { if (!up) return; up = false; onEvent('down'); },
-    // an action made on this device, already played here: sent numbered (if down, the next hello brings it)
-    local(a) { say({ t: 'act', n: actions().length - 1, a }); },
+    // the actions made on this device since the last flush (already played here), sent numbered - while the
+    // connection is down they wait, and the next hello brings them
+    flush() {
+      if (!up) return;
+      const all = actions();
+      for (let i = known; i < all.length; i++) say({ t: 'act', n: i, a: all[i] });
+      known = all.length;
+    },
     beat() { say({ t: 'ping', n: actions().length }); },
     leave() { say({ t: 'bye' }); },
     receive(text) {
@@ -59,9 +66,10 @@ export function createLink({ game, send, actions, apply, onEvent = () => {} }) {
         if (hashOf(mine.slice(0, m.n)) !== m.h) { say({ t: 'diverged' }); return onEvent('diverged'); }
         if (m.n < mine.length) say({ t: 'sync', from: m.n, acts: mine.slice(m.n) });   // they are behind: the rest
         else onEvent('ready');
+        known = mine.length;
       } else if (m.t === 'diverged') onEvent('diverged');
       else if (m.t === 'act') {
-        if (m.n === mine.length) { apply(m.a); onEvent('act', m.a); }
+        if (m.n === mine.length) { known = m.n + 1; apply(m.a); onEvent('act', m.a); }
         else if (m.n > mine.length) hello();                         // one went missing: ask for it
       } else if (m.t === 'sync') {
         // caught up: said again, so the other side knows the two are in step now (it answers 'ready')

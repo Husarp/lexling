@@ -19,7 +19,7 @@ function device(game = 'g1', log = []) {
   d.attach = send => {
     d.link = createLink({ game, send, actions: () => d.state.log, apply: a => { d.state = apply(d.state, a, isWord); }, onEvent: k => d.events.push(k) });
   };
-  d.act = a => { d.state = apply(d.state, a, isWord); d.link.local(a); };
+  d.act = a => { d.state = apply(d.state, a, isWord); d.link.flush(); };
   return d;
 }
 // the connection between two devices: messages wait in a queue until flush(); lose(n) drops the next n from `a`,
@@ -117,6 +117,18 @@ const swap = s => ({ type: 'exchange', tiles: s.racks[s.turn].slice(0, 2) });
   check('a newer protocol is told apart', d.events.includes('version'), true);
   d.link.receive('not json at all');
   check('rubbish is ignored', d.events.length, 1);
+}
+// ── several actions made at once (a hint, then a move) all go, in order; a remote one is never sent back ──
+{
+  const host = device(), guest = device(), w = pair(host, guest);
+  w.connect();
+  host.state = apply(host.state, { type: 'hint', level: 'big', cost: 3 }, isWord);
+  host.act(place(host.state)); w.flush();
+  check('two new actions both arrive', [guest.state.log.length, same(host, guest)], [2, true]);
+  let echoed = 0; const was = host.link.receive; host.link.receive = t => { if (JSON.parse(t).t === 'act') echoed++; was(t); };
+  guest.act({ type: 'pass' }); w.flush();
+  host.link.flush(); guest.link.flush(); w.flush();
+  check('the host plays the pass and sends nothing back', [echoed, same(host, guest), host.state.log.length], [1, true, 3]);
 }
 // ── going quiet, leaving ──
 {
