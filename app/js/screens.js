@@ -925,6 +925,11 @@ export function tilesJoinScreen(root) {
   <main class="main">
     <h1 class="title">${t('tiles.bt.join')}</h1>
     <p class="help">${t('tiles.bt.joinHelp')}</p>
+    <div class="field">
+      <span class="eyebrow">${t('tiles.bt.yourName')}</span>
+      <input class="input" type="text" id="bt-name" maxlength="16" autocomplete="off" value="${esc(settings.btName ?? '')}" placeholder="${esc(t('tiles.playerN', { n: 2 }))}" aria-label="${t('tiles.bt.yourName')}">
+      <p class="help">${t('tiles.bt.yourNameHelp')}</p>
+    </div>
     <div class="card tl-join">
       <p class="tl-join-note"></p>
       <div class="tl-devices"></div>
@@ -967,9 +972,13 @@ export function tilesJoinScreen(root) {
     const dict = await loadTileWords(m.setup.lang).catch(() => null);
     if (!dict || dict.tag !== m.setup.words) return fail('tiles.bt.words');
     const peer = { name: devices.get(address) || '', address };
+    const mine = $('#bt-name').value.trim();   // empty: the name the other phone gave this player
+    settings.btName = mine;
+    saveSettings();
+    const named = s => { if (mine) s.players[1] = { ...s.players[1], name: mine }; return s; };
     let game = listSaves().find(g => g.mode === 'tiles' && g.link?.id === m.id);
-    if (game) { game.link = { ...game.link, peer }; putSave(game); }
-    else game = newGame({ name: m.name, mode: 'tiles', lang: m.setup.lang, state: tilesGame(m.setup), firstSet: true, order: [], turnMs: 0,
+    if (game) { game.link = { ...game.link, peer }; named(game.state); putSave(game); }
+    else game = newGame({ name: m.name, mode: 'tiles', lang: m.setup.lang, state: named(tilesGame(m.setup)), firstSet: true, order: [], turnMs: 0,
       link: { id: m.id, role: 'guest', me: 1, peer, met: true } });
     gone = true;   // connected: the game screen carries on with this connection
     location.replace('#/game/' + game.id);

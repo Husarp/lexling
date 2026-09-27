@@ -1076,7 +1076,7 @@ export async function tilesGameScreen(root, id) {
       const rows = [
         [t('tiles.fair.hints'), byLevel.length ? byLevel.map(([l, k]) => `${t('tiles.hint.' + l)} ×${k}`).join(' · ') + (cost ? ` (${t('tiles.fair.cost', { n: cost })})` : '') : t('tiles.fair.no')],
         ...(fromHints ? [[t('tiles.fair.points'), t('tiles.fair.pointsOf', { a: fromHints, b: pts, p: Math.round(fromHints / pts * 100) })]] : []),
-        ...(S.rules.rating !== false ? [[t('tiles.fair.best'), shown ? t('tiles.fair.bestAfter', { n: shown }) : t('tiles.fair.no')]] : []),
+        ...(S.rules.rating === true ? [[t('tiles.fair.best'), shown ? t('tiles.fair.bestAfter', { n: shown }) : t('tiles.fair.no')]] : []),
         ...(canUndo ? [[t('tiles.fair.undo'), undone || t('tiles.fair.no')]] : []),
       ];
       return `<div class="fair-p">${people.length > 1 ? `<b class="fair-who">${esc(nameOf(S, p))}</b>` : ''}<dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></div>`;
@@ -1116,13 +1116,16 @@ export async function tilesGameScreen(root, id) {
         return `<li class="pc${p}"><i></i><span>${esc(nameOf(S, p))}</span>${r ? `<span class="rate rate-${r}">${t('tiles.rate.' + r)} · ${pctOf(got, best)}%</span>` : '<span>—</span>'}</li>`; }).join('');
       // a switch right here (owner, 2026-09-26): the overall ratings with or without the moves from hints - not saved
       const hintSwitch = rows.some(x => x.hinted) ? `<div class="tl-hsw"><span>${t('tiles.eval.countHints')}</span><button type="button" class="toggle on" role="switch" aria-checked="true" aria-label="${t('tiles.eval.countHints')}"></button></div>` : '';
-      box.innerHTML = `<span class="eyebrow">${t('tiles.eval')}</span><ul class="tl-evals">${overall(true)}</ul>${hintSwitch}<p class="help">${t('tiles.eval.help')}</p><ol><li class="head"><span></span><span>${t('tiles.look.played')}</span><span>${t('tiles.hist.rating')}</span><span>${t('tiles.look.best')}</span><span>${t('tiles.hist.who')}</span></li>${rows.map((x, k) => {
+      // the best move of each turn only where the game shows best moves - at the end nobody remembers what they could have
+      // played, so there it is the ratings alone (owner, 2026-09-27)
+      const withBest = bestOn();
+      box.innerHTML = `<span class="eyebrow">${t('tiles.eval')}</span><ul class="tl-evals">${overall(true)}</ul>${hintSwitch}<p class="help">${t('tiles.eval.help')}</p><ol${withBest ? '' : ' class="nobest"'}><li class="head"><span></span><span>${t('tiles.look.played')}</span><span>${t('tiles.hist.rating')}</span>${withBest ? `<span>${t('tiles.look.best')}</span>` : ''}<span>${t('tiles.hist.who')}</span></li>${rows.map((x, k) => {
         const same = !x.best || x.played >= x.best.score;
         const played = x.kind === 'place' ? `${esc(x.word)} <small>${x.played}</small>` : `<small>${t(x.kind === 'exchange' ? 'tiles.look.swap' : 'tiles.look.pass')}</small>`;
         const r = x.best && rateOf(x.played, x.best.score);
         return `<li class="pc${x.p}${same ? ' same' : ''}"><span class="i">${k + 1}</span><span class="w">${played}${x.hinted ? ` <span class="hi" title="${t('tiles.rate.hinted')}" aria-label="${t('tiles.rate.hinted')}">${ICON.hint}</span>` : ''}</span><span class="pct">${
-          r ? `<small class="rate rate-${r}">${pctOf(x.played, x.best.score)}%</small>` : ''}</span><span class="best"><span class="w">${
-          x.best ? `${esc(x.best.word)} <small>${x.best.score}</small>` : '—'}</span></span><span class="who">${esc(nameOf(S, x.p))}</span></li>`;
+          r ? `<small class="rate rate-${r}">${pctOf(x.played, x.best.score)}%</small>` : ''}</span>${withBest ? `<span class="best"><span class="w">${
+          x.best ? `${esc(x.best.word)} <small>${x.best.score}</small>` : '—'}</span></span>` : ''}<span class="who">${esc(nameOf(S, x.p))}</span></li>`;
       }).join('')}</ol>`;
       box.querySelector('.tl-hsw .toggle')?.addEventListener('click', e => {
         const b = e.currentTarget, on = !b.classList.contains('on');
@@ -1150,7 +1153,7 @@ export async function tilesGameScreen(root, id) {
     // one section open at a time (the shared name does it where the browser knows it)
     dlg.querySelectorAll('.op-sec').forEach(d => d.addEventListener('toggle', () => { if (d.open) dlg.querySelectorAll('.op-sec').forEach(o => { if (o !== d) o.open = false; }); }));
     dlg.addEventListener('click', e => { const go = e.target.closest('[data-go]'); if (!go) return; close(); panel = go.dataset.go; histOf = null; paintMore(); });
-    confirmClick(dlg.querySelector('.op-quit'), () => { close(); giveUp(); });
+    confirmClick(dlg.querySelector('.op-quit'), () => { close(); giveUp(); }, () => fitAll(dlg));
   }
 
   // ── two phones (Bluetooth, owner 2026-09-27) ──
@@ -1167,11 +1170,12 @@ export async function tilesGameScreen(root, id) {
       linkNote = '';
       if (!game.link.met) { game.link.met = true; putSave(game); }
       if (game.link.role === 'host') bt.send(JSON.stringify(setupMsg())).catch(() => {});
+      sayName();
       link.connected();
       paintAll();
       if (!S.over) next();
     });
-    await on('message', ({ text }) => link?.receive(text));
+    await on('message', ({ text }) => { if (!tookName(text)) link?.receive(text); });
     await on('disconnected', () => {
       if (!linkUp) return;
       linkUp = false;
@@ -1185,7 +1189,7 @@ export async function tilesGameScreen(root, id) {
       link.beat();
       if (link.quietFor() > 15000) { linkUp = false; link.disconnected(); bt.close().catch(() => {}); paintAll(); retryLater(); }
     }, 5000);
-    if ((await bt.state().catch(() => ({}))).connected) { linkUp = true; link.connected(); paintAll(); } else connect();
+    if ((await bt.state().catch(() => ({}))).connected) { linkUp = true; sayName(); link.connected(); paintAll(); } else connect();
   }
   async function connect() {
     clearTimeout(retry);
@@ -1196,6 +1200,20 @@ export async function tilesGameScreen(root, id) {
       if (!game.link.met && !askedVisible) { askedVisible = true; await bt.beVisible(300).catch(() => {}); }
       bt.host().catch(retryLater);
     } else bt.join(game.link.peer.address).catch(retryLater);
+  }
+  // the players' names (the joining phone types its own): not part of the moves, so they travel on their own
+  const sayName = () => { const name = S.players[linkMe].name; if (name) bt.send(JSON.stringify({ t: 'name', p: linkMe, name })).catch(() => {}); };
+  function tookName(text) {
+    let m;
+    try { m = JSON.parse(text); } catch { return false; }
+    if (m?.t !== 'name') return false;
+    const name = String(m.name ?? '').trim().slice(0, 16);
+    if (m.p === linkMe || !S.players[m.p] || !name || S.players[m.p].name === name) return true;
+    S = { ...S, players: S.players.map((x, p) => p === m.p ? { ...x, name } : x) };
+    game.state = S;
+    putSave(game);
+    paintAll();
+    return true;
   }
   const retryLater = () => { clearTimeout(retry); retry = setTimeout(connect, game.link.role === 'host' ? 1500 : 4000); };
   function linkEvent(kind) {
