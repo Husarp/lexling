@@ -14,7 +14,7 @@ import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYP
 import { fitAll } from './fit.js';
 import { click } from './sound.js';
 import { VERSION, REPO } from './version.js';
-import { checkUpdate, newer, updateShown, closeUpdate, updateUrl, openUrl, getUpdate, downloadState, openDownloads } from './update.js';
+import { checkUpdate, newer, updateShown, closeUpdate, updateUrl, openUrl, getUpdate, downloadState, installUpdate } from './update.js';
 
 const CATS = ['all', 'animals', 'food', 'household', 'clothing', 'tools', 'tech', 'vehicles', 'buildings',
   'nature', 'weather', 'body', 'people', 'jobs', 'school', 'science', 'sport', 'music', 'feelings',
@@ -80,8 +80,9 @@ export function menu(root, _, refresh) {
   root.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => switchLang(b.dataset.lang, refresh)));
   // a newer version (owner, 2026-09-27): at the bottom - Download, or ✕ (hidden until Lexling next starts)
   const slot = root.querySelector('.upd-slot');
-  // on Android the download runs here (update.js): its progress, then Install - the phone's Downloads, where the file is
-  // opened with the phone's own installer. On Windows too: its progress, then the installer starts and Lexling closes.
+  // on Android the download runs here (update.js): its progress, then Android's installer by itself - after its settings
+  // screen, the first time (install apps); Install asks again. On Windows too: its progress, then the installer starts
+  // and Lexling closes.
   // A failed download: Try again, and GitHub next to it - the release page (owner, 2026-09-27)
   let handed = false;
   menuUpdate = () => {
@@ -91,7 +92,7 @@ export function menu(root, _, refresh) {
     const btn = (cls, key) => `<button class="btn btn-primary ${cls}" type="button">${t(key)} <span class="arrow">→</span></button>`;
     slot.innerHTML = !updateShown() && d.phase === 'idle' ? ''
       : d.phase === 'running' ? `<div class="upd" role="status"><span class="upd-text">${t('upd.getting', { v, pct: d.pct })}</span><span class="upd-bar"><i style="width:${d.pct}%"></i></span></div>`
-      : d.phase === 'done' ? `<div class="upd" role="status"><span class="upd-text">${t('upd.got', { v })}</span><div class="upd-acts">${btn('upd-install', 'upd.install')}</div><span class="upd-note">${t('upd.installHow', { name: esc(d.name) })}</span></div>`
+      : d.phase === 'done' ? `<div class="upd" role="status"><span class="upd-text">${t(d.asked === 'allow' ? 'upd.allow' : d.asked === 'notAllowed' ? 'upd.notAllowed' : 'upd.confirm', { v })}</span><div class="upd-acts">${btn('upd-install', 'upd.install')}</div></div>`
       : d.phase === 'starting' ? `<div class="upd" role="status"><span class="upd-text">${t('upd.starting', { v })}</span></div>`
       : d.phase === 'failed' ? `<div class="upd" role="status"><span class="upd-text">${t(d.why === 'offline' ? 'upd.offline' : 'upd.failed')}</span><div class="upd-acts">${btn('upd-get', 'upd.again')}<span class="upd-pair"><button class="btn btn-outline upd-gh" type="button">GitHub</button>${x}</span></div></div>`
       : `<div class="upd" role="status"><span class="upd-text">${t('upd.available', { v })}</span><div class="upd-acts">${btn('upd-get', 'upd.get')}${x}</div>${
@@ -101,7 +102,7 @@ export function menu(root, _, refresh) {
   slot.addEventListener('click', async e => {
     if (e.target.closest('.upd-x')) { closeUpdate(); return menuUpdate(); }
     if (e.target.closest('.upd-gh')) return openUrl(`https://github.com/${REPO}/releases/latest`);
-    if (e.target.closest('.upd-install')) return openDownloads();
+    if (e.target.closest('.upd-install')) return installUpdate();
     if (!e.target.closest('.upd-get')) return;
     if (navigator.onLine === false) { handed = true; return menuUpdate(); }
     handed = !(await getUpdate());

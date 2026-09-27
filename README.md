@@ -27,10 +27,9 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - Windows gets the same **Setup.exe install/update system** as Lockdown and Reckless Driving:
   run the setup, it installs/updates in place, saves live outside the program folder and are
   never touched by an update. Update check asks GitHub for the latest release - on opening and on coming back to the
-  app; a newer one shows at the bottom of the menu (since 0.56.0) - ✕ hides it until Lexling next starts. On Android it
-  downloads through Android's own download service and installs with the phone's own installer, so Lexling needs no
-  permission to install apps; the downloaded file (named with its version) is removed once the new version runs (since
-  0.57.0). On Windows Lexling downloads `LexlingSetup-X.Y.Z.exe` itself, starts it and closes (since 0.58.0). A failed
+  app; a newer one shows at the bottom of the menu (since 0.56.0) - ✕ hides it until Lexling next starts. On Android
+  Lexling downloads `Lexling-X.Y.Z.apk` itself and hands it to Android's installer (since 0.58.0): the first time,
+  Android asks to let Lexling install apps; the file is removed once the new version runs. On Windows Lexling downloads `LexlingSetup-X.Y.Z.exe` itself, starts it and closes (since 0.58.0). A failed
   download: Try again, or GitHub. Settings → Updates: automatic checks on/off, Check now, GitHub, Get update. All as
   in `../APP-STANDARDS.md`.
 

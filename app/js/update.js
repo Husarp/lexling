@@ -48,42 +48,68 @@ const platform = () => window.Capacitor?.getPlatform?.() === 'android' ? 'androi
 export const updateUrl = () => (platform() === 'android' && settings.latestFiles?.apk) || (platform() === 'windows' && settings.latestFiles?.exe)
   || `https://github.com/${REPO}/releases/latest`;
 
-// Getting it (owner, 2026-09-27): on Android through Android's own download service - progress here and in the
-// notification bar, the file in Downloads, named with its version - and installed by the phone's own installer from
-// there, so Lexling needs no permission to install apps. Elsewhere (Windows, a browser): the browser downloads it.
-let dl = { phase: 'idle' };   // 'running' { pct } | 'done' | 'starting' (Windows) | 'failed' { why: 'offline' | 'download' }
+// Getting it (APP-STANDARDS.md; owner, 2026-09-27 - the same as Reckless Driving 3.35.0): on Android Lexling downloads
+// the APK itself (the progress here) and hands it to Android's installer itself. That needs "install unknown apps" for
+// Lexling, once: the first time Android's settings screen for it opens, and coming back from there carries on by itself.
+// (0.57.0 used Android's download service and the phone's Downloads: on a phone behind a firewall it never started, and
+// it still needed the same permission, for the Files app.) Windows: the desktop app downloads the installer and runs it.
+// A browser: the release page.
+let dl = { phase: 'idle' };   // 'running' { pct } | 'done' { version, asked } | 'starting' (Windows) | 'failed' { why }
 export const downloadState = () => dl;
 const emit = () => window.dispatchEvent(new Event('lexling:update'));
-const downloader = () => {
+const updater = () => {
   const C = window.Capacitor;
   if (!C?.isNativePlatform?.() || C.getPlatform?.() !== 'android') return null;
-  return C.Plugins?.UpdateDownload ?? C.registerPlugin?.('UpdateDownload') ?? null;
+  return C.Plugins?.AppUpdate ?? C.registerPlugin?.('AppUpdate') ?? null;
 };
 // true: downloading in the app; false: handed to the browser
 export async function getUpdate() {
   const api = window.pywebview?.api;
   if (api?.install_update && settings.latestFiles?.exe) return getSetup(api, settings.latestFiles.exe);
-  const P = downloader(), url = settings.latestFiles?.apk;
+  const P = updater(), url = settings.latestFiles?.apk;
   if (!P || !url) { openUrl(updateUrl()); return false; }
   if (dl.phase === 'running') return true;
+  if (dl.phase === 'done' && dl.version === settings.latest) { await install(true); return true; }   // Install again
   if (navigator.onLine === false) { dl = { phase: 'failed', why: 'offline' }; emit(); return true; }
-  const version = settings.latest, name = `Lexling-${version}.apk`;
+  const version = settings.latest;
   try {
-    if (settings.updateFile) await P.remove({ id: settings.updateFile.id }).catch(() => {});   // an earlier one, not needed
-    const { id } = await P.download({ url, name, title: `Lexling ${version}` });
-    settings.updateFile = { id, version };   // removed once this version runs (cleanUpdate)
+    // an earlier one, not needed (0.57.x: a download-service id - cancelled if it never finished)
+    if (settings.updateFile) await P.remove({ id: settings.updateFile.id }).catch(() => {});
+    await P.download({ url, name: `Lexling-${version}.apk` });
+    settings.updateFile = { id: 'cache', version };   // removed once this version runs (cleanUpdate)
     saveSettings();
-    dl = { phase: 'running', pct: 0, name };
+    dl = { phase: 'running', pct: 0 };
     emit();
     const poll = setInterval(async () => {
-      const s = await P.progress({ id }).catch(() => ({ status: 'failed' }));
-      if (s.status === 'running') dl = { phase: 'running', pct: s.total > 0 ? Math.round(s.done / s.total * 100) : 0, name };
-      else { clearInterval(poll); dl = s.status === 'done' ? { phase: 'done', name } : { phase: 'failed', why: 'download' }; }
-      emit();
-    }, 700);
+      const s = await P.progress().catch(() => ({ status: 'failed' }));
+      if (s.status === 'running') { dl = { phase: 'running', pct: s.total > 0 ? Math.round(s.done / s.total * 100) : 0 }; emit(); return; }
+      clearInterval(poll);
+      if (s.status !== 'done') { dl = { phase: 'failed', why: 'download' }; emit(); return; }
+      dl = { phase: 'done', version };
+      install(true);
+    }, 500);
   } catch { dl = { phase: 'failed', why: 'download' }; emit(); }
   return true;
 }
+// the downloaded file to Android's installer, which asks "Update this app?"; without the permission Android's settings
+// screen for it opens first (openSettings), and coming back from there carries on without another tap
+let allowing = false;
+async function install(openSettings) {
+  try {
+    await updater().install({ openSettings });
+    dl = { ...dl, asked: 'confirm' };
+  } catch (e) {
+    if (!String(e?.message ?? e).includes('NEEDS_PERMISSION')) dl = { phase: 'failed', why: 'download' };
+    else { allowing = openSettings; dl = { ...dl, asked: openSettings ? 'allow' : 'notAllowed' }; }
+  }
+  emit();
+}
+export const installUpdate = () => install(true);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !allowing) return;
+  allowing = false;
+  install(false);
+});
 // Windows (APP-STANDARDS.md): the desktop app downloads LexlingSetup-X.Y.Z.exe itself (the progress here), starts it
 // and closes, so the installer can replace it (desktop/main.py install_update)
 async function getSetup(api, url) {
@@ -101,21 +127,20 @@ async function getSetup(api, url) {
   emit();
   return true;
 }
-// the phone's Downloads, where the person taps the file to install it
-export const openDownloads = () => downloader()?.openDownloads().catch(() => {});
 // the new version runs: the downloaded file that brought it goes (owner: "after installation remove this file")
 export function cleanUpdate() {
-  const f = settings.updateFile, P = downloader();
+  const f = settings.updateFile, P = updater();
   if (!f || !P || newer(f.version, VERSION)) return;
   P.remove({ id: f.id }).catch(() => {});
   delete settings.updateFile;
   saveSettings();
 }
 
-// Out of the app: the desktop wrapper through its Python bridge, Android and a browser through the ordinary way (which
-// Capacitor hands to the system browser - there the file downloads, and opens with the phone's own installer).
+// Out of the app: the desktop wrapper through its Python bridge, Android through the update plugin (window.open does
+// nothing inside the Android app - Reckless Driving found), a browser the ordinary way.
 export function openUrl(url) {
-  const api = window.pywebview?.api;
+  const api = window.pywebview?.api, P = updater();
   if (api?.open_url) api.open_url(url);
+  else if (P?.openUrl) P.openUrl({ url }).catch(() => {});
   else window.open(url, '_blank', 'noopener');
 }

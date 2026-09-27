@@ -35,6 +35,8 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Updates (AppUpdatePlugin): Lexling hands a downloaded new version to Android's installer, which still asks -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Tiles on two phones over Bluetooth (BluetoothLinkPlugin) - up to Android 11 the old permissions, searching
          needing location; from Android 12 the nearby-devices ones, the search never used for location -->
