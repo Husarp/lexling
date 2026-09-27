@@ -80,6 +80,24 @@ document.addEventListener('keydown', e => {
 // First paint happens only when the bundled fonts are ready: no fallback-font frame, no layout shift.
 await Promise.all(['800 1em "Barlow Condensed"', '700 1em "Barlow Condensed"', '400 1em Inter', '500 1em Inter', '600 1em Inter']
   .map(font => document.fonts.load(font)));
+// Android may close the page while Lexling is in the background (memory): back within half an hour, the screen it was on
+// opens again instead of the menu (owner, 2026-09-27: "you get teleported to the main menu"). A game joined on another
+// phone lives in memory only: its Join screen then, and the host puts the phone straight back in its seat.
+const BACK = 'wg.back';
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'hidden') return;
+  const [name, id] = location.hash.replace(/^#\/?/, '').split('/');
+  const g = name === 'game' ? getSave(id) : null;
+  try { localStorage.setItem(BACK, JSON.stringify({ hash: g?.live ? '#/join/' + (g.link?.kind ?? 'bt') : location.hash, at: Date.now() })); } catch { /* storage off */ }
+});
+if (!location.hash || location.hash === '#/') {
+  try {
+    const b = JSON.parse(localStorage.getItem(BACK) || 'null');
+    localStorage.removeItem(BACK);
+    const [name, id] = (b?.hash ?? '').replace(/^#\/?/, '').split('/');
+    if (b?.hash && Date.now() - b.at < 30 * 60000 && (name !== 'game' || getSave(id))) location.replace(b.hash);
+  } catch { /* nothing to go back to */ }
+}
 await render();
 // The desktop wrapper keeps its window hidden until this appears (no half-drawn first frame), and the
 // build's self-test compares it with the version it packaged.

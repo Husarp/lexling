@@ -3,7 +3,7 @@
 // coming back to its own seat, going quiet, the end.
 // Run: node tools/test-session.mjs
 import { newGame, apply } from '../app/js/tiles.js';
-import { createHost, createGuest, PROTOCOL, QUIET } from '../app/js/session.js';
+import { createHost, createGuest, PROTOCOL, QUIET, QUIET_AWAY } from '../app/js/session.js';
 
 let pass = 0, fail = 0;
 const check = (name, got, want) => {
@@ -148,8 +148,22 @@ function table(players = 3) {
   check('a taken seat: not let in there', b.seat, -1);
   h.session.letIn('c2', 1); h.run();
   check('… the free one then', b.seat, 1);
-  h.session.kick(1); h.run();
-  check('removed: told, and let go', [b.events.includes('end:removed'), b.events.includes('dropped'), h.session.missing()], [true, true, [1]]);
+}
+// ── a phone showing another app: the host told, and it is not let go for being quiet ──
+{
+  const h = table(2), a = h.phone('c1', 'AA');
+  a.connect(); h.run(); h.session.letIn('c1'); h.run();
+  a.guest.app(false); h.run();
+  a.up = false;   // paused in the background: it answers nothing
+  const now = Date.now;
+  Date.now = () => now() + QUIET + 5000;
+  h.session.tick(); h.run();
+  Date.now = now;
+  check('in the background: still seated after the usual quiet time', [h.session.missing(), a.events.includes('dropped')], [[], false]);
+  Date.now = () => now() + QUIET_AWAY + 5000;
+  h.session.tick(); h.run();
+  Date.now = now;
+  check('… but not for ever', h.session.missing(), [1]);
 }
 {
   const gone = new Set([2]);

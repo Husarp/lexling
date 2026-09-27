@@ -56,10 +56,11 @@ Playable in **Polish and English** (both the UI and the word libraries).
   drawn. Four boards (Classic, Bonus, Diamond; Quick - 11 × 11 with about half the tiles), the
   full 100-tile sets, sjp.pl / ENABLE word lists. **Play online** (Android, since 0.53.0): 2–5 people, a phone each,
   over Bluetooth or the local network (Wi-Fi) - one phone hosts the game (it alone keeps it; it lets each phone in),
-  the others join, the host choosing which player each phone takes over; nobody moves while a phone is missing (after
-  2 minutes the host can have that player's turns skipped), a phone that drops out goes back to its own
-  seat, and a saved game can be opened again later for any phones to take the seats. The host can remove a player or
-  end the game for everyone. Everyone's statistics count the game. With more than two players, whoever gives up just
+  the others join, the host naming the players and choosing which one each phone takes over; while a phone is away
+  the others play on and only its own turn waits - each phone shows whether the others are in the app or without a
+  connection; a phone that drops out goes back to its own seat, and a saved game can be opened again later for any
+  phones to take the seats. The host can skip the move of whoever is on turn, make a player give up (they stay to
+  watch), or end the game for everyone. Everyone's statistics count the game. With more than two players, whoever gives up just
   drops out - their tiles go back to the bag - and the rest play on (since 0.54.0, every Tiles game). Place tiles by dragging, by tapping, or by typing on a PC;
   the board zooms in on a phone (and pinches). Hints in three levels (Small, Big, Master), exchange, pass, a
   letters-left list, check any word, each player's tiles in their colour and coloured bonus squares (both

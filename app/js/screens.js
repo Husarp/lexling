@@ -686,6 +686,11 @@ const boardCard = b => {
     t(`tiles.board.${b}.what`)}</span><span class="meta"></span></span></button>`;
 };
 
+// Hosting an online game (owner, 2026-09-27: "an info for the host ... how all the settings apply to all people"): what
+// the host decides and can do
+const hostInfo = () => `<div class="card tl-hostinfo"><span class="eyebrow">${t('net.hostInfo.title')}</span><ul>${
+  ['rules', 'letIn', 'players', 'keep'].map(k => `<li>${t('net.hostInfo.' + k)}</li>`).join('')}</ul></div>`;
+
 export function tilesNewScreen(root, _, refresh, hostKind = null) {
   const o = tlPending ?? (() => {
     const r = remembered('tiles'), fresh = { ...TL_NEW(), lang: settings.newGame.lang || settings.lang };
@@ -706,7 +711,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
   ${topbar({ left: `<a class="btn btn-ghost" href="${hostKind ? '#/online' : LIST_OF.tiles}">${t('back.games')}</a>`, right: modeTag('tiles') })}
   <main class="main">
     <h1 class="title">${t(hostKind ? 'net.newTitle' : 'new.title')}</h1>
-    ${hostKind ? `<p class="help tl-online-kind"><span class="eyebrow">${t('net.step.kind')}</span> ${t('net.kind.' + hostKind)}</p>` : ''}
+    ${hostKind ? `<p class="help tl-online-kind"><span class="eyebrow">${t('net.step.kind')}</span> ${t('net.kind.' + hostKind)}</p>${hostInfo()}` : ''}
     ${howTo('tiles')}
     <form class="form" novalidate>
       <div class="field">
@@ -956,11 +961,6 @@ export function tilesJoinScreen(root, chosen) {
     <h1 class="title">${t('net.join')}</h1>
     <p class="help tl-online-kind"><span class="eyebrow">${t('net.step.kind')}</span> ${t('net.kind.' + kind)}</p>
     <p class="help" id="join-help"></p>
-    <div class="field">
-      <span class="eyebrow">${t('tiles.bt.yourName')}</span>
-      <input class="input" type="text" id="bt-name" maxlength="16" autocomplete="off" value="${esc(settings.btName ?? '')}" placeholder="${esc(t('tiles.playerN', { n: 2 }))}" aria-label="${t('tiles.bt.yourName')}">
-      <p class="help">${t('tiles.bt.yourNameHelp')}</p>
-    </div>
     <div class="card tl-join">
       <p class="tl-join-note"></p>
       <div class="tl-devices"></div>
@@ -1011,10 +1011,8 @@ export function tilesJoinScreen(root, chosen) {
       if (!gone) { paint(); note('tiles.bt.joinFailed', { name }); setTimeout(search, 2500); }
       return;
     }
-    // who is joining - for the host to let in (up to 2 minutes); then its game
-    settings.btName = $('#bt-name').value.trim();
-    saveSettings();
-    party = createGuest({ name: settings.btName, send: text => { wire().send(conn, text).catch(() => {}); }, on: {
+    // for the host to let in (up to 2 minutes) - the host names the players (owner, 2026-09-27); then its game
+    party = createGuest({ name: '', send: text => { wire().send(conn, text).catch(() => {}); }, on: {
       welcome: m => { welcome = m; }, refused: () => { answer = 'refused'; }, full: () => { answer = 'full'; }, version: () => { answer = 'version'; },
     } });
     party.connected();
@@ -1029,7 +1027,7 @@ export function tilesJoinScreen(root, chosen) {
     const state = m.log.reduce((st, x) => tilesApply(st, x, w => has(dict, w)), tilesGame(m.setup));
     putSave({ id: m.id, live: true, mode: 'tiles', lang: m.setup.lang, name: '', title: m.title, state, firstSet: true, order: [], turnMs: 0,
       guesses: [], status: 'playing', timeMs: 0, created: Date.now(),
-      link: { kind, role: 'guest', me: m.seat, id: m.id, conn, hostAddress: address, hostSeat: m.host, here: m.here } });
+      link: { kind, role: 'guest', me: m.seat, id: m.id, conn, hostAddress: address, hostSeat: m.host, here: m.here, fresh: true } });
     joined = gone = true;   // the game screen carries on with this connection
     location.replace('#/game/' + m.id);
   }
