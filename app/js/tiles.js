@@ -215,7 +215,7 @@ export function newGame({ lang, board = 'classic', players, first, seed = Math.f
   return { lang, board, words, rules: { ...STANDARD, ...rules }, start: { seed, first },
     players: players.map(x => ({ name: x.name ?? '', cpu: x.cpu ?? null })),
     cells: Array(n * n).fill(null), bag, racks, scores: none(), hints: none(), clock: none(), turn: first, zeros: 0,
-    moves: [], log: [], pending: null, over: null, seed: s };
+    moves: [], log: [], pending: null, over: null, seed: s, out: players.map(() => false) };
 }
 
 const firstMove = state => state.cells.every(x => !x);
@@ -301,7 +301,9 @@ export function checkMove(state, placed, isWord) {
 // game is one of these, and goes into `log`, so a game can be rebuilt from its start (replay):
 // { type: 'place', placed } | { type: 'exchange', tiles } | { type: 'pass' } | { type: 'challenge' }
 // | { type: 'timeout' } | { type: 'resign', p } | { type: 'shuffle', seed } (the bag shuffled again: undo() below)
-// | { type: 'hint', level, cost } (a hint taken: counted, its cost off the score; the turn goes on). A 'place' may carry
+// | { type: 'hint', level, cost } (a hint taken: counted, its cost off the score; the turn goes on)
+// | { type: 'end' } (an online game's host ends it for everyone, scored as usual). A 'pass' may carry `away`: skipped
+// for a player whose phone is gone (online). A 'resign' may carry `removed`: the host took that player out. A 'place' may carry
 // `hint` = the level of the hint it plays, and the move and its tiles remember it.
 // Any of them may carry `ms`, the time the player took.
 // An action that is not allowed throws, and the state stays as it was. Each returns a new state.
@@ -315,10 +317,11 @@ export function apply(state, action, isWord) {
   s = { ...s, log: [...s.log, action] };
   const after = action.type === 'place' ? place(s, action.placed, isWord, action.hint)
     : action.type === 'exchange' ? swap(s, action.tiles)
-    : action.type === 'pass' ? scoreless(s, { p: s.turn, kind: 'pass' })
+    : action.type === 'pass' ? scoreless(s, { p: s.turn, kind: 'pass', ...(action.away ? { away: true } : {}) })
     : action.type === 'timeout' ? scoreless(s, { p: s.turn, kind: 'timeout' })
     : action.type === 'challenge' ? challenge(s, isWord)
-    : action.type === 'resign' ? finish(s, 'resign', -1, action.p ?? s.turn)
+    : action.type === 'resign' ? quit(s, action.p ?? s.turn, action.removed)
+    : action.type === 'end' ? finish(s, 'ended')
     : action.type === 'shuffle' ? reshuffle(s, action.seed)
     : action.type === 'hint' ? tookHint(s, action)
     : null;
@@ -335,7 +338,16 @@ export function exchange(state, tiles) {
 }
 export const canExchange = (state, k = 1) => state.rules?.exchange === 'always' ? state.bag.length >= k : state.bag.length >= RACK;
 
-const next = (state, p) => (p + 1) % state.racks.length;
+// players out of the game (gave up, or removed by an online game's host): their turns skipped. Saves from before 0.54
+// have no `out`.
+export const outOf = state => state.out ?? state.players.map(() => false);
+const active = state => outOf(state).map((o, p) => o ? -1 : p).filter(p => p >= 0);
+function next(state, p) {
+  const out = outOf(state), n = state.racks.length;
+  let q = p;
+  do q = (q + 1) % n; while (out[q] && q !== p);
+  return q;
+}
 const rackPoints = (lang, rack) => rack.reduce((s, t) => s + valueOf(lang, t), 0);
 
 function place(state, placed, isWord, hint) {
@@ -379,30 +391,46 @@ function challenge(state, isWord) {
   if (!bad.length) return scoreless({ ...state, pending: null }, { p: who, kind: 'challenge', ok: false, of: p });
   const moves = [...state.moves.slice(0, -1), { ...move, kind: 'withdrawn', bad }, { p: who, kind: 'challenge', ok: true, of: p }];
   const back = { ...before, moves, log: state.log, hints: state.hints, clock: state.clock, pending: null, turn: who, zeros: before.zeros + 1 };
-  return back.zeros >= 2 * state.racks.length ? finish(back, 'passes') : back;
+  return back.zeros >= 2 * active(state).length ? finish(back, 'passes') : back;
 }
 
 // Every player passing (or exchanging) twice in a row ends the game - the Polish rule, "when every player passes twice in a row"; exchanges count too, so a game where nobody can move cannot run for ever.
+// (Every player still in it.)
 function scoreless(state, entry) {
   const zeros = state.zeros + 1;
   const after = { ...state, zeros, moves: [...state.moves, entry], turn: next(state, state.turn) };
-  return zeros >= 2 * state.racks.length ? finish(after, 'passes') : after;
+  return zeros >= 2 * active(state).length ? finish(after, 'passes') : after;
+}
+
+// Giving up (owner, 2026-09-27): with more than two players still in, that player just drops out - their tiles back
+// into the bag (shuffled in, as an exchange does), their turns skipped - and the others play on. The game ends once
+// fewer than two are left, or only computers. `removed`: an online game's host took them out.
+function quit(state, p, removed) {
+  const out = outOf(state);
+  if (out[p]) throw new Error('already out of the game');
+  const left = active(state).filter(q => q !== p);
+  if (left.length < 2 || left.every(q => state.players[q].cpu)) return finish(state, 'resign', -1, p);
+  const { list: bag, seed } = shuffle([...state.bag, ...state.racks[p]], state.seed);
+  const after = { ...state, bag, seed, out: out.map((o, q) => o || q === p), racks: state.racks.map((r, q) => q === p ? [] : r),
+    moves: [...state.moves, { p, kind: 'resign', ...(removed ? { removed: true } : {}) }] };
+  return state.turn === p ? { ...after, turn: next(after, p) } : after;
 }
 
 // The end: whoever emptied their rack gets everyone else's leftover points, and everyone loses their own; with a
 // clock per game, every started minute over costs 10. `out` = that player, or -1 (ended by passes: everyone just
-// loses their leftovers). `resigned` = a player who gave up: it ends the game for everyone, and the others are
-// ranked by their scores as they stand.
+// loses their leftovers; 'ended': the online host ended it, the same). `resigned` = the player whose giving up ended
+// it: the others are ranked by their scores as they stand. Nobody out of the game (gave up) can win.
 function finish(state, reason, out = -1, resigned = -1) {
+  const gone = outOf(state).map((o, p) => o || p === resigned);
   const left = state.racks.map(r => rackPoints(state.lang, r));
   const t = state.rules?.time, limit = t?.per === 'game' ? t.seconds * 1000 : Infinity;
   const late = state.clock.map(ms => ms > limit ? OVERTIME * Math.ceil((ms - limit) / 60000) : 0);
   const adjust = reason === 'resign' ? left.map(() => 0)
     : left.map((v, p) => (p === out ? left.reduce((s, x) => s + x, 0) - v : -v) - late[p]);
   const scores = state.scores.map((s, p) => s + adjust[p]);
-  const best = Math.max(...scores.filter((_, p) => p !== resigned));
-  const top = scores.map((s, p) => p !== resigned && s === best ? p : -1).filter(p => p >= 0);
-  return { ...state, scores, pending: null,
+  const best = Math.max(...scores.filter((_, p) => !gone[p]));
+  const top = scores.map((s, p) => !gone[p] && s === best ? p : -1).filter(p => p >= 0);
+  return { ...state, scores, pending: null, out: gone,
     over: { reason, adjust, late, winner: top.length === 1 ? top[0] : -1, by: reason === 'resign' ? resigned : out } };
 }
 

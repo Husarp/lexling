@@ -16,8 +16,9 @@ const parse = text => { try { return JSON.parse(text); } catch { return null; } 
 // ({ address, device }) - that phone goes straight back to its seat. game(): what a joining phone gets
 // ({ id, title, setup, log }). take(seat, n, action): a phone's move - the host plays it (true) or not (false).
 // send(conn, text) / drop(conn): the connections. onChange({ seat, name, left }): a seat filled or emptied.
-// onAsk(phone | null): a phone waits to be let in (one at a time), or nobody does any more.
-export function createHost({ players, me = 0, known = [], game, take, send, drop, onChange = () => {}, onAsk = () => {} }) {
+// onAsk(phone | null): a phone waits to be let in (one at a time), or nobody does any more. usable(seat): a seat a
+// phone can take (not a player out of the game). extra(): more for every phone with who is here (the seats skipped).
+export function createHost({ players, me = 0, known = [], game, take, send, drop, onChange = () => {}, onAsk = () => {}, usable = () => true, extra = () => ({}) }) {
   const seats = Array.from({ length: players }, (_, i) => ({ conn: null, heard: 0, address: known[i]?.address ?? null, device: known[i]?.device ?? '' }));
   const waiting = new Map();   // conn → { device, address, name, said } - connected, not seated yet
   let asking = null, sent = game().log.length;
@@ -26,15 +27,18 @@ export function createHost({ players, me = 0, known = [], game, take, send, drop
   const seatOf = conn => others().find(i => seats[i].conn === conn) ?? -1;
   const here = () => seats.map((s, i) => i === me || !!s.conn);
   const everyone = m => others().forEach(i => { if (seats[i].conn) say(seats[i].conn, m); });
-  const free = () => others().find(i => !seats[i].conn) ?? -1;
+  const empty = () => others().filter(i => !seats[i].conn && usable(i));
+  const free = () => empty()[0] ?? -1;
+  const welcome = (conn, seat) => say(conn, { t: 'welcome', v: PROTOCOL, seat, ...game(), here: here(), ...extra() });
+  const announce = () => everyone({ t: 'here', here: here(), ...extra() });
   function sit(conn, seat) {
     const w = waiting.get(conn);
     waiting.delete(conn);
     if (asking === conn) asking = null;
     seats[seat] = { conn, heard: Date.now(), address: w.address, device: w.device };
     onChange({ seat, name: w.name });   // the host takes the name in first, so the welcome carries it
-    say(conn, { t: 'welcome', v: PROTOCOL, seat, ...game(), here: here() });
-    everyone({ t: 'here', here: here() });
+    welcome(conn, seat);
+    announce();
   }
   function turnAway(conn, t) {
     waiting.delete(conn);
@@ -47,14 +51,14 @@ export function createHost({ players, me = 0, known = [], game, take, send, drop
   function review() {
     for (const [conn, w] of [...waiting]) {
       if (!w.said || conn === asking) continue;
-      const own = others().find(i => !seats[i].conn && seats[i].address && seats[i].address === w.address) ?? -1;
+      const own = empty().find(i => seats[i].address && seats[i].address === w.address) ?? -1;
       if (own >= 0) sit(conn, own);
       else if (free() < 0) turnAway(conn, 'full');
     }
     if (asking && waiting.has(asking)) return;
     if (free() < 0) for (const [conn, w] of [...waiting]) if (w.said) turnAway(conn, 'full');
     asking = [...waiting].find(([, w]) => w.said)?.[0] ?? null;
-    onAsk(asking === null ? null : { conn: asking, ...waiting.get(asking), seat: free() });
+    onAsk(asking === null ? null : { conn: asking, ...waiting.get(asking), seat: free(), seats: empty() });
   }
   function gone(conn) {
     const i = seatOf(conn), was = waiting.delete(conn);
@@ -62,13 +66,14 @@ export function createHost({ players, me = 0, known = [], game, take, send, drop
     if (i >= 0) {
       seats[i].conn = null;
       onChange({ seat: i, left: true });
-      everyone({ t: 'here', here: here() });
+      announce();
     }
     if (was || i >= 0) review();
   }
   return {
     here,
-    missing: () => others().filter(i => !seats[i].conn),
+    announce,
+    missing: empty,
     // who sat where last - saved with the game, so they go straight back to their seats next time
     known: () => seats.map((s, i) => i === me ? null : { address: s.address, device: s.device }),
     connected(conn, { name = '', address = '' } = {}) { waiting.set(conn, { device: name, address, name: '', said: false }); },
@@ -79,7 +84,7 @@ export function createHost({ players, me = 0, known = [], game, take, send, drop
       if (i >= 0) seats[i].heard = Date.now();
       if (m.t === 'hello') {
         if (m.v !== PROTOCOL) return turnAway(conn, 'version');
-        if (i >= 0) return say(conn, { t: 'welcome', v: PROTOCOL, seat: i, ...game(), here: here() });   // lost track: all again
+        if (i >= 0) return welcome(conn, i);   // lost track: all again
         const w = waiting.get(conn);
         if (!w) return;
         w.name = String(m.name ?? '').trim().slice(0, 16);
@@ -91,10 +96,20 @@ export function createHost({ players, me = 0, known = [], game, take, send, drop
       else if (m.t === 'bye') { gone(conn); drop(conn); }
     },
     disconnected: gone,
-    letIn(conn) {
-      const seat = free();
-      if (!waiting.has(conn) || seat < 0) return;
+    // let it in - into the seat the host picked, or the first free one
+    letIn(conn, seat = free()) {
+      if (!waiting.has(conn) || !empty().includes(seat)) return;
       sit(conn, seat);
+      review();
+    },
+    // the host took a player out: their phone is told and let go; nobody takes that seat any more
+    kick(seat, why = 'removed') {
+      const conn = seats[seat]?.conn;
+      if (!conn || seat === me) return;
+      seats[seat].conn = null;
+      say(conn, { t: 'end', why });
+      drop(conn);
+      announce();
       review();
     },
     refuse(conn) {

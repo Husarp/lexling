@@ -964,7 +964,6 @@ export function tilesJoinScreen(root, chosen) {
     <div class="card tl-join">
       <p class="tl-join-note"></p>
       <div class="tl-devices"></div>
-      <button class="btn btn-outline" type="button" data-search>${t('tiles.bt.searchAgain')}</button>
     </div>
   </main>
 </div>`;
@@ -975,27 +974,29 @@ export function tilesJoinScreen(root, chosen) {
     $('#join-help').textContent = t('net.joinHelp.' + kind);
     $('.tl-devices').innerHTML = [...found].map(([address, name]) =>
       `<button type="button" class="tl-device" data-address="${esc(address)}"${busy ? ' disabled' : ''}><strong>${esc(name || address)}</strong>${name && kind === 'bt' ? `<span class="help">${esc(address)}</span>` : ''}</button>`).join('');
-    $('[data-search]').disabled = busy || searching;
   };
   // its permission, its events, the list
   async function start() {
     paint();
     const ready = await netReady(kind).catch(() => 'unsupported');
     if (gone) return;
-    if (ready !== 'ok') { note('tiles.bt.' + ready); $('[data-search]').hidden = true; return; }
+    if (ready !== 'ok') return note('tiles.bt.' + ready);
     const on = async (event, fn) => { const h = await wire().on(event, fn); if (gone) h.remove(); else handles.push(h); };
     await on('found', d => { if (!found.has(d.address) || d.name) { found.set(d.address, d.name); if (!gone) paint(); } });
-    await on('searchDone', () => { searching = false; if (gone) return; paint(); if (!busy) note(found.size ? 'net.pick.' + kind : 'net.none.' + kind); });
+    // a round done: the list so far, and the next round
+    await on('searchDone', () => { searching = false; if (gone) return; paint(); if (!busy) { note(found.size ? 'net.pick.' + kind : 'net.none.' + kind, {}, !found.size); setTimeout(search, 1000); } });
     await on('message', ({ id, text }) => { if (id === conn) party?.message(text); });
     await on('disconnected', ({ id }) => { if (id === conn && !answer) answer = 'lost'; });
     for (const d of (await wire().paired().catch(() => ({ devices: [] }))).devices) found.set(d.address, d.name);
     if (!gone) search();
   }
   async function search() {
+    if (busy || gone || searching) return;
+    if (kind === 'lan' && !(await wire().state().catch(() => ({}))).on) { note('net.noWifi'); return setTimeout(search, 3000); }
     searching = true;
     paint();
-    note('net.searching.' + kind, {}, true);
-    try { await wire().search(); } catch { searching = false; paint(); note('tiles.bt.searchFailed'); }
+    if (!found.size) note('net.searching.' + kind, {}, true);
+    try { await wire().search(); } catch { searching = false; paint(); note('tiles.bt.searchFailed'); setTimeout(search, 3000); }
   }
   async function join(address) {
     busy = true;
@@ -1007,7 +1008,7 @@ export function tilesJoinScreen(root, chosen) {
     await wire().stopSearch().catch(() => {});
     try { conn = (await wire().join(address)).id; } catch {
       busy = false;
-      if (!gone) { paint(); note('tiles.bt.joinFailed', { name }); }
+      if (!gone) { paint(); note('tiles.bt.joinFailed', { name }); setTimeout(search, 2500); }
       return;
     }
     // who is joining - for the host to let in (up to 2 minutes); then its game
@@ -1020,7 +1021,7 @@ export function tilesJoinScreen(root, chosen) {
     note('tiles.bt.letInWait', { name }, true);
     for (let i = 0; i < 480 && !welcome && !answer && !gone; i++) await new Promise(r => setTimeout(r, 250));
     if (gone) return;
-    const fail = key => { wire().close(conn).catch(() => {}); conn = null; busy = false; paint(); note(key, { name }); };
+    const fail = key => { wire().close(conn).catch(() => {}); conn = null; busy = false; paint(); note(key, { name }); setTimeout(search, 2500); };
     if (!welcome) return fail({ refused: 'tiles.bt.refused', full: 'net.full', version: 'tiles.bt.version', lost: 'tiles.bt.joinFailed' }[answer] ?? 'tiles.bt.noGame');
     const m = welcome, dict = await loadTileWords(m.setup.lang).catch(() => null);
     if (!dict || dict.tag !== m.setup.words) return fail('tiles.bt.words');
@@ -1035,7 +1036,6 @@ export function tilesJoinScreen(root, chosen) {
   root.addEventListener('click', e => {
     const d = e.target.closest('[data-address]');
     if (d && !busy) join(d.dataset.address);
-    else if (e.target.closest('[data-search]') && !busy) search();
   });
   start();
   return () => {

@@ -194,8 +194,22 @@ const col = (r, c, word, blanks = []) => [...word].map((ch, i) => ({ r: r + i, c
   for (let i = 0; i < 9; i++) p = pass(p);
   check('five players: nine passes, still on', p.over, null);
   check('five players: ten passes (each twice) end it', pass(p).over.reason, 'passes');
+  // giving up with more than two in (owner, 2026-09-27): out of the game, tiles back to the bag, the rest play on
   const r = resign(five, 2);
-  check('giving up ends it for everyone; the rest ranked', [r.over.reason, r.over.by, r.over.winner], ['resign', 2, -1]);
+  check('five players: one gives up - the game goes on', [r.over, r.out, r.racks[2].length, r.bag.length], [null, [false, false, true, false, false], 0, five.bag.length + 7]);
+  check('… their turn skipped', (() => { let x = { ...five, turn: 1 }; x = resign(x, 2); return pass(x).turn; })(), 3);
+  check('… the one on turn gives up: the next plays', resign({ ...five, turn: 2 }, 2).turn, 3);
+  check('… giving up twice: refused', (() => { try { resign(r, 2); return 'ok'; } catch { return 'refused'; } })(), 'refused');
+  let four = r;
+  for (let i = 0; i < 7; i++) four = pass(four);
+  check('… four still in: eight passes end it', [four.over, pass(four).over?.reason], [null, 'passes']);
+  const last = resign(resign(resign(r, 0), 1), 3);
+  check('… until one is left: they win', [last.over?.reason, last.over?.winner, last.out], ['resign', 4, [true, true, true, true, false]]);
+  check('… nobody out of the game wins, even with the most points', (() => { const x = resign({ ...five, scores: [0, 0, 90, 60, 3] }, 2); return apply(x, { type: 'end' }).over.winner; })(), 3);
+  check('the host ends it: scored as usual', [apply(r, { type: 'end' }).over.reason, apply(r, { type: 'end' }).over.adjust.every(v => v <= 0)], ['ended', true]);
+  const alone = newGame({ lang: 'en', players: [{ name: 'A' }, { name: 'B', cpu: 'easy' }, { name: 'C', cpu: 'hard' }], seed: 3 });
+  check('the one person against computers gives up: over', resign(alone, 0).over?.reason, 'resign');
+  check('a turn skipped for a player away: a pass, marked', apply(five, { type: 'pass', away: true }).moves.at(-1), { p: five.turn, kind: 'pass', away: true });
 
   const s = en(), isWord = isEn;
   check('apply: place', apply(s, { type: 'place', placed: row(7, 7, 'cat') }, isWord).scores, [10, 0]);

@@ -8,7 +8,7 @@ import { net, netReady } from './net.js';
 import { loadWords, resolve } from './engine.js';
 import { has } from './dawg.js';
 import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, checkMove, apply, canExchange,
-  unseen, undo, loadTileWords, checkWord, fullBag, hintCost, BLANK, newGame as startOf } from './tiles.js';
+  unseen, undo, loadTileWords, checkWord, fullBag, hintCost, BLANK, newGame as startOf, outOf } from './tiles.js';
 import { hint as bestMove, hintLevels, sameMove, computerMove, lookBack, LEVELS } from './tiles-moves.js';
 import { topbar, modeTag, confirmClick, outcome, openDialog, settingRows, wireSettingRows, meaningButton, wordLink, gameTitle, remindBt } from './ui.js';
 import { fitAll } from './fit.js';
@@ -35,6 +35,7 @@ const DOT = '<span class="dot">·</span>';
 const ERR = { line: 'tiles.err.line', gap: 'tiles.err.gap', alone: 'tiles.err.touch', centre: 'tiles.err.centre', single: 'tiles.err.single' };
 // motion and zoom (design NOTES): the computer "thinks" 900 ms, who-starts shows 1200 ms; the board zooms in on
 // the move being built when its squares are under 32 px, and pinches up to 2.5 ×
+const SKIP_AFTER = 120000;   // several phones: a phone away this long has its player's turns skipped (owner: "some time")
 const THINK_MS = 900, TOAST_MS = 1200, SMALL = 32, AUTO_ZOOM = 2, ZOOM_MAX = 2.5;
 const clampPan = (v, z) => Math.min(0, Math.max(-(1 - 1 / z), v));
 
@@ -157,8 +158,11 @@ export async function tilesGameScreen(root, id) {
   let linkMe = linked ? game.link.me : -1;
   const remote = p => linked && p !== linkMe;
   const kind = game.link?.kind ?? 'bt', wire = linked ? net(kind) : null;
-  let party = null, linkUp = false, linkNote = '', retry = 0, beat = 0, askedVisible = false, myPhone = '';
+  let party = null, linkUp = false, linkNote = '', retry = 0, beat = 0, myPhone = '', myWifi = true;
   let asked = null, hereList = [], ended = '', lostAt = 0;   // host: a phone waiting to be let in; guest: who is there, why it ended
+  // a phone gone: waited for SKIP_AFTER, then its player's turns are passed (owner: "gives them some time, but after that
+  // it starts skipping their turn") - or at once when the host says so; the host can also take a player out
+  let skip = [], awaySince = [], askSeat = -1, skipArmed = 0, lastSkip = 0, skipTimer = 0, visibleDeclined = false, visAsking = false;
   const handles = [];
   // one person here (against computers, or on their own phone): their rack is always shown
   let solo = linked ? linkMe : people.length === 1 ? people[0] : -1;
@@ -210,7 +214,10 @@ export async function tilesGameScreen(root, id) {
     + (settings.tiles3d ? ' raised' : '');
   const myTurn = () => !S.over && !thinking && !toast && !handOver && !cpu(S.turn) && shown === S.turn && netOk();
   // several phones: every seat's phone there - and, on a joining phone, the host within reach
-  const netOk = () => !linked || (host ? !!party && !party.missing().length : linkUp && !ended && hereList.every(Boolean));
+  const netOk = () => !linked || (host ? !!party && !holding().length : linkUp && !ended && !holding().length);
+  const isOut = p => !!outOf(S)[p];
+  // the seats whose phone is missing and not skipped: they hold the game up
+  const holding = () => host ? (party?.missing() ?? []).filter(p => !skip[p]) : hereList.map((x, p) => x || isOut(p) || skip[p] ? -1 : p).filter(p => p >= 0);
   // The rack in the order its player arranged it (reorder, shuffle): the saved order, then any tiles new to it.
   const rackOf = p => {
     const left = [...S.racks[p]], out = [];
@@ -245,7 +252,7 @@ export async function tilesGameScreen(root, id) {
     // initial, the name, the score - the player to move ringed; the bag a dashed box of its own. With three players or more
     // the boxes scroll sideways, and the row follows the turn: the player to move slides to the front.
     const ini = initials(), tint = settings.tilesColours === true;
-    const chip = p => `<button type="button" class="ps pc${p}${!S.over && S.turn === p ? ' on' : ''}" data-open="hist" data-who="${p}" aria-label="${esc(nameOf(S, p))}: ${S.scores[p]}"><span class="pb${tint ? ' tint' : ''}" aria-hidden="true">${esc(ini[p])}</span><span class="nm">${esc(nameOf(S, p))}</span>${cpu(p) ? '' : `<span class="tm">${mmss(timeOf(p))}</span>`}<span class="sc">${S.scores[p]}${last(p)}${
+    const chip = p => `<button type="button" class="ps pc${p}${!S.over && S.turn === p ? ' on' : ''}${isOut(p) ? ' out' : ''}" data-open="hist" data-who="${p}" aria-label="${esc(nameOf(S, p))}: ${S.scores[p]}"><span class="pb${tint ? ' tint' : ''}" aria-hidden="true">${esc(ini[p])}</span><span class="nm">${esc(nameOf(S, p))}</span>${cpu(p) ? '' : `<span class="tm">${mmss(timeOf(p))}</span>`}<span class="sc">${S.scores[p]}${last(p)}${
       thinking && S.turn === p ? `<span class="tl-dots" aria-label="${t('tiles.thinking')}"><i></i><i></i><i></i></span>` : ''}</span></button>`;
     const was = status.querySelector('.ps-row')?.scrollLeft ?? 0;
     status.innerHTML = `<div class="ps-row${np > 2 ? ' many' : ''}">${S.players.map((_, p) => chip(p)).join('')}</div>
@@ -375,11 +382,19 @@ export async function tilesGameScreen(root, id) {
   // the connection
   function linkLine() {
     if (S.over) return '<p class="mc-link"></p>';
-    const line = (cls, text, dots) => `<p class="mc-link ${cls}"><i class="ld" aria-hidden="true"></i><span>${text}</span>${dots ? '<span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span>' : ''}</p>`;
+    const line = (cls, text, dots, extra = '') => `<p class="mc-link ${cls}"><i class="ld" aria-hidden="true"></i><span>${text}</span>${dots ? '<span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span>' : ''}${extra}</p>`;
+    const names = ps => ps.map(p => esc(nameOf(S, p))).join(', ');
     if (linkNote) return line('down', t(linkNote));
     if (!host && !linkUp) return line('down', t('net.lost', { name: esc(nameOf(S, hostSeat())) }), true);
-    const missing = host ? party?.missing() ?? [] : hereList.map((x, p) => x ? -1 : p).filter(p => p >= 0);
-    if (missing.length) return line('down', t('net.waitFor', { names: missing.map(p => esc(nameOf(S, p))).join(', ') }), true);
+    const wait = holding();
+    if (wait.length) {
+      // the host: how long until their turns are skipped, and a button to skip them now (asked twice - owner)
+      const left = host ? Math.min(...wait.map(p => awaySince[p] ? SKIP_AFTER - (Date.now() - awaySince[p]) : Infinity)) : Infinity;
+      return line('down', t('net.waitFor', { names: names(wait) }) + (left < Infinity ? ' ' + t('net.skipIn', { t: mmss(Math.max(0, left)) }) : ''), true,
+        host ? `<button class="btn btn-ghost mc-skip" type="button" data-act="netSkip">${t(skipArmed ? 'sure' : 'net.skip')}</button>` : '');
+    }
+    const skipped = S.players.map((_, p) => skip[p] && !isOut(p) && !(host ? party?.here()[p] : hereList[p]) ? p : -1).filter(p => p >= 0);
+    if (skipped.length) return line('down', t('net.skipping', { names: names(skipped) }));
     return remote(S.turn) ? line('on', t('tiles.bt.moving', { name: esc(nameOf(S, S.turn)) }), true) : line('on', t('net.yourMove'));
   }
 
@@ -455,7 +470,8 @@ export async function tilesGameScreen(root, id) {
       const quiet = m.kind !== 'play';
       const w = m.kind === 'play' ? words(m) + (m.bingo && S.rules.bingo ? `<small> +${S.rules.bingo}</small>` : '') + (m.hinted ? ` <small class="tag">${t('tiles.rate.hinted')}</small>` : '')
         : m.kind === 'hint' ? t('tiles.hist.hint', { level: t('tiles.hint.' + m.level) })
-        : m.kind === 'swap' ? t('tiles.hist.exchanged', { n: m.n }) : m.kind === 'pass' ? t('tiles.hist.passed')
+        : m.kind === 'swap' ? t('tiles.hist.exchanged', { n: m.n }) : m.kind === 'pass' ? t(m.away ? 'tiles.hist.away' : 'tiles.hist.passed')
+          : m.kind === 'resign' ? t(m.removed ? 'tiles.hist.removed' : 'tiles.hist.resigned')
           : m.kind === 'timeout' ? t('tiles.hist.timeout') : m.kind === 'withdrawn' ? `${words(m)} · ${t('tiles.hist.withdrawn')}`
             : t(m.ok ? 'tiles.hist.challengeWon' : 'tiles.hist.challengeLost');
       const ev = rated && m.kind === 'play' && game.evals?.[i], r = ev && rateOf(m.score, ev.best);
@@ -511,16 +527,19 @@ export async function tilesGameScreen(root, id) {
     }
     if (asked) {
       const who = asked.name ? `${esc(asked.name)} (${esc(asked.device || asked.address)})` : esc(asked.device || asked.address);
-      html += `<div class="tl-hand tl-wait" role="dialog"><strong>${t('tiles.bt.asks', { who })}</strong><p class="help">${t('net.asksSeat', { name: `<b>${esc(nameOf(S, asked.seat))}</b>` })} ${
-        t(game.link.seats?.[asked.seat]?.address ? 'tiles.bt.asksOther' : 'tiles.bt.asksHelp')}</p><div class="acts"><button class="btn btn-primary" type="button" data-act="netLetIn">${
+      if (!asked.seats?.includes(askSeat)) askSeat = asked.seat;
+      // more than one seat free: the host picks which player the phone takes over (owner, 2026-09-27)
+      const pick = asked.seats?.length > 1 ? `<div class="tl-seatpick" role="radiogroup">${asked.seats.map(p => `<button type="button" class="chip pc${p}${p === askSeat ? ' on' : ''}" data-act="netSeat" data-seat="${p}" role="radio" aria-checked="${p === askSeat}"><i class="dot-p" aria-hidden="true"></i>${esc(nameOf(S, p))}</button>`).join('')}</div>` : '';
+      html += `<div class="tl-hand tl-wait" role="dialog"><strong>${t('tiles.bt.asks', { who })}</strong><p class="help">${t(pick ? 'net.asksPick' : 'net.asksSeat', { name: `<b>${esc(nameOf(S, askSeat))}</b>` })} ${
+        t(game.link.seats?.[askSeat]?.address ? 'tiles.bt.asksOther' : 'tiles.bt.asksHelp')}</p>${pick}<div class="acts"><button class="btn btn-primary" type="button" data-act="netLetIn">${
         t('tiles.bt.letIn')}</button><button class="btn btn-ghost" type="button" data-act="netRefuse">${t('tiles.bt.refuse')}</button></div></div>`;
     } else if (waitCard()) {
       const here = party?.here() ?? [];
-      const seats = S.players.map((_, p) => p === linkMe ? '' : `<li class="pc${p}${here[p] ? ' in' : ''}"><i class="dot-p" aria-hidden="true"></i><span>${esc(nameOf(S, p))}</span><small>${
+      const seats = S.players.map((_, p) => p === linkMe || isOut(p) ? '' : `<li class="pc${p}${here[p] ? ' in' : ''}"><i class="dot-p" aria-hidden="true"></i><span>${esc(nameOf(S, p))}</span><small>${
         t(here[p] ? 'net.seat.in' : 'net.seat.wait')}</small></li>`).join('');
       html += `<div class="tl-hand tl-wait" role="dialog"><span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span><strong>${t(S.players.length > 2 ? 'net.waiting' : 'tiles.bt.waiting')}</strong>${
         myPhone ? `<p class="tl-phone">${kind === 'bt' ? t('tiles.bt.thisPhone', { name: `<b>${esc(myPhone)}</b>` }) : t('net.thisGame', { name: `<b>${esc(lanName())}</b>` })}</p>` : ''}<ul class="tl-seats">${seats}</ul><p class="help">${
-        linkNote ? t(linkNote) : t(kind === 'bt' ? 'tiles.bt.waitingHelp' : 'net.waitingHelpLan')}</p><div class="acts">${linkNote ? `<button class="btn btn-primary" type="button" data-act="netRetry">${
+        linkNote ? t(linkNote) : t(kind === 'bt' ? 'tiles.bt.waitingHelp' : 'net.waitingHelpLan')}${kind === 'lan' && !myWifi ? ' ' + t('net.hostNoWifi') : ''}</p><div class="acts">${kind === 'bt' && visibleDeclined ? `<button class="btn btn-primary" type="button" data-act="netVisible">${t('net.visible')}</button>` : ''}${linkNote ? `<button class="btn btn-primary" type="button" data-act="netRetry">${
         t('tiles.bt.retry')}</button>` : ''}<button class="btn btn-ghost" type="button" data-act="netLeave">${t(S.log.length ? 'game.saveExit' : 'tiles.cancel')}</button></div></div>`;
     } else if (linked && !host && ended && !S.over) {
       const name = `<b>${esc(nameOf(S, hostSeat()))}</b>`;
@@ -654,7 +673,17 @@ export async function tilesGameScreen(root, id) {
       if (!S.log.length) { stopLink(); deleteSave(game.id); }
       location.replace('#/games/tiles');
     },
-    netLetIn() { if (asked) party.letIn(asked.conn); },
+    netLetIn() { if (asked) party.letIn(asked.conn, askSeat); },
+    netSeat(el) { askSeat = +el.dataset.seat; paintOver(); },
+    // the host: skip the players the game waits for - asked twice (owner)
+    netSkip() {
+      if (!host || !party) return;
+      if (!skipArmed) { skipArmed = setTimeout(() => { skipArmed = 0; if (app.isConnected) paintSay(); }, 3000); return paintSay(); }
+      clearTimeout(skipArmed);
+      skipArmed = 0;
+      skipSeats(holding());
+    },
+    netVisible() { visibleDeclined = false; paintOver(); askVisible(false); },
     netRefuse() { if (asked) party.refuse(asked.conn); },
     netRetry() {
       linkNote = '';
@@ -1026,7 +1055,7 @@ export async function tilesGameScreen(root, id) {
     }
     if (el.dataset.ch) return pickLetter(el.dataset.ch);
     if (el.dataset.level) return pickHint(el.dataset.level);
-    TOOLS[el.dataset.act]?.();
+    TOOLS[el.dataset.act]?.(el);
   });
   // A button pressed with the pointer does not take the focus: Enter would press it again instead of playing.
   app.addEventListener('pointerdown', e => { if (e.target.closest('.tl-dock button, .status button')) e.preventDefault(); });
@@ -1079,7 +1108,7 @@ export async function tilesGameScreen(root, id) {
   function paintEnd() {
     app.classList.remove('fit');
     const o = S.over, np = S.players.length, whose = people.length ? people : S.players.map((_, p) => p);
-    const inPlay = p => !(o.reason === 'resign' && p === o.by);
+    const inPlay = p => !outOf(S)[p] && !(o.reason === 'resign' && p === o.by);
     const best = Math.max(...S.scores.filter((_, p) => inPlay(p)));
     let tone, what, pts;
     if (solo >= 0) {
@@ -1102,7 +1131,7 @@ export async function tilesGameScreen(root, id) {
     // what the leftover tiles did to the scores (and the clock, per game)
     const sign = v => v > 0 ? '+' + v : v < 0 ? '−' + -v : '0';
     const why = o.reason === 'out' ? (o.by === solo ? t('tiles.end.outYou') : t('tiles.end.out', { name: esc(nameOf(S, o.by)) }))
-      : o.reason === 'passes' ? t('tiles.end.passes') : t('tiles.end.stopped');
+      : o.reason === 'passes' ? t('tiles.end.passes') : o.reason === 'ended' ? t('tiles.end.ended') : t('tiles.end.stopped');
     const adjust = o.reason === 'resign' ? '' : ' ' + S.players.map((_, p) => `${esc(nameOf(S, p))} ${sign(o.adjust[p] + o.late[p])}`).join(' · ');
     const late = o.late.map((v, p) => v ? t('tiles.end.late', { name: esc(nameOf(S, p)), n: v }) : '').filter(Boolean).join(' · ');
     // the best word of the game, in tiles (a blank pale, no points)
@@ -1138,12 +1167,13 @@ export async function tilesGameScreen(root, id) {
       ${people.length ? `<p class="calc tl-times">${t('tiles.end.time')}: ${people.map(p => `${esc(nameOf(S, p))} ${mmss(S.clock?.[p] || 0)}`).join(' · ')}</p>` : ''}
       ${top ? `<div class="tl-best"><span class="eyebrow">${t('tiles.end.bestWord')}</span><span class="mt-row">${tilesOf(top)}</span><span class="num">${top.score}</span></div>` : ''}
       <div class="result-stats"><span><b>${bingos}</b> ${plural(bingos, 'tiles.end.bingos')}</span>${DOT}<span><b>${hints}</b> ${plural(hints, 'tiles.end.hints')}</span>${DOT}<span>${t('tiles.board.' + S.board)}</span></div>
-      <div class="result-actions"><a class="btn btn-ghost" href="#/">${t('menu')}</a><a class="btn btn-primary" href="#/new/tiles">${t('lt.again')} <span class="arrow">→</span></a></div>
+      <div class="result-actions"><a class="btn btn-ghost" href="#/">${t('menu')}</a><a class="btn btn-primary" href="${linked ? '#/online' : '#/new/tiles'}">${t('lt.again')} <span class="arrow">→</span></a></div>
     </div>
     ${people.length ? `<div class="card tl-fair"><span class="eyebrow">${t('tiles.fair.title')}</span>${people.map(fairOf).join('')}</div>` : ''}
     <div class="tl-final"><div class="tl-board"><div class="tb n${n}${looks()}" style="--n:${n}">${boardInner(S)}</div></div></div>
     <div class="card tl-look" hidden></div>`;
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    cells.observe(main.querySelector('.tl-final .tb'));
     refit();
     // How the game went (the owner's plan, 2026-09-26 for every player): each player's points against the best there
     // was, then every turn - who, what, its rating, the best move. It replays the game, so it comes a moment after the rest.
@@ -1191,13 +1221,25 @@ export async function tilesGameScreen(root, id) {
   function openOptions() {
     if (S.over) return;
     const settingsItems = [['sound', t('set.sound'), t('set.soundDesc')],
-      ...(S.rules.rating === false ? [] : [['tilesRate', t('tiles.rate.setting'), t('tiles.rate.settingHelp'), RATE_LOOKS.map(([v, k]) => [v, t('tiles.rate.look.' + k)])]])];
+      ...(S.rules.rating === false ? [] : [['tilesRate', t('tiles.rate.setting'), t('tiles.rate.settingHelp') + (S.rules.rating === 'score' ? ' ' + t('tiles.rate.fixed') : ''), RATE_LOOKS.map(([v, k]) => [v, t('tiles.rate.look.' + k)])]])];
     const lookItems = [['tilesColours', t('tiles.colours'), t('tiles.coloursHelp'), COLOUR_LOOKS.map(([v, k]) => [v, t('tiles.colours.' + k)])],
       ['tilesTile', t('tiles.tile'), t('tiles.tileHelp'), TILE_LOOKS.map(([k, c]) => [k, tileSwatch(c), t('tiles.tile.' + k)])], ['tiles3d', t('tiles.raised'), t('tiles.raisedHelp')],
       ['tilesBonus', t('tiles.bonus'), t('tiles.bonusHelp'), BONUS_LOOKS.map(([v, k]) => [v, t('tiles.bonus.' + k)])]];
     const sec = (title, items) => `<details class="op-sec" name="tl-options"><summary><span>${title}</span><span class="arrow" aria-hidden="true">›</span></summary><div class="op-body">${settingRows(items)}</div></details>`;
     const { dlg, close } = openDialog(t('tiles.options'), `<div class="op-go"><button class="btn btn-outline" type="button" data-go="hist">${LIST}<span>${t('tiles.history')}</span></button><button class="btn btn-outline" type="button" data-go="guide"><b aria-hidden="true">?</b><span>${t('tiles.guide')}</span></button></div>${
-      sec(t('tiles.opt.settings'), settingsItems)}${sec(t('tiles.visual'), lookItems)}<button class="btn btn-ghost btn-danger op-quit" type="button">${t('game.giveUp')}</button>`);
+      sec(t('tiles.opt.settings'), settingsItems)}${sec(t('tiles.visual'), lookItems)}${host ? hostSection() : ''}<button class="btn btn-ghost btn-danger op-quit" type="button">${t('game.giveUp')}</button>${
+      host ? `<button class="btn btn-ghost btn-danger op-end" type="button">${t('net.endGame')}</button>` : ''}`);
+    // the rules keep the best move hidden in this game (an online host's choice, fixed at the start): not the player's
+    // to switch on (owner, 2026-09-27) - ratings alone or none are
+    if (S.rules.rating === 'score') dlg.querySelectorAll('[data-key=tilesRate][data-v=true]').forEach(b => {
+      b.disabled = true;
+      if (b.classList.contains('on')) { b.classList.remove('on'); dlg.querySelector('[data-key=tilesRate][data-v=score]')?.classList.add('on'); }
+    });
+    // the host: skip or remove a player, end the game - each asked twice
+    dlg.querySelectorAll('[data-skip]').forEach(b => confirmClick(b, () => { close(); skipSeats([+b.dataset.skip]); }, () => fitAll(dlg)));
+    dlg.querySelectorAll('[data-remove]').forEach(b => confirmClick(b, () => { close(); removeSeat(+b.dataset.remove); }, () => fitAll(dlg)));
+    const endAll = dlg.querySelector('.op-end');
+    if (endAll) confirmClick(endAll, () => { close(); thinking = false; act({ type: 'end' }, true); }, () => fitAll(dlg));
     wireSettingRows(dlg, key => { if (key === 'tilesTile') applyTileLook(); repaint(); });
     // one section open at a time (the shared name does it where the browser knows it)
     dlg.querySelectorAll('.op-sec').forEach(d => d.addEventListener('toggle', () => { if (d.open) dlg.querySelectorAll('.op-sec').forEach(o => { if (o !== d) o.open = false; }); }));
@@ -1212,8 +1254,42 @@ export async function tilesGameScreen(root, id) {
   const setupOf = () => ({ lang: S.lang, board: S.board, players: S.players, first: S.start.first, seed: S.start.seed, words: S.words, rules: S.rules });
   const hostSeat = () => host ? linkMe : game.link.hostSeat ?? 0;
   const lanName = () => `${gameName(game)} · ${myPhone}`.slice(0, 60);
+  // the host's players in Options: each with how they are, Skip (while away) and Remove
+  function hostSection() {
+    const here = party?.here() ?? [];
+    const rows = S.players.map((_, p) => p === linkMe ? '' : `<li class="pc${p}"><i class="dot-p" aria-hidden="true"></i><span>${esc(nameOf(S, p))}</span><small>${
+      t(isOut(p) ? 'net.seat.out' : here[p] ? 'net.seat.in' : skip[p] ? 'net.seat.skipped' : 'net.seat.away')}</small>${isOut(p) ? '' : `${
+      !here[p] && !skip[p] ? `<button class="btn btn-ghost" type="button" data-skip="${p}">${t('net.skip')}</button>` : ''}<button class="btn btn-ghost btn-danger" type="button" data-remove="${p}">${t('net.remove')}</button>`}</li>`).join('');
+    return `<details class="op-sec" name="tl-options"><summary><span>${t('net.players')}</span><span class="arrow" aria-hidden="true">›</span></summary><div class="op-body"><ul class="tl-seats op-players">${rows}</ul><p class="help">${t('net.playersHelp')}</p></div></details>`;
+  }
+  function skipSeats(ps) {
+    ps.forEach(p => { skip[p] = true; });
+    party?.announce();
+    paintAll();
+    if (!S.over) next();
+  }
+  // out of the game: the engine's giving up, marked as the host's doing; their phone told and let go
+  function removeSeat(p) {
+    if (S.over || isOut(p)) return;
+    thinking = false;
+    act({ type: 'resign', p, removed: true }, true);
+    party?.kick(p);
+  }
+  // Bluetooth: findable for the phones still to come - asked again once it has run out (owner: "ask him again"); not
+  // again after a no, until the button
+  async function askVisible(onlyIfHidden) {
+    if (visAsking || !party) return;
+    visAsking = true;
+    const s = await wire.state().catch(() => ({}));
+    if (!onlyIfHidden || s.visible === false) {
+      const r = await wire.beVisible(300).catch(() => ({}));
+      if (!r.visible) visibleDeclined = true;
+      if (app.isConnected) paintAll();
+    }
+    visAsking = false;
+  }
   // host: the wait over the board - while the game has no move yet, or while nobody at all is in
-  const waitCard = () => host && !asked && !!party?.missing().length && (!S.log.length || party.missing().length === S.players.length - 1) && !S.over;
+  const waitCard = () => host && !asked && !!holding().length && (!S.log.length || holding().length === S.players.filter((_, p) => p !== linkMe && !isOut(p)).length) && !S.over;
   // the players' names, seat by seat (from the host, or a joining phone's own)
   function setNames(names) {
     if (names.every((x, p) => (S.players[p]?.name ?? '') === (x ?? ''))) return;
@@ -1227,30 +1303,50 @@ export async function tilesGameScreen(root, id) {
     if (host) {
       // (a game from 0.52 remembers its one other phone as `peer`)
       const known = game.link.seats ?? (game.link.peer ? [null, { address: game.link.peer.address, device: game.link.peer.name }] : []);
-      party = createHost({ players: S.players.length, me: linkMe, known,
+      party = createHost({ players: S.players.length, me: linkMe, known, usable: p => !isOut(p), extra: () => ({ skip }),
         game: () => ({ id: game.link.id, title: gameName(game), host: linkMe, setup: setupOf(), log: S.log }),
         // a phone's move: its seat's turn (giving up: its own seat, any time), everyone there, the game where the phone
         // thought it was
         take: (seat, n, action) => {
-          if (S.over || n !== S.log.length || party.missing().length || (action.type === 'resign' ? action.p !== seat : S.turn !== seat)) return false;
+          if (S.over || n !== S.log.length || holding().length || (action.type === 'resign' ? action.p !== seat : S.turn !== seat)) return false;
           thinking = false;
           return act(action, true);
         },
         send: (conn, text) => { wire.send(conn, text).catch(() => {}); },
         drop: conn => setTimeout(() => wire.close(conn).catch(() => {}), 500),   // what was said to it goes first
-        onChange: ({ seat, name }) => {
+        onChange: ({ seat, name, left }) => {
+          // gone mid-game: the time until its turns are skipped starts; back: not skipped any more
+          if (left) awaySince[seat] = S.log.length && !S.over ? Date.now() : 0;
+          else { awaySince[seat] = 0; skip[seat] = false; }
           if (name) { setNames(S.players.map((x, p) => p === seat ? name : x.name)); party.names(S.players.map(x => x.name)); }
           game.link.seats = party.known();
           putSave(game);
           paintAll();
-          if (!S.over && !party.missing().length) next();
+          if (!S.over && !holding().length) next();
         },
         onAsk: phone => { asked = phone; paintAll(); },
       });
       await on('connected', c => { if (c.role === 'host') party?.connected(c.id, c); });
       await on('message', ({ id, text }) => party?.message(id, text));
       await on('disconnected', ({ id }) => party?.disconnected(id));
-      beat = setInterval(() => { if (!app.isConnected) return clearInterval(beat); party?.tick(); }, 5000);
+      beat = setInterval(() => {
+        if (!app.isConnected) return clearInterval(beat);
+        party?.tick();
+        if (kind === 'bt' && party?.missing().length && !visibleDeclined) askVisible(true);
+      }, 5000);
+      // every second: the ones away long enough get skipped; a skipped player's turn is passed for them
+      skipTimer = setInterval(() => {
+        if (!app.isConnected || !party) return clearInterval(skipTimer);
+        if (S.over) return;
+        const late = party.missing().filter(p => !skip[p] && awaySince[p] && Date.now() - awaySince[p] > SKIP_AFTER);
+        if (late.length) return skipSeats(late);
+        if (holding().some(p => awaySince[p])) paintSay();   // the countdown
+        if (skip[S.turn] && party.missing().includes(S.turn) && !holding().length && Date.now() - lastSkip > 1200) {
+          lastSkip = Date.now();
+          thinking = false;
+          act({ type: 'pass', away: true }, true);
+        }
+      }, 1000);
       hosting();
     } else {
       party = createGuest({ name: settings.btName ?? '', send: text => { if (game.link.conn) wire.send(game.link.conn, text).catch(() => {}); }, on: {
@@ -1261,9 +1357,9 @@ export async function tilesGameScreen(root, id) {
           else if (!(m.n < S.log.length && JSON.stringify(S.log[m.n]) === JSON.stringify(m.a))) party.resync();   // lost track
         },
         names: m => setNames(m.names),
-        here: m => { hereList = m.here; paintAll(); if (netOk() && !S.over) next(); },
+        here: m => { hereList = m.here; skip = m.skip ?? []; paintAll(); if (netOk() && !S.over) next(); },
         reject: () => { msg = { html: t('net.rejected'), err: true }; party.resync(); },
-        end: m => { if (S.over) return; ended = m.why === 'left' ? 'left' : 'lost'; closeGuest(); },
+        end: m => { if (S.over) return; ended = m.why === 'removed' ? 'removed' : 'left'; closeGuest(); },
         refused: () => { ended = 'refused'; closeGuest(); },
         full: () => { ended = 'full'; closeGuest(); },
         version: () => { ended = 'version'; closeGuest(); },
@@ -1284,8 +1380,10 @@ export async function tilesGameScreen(root, id) {
     const ready = await netReady(kind).catch(() => 'unsupported');
     if (!app.isConnected || !party) return;
     if (ready !== 'ok') { linkNote = 'tiles.bt.' + ready; return paintAll(); }
-    myPhone = (await wire.state().catch(() => ({}))).name || '';
-    if (kind === 'bt' && party.missing().length === S.players.length - 1 && !askedVisible) { askedVisible = true; await wire.beVisible(300).catch(() => {}); }
+    const s = await wire.state().catch(() => ({}));
+    myPhone = s.name || '';
+    myWifi = s.on !== false;
+    if (kind === 'bt' && party.missing().length) await askVisible(true);
     await wire.host(kind === 'lan' ? lanName() : 'Lexling').catch(() => { linkNote = 'net.cannotHost'; });
     paintAll();
   }
@@ -1293,6 +1391,7 @@ export async function tilesGameScreen(root, id) {
   // course of the game) everything rebuilt
   function welcomed(m) {
     hereList = m.here;
+    skip = m.skip ?? [];
     game.link.hostSeat = m.host;
     if (m.title) game.title = m.title;
     const had = S.log, now = m.log;
@@ -1316,6 +1415,7 @@ export async function tilesGameScreen(root, id) {
   function up() {
     linkUp = true;
     lostAt = 0;
+    if (ended === 'lost') ended = '';
     linkNote = '';
     party?.connected();
     paintAll();
@@ -1338,11 +1438,11 @@ export async function tilesGameScreen(root, id) {
     game.link.conn = null;
     paintAll();
   }
-  // a joining phone: to the host again, for a minute
+  // a joining phone: to the host again - all the time (owner); after a minute it says the connection is lost, and keeps trying
   async function connect() {
     clearTimeout(retry);
-    if (!app.isConnected || linkUp || S.over || ended || !party) return;
-    if (Date.now() - lostAt > 60000) { ended = 'lost'; return paintAll(); }
+    if (!app.isConnected || linkUp || S.over || (ended && ended !== 'lost') || !party) return;
+    if (!ended && Date.now() - lostAt > 60000) { ended = 'lost'; paintAll(); }
     const ready = await netReady(kind).catch(() => 'unsupported');
     if (ready !== 'ok') { linkNote = 'tiles.bt.' + ready; paintAll(); return retryLater(); }
     linkNote = '';
@@ -1352,6 +1452,8 @@ export async function tilesGameScreen(root, id) {
   function stopLink() {
     clearTimeout(retry);
     clearInterval(beat);
+    clearInterval(skipTimer);
+    clearTimeout(skipArmed);
     if (party && host) party.end(S.over ? 'over' : 'left');
     else if (party && linkUp) party.leave();
     handles.splice(0).forEach(h => h.remove());
@@ -1363,6 +1465,10 @@ export async function tilesGameScreen(root, id) {
   // ── start ──
   function endToast() { if (!toast) return; toast = false; if (app.isConnected) next(); }
   wide = app.clientWidth >= 900;
+  // the squares' size in pixels: the tiles' points are drawn at 10px and scaled to a quarter of a square - Android draws
+  // no text under 8px, so on a narrow phone they grew over the letters (owner, 2026-09-27: "numbers should never overlap")
+  const cells = new ResizeObserver(entries => entries.forEach(e => { const el = e.target; el.style.setProperty('--cpx', ((el.offsetWidth - (n - 1)) / n).toFixed(2)); }));
+  cells.observe(tb);
   const resize = new ResizeObserver(() => {
     if (!app.isConnected) return resize.disconnect();
     if ((app.clientWidth >= 900) !== wide && !S.over) { wide = !wide; paintMore(); }
@@ -1399,6 +1505,7 @@ export async function tilesGameScreen(root, id) {
     if (linked) { stopLink(); if (!host) deleteSave(game.id); if (kind === 'bt') remindBt(); }
     document.removeEventListener('keydown', onKey, true);
     clearInterval(tick);
+    cells.disconnect();
     resize.disconnect();
     stop();
   };

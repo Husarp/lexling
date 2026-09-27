@@ -302,7 +302,8 @@ export function lookBack(state, dict, everyone = false) {
   const states = replay(state, w => has(dict, w)), out = [];
   state.log.forEach((a, i) => {
     const before = states[i];
-    if (!['place', 'exchange', 'pass', 'timeout'].includes(a.type) || (!everyone && before.players[before.turn].cpu)) return;
+    // (a turn passed for a player whose phone was away is no move of theirs)
+    if (!['place', 'exchange', 'pass', 'timeout'].includes(a.type) || a.away || (!everyone && before.players[before.turn].cpu)) return;
     const best = hint(before, dict);
     const made = a.type === 'place' ? wordsMade(before, a.placed) : null;
     out.push({ i, p: before.turn, kind: a.type, played: made ? made.score : 0, word: made?.words[0]?.w ?? '', hinted: a.hint ?? null,

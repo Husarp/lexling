@@ -81,6 +81,10 @@ public class BluetoothLinkPlugin extends Plugin {
         r.put("on", adapter != null && adapter.isEnabled());
         r.put("allowed", allowed());
         r.put("connected", links.count() > 0);
+        // findable by other phones' search right now (it runs out: the host asks again)
+        boolean visible = false;
+        try { visible = adapter != null && allowed() && adapter.getScanMode() == BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE; } catch (SecurityException e) { /* unknown */ }
+        r.put("visible", visible);
         call.resolve(r);
     }
 

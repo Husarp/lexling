@@ -840,6 +840,9 @@ input,textarea{-webkit-user-select:text;user-select:text}
    plain element and only squares with a tile cost a second one) */
 .t{position:relative;min-width:0;min-height:0;z-index:1;display:grid;place-items:center;border-radius:calc(var(--cs) * .14);background:var(--tl-tile);color:var(--tl-ink);font:700 calc(var(--cs) * .62)/1 var(--font-body);font-style:normal;text-transform:uppercase}
 .t .p{position:absolute;right:9%;bottom:12%;font:700 calc(var(--cs) * .25)/1 var(--font-body);font-style:normal}
+/* where the board knows its squares in pixels (--cpx, tiles-game.js): the points drawn at 10px and scaled to a quarter of
+   a square - Android draws no text under 8px, which pushed them over the letters on a narrow phone (owner, 2026-09-27) */
+.tb[style*="--cpx"] .t .p{font-size:10px;transform:scale(calc(var(--cpx) * .025));transform-origin:100% 100%}
 .t .p:empty{display:none}
 /* a blank once down: a tile like any other, its letter and no number - no paler colour, no dashes (owner, 2026-09-26:
    "it is enough that there is no number") */
@@ -1408,7 +1411,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .op-sec summary::-webkit-details-marker{display:none}
 .op-sec summary .arrow{color:var(--text-muted);transition:transform var(--dur) var(--ease)}
 .op-sec[open] summary .arrow{transform:rotate(90deg)}
-.op-quit{width:100%;margin-top:10px}
+.op-quit,.op-end{width:100%;margin-top:10px}
 /* Undo and Redo beside Play, on its row */
 .tl-dock .br{flex-basis:100%;height:0}
 .tl-dock .ur{flex:none;width:52px;min-height:48px;padding:0}
@@ -1459,3 +1462,10 @@ input,textarea{-webkit-user-select:text;user-select:text}
 @media (hover:hover){.tl-kind:hover,.tl-role:hover{border-color:var(--accent)}}
 .tl-online-kind{margin:0 0 var(--space-3)}
 .tl-online-kind .eyebrow{margin-right:6px}
+/* online games, 0.54.0: a player out of the game; skipping from the status line; the seat a phone takes; the host's players */
+.ps.out{opacity:.45}
+.tl-moves .mc-link .mc-skip{min-height:0;margin-left:4px;padding:2px 10px;font-size:11px;letter-spacing:.04em}
+.tl-seatpick{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.tl-seatpick .dot-p{flex:none;display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--pc)}
+.op-players li{flex-wrap:wrap}
+.op-players .btn{min-height:0;padding:3px 10px;font-size:12px}

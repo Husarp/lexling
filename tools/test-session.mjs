@@ -136,5 +136,27 @@ function table(players = 3) {
   check('guest: a quiet host shows up in tick()', (() => { const g = createGuest({ name: '', send: () => {} }); g.connected(); Date.now = () => real() + QUIET + 1; const r = g.tick(); Date.now = real; return r; })(), true);
 }
 
+// ── the host picks the seat; a seat out of the game is not taken; a player removed ──
+{
+  const h = table(3), a = h.phone('c1', 'AA'), b = h.phone('c2', 'BB');
+  a.connect(); h.run();
+  check('the host is offered the free seats', h.asks.at(-1)?.seats, [1, 2]);
+  h.session.letIn('c1', 2); h.run();
+  check('the phone sits where the host put it', a.seat, 2);
+  b.connect(); h.run();
+  h.session.letIn('c2', 2); h.run();
+  check('a taken seat: not let in there', b.seat, -1);
+  h.session.letIn('c2', 1); h.run();
+  check('… the free one then', b.seat, 1);
+  h.session.kick(1); h.run();
+  check('removed: told, and let go', [b.events.includes('end:removed'), b.events.includes('dropped'), h.session.missing()], [true, true, [1]]);
+}
+{
+  const gone = new Set([2]);
+  // a host whose seat 2 is out of the game
+  const s2 = createHost({ players: 3, me: 0, game: () => ({ id: 'g', title: '', setup: {}, log: [] }), take: () => false, send: () => {}, drop: () => {}, usable: i => !gone.has(i), onAsk: () => {} });
+  check('a seat out of the game: neither missing nor free', s2.missing(), [1]);
+}
+
 console.log(fail ? `${fail} of ${pass + fail} session tests FAILED` : `all ${pass} session tests passed`);
 process.exit(fail ? 1 : 0);
