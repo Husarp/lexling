@@ -984,7 +984,8 @@ export function tilesOnlineScreen(root) {
 export function tilesJoinScreen(root, chosen) {
   const kinds = netKinds();
   const kind = kinds.includes(chosen) ? chosen : kinds.includes(settings.netKind) ? settings.netKind : kinds[0] ?? 'bt';
-  const found = new Map();   // address → name
+  // address → { name, rssi, seen }: phones found near by, dropped once not seen for a while
+  const found = new Map();
   let busy = false, gone = false, joined = false, searching = false, answer = '', welcome = null, conn = null, party = null;
   const handles = [];
   root.innerHTML = `<div class="app" data-screen="new">
@@ -993,6 +994,11 @@ export function tilesJoinScreen(root, chosen) {
     <h1 class="title">${t('net.join')}</h1>
     <p class="help tl-online-kind"><span class="eyebrow">${t('net.step.kind')}</span> ${t('net.kind.' + kind)}</p>
     <p class="help" id="join-help"></p>
+    <div class="field">
+      <span class="eyebrow">${t('net.forHost')}</span>
+      <input class="input" type="text" id="bt-name" maxlength="16" autocomplete="off" value="${esc(settings.btName ?? '')}" aria-label="${t('net.forHost')}">
+      <p class="help">${t('net.forHostHelp')}</p>
+    </div>
     <div class="card tl-join">
       <p class="tl-join-note"></p>
       <div class="tl-devices"></div>
@@ -1002,9 +1008,11 @@ export function tilesJoinScreen(root, chosen) {
   const $ = sel => root.querySelector(sel);
   const wire = () => net(kind);
   const note = (key, vars, dots) => { $('.tl-join-note').innerHTML = (dots ? '<span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span> ' : '') + t(key, vars); };
+  // what went wrong, small under the note - to tell a phone out of reach from one not hosting
+  const why = e => { const m = String(e?.message ?? e ?? '').replace(/^cannot connect:\s*/, ''); if (m) $('.tl-join-note').insertAdjacentHTML('beforeend', `<small class="tl-why">${esc(m)}</small>`); };
   const paint = () => {
     $('#join-help').textContent = t('net.joinHelp.' + kind);
-    $('.tl-devices').innerHTML = [...found].map(([address, name]) =>
+    $('.tl-devices').innerHTML = [...found].sort(([, a], [, b]) => (b.rssi ?? -999) - (a.rssi ?? -999)).map(([address, { name }]) =>
       `<button type="button" class="tl-device" data-address="${esc(address)}"${busy ? ' disabled' : ''}><strong>${esc(name || address)}</strong>${name && kind === 'bt' ? `<span class="help">${esc(address)}</span>` : ''}</button>`).join('');
   };
   // its permission, its events, the list
@@ -1012,14 +1020,36 @@ export function tilesJoinScreen(root, chosen) {
     paint();
     const ready = await netReady(kind).catch(() => 'unsupported');
     if (gone) return;
-    if (ready !== 'ok') return note('tiles.bt.' + ready);
+    // Bluetooth off, or not allowed: said so, and the search starts by itself once it is on (owner: "refresh all the time
+    // until you're connected or leave") - looked at every few seconds, never asked again and again
+    if (ready !== 'ok') {
+      note('tiles.bt.' + ready);
+      const wait = setInterval(async () => {
+        if (gone) return clearInterval(wait);
+        const st = await wire().state().catch(() => ({}));
+        if (st.on && st.allowed) { clearInterval(wait); start(); }
+      }, 3000);
+      return;
+    }
     const on = async (event, fn) => { const h = await wire().on(event, fn); if (gone) h.remove(); else handles.push(h); };
-    await on('found', d => { if (!found.has(d.address) || d.name) { found.set(d.address, d.name); if (!gone) paint(); } });
-    // a round done: the list so far, and the next round
-    await on('searchDone', () => { searching = false; if (gone) return; paint(); if (!busy) { note(found.size ? 'net.pick.' + kind : 'net.none.' + kind, {}, !found.size); setTimeout(search, 1000); } });
+    // only what could host a game: phones, tablets and computers (not headphones, cars, watches…), and only found now -
+    // never the phone's list of devices paired over the years (owner, 2026-09-27: "everything except what it should")
+    await on('found', d => {
+      if (kind === 'bt' && ![0x100, 0x200, 0x1f00, -1].includes(d.major ?? -1)) return;
+      const was = found.get(d.address);
+      found.set(d.address, { name: d.name || was?.name || '', rssi: d.rssi ?? was?.rssi, seen: Date.now() });
+      if (!gone) paint();
+    });
+    // a round done: those not seen for a while drop out, the list so far, and the next round
+    await on('searchDone', () => {
+      searching = false;
+      if (gone) return;
+      for (const [a, d] of found) if (Date.now() - d.seen > 45000) found.delete(a);
+      paint();
+      if (!busy) { note(found.size ? 'net.pick.' + kind : 'net.none.' + kind, {}, !found.size); setTimeout(search, 1000); }
+    });
     await on('message', ({ id, text }) => { if (id === conn) party?.message(text); });
     await on('disconnected', ({ id }) => { if (id === conn && !answer) answer = 'lost'; });
-    for (const d of (await wire().paired().catch(() => ({ devices: [] }))).devices) found.set(d.address, d.name);
     if (!gone) search();
   }
   async function search() {
@@ -1035,16 +1065,19 @@ export function tilesJoinScreen(root, chosen) {
     answer = '';
     welcome = null;
     paint();
-    const name = esc(found.get(address) || address);
+    const name = esc(found.get(address)?.name || address);
     note('tiles.bt.joining', { name }, true);
     await wire().stopSearch().catch(() => {});
-    try { conn = (await wire().join(address)).id; } catch {
+    searching = false;   // stopped, with no "done" to say so: else the search never started again (owner: "seen only once")
+    try { conn = (await wire().join(address)).id; } catch (e) {
       busy = false;
-      if (!gone) { paint(); note('tiles.bt.joinFailed', { name }); setTimeout(search, 2500); }
+      if (!gone) { paint(); note('tiles.bt.joinFailed', { name }); why(e); setTimeout(search, 2500); }
       return;
     }
+    settings.btName = $('#bt-name').value.trim();
+    saveSettings();
     // for the host to let in (up to 2 minutes) - the host names the players (owner, 2026-09-27); then its game
-    party = createGuest({ name: '', send: text => { wire().send(conn, text).catch(() => {}); }, on: {
+    party = createGuest({ name: settings.btName, send: text => { wire().send(conn, text).catch(() => {}); }, on: {
       welcome: m => { welcome = m; }, refused: () => { answer = 'refused'; }, full: () => { answer = 'full'; }, version: () => { answer = 'version'; },
     } });
     party.connected();

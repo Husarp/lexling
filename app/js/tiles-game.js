@@ -163,6 +163,7 @@ export async function tilesGameScreen(root, id) {
   // background); goneSince[p] - when it lost the connection. Meanwhile the others play on; the host can skip the move of
   // whoever is on turn, or make a player give up (Options → Players)
   let away = [], goneSince = [], askSeat = -1, presenceTimer = 0, visibleDeclined = false, visAsking = false, joinedAs = false;
+  let findable = null;   // Bluetooth host: can other phones' search find this one now (null: not known)
   const handles = [];
   // one person here (against computers, or on their own phone): their rack is always shown
   let solo = linked ? linkMe : people.length === 1 ? people[0] : -1;
@@ -539,9 +540,16 @@ export async function tilesGameScreen(root, id) {
       const seats = S.players.map((_, p) => p === linkMe || isOut(p) ? '' : `<li class="pc${p}${here[p] ? ' in' : ''}"><i class="dot-p" aria-hidden="true"></i><span>${esc(nameOf(S, p))}</span><small>${
         t(here[p] ? 'net.seat.in' : 'net.seat.wait')}</small></li>`).join('');
       html += `<div class="tl-hand tl-wait" role="dialog"><span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span><strong>${t(S.players.length > 2 ? 'net.waiting' : 'tiles.bt.waiting')}</strong>${
-        myPhone ? `<p class="tl-phone">${kind === 'bt' ? t('tiles.bt.thisPhone', { name: `<b>${esc(myPhone)}</b>` }) : t('net.thisGame', { name: `<b>${esc(lanName())}</b>` })}</p>` : ''}<ul class="tl-seats">${seats}</ul><p class="help">${
-        linkNote ? t(linkNote) : t(kind === 'bt' ? 'tiles.bt.waitingHelp' : 'net.waitingHelpLan')}${kind === 'lan' && !myWifi ? ' ' + t('net.hostNoWifi') : ''}</p><div class="acts">${kind === 'bt' && visibleDeclined ? `<button class="btn btn-primary" type="button" data-act="netVisible">${t('net.visible')}</button>` : ''}${linkNote ? `<button class="btn btn-primary" type="button" data-act="netRetry">${
+        myPhone ? `<p class="tl-phone">${kind === 'bt' ? t('tiles.bt.thisPhone', { name: `<b>${esc(myPhone)}</b>` }) : t('net.thisGame', { name: `<b>${esc(lanName())}</b>` })}</p>` : ''}${
+        kind === 'bt' && findable !== null ? `<p class="tl-findable ${findable ? 'on' : 'off'}">${t(findable ? 'net.findable' : 'net.notFindable')}</p>` : ''}<ul class="tl-seats">${seats}</ul><p class="help">${
+        linkNote ? t(linkNote) : t(kind === 'bt' ? 'tiles.bt.waitingHelp' : 'net.waitingHelpLan')}${kind === 'lan' && !myWifi ? ' ' + t('net.hostNoWifi') : ''}</p><div class="acts">${kind === 'bt' && (visibleDeclined || findable === false) ? `<button class="btn btn-primary" type="button" data-act="netVisible">${t('net.visible')}</button>` : ''}${linkNote ? `<button class="btn btn-primary" type="button" data-act="netRetry">${
         t('tiles.bt.retry')}</button>` : ''}<button class="btn btn-ghost" type="button" data-act="netLeave">${t(S.log.length ? 'game.saveExit' : 'tiles.cancel')}</button></div></div>`;
+    } else if (linked && !host && !ended && linkUp && startWaits() && !joinedAs) {
+      const seats = S.players.map((_, p) => p === linkMe || isOut(p) ? '' : `<li class="pc${p}${hereList[p] ? ' in' : ''}"><i class="dot-p" aria-hidden="true"></i><span>${esc(nameOf(S, p))}</span><small>${
+        t(hereList[p] ? 'net.seat.in' : 'net.seat.wait')}</small></li>`).join('');
+      html += `<div class="tl-hand tl-wait" role="dialog"><span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span><strong>${t('net.waiting')}</strong><p class="tl-phone">${
+        t('net.youAreIn', { name: `<b>${esc(nameOf(S, linkMe))}</b>` })}</p><ul class="tl-seats">${seats}</ul><p class="help">${t('net.waitStart')}</p><div class="acts"><button class="btn btn-ghost" type="button" data-act="netBack">${
+        t('net.leave')}</button></div></div>`;
     } else if (linked && !host && ended && !S.over) {
       const name = `<b>${esc(nameOf(S, hostSeat()))}</b>`;
       html += `<div class="tl-hand tl-wait" role="dialog"><strong>${t('net.ended.' + ended, { name })}</strong><p class="help">${t('net.ended.' + ended + 'Help', { name })}</p><div class="acts">${
@@ -552,7 +560,7 @@ export async function tilesGameScreen(root, id) {
         t('tiles.hand.help')}</p><button class="btn btn-primary" type="button" data-act="show">${t('tiles.hand.show')} <span class="arrow">→</span></button></div>`;
     }
     over.innerHTML = html;
-    play.classList.toggle('tl-hidden', handOver || !!asked || waitCard() || (linked && !host && !!ended && !S.over));
+    play.classList.toggle('tl-hidden', handOver || !!asked || waitCard() || (linked && !host && !S.over && (!!ended || (linkUp && startWaits()))));
     refit();
   }
 
@@ -1278,9 +1286,11 @@ export async function tilesGameScreen(root, id) {
     if (visAsking || !party) return;
     visAsking = true;
     const s = await wire.state().catch(() => ({}));
+    if (typeof s.visible === 'boolean' && s.visible !== findable) { findable = s.visible; if (app.isConnected) paintOver(); }
     if (!onlyIfHidden || s.visible === false) {
       const r = await wire.beVisible(300).catch(() => ({}));
       if (!r.visible) visibleDeclined = true;
+      else findable = true;
       if (app.isConnected) paintAll();
     }
     visAsking = false;
@@ -1320,11 +1330,10 @@ export async function tilesGameScreen(root, id) {
         },
         send: (conn, text) => { wire.send(conn, text).catch(() => {}); },
         drop: conn => setTimeout(() => wire.close(conn).catch(() => {}), 500),   // what was said to it goes first
-        onChange: ({ seat, name, left }) => {
+        onChange: ({ seat, left }) => {
           // gone: since when (the host shows it); back: in the app again
           goneSince[seat] = left ? Date.now() : 0;
           away[seat] = false;
-          if (name) { setNames(S.players.map((x, p) => p === seat ? name : x.name)); party.names(S.players.map(x => x.name)); }
           game.link.seats = party.known();
           putSave(game);
           paintAll();
@@ -1347,7 +1356,7 @@ export async function tilesGameScreen(root, id) {
       }, 1000);
       hosting();
     } else {
-      party = createGuest({ name: '', send: text => { if (game.link.conn) wire.send(game.link.conn, text).catch(() => {}); }, on: {
+      party = createGuest({ name: settings.btName ?? '', send: text => { if (game.link.conn) wire.send(game.link.conn, text).catch(() => {}); }, on: {
         welcome: welcomed,
         act: m => {
           // counted as the host's first: else act() would send the host its own move back

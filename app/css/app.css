@@ -102,7 +102,11 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 /* game-picker.html */
 [data-screen=games] .head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-3)}
 [data-screen=games] .saves{display:grid;gap:var(--space-3)}
-[data-screen=games] .save{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--space-3) var(--space-4);padding:var(--space-4);transition:transform var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+/* the name and its details keep room for a line (~240px); when the buttons do not fit beside them - a narrow phone, long
+   words (Polish "Zmień nazwę") - they go under them, on any width (owner, 2026-09-27: the details were one word a line) */
+[data-screen=games] .save{display:flex;flex-wrap:wrap;align-items:flex-start;gap:var(--space-3) var(--space-4);padding:var(--space-4);transition:transform var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+[data-screen=games] .save > div:first-child{flex:1 1 240px;min-width:0}
+[data-screen=games] .save-best,[data-screen=games] .save-last{flex:1 1 100%}
 [data-screen=games] .save:hover{transform:translateY(-3px);border-color:var(--line)}
 [data-screen=games] .save-name{font:700 clamp(20px,4vw,24px)/1.1 var(--font-display);letter-spacing:-.01em;overflow-wrap:anywhere}
 [data-screen=games] .save-meta{display:flex;flex-wrap:wrap;gap:0 var(--space-2);font-size:13px;color:var(--text-muted);margin-top:var(--space-1)}
@@ -111,7 +115,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=games] .bar i{display:block;height:100%;width:var(--pct);background:var(--fill)}
 [data-screen=games] .save-actions{display:flex;gap:var(--space-1);align-self:start;flex-wrap:wrap;justify-content:flex-end}
 [data-screen=games] .save-actions .btn{padding:0 var(--space-3)}
-@media (max-width:480px){[data-screen=games] .save{grid-template-columns:1fr}[data-screen=games] .save-actions{justify-content:flex-start}}
+@media (max-width:480px){[data-screen=games] .save-actions{justify-content:flex-start}}
 [data-screen=games] .empty{padding:clamp(32px,8vw,64px) var(--space-6);display:grid;justify-items:center;text-align:center;gap:var(--space-4)}
 [data-screen=games] .empty .display{font-size:clamp(32px,8vw,56px);color:var(--text-dim)}
 
@@ -1490,3 +1494,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* the update downloading (0.57.0): its progress */
 .upd-bar{grid-column:1 / -1;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
 .upd-bar i{display:block;height:100%;background:var(--accent);transition:width 300ms var(--ease)}
+/* online (0.57.1): why a connection failed, small; whether the host can be found */
+.tl-why{display:block;margin-top:4px;font-size:11px;color:var(--text-muted);word-break:break-word}
+.tl-findable{margin:0;font-size:13px}
+.tl-findable.on{color:var(--lt-hit)}
+.tl-findable.off{color:var(--lt-near)}

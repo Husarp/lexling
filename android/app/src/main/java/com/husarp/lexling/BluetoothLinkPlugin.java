@@ -4,6 +4,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothServerSocket;
@@ -168,7 +169,13 @@ public class BluetoothLinkPlugin extends Plugin {
             public void onReceive(Context context, Intent intent) {
                 if (BluetoothDevice.ACTION_FOUND.equals(intent.getAction())) {
                     BluetoothDevice d = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                    if (d != null) notifyListeners("found", describe(d));
+                    if (d == null) return;
+                    JSObject o = describe(d);
+                    // what it is (a phone, a computer, headphones…) and how near: the list keeps phones, nearest first
+                    BluetoothClass kind = intent.getParcelableExtra(BluetoothDevice.EXTRA_CLASS);
+                    o.put("major", kind == null ? -1 : kind.getMajorDeviceClass());
+                    o.put("rssi", intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE));
+                    notifyListeners("found", o);
                 } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(intent.getAction())) {
                     notifyListeners("searchDone", new JSObject());
                 }
@@ -231,16 +238,26 @@ public class BluetoothLinkPlugin extends Plugin {
         if (address == null || !BluetoothAdapter.checkBluetoothAddress(address)) { call.reject("no such phone"); return; }
         new Thread(() -> {
             adapter.cancelDiscovery();                           // a running search slows a connection right down
-            try {
-                BluetoothDevice d = adapter.getRemoteDevice(address);
-                BluetoothSocket s = d.createInsecureRfcommSocketToServiceRecord(SERVICE);
-                s.connect();
-                String name = null;
-                try { name = d.getName(); } catch (SecurityException e) { /* address only */ }
-                JSObject r = new JSObject();
-                r.put("id", links.add(s, s.getInputStream(), s.getOutputStream(), name, address, "guest"));
-                call.resolve(r);
-            } catch (IOException e) { call.reject("cannot connect: " + e.getMessage()); }
+            BluetoothDevice d = adapter.getRemoteDevice(address);
+            String why = "";
+            // a first try often fails - the other phone's service not looked up yet, or looked up before it last started
+            // hosting - so up to three, the service looked up afresh between them
+            for (int attempt = 0; attempt < 3; attempt++) {
+                try {
+                    if (attempt > 0) { d.fetchUuidsWithSdp(); Thread.sleep(1200); }
+                    BluetoothSocket s = d.createInsecureRfcommSocketToServiceRecord(SERVICE);
+                    s.connect();
+                    String name = null;
+                    try { name = d.getName(); } catch (SecurityException e) { /* address only */ }
+                    JSObject r = new JSObject();
+                    r.put("id", links.add(s, s.getInputStream(), s.getOutputStream(), name, address, "guest"));
+                    call.resolve(r);
+                    return;
+                } catch (IOException | SecurityException e) {
+                    why = e.getMessage() == null ? e.toString() : e.getMessage();
+                } catch (InterruptedException e) { break; }
+            }
+            call.reject("cannot connect: " + why);
         }, "lexling-bt-join").start();
     }
 
