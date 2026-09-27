@@ -16,10 +16,11 @@ let running = null;
 // true when the check went through (or one was made just now); the menu hears 'lexling:update' when it has news
 export function checkUpdate(force = false) {
   if (!REPO) return Promise.resolve(false);
+  if (!force && !settings.updateCheck) return Promise.resolve(false);   // Settings → Check for updates, switched off
   if (!force && Date.now() - (settings.lastCheck || 0) < EVERY) return Promise.resolve(true);
   running ??= (async () => {
     try {
-      const stop = new AbortController(), timer = setTimeout(() => stop.abort(), 8000);
+      const stop = new AbortController(), timer = setTimeout(() => stop.abort(), 10000);   // ~10 s (APP-STANDARDS.md)
       const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' }, signal: stop.signal });
       clearTimeout(timer);
       if (!r.ok) return false;
@@ -37,8 +38,11 @@ export function checkUpdate(force = false) {
 }
 
 export const updateWaiting = () => !!REPO && !!settings.latest && newer(settings.latest, VERSION);
-// the menu's banner: a newer version, not dismissed (✕ hides that version for good; the next one shows again)
-export const updateShown = () => updateWaiting() && settings.updateDismissed !== settings.latest;
+// the menu's banner: a newer version, while Check for updates is on. ✕ hides it until Lexling next starts (owner,
+// 2026-09-27): coming back from another app keeps it hidden; a fresh start - closed, or closed by the phone - shows it
+let closed = null;
+export const closeUpdate = () => { closed = settings.latest; };
+export const updateShown = () => updateWaiting() && !!settings.updateCheck && closed !== settings.latest;
 
 const platform = () => window.Capacitor?.getPlatform?.() === 'android' ? 'android' : window.pywebview ? 'windows' : 'web';
 export const updateUrl = () => (platform() === 'android' && settings.latestFiles?.apk) || (platform() === 'windows' && settings.latestFiles?.exe)
@@ -47,7 +51,7 @@ export const updateUrl = () => (platform() === 'android' && settings.latestFiles
 // Getting it (owner, 2026-09-27): on Android through Android's own download service - progress here and in the
 // notification bar, the file in Downloads, named with its version - and installed by the phone's own installer from
 // there, so Lexling needs no permission to install apps. Elsewhere (Windows, a browser): the browser downloads it.
-let dl = { phase: 'idle' };   // 'running' { pct } | 'done' | 'failed' { why: 'offline' | 'download' }
+let dl = { phase: 'idle' };   // 'running' { pct } | 'done' | 'starting' (Windows) | 'failed' { why: 'offline' | 'download' }
 export const downloadState = () => dl;
 const emit = () => window.dispatchEvent(new Event('lexling:update'));
 const downloader = () => {
@@ -57,6 +61,8 @@ const downloader = () => {
 };
 // true: downloading in the app; false: handed to the browser
 export async function getUpdate() {
+  const api = window.pywebview?.api;
+  if (api?.install_update && settings.latestFiles?.exe) return getSetup(api, settings.latestFiles.exe);
   const P = downloader(), url = settings.latestFiles?.apk;
   if (!P || !url) { openUrl(updateUrl()); return false; }
   if (dl.phase === 'running') return true;
@@ -76,6 +82,23 @@ export async function getUpdate() {
       emit();
     }, 700);
   } catch { dl = { phase: 'failed', why: 'download' }; emit(); }
+  return true;
+}
+// Windows (APP-STANDARDS.md): the desktop app downloads LexlingSetup-X.Y.Z.exe itself (the progress here), starts it
+// and closes, so the installer can replace it (desktop/main.py install_update)
+async function getSetup(api, url) {
+  if (dl.phase === 'running') return true;
+  if (navigator.onLine === false) { dl = { phase: 'failed', why: 'offline' }; emit(); return true; }
+  dl = { phase: 'running', pct: 0 };
+  emit();
+  const poll = setInterval(async () => {
+    const s = await api.update_progress().catch(() => null);
+    if (s && dl.phase === 'running') { dl = { phase: 'running', pct: s.total > 0 ? Math.round(s.done / s.total * 100) : 0 }; emit(); }
+  }, 700);
+  const r = await api.install_update(url, settings.latest).catch(e => 'failed: ' + e);
+  clearInterval(poll);
+  dl = r === 'ok' ? { phase: 'starting' } : { phase: 'failed', why: 'download' };
+  emit();
   return true;
 }
 // the phone's Downloads, where the person taps the file to install it

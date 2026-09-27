@@ -35,6 +35,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import threading
@@ -145,10 +146,11 @@ def wait_ready(window, seconds: float) -> str | None:
 class Bridge:
     """What the page may ask the desktop app to do, reachable as window.pywebview.api.
 
-    Only one thing so far: open a link in the real browser. A link cannot simply be followed here,
-    because this window IS the browser - following it would replace the game with a web page and
-    leave no way back. Android and a plain browser need none of this; they use window.open.
+    Open a link in the real browser. A link cannot simply be followed here, because this window IS
+    the browser - following it would replace the game with a web page and leave no way back. Android
+    and a plain browser need none of this; they use window.open. And install an update (below).
     """
+    _progress = {"done": 0, "total": 0}
 
     def open_url(self, url: str) -> bool:
         # never hand an arbitrary string to the shell: only ordinary web links, and only ours
@@ -156,6 +158,50 @@ class Bridge:
             return False
         webbrowser.open(url)
         return True
+
+    def install_update(self, url: str, version: str) -> str:
+        """The new version (APP-STANDARDS.md): LexlingSetup-X.Y.Z.exe downloaded into the temp folder, started, and this
+        app closed so the installer can replace it - the installer sees the installed copy and updates it."""
+        # a string from the page that gets downloaded and RUN: only our own releases, only a version number in the name
+        if not re.fullmatch(r"https://github\.com/Husarp/lexling/releases/download/[\w.\-/]+\.exe", url or "") \
+                or not re.fullmatch(r"\d+\.\d+\.\d+", version or ""):
+            return "failed: unexpected download"
+        target = Path(tempfile.gettempdir()) / f"{APP}Setup-{version}.exe"
+        try:
+            request = urllib.request.Request(url, headers={"User-Agent": APP})
+            with urllib.request.urlopen(request, timeout=60) as response, open(target, "wb") as out:
+                self._progress = {"done": 0, "total": int(response.headers.get("Content-Length") or 0)}
+                while chunk := response.read(1 << 16):
+                    out.write(chunk)
+                    self._progress["done"] += len(chunk)
+            # a cut-off download would fail later as a baffling "not a valid Win32 application"
+            if target.stat().st_size < 1_000_000:
+                return "failed: the download looks incomplete"
+            subprocess.Popen([str(target)], close_fds=True)
+        except Exception as e:
+            return f"failed: {e}"
+        # Windows will not replace a running exe, so this app goes - a moment later, so this call answers the page first
+        threading.Timer(0.5, close_windows).start()
+        return "ok"
+
+    def update_progress(self) -> dict:
+        """How far install_update's download is: bytes so far, out of the whole."""
+        return self._progress
+
+
+def close_windows() -> None:
+    for window in list(webview.windows):
+        window.destroy()
+
+
+def remove_old_setups() -> None:
+    """The installer that brought this version (install_update) is not needed any more. One still running - it may start
+    the new version before it exits - stays until the next start."""
+    for old in Path(tempfile.gettempdir()).glob(f"{APP}Setup-*.exe"):
+        try:
+            old.unlink()
+        except OSError:
+            pass
 
 
 def show_when_ready(window) -> None:
@@ -234,6 +280,7 @@ def main() -> None:
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
     else:
+        remove_old_setups()
         webview.start(show_when_ready, (window,), private_mode=False, storage_path=str(storage_path()))
 
 

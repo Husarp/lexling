@@ -1486,13 +1486,15 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* online (0.55.0): "(you)" after your own name in the score boxes; "you are playing as" does not block the board */
 .ps .nm .you{font:inherit;font-weight:500;opacity:.75}
 .tl-toast.joined{pointer-events:none}
-/* a newer version at the bottom of the menu (0.55.1): Download or ✕ */
-.upd{position:sticky;bottom:calc(8px + var(--safe-b, 0px));z-index:5;display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px 12px;margin-top:var(--space-4);max-width:520px;padding:var(--space-3) var(--space-4);background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius-md)}
-.upd-text{font-weight:600;color:var(--text)}
-.upd-acts{display:flex;align-items:center;gap:6px}
-.upd-note{grid-column:1 / -1;font-size:13px;line-height:1.4;color:var(--text-muted)}
+/* a newer version at the bottom of the menu (0.55.1): Download or ✕. The buttons beside the text while both fit, else on
+   their own line below it (0.58.0: a failed download has three - the text was squeezed to a word a line) */
+.upd{position:sticky;bottom:calc(8px + var(--safe-b, 0px));z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:var(--space-4);max-width:520px;padding:var(--space-3) var(--space-4);background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius-md)}
+.upd-text{flex:1 1 200px;min-width:0;font-weight:600;color:var(--text)}
+.upd-acts{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px;margin-left:auto}
+.upd-pair{display:flex;gap:6px}   /* GitHub and ✕ wrap together, never ✕ alone */
+.upd-note{flex:1 1 100%;font-size:13px;line-height:1.4;color:var(--text-muted)}
 /* the update downloading (0.57.0): its progress */
-.upd-bar{grid-column:1 / -1;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.upd-bar{flex:1 1 100%;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
 .upd-bar i{display:block;height:100%;background:var(--accent);transition:width 300ms var(--ease)}
 /* online (0.57.1): why a connection failed, small; whether the host can be found */
 .tl-why{display:block;margin-top:4px;font-size:11px;color:var(--text-muted);word-break:break-word}

@@ -14,7 +14,7 @@ import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYP
 import { fitAll } from './fit.js';
 import { click } from './sound.js';
 import { VERSION, REPO } from './version.js';
-import { checkUpdate, newer, updateShown, updateUrl, openUrl, getUpdate, downloadState, openDownloads } from './update.js';
+import { checkUpdate, newer, updateShown, closeUpdate, updateUrl, openUrl, getUpdate, downloadState, openDownloads } from './update.js';
 
 const CATS = ['all', 'animals', 'food', 'household', 'clothing', 'tools', 'tech', 'vehicles', 'buildings',
   'nature', 'weather', 'body', 'people', 'jobs', 'school', 'science', 'sport', 'music', 'feelings',
@@ -78,10 +78,11 @@ export function menu(root, _, refresh) {
   <footer class="footer"><span>v${VERSION}</span></footer>
 </div>`;
   root.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => switchLang(b.dataset.lang, refresh)));
-  // a newer version (owner, 2026-09-27): at the bottom - Download, or ✕ (that version not shown again)
+  // a newer version (owner, 2026-09-27): at the bottom - Download, or ✕ (hidden until Lexling next starts)
   const slot = root.querySelector('.upd-slot');
   // on Android the download runs here (update.js): its progress, then Install - the phone's Downloads, where the file is
-  // opened with the phone's own installer
+  // opened with the phone's own installer. On Windows too: its progress, then the installer starts and Lexling closes.
+  // A failed download: Try again, and GitHub next to it - the release page (owner, 2026-09-27)
   let handed = false;
   menuUpdate = () => {
     if (!slot.isConnected) return;
@@ -91,13 +92,15 @@ export function menu(root, _, refresh) {
     slot.innerHTML = !updateShown() && d.phase === 'idle' ? ''
       : d.phase === 'running' ? `<div class="upd" role="status"><span class="upd-text">${t('upd.getting', { v, pct: d.pct })}</span><span class="upd-bar"><i style="width:${d.pct}%"></i></span></div>`
       : d.phase === 'done' ? `<div class="upd" role="status"><span class="upd-text">${t('upd.got', { v })}</span><div class="upd-acts">${btn('upd-install', 'upd.install')}</div><span class="upd-note">${t('upd.installHow', { name: esc(d.name) })}</span></div>`
-      : d.phase === 'failed' ? `<div class="upd" role="status"><span class="upd-text">${t(d.why === 'offline' ? 'upd.offline' : 'upd.failed')}</span><div class="upd-acts">${btn('upd-get', 'upd.again')}${x}</div></div>`
+      : d.phase === 'starting' ? `<div class="upd" role="status"><span class="upd-text">${t('upd.starting', { v })}</span></div>`
+      : d.phase === 'failed' ? `<div class="upd" role="status"><span class="upd-text">${t(d.why === 'offline' ? 'upd.offline' : 'upd.failed')}</span><div class="upd-acts">${btn('upd-get', 'upd.again')}<span class="upd-pair"><button class="btn btn-outline upd-gh" type="button">GitHub</button>${x}</span></div></div>`
       : `<div class="upd" role="status"><span class="upd-text">${t('upd.available', { v })}</span><div class="upd-acts">${btn('upd-get', 'upd.get')}${x}</div>${
         handed ? `<span class="upd-note">${t(navigator.onLine === false ? 'upd.offline' : 'upd.opened')}</span>` : ''}</div>`;
   };
   menuUpdate();
   slot.addEventListener('click', async e => {
-    if (e.target.closest('.upd-x')) { settings.updateDismissed = settings.latest; saveSettings(); return menuUpdate(); }
+    if (e.target.closest('.upd-x')) { closeUpdate(); return menuUpdate(); }
+    if (e.target.closest('.upd-gh')) return openUrl(`https://github.com/${REPO}/releases/latest`);
     if (e.target.closest('.upd-install')) return openDownloads();
     if (!e.target.closest('.upd-get')) return;
     if (navigator.onLine === false) { handed = true; return menuUpdate(); }
@@ -1285,10 +1288,10 @@ export async function settingsScreen(root, _, refresh) {
     </section>
     <section class="group">
       <h2 class="title">${t('set.updates')}</h2>
+      <div class="row"><div class="row-text"><strong>${t('set.autoCheck')}</strong><span>${t('set.autoCheckDesc')}</span></div><button type="button" class="toggle ${on(settings.updateCheck)}" data-toggle="updateCheck" role="switch" aria-checked="${!!settings.updateCheck}" aria-label="${t('set.autoCheck')}"></button></div>
       <div class="row"><div class="row-text"><strong>${t('set.version', { v: VERSION })}</strong><span id="update-line">${updateLine}</span></div>
-        <div class="row-actions">${waiting
-    ? `<button type="button" class="btn btn-primary" id="get">${t('set.get')} <span class="arrow">→</span></button>`
-    : `<button type="button" class="btn btn-outline" id="check" ${REPO ? '' : 'disabled'}>${t('set.check')}</button>`}
+        <div class="row-actions">${waiting ? `<button type="button" class="btn btn-primary" id="get">${t('set.get')} <span class="arrow">→</span></button>` : ''}
+        <button type="button" class="btn btn-outline" id="check" ${REPO ? '' : 'disabled'}>${t('set.check')}</button>
         <button type="button" class="btn btn-ghost" id="manual" ${REPO ? '' : 'disabled'}>${t('set.manual')}</button></div></div>
     </section>
     <section class="group">
@@ -1320,6 +1323,7 @@ export async function settingsScreen(root, _, refresh) {
     el.classList.toggle('on', settings[key]);
     el.setAttribute('aria-checked', settings[key]);
     if (key === 'sound') click();
+    if (key === 'updateCheck' && settings.updateCheck) checkUpdate();
   }));
   root.querySelectorAll('[data-accent]').forEach(el => el.addEventListener('click', () => {
     settings.accent = el.dataset.accent;
@@ -1336,7 +1340,7 @@ export async function settingsScreen(root, _, refresh) {
   // the file for this device (update.js): the APK on Android, the installer on Windows, else the release page
   // on Android the download runs in the app: the menu shows how it goes
   root.querySelector('#get')?.addEventListener('click', async () => { if (await getUpdate()) location.hash = '#/'; });
-  // "Check manually" (owner, 2026-09-25: the check sometimes fails): straight to the releases page on GitHub
+  // GitHub (was "Check manually" - owner, 2026-09-25: the check sometimes fails): straight to the releases page
   root.querySelector('#manual')?.addEventListener('click', () => open(`https://github.com/${REPO}/releases`));
 
   const check = root.querySelector('#check');

@@ -37,6 +37,8 @@ export const settings = read('wg.settings', {
   // Tiles on several phones: after a game, a reminder when Bluetooth is still on and Lexling switched it on (owner,
   // 2026-09-27: on by default, can be switched off)
   btRemind: true,
+  // Settings → Check for updates: on opening and on coming back (APP-STANDARDS.md: on by default)
+  updateCheck: true,
 });
 export const saveSettings = () => write('wg.settings', settings);
 // Remembering New game choices became the default in 0.51.1 (owner) - switched on once for those whose settings still
