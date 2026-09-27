@@ -153,6 +153,7 @@ export async function tilesGameScreen(root, id) {
   // two phones (Bluetooth): this one plays linkMe, and the other player's moves come over the link
   const linked = !!game.link, linkMe = linked ? game.link.me : -1, remote = p => linked && p !== linkMe;
   let link = null, linkUp = false, linkNote = '', retry = 0, beat = 0, askedVisible = false;   // the link to it (below)
+  let asking = null, held = [], refused = false;   // a phone waiting to be let in (host); this one turned away (guest)
   const handles = [];
   // one person here (against computers, or on their own phone): their rack is always shown
   const solo = linked ? linkMe : people.length === 1 ? people[0] : -1;
@@ -490,7 +491,11 @@ export async function tilesGameScreen(root, id) {
       const first = S.start.first;
       html += `<div class="tl-toast" role="status">${game.firstSet ? '' : `<span class="eyebrow">${t('tiles.drawn')}</span>`}<strong>${first === solo ? t('tiles.youStart') : t('tiles.starts', { name: esc(nameOf(S, first)) })}</strong></div>`;
     }
-    if (linked && !game.link.met) {
+    if (asking) {
+      const who = asking.player ? `${esc(asking.player)} (${esc(asking.device || asking.address)})` : esc(asking.device || asking.address);
+      html += `<div class="tl-hand tl-wait" role="dialog"><strong>${t('tiles.bt.asks', { who })}</strong><p class="help">${t(game.link.met ? 'tiles.bt.asksOther' : 'tiles.bt.asksHelp')}</p><div class="acts"><button class="btn btn-primary" type="button" data-act="btLetIn">${
+        t('tiles.bt.letIn')}</button><button class="btn btn-ghost" type="button" data-act="btRefuse">${t('tiles.bt.refuse')}</button></div></div>`;
+    } else if (linked && !game.link.met) {
       html += `<div class="tl-hand tl-wait" role="dialog"><span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span><strong>${t('tiles.bt.waiting')}</strong><p class="help">${
         linkNote ? t(linkNote) : t('tiles.bt.waitingHelp')}</p><div class="acts">${linkNote ? `<button class="btn btn-primary" type="button" data-act="btRetry">${t('tiles.bt.retry')}</button>` : ''}<button class="btn btn-ghost" type="button" data-act="btCancel">${t('tiles.cancel')}</button></div></div>`;
     }
@@ -499,7 +504,7 @@ export async function tilesGameScreen(root, id) {
         t('tiles.hand.help')}</p><button class="btn btn-primary" type="button" data-act="show">${t('tiles.hand.show')} <span class="arrow">→</span></button></div>`;
     }
     over.innerHTML = html;
-    play.classList.toggle('tl-hidden', handOver || (linked && !game.link.met));
+    play.classList.toggle('tl-hidden', handOver || !!asking || (linked && !game.link.met));
     refit();
   }
 
@@ -616,6 +621,23 @@ export async function tilesGameScreen(root, id) {
     // the host gives up waiting: that game never started, so it goes
     btCancel() { stopLink(); deleteSave(game.id); location.replace('#/games/tiles'); },
     btRetry() { linkNote = ''; paintOver(); paintSay(); connect(); },
+    // let the waiting phone in: it becomes the other player's phone, and what it said meanwhile is taken in
+    btLetIn() {
+      if (!asking) return;
+      game.link.peer = { name: asking.device, address: asking.address };
+      asking = null;
+      goUp();
+      held.splice(0).forEach(heard);
+    },
+    // turn it away: it is told so, the connection closes, and this phone listens again
+    btRefuse() {
+      if (!asking) return;
+      asking = null;
+      held = [];
+      bt.send(JSON.stringify({ t: 'refused' })).catch(() => {});
+      setTimeout(() => { bt.close().catch(() => {}); retryLater(); }, 500);
+      paintAll();
+    },
     // Redo: the move an undo took back, returned - until a new move is made
     redo() {
       const back = !thinking && redoStack.pop();
@@ -1165,18 +1187,18 @@ export async function tilesGameScreen(root, id) {
     link = createLink({ game: game.link.id, send: text => { bt.send(text).catch(() => {}); }, actions: () => S.log,
       apply: a => { thinking = false; act(a, true); }, onEvent: linkEvent });
     const on = async (event, fn) => { const h = await bt.on(event, fn); if (app.isConnected) handles.push(h); else h.remove(); };
-    await on('connected', () => {
-      linkUp = true;
-      linkNote = '';
-      if (!game.link.met) { game.link.met = true; putSave(game); }
-      if (game.link.role === 'host') bt.send(JSON.stringify(setupMsg())).catch(() => {});
-      sayName();
-      link.connected();
-      paintAll();
-      if (!S.over) next();
+    await on('connected', who => {
+      if (game.link.role === 'host' && !(game.link.met && game.link.peer?.address === who.address)) {
+        asking = { device: who.name || '', address: who.address, player: '' };
+        held = [];
+        paintAll();
+        return;
+      }
+      goUp();
     });
-    await on('message', ({ text }) => { if (!tookName(text)) link?.receive(text); });
+    await on('message', ({ text }) => heard(text));
     await on('disconnected', () => {
+      if (asking) { asking = null; held = []; paintAll(); retryLater(); return; }   // it left before being let in
       if (!linkUp) return;
       linkUp = false;
       link.disconnected();
@@ -1185,15 +1207,48 @@ export async function tilesGameScreen(root, id) {
     });
     beat = setInterval(() => {
       if (!app.isConnected) return clearInterval(beat);
+      if (asking) { bt.send(JSON.stringify({ t: 'wait' })).catch(() => {}); return; }   // keeps the other phone from giving up
       if (!linkUp) return;
       link.beat();
       if (link.quietFor() > 15000) { linkUp = false; link.disconnected(); bt.close().catch(() => {}); paintAll(); retryLater(); }
     }, 5000);
     if ((await bt.state().catch(() => ({}))).connected) { linkUp = true; sayName(); link.connected(); paintAll(); } else connect();
   }
+  // the connection in use: the game goes over it
+  function goUp() {
+    linkUp = true;
+    linkNote = '';
+    if (!game.link.met) { game.link.met = true; putSave(game); }
+    else if (game.link.role === 'host') putSave(game);   // the phone let in
+    if (game.link.role === 'host') bt.send(JSON.stringify(setupMsg())).catch(() => {});
+    sayName();
+    link.connected();
+    paintAll();
+    if (!S.over) next();
+  }
+  // a line from the other phone: held while it waits to be let in; a name, a refusal, or the game's own
+  function heard(text) {
+    let m = null;
+    try { m = JSON.parse(text); } catch { /* the link ignores it too */ }
+    if (asking) {
+      held.push(text);
+      if (m?.t === 'name') { asking.player = String(m.name ?? '').trim().slice(0, 16); paintOver(); }
+      return;
+    }
+    if (m?.t === 'refused') {   // this phone was turned away: no more trying until the game is opened again
+      refused = true;
+      linkUp = false;
+      linkNote = 'tiles.bt.refusedGame';
+      bt.close().catch(() => {});
+      paintAll();
+      return;
+    }
+    if (m?.t === 'name') return takeName(m);
+    link?.receive(text);
+  }
   async function connect() {
     clearTimeout(retry);
-    if (!app.isConnected || linkUp || S.over) return;
+    if (!app.isConnected || linkUp || S.over || refused) return;
     const ready = await btReady().catch(() => 'unsupported');
     if (ready !== 'ok') { linkNote = 'tiles.bt.' + ready; paintOver(); paintSay(); return; }   // Try again asks once more
     if (game.link.role === 'host') {
@@ -1203,17 +1258,13 @@ export async function tilesGameScreen(root, id) {
   }
   // the players' names (the joining phone types its own): not part of the moves, so they travel on their own
   const sayName = () => { const name = S.players[linkMe].name; if (name) bt.send(JSON.stringify({ t: 'name', p: linkMe, name })).catch(() => {}); };
-  function tookName(text) {
-    let m;
-    try { m = JSON.parse(text); } catch { return false; }
-    if (m?.t !== 'name') return false;
+  function takeName(m) {
     const name = String(m.name ?? '').trim().slice(0, 16);
-    if (m.p === linkMe || !S.players[m.p] || !name || S.players[m.p].name === name) return true;
+    if (m.p === linkMe || !S.players[m.p] || !name || S.players[m.p].name === name) return;
     S = { ...S, players: S.players.map((x, p) => p === m.p ? { ...x, name } : x) };
     game.state = S;
     putSave(game);
     paintAll();
-    return true;
   }
   const retryLater = () => { clearTimeout(retry); retry = setTimeout(connect, game.link.role === 'host' ? 1500 : 4000); };
   function linkEvent(kind) {

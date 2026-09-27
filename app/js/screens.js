@@ -918,7 +918,7 @@ export function tilesNewScreen(root, _, refresh) {
 // the second player. The same game joined again (after the app closed) carries on from its save.
 export function tilesJoinScreen(root) {
   const devices = new Map();   // address → name
-  let busy = false, gone = false, searching = false, got = null;
+  let busy = false, gone = false, searching = false, got = null, answer = '';   // answer: 'refused' / 'lost' while waiting
   const handles = [];
   root.innerHTML = `<div class="app" data-screen="new">
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.tiles}">${t('back.games')}</a>`, right: modeTag('tiles') })}
@@ -956,6 +956,7 @@ export function tilesJoinScreen(root) {
     got = null;
     paint();
     const name = devices.get(address) || address;
+    answer = '';
     note('tiles.bt.joining', { name: esc(name) }, true);
     await bt.stopSearch().catch(() => {});
     try { await bt.join(address); } catch {
@@ -963,10 +964,19 @@ export function tilesJoinScreen(root) {
       if (!gone) { paint(); note('tiles.bt.joinFailed', { name: esc(name) }); }
       return;
     }
-    // the game from the other phone: its first message
-    for (let i = 0; i < 40 && !got && !gone; i++) await new Promise(r => setTimeout(r, 250));
+    // who is joining, for the other phone to let in; then its game - up to 2 minutes for someone to tap Let in
+    const typed = $('#bt-name').value.trim();
+    if (typed) bt.send(JSON.stringify({ t: 'name', p: 1, name: typed })).catch(() => {});
+    note('tiles.bt.letInWait', { name: esc(name) }, true);
+    for (let i = 0; i < 480 && !got && !answer && !gone; i++) await new Promise(r => setTimeout(r, 250));
     if (gone) return;
-    if (!got) { bt.close().catch(() => {}); busy = false; paint(); note('tiles.bt.noGame', { name: esc(name) }); return; }
+    if (!got) {
+      bt.close().catch(() => {});
+      busy = false;
+      paint();
+      note(answer === 'refused' ? 'tiles.bt.refused' : answer === 'lost' ? 'tiles.bt.joinFailed' : 'tiles.bt.noGame', { name: esc(name) });
+      return;
+    }
     const m = got, fail = key => { bt.close().catch(() => {}); busy = false; paint(); note(key); };
     if (m.v !== PROTOCOL) return fail('tiles.bt.version');
     const dict = await loadTileWords(m.setup.lang).catch(() => null);
@@ -994,8 +1004,8 @@ export function tilesJoinScreen(root) {
     if (ready !== 'ok') { note('tiles.bt.' + ready); $('[data-search]').hidden = true; return; }
     await on('found', d => { if (!devices.has(d.address) || d.name) { devices.set(d.address, d.name); if (!gone) paint(); } });
     await on('searchDone', () => { searching = false; if (gone) return; paint(); if (!busy) note(devices.size ? 'tiles.bt.pick' : 'tiles.bt.none'); });
-    await on('message', ({ text }) => { try { const m = JSON.parse(text); if (m.t === 'setup') got = m; } catch { /* not for us */ } });
-    await on('disconnected', () => {});
+    await on('message', ({ text }) => { try { const m = JSON.parse(text); if (m.t === 'setup') got = m; else if (m.t === 'refused') answer = 'refused'; } catch { /* not for us */ } });
+    await on('disconnected', () => { if (!answer) answer = 'lost'; });
     const known = await bt.paired().catch(() => ({ devices: [] }));
     for (const d of known.devices) devices.set(d.address, d.name);
     if (!gone) search();
