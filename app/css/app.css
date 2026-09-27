@@ -1435,3 +1435,10 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-device{display:grid;gap:2px;text-align:left;padding:var(--space-3) var(--space-4);background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius-md);color:var(--text);font:inherit;cursor:pointer}
 .tl-device:disabled{opacity:.5;cursor:default}
 @media (hover:hover){.tl-device:not(:disabled):hover{border-color:var(--accent)}}
+/* two phones (0.52.3): the other player's state above the move cards - a dot: green connected, amber not */
+.tl-moves .mc-link{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 0 4px;min-height:16px;font-size:12px;line-height:16px;color:var(--text-muted);text-align:center}
+.tl-moves .mc-link .ld{flex:none;width:7px;height:7px;border-radius:50%;background:var(--lt-hit)}
+.tl-moves .mc-link.down .ld{background:var(--lt-near);animation:tl-dot 1.2s var(--ease) infinite}
+.tl-moves .mc-link .tl-dots i{width:4px;height:4px}
+.tl-wait .tl-phone{margin:0;font-size:14px;color:var(--text-dim)}
+.tl-wait .tl-phone b{color:var(--text)}

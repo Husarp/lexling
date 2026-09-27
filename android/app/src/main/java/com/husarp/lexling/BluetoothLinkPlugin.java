@@ -73,10 +73,14 @@ public class BluetoothLinkPlugin extends Plugin {
 
     private boolean allowed() { return getPermissionState(alias()) == PermissionState.GRANTED; }
 
-    /** Is there Bluetooth, is it on, may the app use it. */
+    /** Is there Bluetooth, is it on, may the app use it - and this phone's Bluetooth name (what the other phone lists). */
+    @SuppressLint("MissingPermission")
     @PluginMethod
     public void state(PluginCall call) {
         JSObject r = new JSObject();
+        String name = null;
+        try { if (adapter != null && allowed()) name = adapter.getName(); } catch (SecurityException e) { /* no permission: no name */ }
+        r.put("name", name == null ? "" : name);
         r.put("supported", adapter != null);
         r.put("on", adapter != null && adapter.isEnabled());
         r.put("allowed", allowed());

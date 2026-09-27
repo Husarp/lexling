@@ -153,7 +153,7 @@ export async function tilesGameScreen(root, id) {
   // two phones (Bluetooth): this one plays linkMe, and the other player's moves come over the link
   const linked = !!game.link, linkMe = linked ? game.link.me : -1, remote = p => linked && p !== linkMe;
   let link = null, linkUp = false, linkNote = '', retry = 0, beat = 0, askedVisible = false;   // the link to it (below)
-  let asking = null, held = [], refused = false;   // a phone waiting to be let in (host); this one turned away (guest)
+  let asking = null, held = [], refused = false, myPhone = '';   // myPhone: this phone's Bluetooth name   // a phone waiting to be let in (host); this one turned away (guest)
   const handles = [];
   // one person here (against computers, or on their own phone): their rack is always shown
   const solo = linked ? linkMe : people.length === 1 ? people[0] : -1;
@@ -359,10 +359,19 @@ export async function tilesGameScreen(root, id) {
         draft[0].hint ? `<small class="hlv">${t('tiles.hint.' + draft[0].hint)}${hintPaid ? ' −' + hintPaid : ''}</small>` : ''}</span></div>`
       : mine >= 0 ? moveCard(mine, 'me')
       : `<div class="mc me pc${me}">${whoCell(me)}<span class="msg">${myTurn() ? t(S.cells.some(Boolean) ? (solo >= 0 ? 'tiles.say.turn' : 'tiles.say.turnOf') : 'tiles.say.first', { name: esc(nameOf(S, S.turn)) }) : ''}</span></div>`;
-    const other = linked && !linkUp && game.link.met && !S.over ? `<div class="mc them pc${1 - linkMe}">${whoCell(1 - linkMe)}<span class="msg">${t(linkNote || 'tiles.bt.down')}</span></div>`
-      : thinking && S.turn !== me ? `<div class="mc them pc${S.turn}">${whoCell(S.turn)}<span class="msg">${t(remote(S.turn) ? 'tiles.bt.moving' : 'tiles.say.thinking')}</span></div>`
+    const other = thinking && S.turn !== me && !linked ? `<div class="mc them pc${S.turn}">${whoCell(S.turn)}<span class="msg">${t('tiles.say.thinking')}</span></div>`
       : theirs >= 0 ? moveCard(theirs, 'them') : '';
-    say.innerHTML = `<div class="mcards">${card}${other}</div><p class="mc-bag">${fresh?.p === me ? t('tiles.drew', { l: `<b>${fresh.letters.map(x => x === BLANK ? '?' : esc(x.toUpperCase())).join(' · ')}</b>` }) : ''}</p>`;
+    say.innerHTML = `${linked ? linkLine() : ''}<div class="mcards">${card}${other}</div><p class="mc-bag">${fresh?.p === me ? t('tiles.drew', { l: `<b>${fresh.letters.map(x => x === BLANK ? '?' : esc(x.toUpperCase())).join(' · ')}</b>` }) : ''}</p>`;
+  }
+
+  // two phones: the other player's side of things, one line above the move cards (owner, 2026-09-27) - their turn, or
+  // the connection
+  function linkLine() {
+    if (S.over || !game.link.met) return '<p class="mc-link"></p>';
+    const name = esc(nameOf(S, 1 - linkMe));
+    if (!linkUp) return `<p class="mc-link down"><i class="ld" aria-hidden="true"></i><span>${t(linkNote || 'tiles.bt.down', { name })}</span></p>`;
+    return remote(S.turn) ? `<p class="mc-link on"><i class="ld" aria-hidden="true"></i><span>${t('tiles.bt.moving', { name })}</span><span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span></p>`
+      : `<p class="mc-link on"><i class="ld" aria-hidden="true"></i><span>${t('tiles.bt.yourMove', { name })}</span></p>`;
   }
 
   function paintRack() {
@@ -496,7 +505,7 @@ export async function tilesGameScreen(root, id) {
       html += `<div class="tl-hand tl-wait" role="dialog"><strong>${t('tiles.bt.asks', { who })}</strong><p class="help">${t(game.link.met ? 'tiles.bt.asksOther' : 'tiles.bt.asksHelp')}</p><div class="acts"><button class="btn btn-primary" type="button" data-act="btLetIn">${
         t('tiles.bt.letIn')}</button><button class="btn btn-ghost" type="button" data-act="btRefuse">${t('tiles.bt.refuse')}</button></div></div>`;
     } else if (linked && !game.link.met) {
-      html += `<div class="tl-hand tl-wait" role="dialog"><span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span><strong>${t('tiles.bt.waiting')}</strong><p class="help">${
+      html += `<div class="tl-hand tl-wait" role="dialog"><span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span><strong>${t('tiles.bt.waiting')}</strong>${myPhone ? `<p class="tl-phone">${t('tiles.bt.thisPhone', { name: `<b>${esc(myPhone)}</b>` })}</p>` : ''}<p class="help">${
         linkNote ? t(linkNote) : t('tiles.bt.waitingHelp')}</p><div class="acts">${linkNote ? `<button class="btn btn-primary" type="button" data-act="btRetry">${t('tiles.bt.retry')}</button>` : ''}<button class="btn btn-ghost" type="button" data-act="btCancel">${t('tiles.cancel')}</button></div></div>`;
     }
     if (handOver) {
@@ -1251,6 +1260,7 @@ export async function tilesGameScreen(root, id) {
     if (!app.isConnected || linkUp || S.over || refused) return;
     const ready = await btReady().catch(() => 'unsupported');
     if (ready !== 'ok') { linkNote = 'tiles.bt.' + ready; paintOver(); paintSay(); return; }   // Try again asks once more
+    if (!myPhone) bt.state().then(s => { myPhone = s.name || ''; if (myPhone) paintOver(); }).catch(() => {});
     if (game.link.role === 'host') {
       if (!game.link.met && !askedVisible) { askedVisible = true; await bt.beVisible(300).catch(() => {}); }
       bt.host().catch(retryLater);
