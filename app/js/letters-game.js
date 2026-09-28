@@ -2,7 +2,7 @@
 // game-letters-end.html (won / lost / gave up), with the dummy text replaced by t(...) and live data.
 // The on-screen keyboard and editing a tile are design v4 ("Lexling Letters Keyboard").
 import { t, plural, esc } from './i18n.js';
-import { settings, stats, saveStats, getSave, putSave, recordLettersEnd, playClock } from './store.js';
+import { settings, getSave, putSave, recordMove, recordLettersEnd, playClock, collect } from './store.js';
 import { loadWords, resolve } from './engine.js';
 import { feedback, typeLetter, eraseLetter, skipTile, keyStates, MARKED } from './letters.js';
 import { topbar, modeTag, confirmClick, TILE, outcome, gearButton, wireGear, meaningButton, gameTitle } from './ui.js';
@@ -36,7 +36,7 @@ export async function lettersGameScreen(root, id) {
   // stuck). Saves from 0.28.2-0.33.3 may still carry `hinted`; it is ignored.
 
   root.innerHTML = `<div class="app" data-screen="letters">
-  ${topbar({ left: modeTag('letters'), right: `${gameTitle(game)}${gearButton()}` })}
+  ${topbar({ left: modeTag('letters'), right: gameTitle(game) })}
   <main class="main"></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main');
@@ -119,7 +119,7 @@ export async function lettersGameScreen(root, id) {
       + stat(t('lt.length'), n, false)
       + stat(t('game.category'), t('cat.' + game.cat))
       + stat(t('game.language'), game.lang.toUpperCase())
-      + `<div class="status-actions"><a class="btn btn-ghost" href="#/games/letters">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button></div>`;
+      + `<div class="status-actions"><a class="btn btn-ghost" href="#/games/letters">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button>${gearButton('gs-inrow')}</div>`;
     confirmClick($('#give-up'), () => playing() && finish('gaveup'), refit);
     $('#give-up').addEventListener('pointerdown', e => e.preventDefault());
   }
@@ -301,8 +301,8 @@ export async function lettersGameScreen(root, id) {
       return say(t('lt.already', { w: word }), true);
     }
     game.guesses.push(word);
-    stats.letters += n;                      // letters typed are counted across every mode
-    saveStats();
+    recordMove(game, { g: game.guesses.length, len: game.len, cat: game.cat });
+    collect('letters', game.lang, word);
     cur = blank();
     sink.value = '';
     say('');
@@ -338,7 +338,7 @@ export async function lettersGameScreen(root, id) {
     const head = outcome(won, t(won ? 'end.won' : game.status === 'lost' ? 'end.lost' : 'end.gaveUp'),
       `${g}/${tries}`, t('lt.tries'));   // the tries used, however it ended - never X (owner)
     // the category the game was played in, next to the word it hid
-    const facts = [`<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span>`,
+    const facts = [`<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span>`, `<span>${t('end.level')} <b>${t('diff.' + (game.diff ?? 'normal'))}</b></span>`,
       `<span><b>${g}</b> ${plural(g, 'n.guesses')}</span>`];
     const card = `<div class="card result ${won ? 'won' : 'lost'}">
       <span class="eyebrow">${t(won ? 'end.wordWon' : 'end.wordLost')}</span>

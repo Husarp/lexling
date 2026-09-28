@@ -398,7 +398,7 @@ for (const [lang, board, levels, seed, rules = {}] of [['pl', 'classic', ['hard'
     `words ${s.moves.filter(x => x.kind === 'play').map(x => x.words[0].w).slice(0, 10).join(' ')}…, ` +
     `computer ${Math.round(sum / turns)} ms a turn on average, ${Math.round(worst)} ms at most`);
 }
-check('levels: the app\'s four, and Expert for this game', Object.keys(LEVELS), ['relaxed', 'easy', 'normal', 'hard', 'expert']);
+check('levels: the app\'s four, and Expert for this game', Object.keys(LEVELS), ['relaxed', 'easy', 'medium', 'normal', 'hard', 'expert']);
 
 // ── what the computer keeps on its rack ──
 check('leave: a blank is worth keeping', leaveValue('en', ['?', 'e']) > leaveValue('en', ['e']), true);

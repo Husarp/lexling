@@ -112,13 +112,15 @@ export function wireSettingRows(el, onChange = () => {}) {
 // Brand centred, whatever sits beside it: back on the left (only when the screen has one), the
 // screen's own note on the right. The side slots are equal columns, so the brand stays centred.
 export const topbar = ({ left = '', right = '' } = {}) =>
-  `<header class="topbar"><span class="side">${left}</span><a class="brand" href="#/">Lex<b>/</b>ling</a><span class="side end">${right}</span></header>`;
+  `<header class="topbar"><span class="side">${left}</span><a class="brand" href="#/">Lex<b>/</b>ling<small class="tb-clock" aria-live="off"></small></a><span class="side end">${right}</span></header>`;
 
 // Which game a screen or a save belongs to: the mode's small glyph and its name.
 export const GLYPH = { guess: '<span class="glyph guess" aria-hidden="true"></span>',
   letters: '<span class="glyph letters" aria-hidden="true"><i></i><i></i><i></i></span>',
   connect: `<span class="glyph connect" aria-hidden="true">${'<i></i>'.repeat(5)}</span>`,
-  tiles: `<span class="glyph tiles" aria-hidden="true">${'<i></i>'.repeat(9)}</span>` };
+  tiles: `<span class="glyph tiles" aria-hidden="true">${'<i></i>'.repeat(9)}</span>`,
+  // General (Statistics) and All (Collection): a square per game, in the colours of Statistics' "games by mode"
+  all: '<span class="glyph all" aria-hidden="true"><i></i><i></i><i></i><i></i></span>' };
 export const modeTag = mode => `<span class="mode-tag">${GLYPH[mode]}${t('mode.' + mode)}</span>`;
 
 // How a game ended, first thing on its end screen and the same in every mode (design v2:

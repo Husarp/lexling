@@ -1,0 +1,29 @@
+{
+  "rules": {
+    "rooms": {
+      "$code": {
+        ".write": "auth != null && (data.exists() ? data.child('host/uid').val() === auth.uid : newData.child('host/uid').val() === auth.uid)",
+        ".validate": "$code.matches(/^[A-HJKMNP-Z2-9]{6}$/)",
+        "host": {
+          ".read": "auth != null",
+          ".validate": "newData.child('uid').val() === auth.uid && newData.child('name').isString() && newData.child('name').val().length <= 60"
+        },
+        "up": {
+          ".read": "auth != null && root.child('rooms').child($code).child('host/uid').val() === auth.uid",
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($code).child('host').exists()",
+            "$msg": { ".validate": "newData.isString() && newData.val().length <= 200000" }
+          }
+        },
+        "down": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && auth.uid === $uid",
+            "$msg": { ".validate": "newData.isString() && newData.val().length <= 200000" }
+          }
+        },
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}

@@ -27,6 +27,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(BluetoothLinkPlugin.class);   // Tiles on several phones (before super.onCreate, as Capacitor wants)
         registerPlugin(LanLinkPlugin.class);
+        registerPlugin(NearbyLinkPlugin.class);   // the same over Google's Nearby Connections
         registerPlugin(AppUpdatePlugin.class);   // a new version, downloaded and handed to Android's installer
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);

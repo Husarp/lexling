@@ -188,13 +188,25 @@ export const sameMove = (a, b) => !!a && !!b && JSON.stringify([...a.placed].sor
 // levels) - Hard and Expert know every word. `aim`: it plays the move scoring nearest to that share of the best
 // it can see. Hard also weighs what it keeps on its rack (`leave`) and swaps a hopeless rack; Expert (the
 // owner's plan) also tries its best few moves against what the next player could answer (`simulate`).
-// First values, to be tuned by playing.
+// First values, to be tuned by playing. Medium (owner, 2026-09-28: "the medium bot is pretty good ... I still lost by a
+// lot") sits between Easy and the old Medium - now called Intermediate, its key still 'normal'.
 export const LEVELS = {
   relaxed: { known: 5000, aim: 0.5 },
   easy: { known: 8000, aim: 0.7 },
+  medium: { known: 12000, aim: 0.77 },
   normal: { known: 20000, aim: 0.85 },
   hard: { known: Infinity, aim: 1, leave: true },
   expert: { known: Infinity, aim: 1, leave: true, simulate: true },
+};
+// "Better bot reasoning" (Settings; owner, 2026-09-28: "imagine that the difficulty means how many difficult words the
+// bot knows ... he can still pick the best option if it's a very known word, even on easy"): a level is only the words
+// it knows - among those it plays the best move (Relaxed and Easy any of their moves scoring at least `pick` of their
+// best, so they do not always find it). No obscure words below Hard. For comparing with the levels above.
+export const REASONING = {
+  relaxed: { known: 700, aim: 1, pick: 0.5 },
+  easy: { known: 1800, aim: 1, pick: 0.7 },
+  medium: { known: 4000, aim: 1, pick: 0.85 },
+  normal: { known: 10000, aim: 1 },
 };
 
 // What the tiles kept on the rack are worth to the next turns, in points - a rule of thumb, as players think of
@@ -255,12 +267,12 @@ function simulated(state, dict, moves, rand, samples = 10) {
 // that is not allowed (the computer knows the list; it never challenges a good word).
 // `rankOf(word)` = the place of the word's base word in the frequency list, or Infinity when unknown.
 // With nothing it knows to play, it swaps its whole rack while it may, and passes when it may not.
-export function computerMove(state, dict, level = 'normal', rankOf = () => 0, rand = Math.random) {
+export function computerMove(state, dict, level = 'normal', rankOf = () => 0, rand = Math.random, reasoning = false) {
   if (state.pending) {
     const move = state.moves[state.moves.length - 1];
     if (move.words.some(x => !has(dict, x.w))) return { type: 'challenge' };
   }
-  const L = LEVELS[level] ?? LEVELS.normal, rack = state.racks[state.turn];
+  const L = (reasoning && REASONING[level]) || LEVELS[level] || LEVELS.normal, rack = state.racks[state.turn];
   const swapAll = () => canExchange(state, rack.length) ? { type: 'exchange', tiles: [...rack] } : { type: 'pass' };
   const moves = findMoves(state, dict).sort((x, y) => y.score - x.score);
   if (L.leave) {
@@ -286,6 +298,11 @@ export function computerMove(state, dict, level = 'normal', rankOf = () => 0, ra
   const knows = m => L.known === Infinity || wordsMade(state, m.placed).words.every(x => rankOf(x.w) < L.known);
   const top = moves.find(knows);
   if (!top) return swapAll();
+  // reasoning: any move it knows scoring at least that share of its best
+  if (L.pick) {
+    const good = moves.filter(m => m.score >= top.score * L.pick && knows(m));
+    return { type: 'place', placed: good[Math.floor(rand() * good.length)].placed };
+  }
   const want = top.score * L.aim, gaps = new Map();
   for (const m of moves) { const g = Math.abs(m.score - want); gaps.set(g, [...gaps.get(g) ?? [], m]); }
   for (const g of [...gaps.keys()].sort((x, y) => x - y)) {

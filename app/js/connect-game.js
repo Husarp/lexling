@@ -1,7 +1,7 @@
 // The Connect game screen (design v4, "Lexling Connect"): the crossword, the circle of letters and
 // the end. The rules - what a word is, the hints, when the board is done - are in connect.js.
 import { t, esc } from './i18n.js';
-import { getSave, putSave, recordConnectEnd, playClock } from './store.js';
+import { getSave, putSave, recordMove, noteMove, recordConnectEnd, playClock, gameName, collect } from './store.js';
 import { loadWords } from './engine.js';
 import { WORD_MIN, cellsOf, visible, isDone, nextHint, judge } from './connect.js';
 import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear, wordLink, gameTitle, flashTap } from './ui.js';
@@ -45,9 +45,17 @@ export async function connectGameScreen(root, id) {
   for (const x of board.words) cellsOf(x).forEach((k, i) => chars.set(k, [...x.w][i]));
   const doneList = () => { const vis = visible(board, game.found, game.shown); return board.words.filter(x => isDone(x, game.found, vis)); };
   const state = () => ({ found: game.found, shown: game.shown, bonus: game.bonus });
+  // the game's statistics record: a word found with a letter a hint had shown counts apart (owner, 2026-09-28: "don't
+  // count the words with hints", nor for the longest word)
+  function connectRecord() {
+    const shown = new Set(game.shown);
+    const own = game.found.filter(w => { const x = board.words.find(b => b.w === w); return !x || !cellsOf(x).some(k => shown.has(k)); });
+    const long = [...own, ...game.bonus].reduce((a, w) => [...w].length > [...a].length ? w : a, '');
+    return { f: own.length, fh: game.found.length - own.length, b: game.bonus.length, h: game.hints, long, gn: gameName(game) };
+  }
 
   root.innerHTML = `<div class="app" data-screen="connect">
-  ${topbar({ left: modeTag('connect'), right: `${gameTitle(game)}${gearButton()}` })}
+  ${topbar({ left: modeTag('connect'), right: gameTitle(game) })}
   <main class="main"></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main');
@@ -95,7 +103,7 @@ export async function connectGameScreen(root, id) {
       + stat(t('cn.letters'), n, false)
       + stat(t('cn.level'), t('diff.' + (game.diffRandom ? 'random' : game.diff)))
       + stat(t('game.language'), game.lang.toUpperCase())
-      + `<div class="status-actions"><a class="btn btn-ghost" href="#/games/connect">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button></div>`;
+      + `<div class="status-actions"><a class="btn btn-ghost" href="#/games/connect">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button>${gearButton('gs-inrow')}</div>`;
     confirmClick($('#give-up'), () => playing() && finish('gaveup'), refit);
     noFocus($('#give-up'));
   }
@@ -152,8 +160,8 @@ export async function connectGameScreen(root, id) {
   function answer() {
     if (!playing()) return clearPath();
     const word = path.map(i => letters[i]).join('');
-    if ([...word].length < WORD_MIN) { clearPath(); return sayIdle(); }   // a tap or a slip: nothing to judge
-    const verdict = judge(m, board, state(), word);
+    if ([...word].length < (game.two ? 2 : WORD_MIN)) { clearPath(); return sayIdle(); }   // a tap or a slip: nothing to judge
+    const verdict = judge(m, board, state(), word, !!game.two);
     const x = board.words.find(b => b.w === word);
     if (verdict === 'none') {
       // not a word: the chips and the path go red and the letters shake, then it clears
@@ -172,6 +180,8 @@ export async function connectGameScreen(root, id) {
     clearPath();
     if (verdict === 'found') {
       game.found.push(word);
+      recordMove(game, connectRecord());
+      if (!cellsOf(x).some(k => game.shown.includes(k))) collect('connect', game.lang, word);
       unpick();
       putSave(game);
       click();
@@ -188,6 +198,8 @@ export async function connectGameScreen(root, id) {
     } else if (verdict === 'bonus') {
       // a real word that is not on the board: its chips fly into the counter, which then bumps
       game.bonus.push(word);
+      recordMove(game, connectRecord());
+      collect('connect', game.lang, word);
       putSave(game);
       click();
       sayWord(word, '');
@@ -228,6 +240,7 @@ export async function connectGameScreen(root, id) {
     if (!h.cell) return sayText(pick ? t('cn.msg.wordCapped', { w: loud(pick) }) : t('cn.msg.noHints'));
     game.shown.push(h.cell);
     game.hints++;
+    noteMove(game, connectRecord());
     putSave(game);
     flashTap($('.hint-btn'));
     const vis = visible(board, game.found, game.shown);
@@ -237,6 +250,8 @@ export async function connectGameScreen(root, id) {
     if (finished) sayText(t('cn.msg.byHints', { w: loud(finished.w) }));
     else if (chosen) sayText(t('cn.msg.hint', { k: cellsOf(chosen).filter(k => vis.has(k)).length, n: [...chosen.w].length }));
     else sayText(t('cn.msg.hinted'));
+    // the first one says what it costs (owner, 2026-09-28)
+    if (game.hints === 1) $('.say p')?.insertAdjacentText('beforeend', ' ' + t('help.firstHintCn'));
     paintCells();
     animate([h.cell], 'new-hint', 150);
     paintStatus();
@@ -373,7 +388,7 @@ export async function connectGameScreen(root, id) {
   // The result is recorded at once; after a win the end waits for the last word to finish landing.
   function finish(status) {
     game.status = status;
-    recordConnectEnd(game);
+    recordConnectEnd(game, connectRecord());
     if (status === 'won') chime();
     setTimeout(() => { if (app.isConnected) paintEnd(); }, status === 'won' ? 700 : 0);
   }
@@ -386,7 +401,7 @@ export async function connectGameScreen(root, id) {
     const card = `<div class="card result ${won ? 'won' : 'lost'}">
       <span class="eyebrow">${t(won ? 'cn.allLetters' : 'cn.left')}</span>
       ${won ? `<p class="display">${esc(game.key)}</p>` : `<p class="left-words">${left.map(x => `<span>${esc(x.w)}</span>`).join('')}</p>`}
-      <div class="result-stats"><span><b>${count}</b> ${t('cn.wordsLow')}</span>${DOT}<span><b>${game.bonus.length}</b> ${t('cn.bonusLow')}</span>${DOT}<span><b>${game.hints}</b> ${t('cn.hintsLow')}</span></div>
+      <div class="result-stats"><span><b>${count}</b> ${t('cn.wordsLow')}</span>${DOT}<span><b>${game.bonus.length}</b> ${t('cn.bonusLow')}</span>${DOT}<span><b>${game.hints}</b> ${t('cn.hintsLow')}</span>${DOT}<span>${t('end.level')} <b>${t('diff.' + (game.diff ?? 'normal'))}</b></span></div>
       <p class="mean-words"><span class="eyebrow">${t('meaning.words')}</span>${board.words.map(x => wordLink(x.w, game.lang)).join('')}</p>
       <div class="result-actions"><a class="btn btn-ghost" href="#/">${t('menu')}</a><a class="btn btn-primary" href="#/new/connect">${t('lt.again')} <span class="arrow">→</span></a></div>
     </div>`;

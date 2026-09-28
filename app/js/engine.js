@@ -228,6 +228,9 @@ export function lengthStats(m, { cat, band, diff }) {
 export const DIFFS = { relaxed: 25, easy: 40, normal: 60, hard: 100 };
 const MIN_POOL = 20;   // Tools has no easy words at all; rather than refuse, offer its easiest ones
 
+// every word Guess could hide in a category, any length and level - its part of the Collection
+export const secretWords = (m, cat) => candidates(m, cat);
+
 export function secretPool(m, { cat, band, diff }) {
   const [lo, hi] = BANDS[band] || BANDS.any;
   const pool = candidates(m, cat).filter(i => { const n = letters(m.words[i]); return n >= lo && n <= hi; });

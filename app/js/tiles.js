@@ -498,7 +498,9 @@ export function unseen(state, p = state.turn) {
 // What a finished game adds to the statistics (store.js recordTilesEnd). Every game on the device counts,
 // several people included (owner, 2026-09-25: "it's the phone's statistics") - the computer's own moves never
 // do. `level` = the strongest computer in the game, or 'people'; `won` = a person beat the computer.
-export const LEVEL_ORDER = ['relaxed', 'easy', 'normal', 'hard', 'expert'];
+export const LEVEL_ORDER = ['relaxed', 'easy', 'medium', 'normal', 'hard', 'expert'];
+// a level's name (i18n key): the computer's "normal" is called Intermediate (owner, 2026-09-28)
+export const levelKey = l => l === 'normal' ? 'diff.intermediate' : 'diff.' + l;
 // `only`: one player's side alone - a game on two phones, where each phone counts its own player
 export function results(state, only = -1) {
   const people = only >= 0 ? [only] : state.players.map((x, p) => x.cpu ? -1 : p).filter(p => p >= 0);
@@ -506,15 +508,21 @@ export function results(state, only = -1) {
   const mine = state.moves.filter(m => people.includes(m.p));
   const plays = mine.filter(m => m.kind === 'play');
   const top = plays.reduce((a, m) => !a || m.score > a.score ? m : a, null);
+  // the same without the moves made with a hint (owner, 2026-09-28: they count for nothing but the words played)
+  const own = plays.filter(m => !m.hinted), ownTop = own.reduce((a, m) => !a || m.score > a.score ? m : a, null);
   const winner = state.over?.winner ?? -1;
   return {
     lang: state.lang, level: cpus.length ? LEVEL_ORDER[Math.max(...cpus)] : 'people',
     played: 1, vsCpu: cpus.length ? 1 : 0, won: cpus.length && people.includes(winner) ? 1 : 0,
+    // against people: one player on this device (the others on their phones) - did they win (owner, 2026-09-28)
+    alone: people.length === 1 ? 1 : 0, beat: people.length === 1 && people.includes(winner) ? 1 : 0,
     games: people.length, points: people.reduce((s, p) => s + state.scores[p], 0),
     bestGame: people.length ? Math.max(...people.map(p => state.scores[p])) : 0,
     bestMove: top && { w: top.words[0]?.w ?? '', score: top.score },
     moves: plays.length, movePoints: plays.reduce((s, m) => s + m.score, 0), bingos: plays.filter(m => m.bingo).length,
     passes: mine.filter(m => m.kind === 'pass' || m.kind === 'timeout').length,
     hints: people.reduce((s, p) => s + state.hints[p], 0),
+    ownMoves: own.length, ownPoints: own.reduce((s, m) => s + m.score, 0), ownBingos: own.filter(m => m.bingo).length,
+    ownBest: ownTop && { w: ownTop.words[0]?.w ?? '', score: ownTop.score },
   };
 }

@@ -1,6 +1,6 @@
 // The game screen - markup from design/handoff/game.html (states: 0 guesses / mid-game / won).
 import { t, plural, esc, num, clock } from './i18n.js';
-import { settings, stats, getSave, putSave, recordGuess, recordEnd, playClock } from './store.js';
+import { settings, getSave, putSave, recordGuess, recordEnd, noteMove, bestGuessWin, playClock } from './store.js';
 import { load, resolve, suggest, rankAll, pct, hint, HINT_FLOOR } from './engine.js';
 import { topbar, fillColor, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink, gameTitle, flashTap } from './ui.js';
 import { fitAll } from './fit.js';
@@ -16,7 +16,7 @@ export async function gameScreen(root, id) {
   const rank = rankAll(m, secretIdx);
 
   root.innerHTML = `<div class="app" data-screen="game">
-  ${topbar({ left: `<a class="btn btn-ghost" href="#/games/guess">${t('back.games')}</a>`, right: `${gameTitle(game)}${gearButton()}` })}
+  ${topbar({ left: `<a class="btn btn-ghost" href="#/games/guess">${t('back.games')}</a>`, right: gameTitle(game) })}
   <main class="main">
     <div class="status"></div>
     <div id="entry"></div>
@@ -36,7 +36,7 @@ export async function gameScreen(root, id) {
       + stat(t('game.category'), game.friend ? '—' : t('cat.' + game.cat))
       + stat(t('game.language'), game.lang.toUpperCase())
       + (playing()
-        ? `<div class="status-actions"><a class="btn btn-ghost" href="#/games/guess">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button></div>`
+        ? `<div class="status-actions"><a class="btn btn-ghost" href="#/games/guess">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button>${gearButton('gs-inrow')}</div>`
         : stat(t('game.time'), clock(game.timeMs), false));
     if (playing()) confirmClick($('#give-up'), () => finish(false), refit);
   }
@@ -47,9 +47,10 @@ export async function gameScreen(root, id) {
       // as Letters. Giving up names the closest the player got; a win, their best win so far.
       const won = game.status === 'won', n = realGuesses(), dot = '<span class="dot">·</span>';
       const closest = game.guesses.filter(g => !g.hint).reduce((b, g) => !b || g.rank < b.rank ? g : b, null);
-      const facts = [!game.friend && `<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span>`,
+      // the difficulty too, in every mode that has one (owner, 2026-09-28)
+      const facts = [!game.friend && `<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span>`, !game.friend && `<span>${t('end.level')} <b>${t('diff.' + (game.diff ?? 'normal'))}</b></span>`,
         `<span><b>${num(n)}</b> ${plural(n, 'n.guesses')}</span>`, `<span><b>${clock(game.timeMs)}</b> ${t('game.inGame')}</span>`,
-        won && stats.bestWin && `<span>${t('game.bestWin')} <b>${num(stats.bestWin)}</b></span>`,
+        won && bestGuessWin() && `<span>${t('game.bestWin')} <b>${num(bestGuessWin())}</b></span>`,
         !won && closest && `<span>${t('end.closest', { w: esc(closest.w) })} <b>${num(closest.rank)}</b></span>`];
       $('#entry').outerHTML = `<div id="entry" class="ended">
       ${outcome(won, t(won ? 'end.won' : 'end.gaveUp'), num(n), plural(n, 'n.guesses'))}
@@ -133,10 +134,12 @@ export async function gameScreen(root, id) {
     if (!found) return say(t(bestRank() && bestRank() <= HINT_FLOOR ? 'game.hintNone' : 'game.hintFail'));
     const word = m.words[found.idx];
     game.guesses.push({ w: word, typed: '', rank: found.rank, pct: pct(found.rank, m.count), hint: true });
+    noteMove(game, { h: game.guesses.filter(x => x.hint).length });
     putSave(game);
     flashTap($('#hint'));
     click();
-    say('');
+    // the first one says what it costs (owner, 2026-09-28: an alert when hints come in)
+    say(game.guesses.filter(x => x.hint).length === 1 ? t('help.firstHint') : '');
     paintStatus();
     paintHintNote();
     paintBoard(word);
@@ -184,7 +187,7 @@ export async function gameScreen(root, id) {
 
   function finish(won) {
     game.status = won ? 'won' : 'gaveup';
-    recordEnd(game, won, m.hardOf.get(secretIdx) ?? -1, game.guesses.some(x => x.hint));
+    recordEnd(game, won, m.hardOf.get(secretIdx) ?? -1);
     if (won) chime();
     say('');
     paintStatus();

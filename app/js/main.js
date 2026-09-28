@@ -2,18 +2,19 @@ import { settings, getSave } from './store.js';
 import { setLang } from './i18n.js';
 import { applyTheme, applyAccent } from './ui.js';
 import { fitAll, watchResize } from './fit.js';
-import { menu, games, newGameScreen, lettersNewScreen, connectNewScreen, tilesNewScreen, tilesJoinScreen, tilesOnlineScreen, statsScreen, settingsScreen } from './screens.js';
+import { menu, games, newGameScreen, lettersNewScreen, connectNewScreen, tilesNewScreen, tilesJoinScreen, tilesOnlineScreen, statsScreen, settingsScreen, collectionScreen } from './screens.js';
 import { gameScreen } from './game.js';
 import { lettersGameScreen } from './letters-game.js';
 import { connectGameScreen } from './connect-game.js';
 import { tilesGameScreen, applyTileLook } from './tiles-game.js';
 import { VERSION } from './version.js';
 import { checkUpdate, cleanUpdate } from './update.js';
+import { startPlaytime, paintClock } from './playtime.js';
 
 // Routes name the mode where it matters: #/new is Guess, #/new/letters, #/new/connect, #/new/tiles the others,
 // and #/game/<id> takes the mode from the save itself.
 // Tiles online: #/online (the connection, then host or join), #/host/<bt|lan> (New game, online), #/join/<bt|lan>
-const ROUTES = { '': menu, games, stats: statsScreen, settings: settingsScreen, online: tilesOnlineScreen, join: tilesJoinScreen,
+const ROUTES = { '': menu, games, stats: statsScreen, settings: settingsScreen, collection: collectionScreen, online: tilesOnlineScreen, join: tilesJoinScreen,
   host: (root, kind, refresh) => tilesNewScreen(root, 'tiles', refresh, kind),
   new: (root, mode, refresh) => ({ letters: lettersNewScreen, connect: connectNewScreen, tiles: tilesNewScreen }[mode] ?? newGameScreen)(root, mode, refresh),
   game: (root, id, refresh) => ({ letters: lettersGameScreen, connect: connectGameScreen, tiles: tilesGameScreen }[getSave(id)?.mode] ?? gameScreen)(root, id, refresh) };
@@ -31,6 +32,7 @@ async function render(navigated = true) {
   // render lost the race: undo it rather than leaving its timer running over somebody else's screen.
   if (mine !== latest) return done?.();
   if (navigated) cleanup = done;
+  paintClock();
   fitAll(root);
   if (navigated && shown !== location.hash) {
     window.scrollTo(0, 0);
@@ -67,7 +69,7 @@ window.visualViewport?.addEventListener('resize', keyboardCheck);
 // that consumes Esc first (the autocomplete, renaming a game) stops it with stopPropagation().
 // Each mode has its own games list, so "up" from a new game or a game is that mode's list. A game
 // that has just ended is no longer saved, so its mode is read off the screen instead.
-const PARENT = { games: () => '#/', stats: () => '#/', settings: () => '#/', online: () => '#/games/tiles', join: () => '#/online', host: () => '#/online',
+const PARENT = { games: () => '#/', stats: () => '#/', settings: () => '#/', collection: () => '#/', online: () => '#/games/tiles', join: () => '#/online', host: () => '#/online',
   new: mode => ['letters', 'connect', 'tiles'].includes(mode) ? '#/games/' + mode : '#/games/guess',
   game: () => document.querySelector('[data-screen=letters]') ? '#/games/letters'
     : document.querySelector('[data-screen=connect]') ? '#/games/connect'
@@ -107,5 +109,6 @@ watchResize(root);
 window.addEventListener('hashchange', () => render());
 // a newer version: looked for on opening, and on coming back to the app (update.js - not more than every few minutes)
 cleanUpdate();
+startPlaytime();   // the time on screen, and the play-time reminder (Settings)
 checkUpdate();
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });

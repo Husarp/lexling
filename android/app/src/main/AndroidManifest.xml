@@ -39,14 +39,22 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Tiles on two phones over Bluetooth (BluetoothLinkPlugin) - up to Android 11 the old permissions, searching
-         needing location; from Android 12 the nearby-devices ones, the search never used for location -->
+         needing location; from Android 12 the nearby-devices ones, the search never used for location (the location
+         permission up to Android 12 is Nearby's, below) -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="31" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" tools:targetApi="s" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+    <!-- Tiles on several phones through Google's Nearby Connections (NearbyLinkPlugin): Bluetooth as above, the location
+         permission on Android 12 as well, and the Wi-Fi the phones share (it never changes the phone's Wi-Fi) -->
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" android:usesPermissionFlags="neverForLocation" tools:targetApi="tiramisu" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <!-- the Nearby library wants Android 7; Lexling still installs on Android 6, where Nearby is simply not offered -->
+    <uses-sdk tools:overrideLibrary="com.google.android.gms.nearby" />
     <!-- Tiles on several phones over Wi-Fi (LanLinkPlugin): is there a network, and finding games on it -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />

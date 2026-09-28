@@ -41,6 +41,12 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:none;box-
 .topbar{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--space-3);min-height:56px;padding:var(--space-2) var(--gutter);background:var(--bg);border-bottom:1px solid var(--line-soft)}   /* no accent line along the top (owner, 2026-09-25) */
 .brand{font:800 clamp(22px,3vw,26px)/1 var(--font-display);letter-spacing:-.02em;text-transform:uppercase;white-space:nowrap}
 .brand b{color:var(--accent);font-weight:800}
+/* the time under the name (Settings → Show the time, 0.62.0) - out of the flow, so the bar keeps its height */
+.brand{position:relative}
+.tb-clock{position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%);font:600 11px/1 var(--font-body);letter-spacing:.04em;color:var(--text-dim);text-transform:none}
+.tb-clock:empty{display:none}
+.rm-every{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap}
+.rm-every .input{width:72px;text-align:center}
 .topbar .side{display:flex;align-items:center;gap:var(--space-2);min-width:0}
 .topbar .side.end{justify-content:flex-end}
 .topbar .btn{padding:0 var(--space-3);min-width:0}
@@ -146,6 +152,8 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=game] .stat{display:grid;gap:2px}
 [data-screen=game] .stat .num{font-size:clamp(24px,5vw,32px)}
 [data-screen=game] .status-actions{margin-left:auto;display:flex;gap:var(--space-1);flex-wrap:wrap}
+/* the settings in the row of Save & exit and Give up, on its right (owner, 2026-09-28) */
+.status-actions .gs-inrow{margin-left:auto;min-width:40px;padding:0 var(--space-2)}
 @media (max-width:400px){[data-screen=game] .status-actions{margin-left:0;width:100%}}
 [data-screen=game] .guess-input{position:relative}
 [data-screen=game] .guess-input .input{min-height:56px;font-size:clamp(18px,4.5vw,22px);padding-right:112px}
@@ -378,18 +386,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=games] .save-last{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-2) var(--space-3);font-size:13px;color:var(--text-muted)}
 [data-screen=games] .save-last .num{color:var(--text);font-size:15px}
 /* achievements.html */
-[data-screen=stats] .tabs{position:sticky;top:0;z-index:4}
-[data-screen=stats] .tabs button{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2)}
-[data-screen=stats] .tabs button.on .glyph i,[data-screen=stats] .tabs button.on .glyph{outline:1px solid rgba(255,255,255,.5)}
-[data-screen=stats] .section{display:grid;gap:var(--space-6)}
 /* Letters' wins at each word length: one cell per length 3–13 */
-[data-screen=stats] .lengths{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:4px}
-[data-screen=stats] .lengths span{display:grid;gap:4px;justify-items:center;min-width:0}
-[data-screen=stats] .lengths b{width:100%;height:30px;display:grid;place-items:center;border-radius:8px;font:800 15px/1 var(--font-display);border:1.5px dashed var(--line-soft);color:var(--text-dim)}
-[data-screen=stats] .lengths .won b{border:1.5px solid var(--lt-hit);background:color-mix(in srgb,var(--lt-hit) 16%,transparent);color:var(--text)}
-[data-screen=stats] .lengths em{font:600 10px/1 var(--font-body);font-style:normal;color:var(--text-dim)}
-[data-screen=stats] .shared{display:flex;flex-wrap:wrap;gap:var(--space-1) var(--space-4);padding-top:var(--space-4);border-top:1px solid var(--line-soft);font-size:14px;color:var(--text-muted)}
-[data-screen=stats] .shared b{font:800 18px/1 var(--font-display);color:var(--text)}
 
 /* ═══ LETTERS — APP ADDITIONS ═══ */
 /* keyboard open: the top bar is gone, so the message line itself has to clear the status bar / notch */
@@ -525,30 +522,12 @@ html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;g
 [data-screen=menu] .game>.arrow{font:600 22px/1 var(--font-body);transition:transform var(--dur) var(--ease)}
 [data-screen=menu] .game:hover>.arrow{transform:translateX(4px)}
 [data-screen=menu] .game.soon .g-live{color:var(--text-dim)}
-[data-screen=menu] .menu.four{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);max-width:none;margin-top:var(--space-2)}
-[data-screen=menu] .menu.four .btn{min-height:48px;padding:0 var(--space-4)}
-@container (min-width:600px){[data-screen=menu] .menu.four{max-width:520px}}
 
 /* ── Statistics: four tabs, numbers only ──
    Four names up to ~11 characters do not fit one row at 320px, so under a 500px column the tabs sit 2×2.
    Each tab: the numbers (.stats), then one "shape" card that only that game has — how many tries a
    win takes (Guess, Letters) or the longest word found (Connect) — then the line shared by all games. */
-[data-screen=stats] .main{container-type:inline-size}
-[data-screen=stats] .tabs4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
-@container (max-width:499px){[data-screen=stats] .tabs4{grid-template-columns:1fr 1fr}}
-[data-screen=stats] .tabs4 button{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-width:0}
-@media (max-width:340px){[data-screen=stats] .tabs4 button{gap:4px;padding-left:4px;padding-right:4px}}   /* 320 px: the Polish name of Guess and its glyph did not fit (owner: check the Polish labels) */
-[data-screen=stats] .tabs4 button.on .glyph{filter:brightness(1.15)}
-[data-screen=stats] .stats-sum{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--space-2) var(--space-3)}
-[data-screen=stats] .stats-sum .num{font-size:clamp(56px,14vw,88px);line-height:.85}
-[data-screen=stats] .stats-sum .help b{color:var(--text);font-weight:600}
-[data-screen=stats] .dist{display:grid;gap:var(--space-3);padding:var(--space-4) var(--space-5) var(--space-5)}
-[data-screen=stats] .dist-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:var(--space-1) var(--space-3)}
-[data-screen=stats] .dist ol{list-style:none;padding:0;display:grid;gap:6px}
-[data-screen=stats] .dist li{display:grid;grid-template-columns:5ch minmax(0,1fr);align-items:center;gap:var(--space-3)}
-[data-screen=stats] .dist li>span{font:700 16px/1 var(--font-display);color:var(--text-muted);text-align:right;white-space:nowrap}
-[data-screen=stats] .dist li>b{display:flex;align-items:center;justify-content:flex-end;min-width:32px;width:var(--pct);height:26px;padding:0 8px;border-radius:6px;background:var(--surface-2);font:800 15px/1 var(--font-display);color:var(--text)}
-[data-screen=stats] .dist li.top>b{background:var(--tone,var(--lt-hit));color:var(--tone-ink,#fff)}
+
 [data-screen=stats] .best{display:grid;gap:var(--space-3);padding:var(--space-4) var(--space-5) var(--space-5)}
 [data-screen=stats] .best .mt-row{flex-wrap:wrap;gap:4px}
 [data-screen=stats] .none{display:grid;gap:var(--space-2);padding:var(--space-5);border:1.5px dashed var(--line);border-radius:var(--radius-lg);background:transparent}
@@ -1115,8 +1094,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-screen=games] .save-last .vs{flex-wrap:wrap}
 [data-screen=games] .save-last .vs i[class*=pc]{background:var(--pc)}
 /* statistics: language and level filters above the Tiles numbers */
-.tl-filters{display:grid;gap:var(--space-2)}
-.tl-filters .chips{display:flex;flex-wrap:wrap;gap:6px}
 .tl-look{padding:var(--space-4) var(--space-5)}
 .tl-check form .input{flex:1;min-width:0}
 .tl-check form .btn{flex:none}
@@ -1140,6 +1117,16 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-other>span:first-of-type{flex:0 1 auto;min-width:0;max-width:30%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tl-other .mt-row{display:flex;gap:3px}
 .tl-other .mtl{--s:22px}
+/* the end, before the results (0.60.0): each rack's tiles left and what they cost */
+.tl-endstep{gap:var(--space-3)}
+.tl-left{list-style:none;margin:0;padding:0;display:grid;gap:8px;width:100%}
+.tl-left li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;text-align:left}
+.tl-left li .dot-p{grid-column:1;grid-row:1}
+.tl-left li .nm{grid-column:2;grid-row:1;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-left li .mt-row{grid-column:2;grid-row:2;flex-wrap:wrap;min-height:4px}
+.tl-left li>b{grid-column:3;grid-row:1 / span 2;font:800 22px/1 var(--font-display)}
+.tl-left li>b.plus{color:var(--success,#3fb950)}
+.tl-left li>b.minus{color:var(--danger,#f85149)}
 /* the hint levels on the tool row: Small, Big, Master, then Cancel under them */
 .tl-dock .lvl{flex:1 1 0;min-width:0;min-height:48px;padding:0 var(--space-2)}
 .tl-dock .lvl.off{opacity:.4}
@@ -1339,20 +1326,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 }
 /* statistics in groups (owner, 2026-09-26: "group them better, some boxes are bigger than they should"): a card per
    group, its numbers in a grid inside - no box per number, so none is stretched to its neighbour's height */
-[data-screen=stats] .sgroups{display:grid;gap:var(--space-3)}
-[data-screen=stats] .sgroup{display:grid;gap:var(--space-3);padding:var(--space-4) var(--space-5)}
-[data-screen=stats] .sgroup>.eyebrow{margin:0}
-[data-screen=stats] .scells{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:var(--space-4);align-items:start}
 /* each number three rows - label, number, note - shared across its row, so the numbers line up when a label wraps */
-[data-screen=stats] .scell{display:grid;grid-row:span 3;grid-template-rows:subgrid;row-gap:4px;min-width:0}
-[data-screen=stats] .scell .lbl{align-self:end}
-[data-screen=stats] .scell.wide{grid-column:1 / -1}
-[data-screen=stats] .scell .lbl{font:600 11px/1.25 var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
-[data-screen=stats] .scell .num{font:800 clamp(24px,5.5vw,32px)/1 var(--font-display);color:var(--text);overflow-wrap:anywhere}
-[data-screen=stats] .scell .num .word{font-size:.8em;text-transform:uppercase}
-[data-screen=stats] .scell .num .unit{font:500 13px var(--font-body);color:var(--text-muted)}
-[data-screen=stats] .scell .sub{font-size:12px;line-height:1.3;color:var(--text-muted)}
-[data-screen=stats] .sgroup.dim .num{color:var(--text-dim)}
 /* History: the hints taken before a move, on its row as a second line (owner, 2026-09-26) */
 .tl-hist .w small.hl{display:block;margin-top:4px;font:500 12px/1.3 var(--font-body);text-transform:none;letter-spacing:0;color:var(--text-muted)}
 /* a hint given: the Hint button's frame flashes orange for a moment (owner, 2026-09-26) */
@@ -1434,6 +1408,13 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-wait strong{font-size:clamp(22px,6cqi,28px)}
 [data-screen=games] .head-acts{display:flex;flex-wrap:wrap;gap:var(--space-2)}
 .tl-join{display:grid;gap:var(--space-3);padding:var(--space-5)}
+/* help on (0.60.0): those games leave the statistics' records and averages - said where it is switched on */
+.help-warn{margin:0 0 var(--space-3);padding:var(--space-3) var(--space-4);border-radius:var(--radius-sm);border:1px solid color-mix(in srgb,var(--warn,#e0a800) 55%,transparent);background:color-mix(in srgb,var(--warn,#e0a800) 12%,transparent);color:var(--text);font-size:14px;line-height:1.45}
+.help-warn::before{content:'⚠ ';color:var(--warn,#e0a800)}
+/* Internet (0.59.0): the game's code - typed in on Join, shown big on the host's card */
+.tl-coderow{display:flex;flex-wrap:wrap;gap:8px}
+.tl-coderow .input{flex:1 1 150px;min-width:0;font:700 20px/1 var(--font-body);letter-spacing:.18em;text-transform:uppercase}
+.tl-code,.tl-wait .tl-phone b.tl-code{display:inline-block;font:800 30px/1 var(--font-display);letter-spacing:.14em;color:var(--accent);vertical-align:middle;user-select:all}
 .tl-join-note{display:flex;align-items:center;gap:var(--space-2);margin:0;color:var(--text-dim)}
 .tl-devices{display:grid;gap:var(--space-2)}
 .tl-devices:empty{display:none}
@@ -1501,3 +1482,232 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-findable{margin:0;font-size:13px}
 .tl-findable.on{color:var(--lt-hit)}
 .tl-findable.off{color:var(--lt-near)}
+
+/* ═══ LEXLING · STATISTICS v2 (2026-09-28) — new CSS, goes below menu.css and tiles.css.
+   Replaces menu.css's "Statistics" block (.tabs4, .dist, .stat-card.dim) and the app's own .tabs5 / .sgroup /
+   .scell / .vdist / .tl-filters additions. Reuses .seg, .chip, .card, .none, .best, .mt, .mtl, .tl-best.
+   Everything sizes off .main as a container (cqi / @container), so it is the same in the app and on the design page. ═══ */
+[data-screen=stats] .main{container-type:inline-size;gap:var(--space-4)}
+
+/* ── Tabs: five across at every width ──
+   The glyph sits above the name, names are Barlow Condensed, and each tab is only as wide as its name (flex auto),
+   so "ZNACZENIE" takes the room "OGÓLNE" doesn't need. At 320 the five fit with ~20px to spare.
+   From a 600px column the glyph moves beside the name. */
+[data-screen=stats] .seg.st-tabs{position:sticky;top:0;z-index:4;display:flex;gap:2px;padding:3px}
+[data-screen=stats] .seg.st-tabs button{flex:1 1 auto;min-width:0;min-height:52px;padding:7px 4px 6px;display:grid;justify-items:center;align-content:center;gap:7px;border-radius:11px;font:700 14px/1 var(--font-display);letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
+[data-screen=stats] .st-tabs .tg{height:14px;display:grid;place-items:center}
+@container (min-width:600px){[data-screen=stats] .seg.st-tabs button{grid-auto-flow:column;gap:9px;min-height:46px;padding:0 10px;font-size:16px}}
+/* General's glyph: one square per game, in the colours the "games by mode" chart uses */
+.glyph.all{display:grid;grid-template-columns:repeat(2,6px);grid-auto-rows:6px;gap:2px}
+.glyph.all i{border-radius:1.5px}
+.glyph.all i:nth-child(1){background:var(--fill-warm)}.glyph.all i:nth-child(2){background:var(--lt-hit)}
+.glyph.all i:nth-child(3){background:var(--lt-miss)}.glyph.all i:nth-child(4){background:var(--tl-tile,#F3C237)}
+
+/* ── Filters (game tabs only): language, then level ──
+   Under a 600px column the level chips are one row that scrolls sideways. It bleeds to the screen edge and fades
+   there, so the cut chip reads as "more this way", not as a mistake. From 600px the chips wrap instead. */
+[data-screen=stats] .st-filters{display:grid;gap:var(--space-2)}
+[data-screen=stats] .st-filters .seg{max-width:360px}
+[data-screen=stats] .st-filters .seg button{min-height:40px}
+[data-screen=stats] .st-levels{margin:0 calc(var(--gutter) * -1);padding:0 var(--gutter);overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,transparent,#000 var(--gutter),#000 calc(100% - 48px),transparent);mask-image:linear-gradient(90deg,transparent,#000 var(--gutter),#000 calc(100% - 48px),transparent)}
+[data-screen=stats] .st-levels::-webkit-scrollbar{display:none}
+[data-screen=stats] .st-levels .chips{flex-wrap:nowrap;width:max-content;padding-right:var(--gutter)}
+[data-screen=stats] .st-levels .chip{flex:none;min-height:40px;padding:0 14px;font-size:13px;white-space:nowrap}
+@container (min-width:600px){[data-screen=stats] .st-levels{margin:0;padding:0;overflow:visible;-webkit-mask-image:none;mask-image:none}[data-screen=stats] .st-levels .chips{flex-wrap:wrap;width:auto;padding:0}}
+[data-screen=stats] .st-filters.off{opacity:.4;pointer-events:none}
+
+/* ── Groups: a card per group, a titled grid of cells ──
+   A cell = label · big number · optional line · optional 3px ratio bar (for the "53 % won" lines).
+   Rows are a subgrid, so numbers line up across a row even when one label takes two lines. */
+[data-screen=stats] .section{display:grid;gap:var(--space-3)}
+[data-screen=stats] .sgroup{display:grid;gap:var(--space-4);padding:var(--space-4) var(--space-5) var(--space-5)}
+@container (max-width:340px){[data-screen=stats] .sgroup,[data-screen=stats] .chart{padding:var(--space-4)}}
+[data-screen=stats] .sgroup>.eyebrow{margin:0}
+[data-screen=stats] .scells{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:var(--space-5) var(--space-4)}
+[data-screen=stats] .scell{display:grid;grid-row:span 4;grid-template-rows:subgrid;row-gap:5px;min-width:0}
+[data-screen=stats] .scell .lbl{align-self:end;font:600 11px/1.3 var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);text-wrap:balance}
+[data-screen=stats] .scell .num{font:800 34px/1 var(--font-display);color:var(--text);overflow-wrap:anywhere}
+[data-screen=stats] .scell .unit{margin-left:3px;font:600 15px/1 var(--font-body);color:var(--text-muted)}
+[data-screen=stats] .scell .sub{font-size:12.5px;line-height:1.35;color:var(--text-muted)}
+[data-screen=stats] .scell .sub b{font-weight:600;color:var(--text)}
+[data-screen=stats] .scell .bar{align-self:start;display:block;height:3px;border-radius:2px;background:var(--line-soft);overflow:hidden}
+[data-theme=light] [data-screen=stats] .scell .bar{background:var(--line)}
+[data-screen=stats] .scell .bar i{display:block;width:var(--p);height:100%;border-radius:2px;background:var(--accent)}
+[data-screen=stats] .scell .bar.quiet i{background:var(--text-muted)}
+[data-screen=stats] .scell.wide{grid-column:1 / -1}
+[data-screen=stats] .scell.word .num{font-size:28px;text-transform:uppercase;letter-spacing:0}
+[data-screen=stats] .scell.hero{grid-column:span 2}
+[data-screen=stats] .scell.hero .num{font-size:clamp(56px,17cqi,80px);line-height:.86}
+[data-screen=stats] .scell.dash .num{color:var(--text-dim)}
+[data-screen=stats] .sgroup.dim .num,[data-screen=stats] .sgroup.dim .unit{color:var(--text-dim)}
+/* the honesty note: one quiet line at the foot of the group it concerns */
+[data-screen=stats] .snote{display:flex;gap:8px;padding-top:var(--space-3);border-top:1px solid var(--line-soft);font-size:12.5px;line-height:1.45;color:var(--text-muted)}
+[data-screen=stats] .snote::before{content:"·";flex:none;font-weight:700;color:var(--accent)}
+
+/* ── Charts: one style, columns standing up ──
+   Count on top, label under the base line, the tallest column in the mode's colour (--tone), the rest --surface-2.
+   A value of 0 is a short dashed stub with a dim 0. Columns cap at 56px wide so four don't turn into slabs. */
+[data-screen=stats] .chart{display:grid;gap:var(--space-4);padding:var(--space-4) var(--space-5) var(--space-5)}
+[data-screen=stats] .chart-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px var(--space-3)}
+[data-screen=stats] .chart ol{list-style:none;padding:0;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:0 clamp(3px,1.4cqi,12px)}
+[data-screen=stats] .chart li{display:grid;grid-template-rows:152px auto;row-gap:7px;min-width:0}
+[data-screen=stats] .chart .plot{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px;border-bottom:1px solid var(--line)}
+[data-screen=stats] .chart .plot b{font:800 15px/1 var(--font-display);font-variant-numeric:tabular-nums;color:var(--text);white-space:nowrap}
+[data-screen=stats] .chart .plot i{width:100%;max-width:56px;height:calc((100% - 20px) * var(--k));min-height:4px;border-radius:5px 5px 0 0;background:var(--surface-2)}
+[data-theme=light] [data-screen=stats] .chart .plot i{background:#E3E3E3}
+[data-screen=stats] .chart li.top .plot i{background:var(--tone,var(--lt-hit))}
+[data-screen=stats] .chart li.zero .plot b{color:var(--text-dim)}
+[data-screen=stats] .chart li.zero .plot i{height:10px;min-height:0;background:none;border:1.5px dashed var(--line);border-bottom:0}
+[data-screen=stats] .chart .cl{display:grid;justify-items:center;gap:6px;font:700 13px/1.1 var(--font-display);letter-spacing:.02em;text-transform:uppercase;color:var(--text-muted);text-align:center;white-space:nowrap;overflow:hidden}
+[data-screen=stats] .chart li.top .cl{color:var(--text)}
+/* General: every column in its own game's colour; the tallest at full strength, the rest at 40 % */
+[data-screen=stats] .chart.modes li .plot i{opacity:.4}
+[data-screen=stats] .chart.modes li.top .plot i{opacity:1}
+[data-screen=stats] .chart.modes .m-guess .plot i{background:linear-gradient(0deg,var(--fill-cold),var(--fill-warm),var(--fill-mid),var(--fill-hot))}
+[data-screen=stats] .chart.modes .m-letters .plot i{background:var(--lt-hit)}
+[data-screen=stats] .chart.modes .m-connect .plot i{background:var(--lt-miss)}
+[data-screen=stats] .chart.modes .m-tiles .plot i{background:var(--tl-tile,#F3C237)}
+[data-screen=stats] .chart.dim .plot b{color:var(--text-dim)}
+
+/* ── Empty states ── (.none itself is in menu.css) */
+[data-screen=stats] .none .help{margin:0}
+[data-screen=stats] .none.nothing{justify-items:start;gap:var(--space-3)}
+[data-screen=stats] .none.nothing .btn{margin-left:calc(var(--space-3) * -1)}
+/* the Collection's tabs in the Statistics style (0.61.0) */
+[data-screen=collection] .seg.st-tabs{display:flex;gap:2px;padding:3px}
+[data-screen=collection] .seg.st-tabs button{flex:1 1 auto;min-width:0;min-height:52px;padding:7px 4px 6px;display:grid;justify-items:center;align-content:center;gap:7px;border-radius:11px;font:700 14px/1 var(--font-display);letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
+[data-screen=collection] .st-tabs .tg{height:14px;display:grid;place-items:center}
+@container (min-width:600px){[data-screen=collection] .seg.st-tabs button{grid-auto-flow:column;gap:9px;min-height:46px;padding:0 10px;font-size:16px}}
+
+/* ═══ LEXLING · THE MENU AND TIME (design v7, 2026-09-28) — goes below app.css ═══ */
+
+/* ── The menu ──
+   The game rows a little tighter (~76px) and one bar of three: on a 360×740 phone everything is on the first screen
+   (the hero is a little tighter too: tagline 15px, 12px between its parts). */
+[data-screen=menu] .hero.tight{align-content:start;gap:0;padding-top:clamp(16px,3vh,48px);padding-bottom:var(--space-4)}
+[data-screen=menu] .hero.tight .hero-inner{container-type:inline-size;gap:var(--space-3)}
+[data-screen=menu] .hero.tight .display{font-size:clamp(38px,11.5cqi,64px)}
+[data-screen=menu] .hero.tight .tagline{font-size:15px;line-height:1.5}
+[data-screen=menu] .games.tight{display:grid;gap:var(--space-2);margin-top:var(--space-1)}
+[data-screen=menu] .games.tight .game{min-height:72px;gap:var(--space-3);padding:var(--space-2) var(--space-4) var(--space-2) var(--space-2)}
+[data-screen=menu] .games.tight .cue4{width:54px;height:54px}
+[data-screen=menu] .games.tight .g-name{font-size:23px}
+[data-screen=menu] .games.tight .g-desc{font-size:12.5px;line-height:1.35}
+[data-screen=menu] .games.tight .cue-ring{transform:scale(.9)}
+/* from a 600px column: two across */
+@container (min-width:600px){
+  [data-screen=menu] .games.tight{grid-template-columns:1fr 1fr;gap:var(--space-3)}
+  [data-screen=menu] .games.tight .game{min-height:100px;padding:var(--space-4) var(--space-5) var(--space-4) var(--space-4)}
+  [data-screen=menu] .games.tight .cue4{width:64px;height:64px}
+  [data-screen=menu] .games.tight .g-name{font-size:28px}
+  [data-screen=menu] .games.tight .g-desc{font-size:13px}
+}
+/* Statistics · Collection · Settings: one bar of three, divided by hairlines - one row at every width, and quieter than
+   the games above it. Barlow Condensed, so "USTAWIENIA" fits a 93px third at 320. */
+[data-screen=menu] .menu.bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));max-width:none;margin-top:var(--space-1);background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-lg);overflow:hidden}
+[data-screen=menu] .menu.bar a{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;min-height:50px;padding:0 4px;font:700 16px/1 var(--font-display);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;color:var(--text);transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+[data-screen=menu] .menu.bar a+a{border-left:1px solid var(--line-soft)}
+[data-screen=menu] .menu.bar a:hover{color:var(--accent);background:var(--accent-soft)}
+[data-screen=menu] .menu.bar .arrow{display:none}
+@container (min-width:600px){[data-screen=menu] .menu.bar a{min-height:54px;font-size:18px}[data-screen=menu] .menu.bar .arrow{display:inline}}
+
+/* ── Time: the clock under the name, the reminder ── (.tb-clock and .rm-every are in app.css)
+   The clock is 11px, --text-dim, tabular, and sits 3px under LEX/LING without moving the bar. */
+.tb-clock{font-variant-numeric:tabular-nums}
+.remind{display:grid;gap:var(--space-3)}
+.remind .num{font-size:44px;line-height:.95;color:var(--text)}
+.remind p{margin:0;font-size:14px;line-height:1.5;color:var(--text-muted)}
+.remind p b{color:var(--text);font-weight:600}
+.remind .btn{justify-self:end;min-width:96px}
+
+/* ═══ LEXLING · COLLECTION v2 (2026-09-28) — new CSS, goes below app.css.
+   Replaces app.css's "Collection (0.61.0)" block (.col-total, .col-big, .col-bar, .col-cats, .col-lens, .col-words, .cw).
+   Tabs are Statistics' (.seg.st-tabs). ═══ */
+[data-screen=collection] .main{container-type:inline-size;gap:var(--space-4)}
+[data-screen=collection] .section{display:grid;gap:var(--space-3)}
+[data-screen=collection] .seg.st-tabs{position:sticky;top:0;z-index:4}
+[data-screen=collection] .co-lang{max-width:360px}
+[data-screen=collection] .co-lang button{min-height:40px}
+
+/* one bar everywhere: 4px, green = found (the colour a found word has in every game) */
+.co-bar{display:block;height:4px;border-radius:2px;background:var(--line-soft);overflow:hidden}
+[data-theme=light] .co-bar{background:var(--line)}
+.co-bar i{display:block;width:var(--p);min-width:2px;height:100%;border-radius:2px;background:var(--lt-hit)}
+.co-bar.zero i{min-width:0}
+
+/* ── All: the big number, then a row per game ── */
+.co-hero{display:grid;gap:var(--space-2);padding:var(--space-4) var(--space-5) var(--space-5)}
+.co-hero .eyebrow{margin:0}
+.co-pct{display:flex;align-items:baseline;gap:4px;font:800 clamp(64px,22cqi,96px)/.86 var(--font-display);letter-spacing:-.02em;color:var(--text)}
+.co-pct small{font:800 .42em/1 var(--font-display);color:var(--text-muted)}
+.co-line{margin:0;font-size:14px;color:var(--text-muted)}
+.co-line b{font-weight:600;color:var(--text)}
+.co-hero .co-bar{height:6px;border-radius:3px;margin-top:var(--space-1)}
+
+/* a row: [glyph] name ………… 34 / 120 · 28 %  ›   and the bar under it. Tapping opens the game or the category.
+   The count wraps under the name only when both don't fit (a long Polish category + "1 234 / 16 763"). */
+.co-rows{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2)}
+@container (min-width:560px){.co-rows.two{grid-template-columns:1fr 1fr}}
+.co-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px var(--space-2);width:100%;padding:var(--space-3) var(--space-3) var(--space-3) var(--space-4);background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-md);text-align:left;transition:border-color var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.co-row:hover{border-color:var(--line);transform:translateY(-2px)}
+.co-row .co-top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px var(--space-3);min-width:0}
+.co-row .co-name{display:inline-flex;align-items:center;gap:10px;min-width:0;font:600 16px/1.25 var(--font-body);color:var(--text)}
+.co-row .co-name .glyph{transform:scale(1.15)}
+.co-row .co-count{margin-left:auto;font-size:13px;color:var(--text-muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.co-row .co-count b{font-weight:700;color:var(--text)}
+.co-row .co-count .pc{color:var(--text)}
+.co-row .chev{grid-row:1 / span 2;grid-column:2;font:500 22px/1 var(--font-body);color:var(--text-dim);transition:transform var(--dur) var(--ease),color var(--dur) var(--ease)}
+.co-row:hover .chev{transform:translateX(3px);color:var(--accent)}
+.co-row .co-bar{grid-column:1}
+.co-row.none .co-count b{color:var(--text-dim)}
+.co-row.none .co-name{color:var(--text-muted)}
+.co-lead{margin:var(--space-1) 0 0;font-size:13px;color:var(--text-muted)}
+/* the help line, at the foot: Statistics' honesty note */
+.co-help{display:flex;gap:8px;margin:var(--space-2) 0 0;padding-top:var(--space-3);border-top:1px solid var(--line-soft);font-size:12.5px;line-height:1.45;color:var(--text-muted)}
+.co-help::before{content:"·";flex:none;font-weight:700;color:var(--accent)}
+
+/* ── A category ── */
+.co-back{justify-self:start}
+.co-cat{display:grid;gap:var(--space-2);padding:var(--space-4) var(--space-5)}
+.co-cat h2{margin:0;font:800 30px/1 var(--font-display);letter-spacing:-.01em;text-transform:uppercase;overflow-wrap:anywhere}
+.co-cat .co-line{display:flex;flex-wrap:wrap;gap:0 var(--space-2)}
+/* the lengths: a grid of equal cells (6 across at 320, 11 in a row from ~560), each one a length and how many found */
+.co-lens{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px}
+.co-len{display:grid;justify-items:center;align-content:center;gap:3px;min-height:52px;padding:4px 0;border:1.5px solid var(--line);border-radius:var(--radius-sm);transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease)}
+.co-len:hover{border-color:var(--text)}
+.co-len .num{font-size:20px}
+.co-len small{font:600 10.5px/1 var(--font-body);font-variant-numeric:tabular-nums;color:var(--text-dim)}
+.co-len small.got{color:var(--lt-hit)}
+[data-theme=light] .co-len small.got{color:#4E8A2C}
+.co-len.on{border-color:var(--accent);background:var(--accent-soft)}
+.co-len.on .num{color:var(--accent)}
+.co-len.empty{opacity:.35;pointer-events:none}
+.co-lenhead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px var(--space-3);margin-top:var(--space-2)}
+.co-lenhead strong{font:700 20px/1 var(--font-display);text-transform:uppercase;letter-spacing:-.01em}
+.co-lenhead span{font-size:13px;color:var(--text-muted)}
+/* the words found: green, written out, first */
+.co-found{display:flex;flex-wrap:wrap;gap:6px}
+.co-w{display:inline-flex;align-items:center;min-height:32px;padding:0 10px;border:1.5px solid var(--lt-hit);border-radius:8px;background:color-mix(in srgb,var(--lt-hit) 18%,transparent);font:600 15px/1 var(--font-body);color:var(--text)}
+/* A · the rest as a map: one dot per word, in the list's order, green where found. 2 300 words are a 300px block
+   that reads at a glance - how much is left and where. In the app draw it on one <canvas> (thousands of nodes otherwise). */
+.co-map{display:grid;gap:var(--space-2);padding:var(--space-4);background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-md)}
+.co-map .co-maphead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px var(--space-3);font-size:12.5px;color:var(--text-muted)}
+.co-map .co-maphead b{font-weight:600;color:var(--text)}
+.co-dots{display:grid;grid-template-columns:repeat(auto-fill,6px);gap:2px;justify-content:space-between}
+.co-dots i{width:6px;height:6px;border-radius:1.5px;background:#2E2E2E}
+[data-theme=light] .co-dots i{background:#DDDDDD}
+.co-dots i.g{background:var(--lt-hit)}
+/* B · the owner's wall, quieter: no frames, 12px, dim; found words in their place, green-filled */
+.co-wall{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.co-wall i{font:600 12px/1 var(--font-body);font-style:normal;letter-spacing:.18em;color:var(--text-dim)}
+[data-theme=light] .co-wall i{color:#B5B5B5}
+.co-wall .co-w{min-height:28px;font-size:14px}
+.co-more{justify-self:center}
+/* loading (~1 s): the rows as quiet placeholders, the line above them */
+.co-loading{display:grid;gap:var(--space-2)}
+.co-loading p{margin:0;font-size:14px;color:var(--text-muted)}
+.co-loading i{display:block;height:58px;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--line-soft)}
+.co-loading i:nth-child(n+4){opacity:.6}.co-loading i:nth-child(n+6){opacity:.3}
+
+/* Lexling addition to the Collection design (0.63.0): the dot map is one canvas (it can hold thousands of words) */
+canvas.co-dots{display:block;width:100%}

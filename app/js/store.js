@@ -39,6 +39,8 @@ export const settings = read('wg.settings', {
   btRemind: true,
   // Settings → Check for updates: on opening and on coming back (APP-STANDARDS.md: on by default)
   updateCheck: true,
+  // Settings → Time (owner, 2026-09-28): the current time on screen; a reminder of the time played, every remindMin minutes
+  showClock: false, playRemind: false, remindMin: 90,
 });
 export const saveSettings = () => write('wg.settings', settings);
 // Remembering New game choices became the default in 0.51.1 (owner) - switched on once for those whose settings still
@@ -67,6 +69,62 @@ export const stats = read('wg.stats', {
 const unique = new Set(stats.unique);
 export const saveStats = () => { stats.unique = [...unique]; write('wg.stats', stats); };
 
+// ── A record per game (owner, 2026-09-28: "stats saved live", every mode by language and level, help left out of
+// records and averages) ── made at the game's first move (a game nobody moved in does not count - not even when the
+// computer did), brought up to date as it is played, and kept whatever happens to the game: finished, given up, left,
+// deleted. The statistics screen works its numbers out of these. The totals above are from before 0.60.0: they cannot
+// be split by level or cleaned of hints, so they are kept as they were and no longer added to; `before` says how many
+// games they cover.
+//   every record: m (mode), lang, lv (the difficulty; Tiles: the strongest computer, or 'people'), at (the first move),
+//                 end (null while it is played; 'won' | 'lost' | 'gave' | 'left' (deleted unfinished) | 'done' (Tiles)),
+//                 ea (when it ended)
+//   Guess: g (guesses), ch (letters typed), h (hints), cat, fr (a friend chose the word); at the end dif (the word's
+//          difficulty) and w (the word, when won)
+//   Letters: g (tries), len
+//   Connect: f (words found without a hinted letter), fh (with one), b (bonus words), h (hints), long, gn (the game's name)
+//   Tiles: tiles.js results() for this device's people, u (undo on), bs (the best move shown), rp / rb (move rating)
+stats.rec ??= {};
+if (!stats.before) {
+  const tl = Object.values(stats.tl ?? {}).reduce((a, x) => a + (x.played || 0), 0);
+  stats.before = { games: (stats.played || 0) + (stats.lt?.played || 0) + (stats.cn?.played || 0) + tl, at: Date.now() };
+}
+// ── The Collection (owner, 2026-09-28): every word the player typed in a game - found, guessed, tried - per mode and
+// language ('guess|pl' → words). A word a hint gave (or a Connect word with a hinted letter) is not theirs, so it does
+// not go in. The Collection screen sets them against the words each mode can hide. Guess kept its typed words all along
+// (stats.unique): they fill its part from the start; the other modes start now.
+stats.col ??= {};
+if (!stats.colFrom) {
+  for (const x of stats.unique ?? []) { const i = x.indexOf(':'); (stats.col['guess|' + x.slice(0, i)] ??= []).push(x.slice(i + 1)); }
+  stats.colFrom = Date.now();
+}
+const colSets = new Map();
+export const collected = (mode, lang) => colSets.get(mode + '|' + lang) ?? colSets.set(mode + '|' + lang, new Set(stats.col[mode + '|' + lang] ?? [])).get(mode + '|' + lang);
+export function collect(mode, lang, word) {
+  const s = collected(mode, lang);
+  if (!word || s.has(word)) return;
+  s.add(word);
+  (stats.col[mode + '|' + lang] ??= []).push(word);
+  saveStats();
+}
+
+// a counted move: the game's record, made at the first one
+export function recordMove(game, fields) {
+  const r = stats.rec[game.id] ??= { m: game.mode ?? 'guess', lang: game.lang, lv: game.diff ?? 'normal', at: Date.now(), end: null };
+  Object.assign(r, fields);
+  saveStats();
+}
+// Guess: the fewest guesses a win took - a record, so without hints, a category, or a word a friend chose
+export const bestGuessWin = () => Object.values(stats.rec).filter(r => r.m === 'guess' && r.end === 'won' && !r.h && !r.fr && r.cat === 'all')
+  .reduce((a, r) => !a || r.g < a ? r.g : a, 0);
+// anything else that changes a record (a hint, the computer's move): only once the game counts
+export function noteMove(game, fields) { if (stats.rec[game.id]) recordMove(game, fields); }
+function closeRecord(game, end, fields = {}) {
+  const r = stats.rec[game.id];
+  if (!r) return;
+  Object.assign(r, fields, { end, ea: Date.now() });
+  saveStats();
+}
+
 let saves;
 try { saves = JSON.parse(localStorage.getItem('wg.saves')) || []; } catch { saves = []; }
 // saves from before the rename carry a baked-in "Game 4" / "Gra 4": give them their number back so
@@ -93,6 +151,9 @@ export function putSave(game) {
   persistSaves();
 }
 export function deleteSave(id) {
+  // a game deleted before it ended: its record stays, as left
+  const r = stats.rec?.[id];
+  if (r && !r.end) { r.end = 'left'; r.ea = Date.now(); saveStats(); }
   live.delete(id);
   saves = saves.filter(s => s.id !== id);
   persistSaves();
@@ -109,10 +170,7 @@ export const gameName = g => { if (g.title) return g.title; const no = t('games.
 // Tiles { mode: 'tiles', lang, state (tiles.js), firstSet (who starts was chosen, not drawn), order (each rack as
 // arranged), turnMs (time of the turn under way) }.
 export function newGame(fields) {
-  if (fields.mode === 'letters') stats.lt.played++;
-  else if (fields.mode === 'connect') stats.cn.played++;
-  else if (fields.mode !== 'tiles') stats.played++;     // a Tiles game is counted when it ends (recordTilesEnd)
-  stats.gameNo++;
+  stats.gameNo++;   // (counted as played at its first move: recordMove)
   saveStats();
   const game = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), auto: stats.gameNo, name: '',
     mode: 'guess', ...fields, guesses: [], status: 'playing', timeMs: 0, created: Date.now(), updated: Date.now() };
@@ -121,63 +179,25 @@ export function newGame(fields) {
 }
 
 export function recordGuess(game, word, typed) {
-  stats.words++;
-  stats.letters += [...typed].length;
   unique.add(game.lang + ':' + word);
-  saveStats();
+  collect('guess', game.lang, word);
+  recordMove(game, { g: game.guesses.filter(x => !x.hint).length, ch: (stats.rec[game.id]?.ch || 0) + [...typed].length,
+    h: game.guesses.filter(x => x.hint).length, cat: game.cat, fr: !!game.friend });
 }
 
 // What a win counts toward depends on how much help the player had:
 //  * friend mode - somebody else chose the word, so it counts for nothing but the plain totals;
 //  * a category - the hint makes the word quick to corner, so speed and difficulty are not comparable
 //    with an open game. Those wins count toward the categories-won statistic only.
-export function recordEnd(game, won, difficulty = -1, hinted = false) {
-  stats.hints = (stats.hints || 0) + game.guesses.filter(g => g.hint).length;
-  stats.hintGames = (stats.hintGames || 0) + 1;
-  if (won) {
-    stats.won++;
-    // guesses per win, in four bands, for the statistics chart (counted from 0.24.0)
-    const g = game.guesses.length, band = g <= 10 ? 'a' : g <= 25 ? 'b' : g <= 50 ? 'c' : 'd';
-    stats.guessDist = { ...stats.guessDist, [band]: (stats.guessDist?.[band] || 0) + 1 };
-    if (!game.friend) {
-      stats.wonLang[game.lang] = (stats.wonLang[game.lang] || 0) + 1;
-      stats.wonPools[game.cat] = true;
-    }
-    // …and a win the game helped you to is not a speed or difficulty record either
-    if (!game.friend && !hinted && game.cat === 'all') {
-      stats.wonGuesses += game.guesses.length;
-      stats.wonRated++;
-      if (!stats.bestWin || game.guesses.length < stats.bestWin) stats.bestWin = game.guesses.length;
-      if (difficulty >= 0) {
-        if (!stats.hardest || difficulty > stats.hardest.score) {
-          stats.hardest = { w: game.secret, lang: game.lang, score: difficulty, guesses: game.guesses.length };
-        }
-        if (difficulty >= HARD_WIN) stats.hardWins++;
-      }
-    }
-  } else {
-    stats.givenUp++;
-  }
-  saveStats();
+// (a win with hints, in a category, or with a word a friend chose is no record - the statistics screen sees to that)
+export function recordEnd(game, won, difficulty = -1) {
+  closeRecord(game, won ? 'won' : 'gave', { h: game.guesses.filter(x => x.hint).length, dif: difficulty, ...(won ? { w: game.secret } : {}) });
   deleteSave(game.id);   // finished games leave the picker; their numbers live on in the stats
 }
 
 // A Letters game ends won, lost (out of tries) or given up. Only a win keeps the streak going.
 export function recordLettersEnd(game) {
-  const s = stats.lt;
-  // tries per win (1–6, 7+) and games lost, for the statistics chart (counted from 0.24.0)
-  const tried = game.status === 'won' ? (game.guesses.length > 6 ? '7+' : String(game.guesses.length)) : game.status === 'lost' ? 'x' : null;
-  if (tried) s.dist = { ...s.dist, [tried]: (s.dist?.[tried] || 0) + 1 };
-  if (game.status === 'won') {
-    s.won++;
-    s.bestStreak = Math.max(s.bestStreak, ++s.streak);
-    s.wonTries += game.guesses.length;
-    s.wonLen[game.len] = (s.wonLen[game.len] || 0) + 1;
-  } else {
-    if (game.status === 'lost') s.lost++; else s.givenUp++;
-    s.streak = 0;
-  }
-  saveStats();
+  closeRecord(game, game.status === 'won' ? 'won' : game.status === 'lost' ? 'lost' : 'gave', { g: game.guesses.length });
   deleteSave(game.id);
 }
 
@@ -185,36 +205,24 @@ export function recordLettersEnd(game) {
 // the longest word found - on the board or a bonus - is kept with the game's name and when.
 // A finished Tiles game into the statistics - every game on this device, several people included; the
 // computer's own moves never count (tiles.js results). `id` = its save, which goes.
-export function recordTilesEnd(state, id, only) {
-  const r = results(state, only), s = stats.tl[r.lang + '|' + r.level] ??= { played: 0, vsCpu: 0, won: 0, games: 0, points: 0,
-    moves: 0, movePoints: 0, bingos: 0, passes: 0, hints: 0, bestGame: null, bestMove: null };
-  for (const k of ['played', 'vsCpu', 'won', 'games', 'points', 'moves', 'movePoints', 'bingos', 'passes', 'hints']) s[k] += r[k];
-  if (r.games && (s.bestGame === null || r.bestGame > s.bestGame)) s.bestGame = r.bestGame;
-  if (r.bestMove && (!s.bestMove || r.bestMove.score > s.bestMove.score)) s.bestMove = { ...r.bestMove, at: Date.now() };
-  saveStats();
-  if (id) deleteSave(id);
+// `game` = its save; `help` = { u: undo on, bs: the best move shown } - those games keep out of points and records
+export function recordTilesEnd(game, only, help) {
+  closeRecord(game, 'done', { ...tilesRecord(game.state, only), ...help });
+  deleteSave(game.id);
 }
+// a Tiles game's record: its numbers for this device's people (tiles.js results)
+export const tilesRecord = (state, only) => { const r = results(state, only); return { ...r, lv: r.level, lang: r.lang }; };
 
 // How good the people's moves were in a finished Tiles game - their points and the best there was, summed - for the
 // statistics' move rating (owner, 2026-09-26). From the end review, so only games that have ratings; its entry was made
 // by recordTilesEnd a moment before.
-export function recordTilesRating(state, played, best) {
-  const r = results(state), s = stats.tl[r.lang + '|' + r.level];
-  if (!s || !best) return;
-  s.ratePlayed = (s.ratePlayed || 0) + played;
-  s.rateBest = (s.rateBest || 0) + best;
-  saveStats();
+export function recordTilesRating(game, played, best) {
+  if (best) noteMove(game, { rp: played, rb: best });
 }
 
-export function recordConnectEnd(game) {
-  const s = stats.cn;
-  if (game.status === 'won') s.solved++; else s.givenUp++;
-  s.words += game.found.length;
-  s.bonus += game.bonus.length;
-  s.hints += game.hints;
-  const longest = [...game.found, ...game.bonus].reduce((a, w) => [...w].length > [...a].length ? w : a, '');
-  if (longest && (!s.longest || [...longest].length > [...s.longest.w].length)) s.longest = { w: longest, game: gameName(game), at: Date.now() };
-  saveStats();
+// `fields`: connect-game.js connectRecord() - words with a hinted letter kept apart
+export function recordConnectEnd(game, fields) {
+  closeRecord(game, game.status === 'won' ? 'won' : 'gave', fields);
   deleteSave(game.id);
 }
 

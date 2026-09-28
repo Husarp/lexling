@@ -5,6 +5,16 @@ import { pool } from './letters.js';
 import { offensive } from './offensive.js';
 
 export const RING_MIN = 4, RING_MAX = 10, WORD_MIN = 3;
+// Two-letter words (owner, 2026-09-28: "allow two-letter words ... don't force it, one or two max"): a choice on New
+// game; then a board takes at most TWO_MAX of these everyday ones, on top of its usual words - the word list's own
+// two-letter entries are mostly abbreviations (zł, nr, km).
+export const TWO_MAX = 2;
+export const TWO = {
+  pl: ['na', 'do', 'że', 'od', 'za', 'po', 'ze', 'ma', 'mi', 'bo', 'by', 'go', 'we', 'tu', 'ja', 'im', 'ją', 'mu', 'aż', 'ku', 'ty', 'on',
+    'my', 'wy', 'co', 'to', 'ta', 'te', 'no', 'ul', 'as', 'oś'],
+  en: ['to', 'of', 'in', 'on', 'it', 'at', 'be', 'by', 'or', 'an', 'my', 'we', 'he', 'so', 'up', 'if', 'me', 'do', 'no', 'go', 'us', 'am',
+    'as', 'is', 'oh', 'hi', 'ox'],
+};
 // How many words a board aims for, by circle size - the new-game readout shows the same (design v4).
 // 8-10 letters were added at the owner's wish (2026-09-25): a lot of words, for whoever wants that.
 export const RANGE = { 4: [3, 5], 5: [4, 7], 6: [5, 8], 7: [6, 10], 8: [7, 12], 9: [8, 13], 10: [9, 14] };
@@ -60,7 +70,7 @@ function candidates(m, marks) {
 // A new puzzle: `letters` in the circle, words no harder than `diff` (Hard lets the rarer ones in too),
 // `marks` false = none of ą ć ę ł ń ó ś ź ż. The circle is one word's letters, shuffled, so at least
 // one word uses them all - and it is always on the board. Returns null when nothing fits.
-export function makePuzzle(m, { letters: n, diff = 'normal', marks = true, rand = Math.random }) {
+export function makePuzzle(m, { letters: n, diff = 'normal', marks = true, two = false, rand = Math.random }) {
   const cap = RANK_CAP[diff] ?? RANK_CAP.normal;
   const usable = candidates(m, marks).filter(x => x.rank < cap);
   const keys = usable.filter(x => x.n === n);
@@ -72,7 +82,8 @@ export function makePuzzle(m, { letters: n, diff = 'normal', marks = true, rand 
     // also spells TABOR - a player who finds it should see it land on the board, not as a bonus).
     const words = candidates(m, marks).filter(x => x.w !== key && (x.rank < cap || x.n === n) && fits(x.w, have)).map(x => x.w);
     if (words.length + 1 < lo) continue;
-    const board = layout(key, words, hi, rand, LIMIT(n));
+    const pairs = two ? shuffle((TWO[m.lang] ?? []).filter(w => fits(w, have)), rand) : [];
+    const board = layout(key, words, hi, rand, LIMIT(n), pairs);
     if (board.words.length >= lo) return { ring: shuffle([...key], rand).join(''), key, board };
   }
   return null;
@@ -85,7 +96,7 @@ export function makePuzzle(m, { letters: n, diff = 'normal', marks = true, rand 
 // are 1-based, as in CSS grid.
 export const cellsOf = ({ w, r, c, d }) => [...w].map((_, k) => d === 'a' ? `${r}-${c + k}` : `${r + k}-${c}`);
 
-function layout(key, words, max, rand, limit) {
+function layout(key, words, max, rand, limit, pairs = []) {
   const grid = new Map();                    // 'r,c' -> { ch, dirs: Set }
   const placed = [];
   let box = { r0: 0, r1: 0, c0: 0, c1: [...key].length - 1 };
@@ -107,6 +118,16 @@ function layout(key, words, max, rand, limit) {
     if (!spot) continue;
     put(w, spot.r, spot.c, spot.d);
     box = spot.box;
+  }
+  // then a two-letter word or two, where one fits (never instead of a longer word)
+  let twos = 0;
+  for (const w of pairs) {
+    if (twos >= TWO_MAX) break;
+    const spot = bestSpot(w, grid, box, rand, limit);
+    if (!spot) continue;
+    put(w, spot.r, spot.c, spot.d);
+    box = spot.box;
+    twos++;
   }
   const words0 = placed.map(p => ({ w: p.w, r: p.r - box.r0 + 1, c: p.c - box.c0 + 1, d: p.d }));
   return { cols: box.c1 - box.c0 + 1, rows: box.r1 - box.r0 + 1, words: words0 };
@@ -195,13 +216,15 @@ export function nextHint(board, found, shown, pick = null, rand = Math.random) {
   return { cell, words: through(cell).map(x => x.w) };
 }
 
-// What a word made on the circle is: 'short' (under 3 letters), 'found' (a board word, new),
-// 'again' (a board word already showing), 'bonus' (another real word, new), 'bonusAgain', or 'none'.
-export function judge(m, board, state, word) {
-  if ([...word].length < WORD_MIN) return 'short';
+// What a word made on the circle is: 'short' (under 3 letters - 2 in a game with two-letter words), 'found' (a board
+// word, new), 'again' (a board word already showing), 'bonus' (another real word, new), 'bonusAgain', or 'none'.
+export function judge(m, board, state, word, two = false) {
+  const len = [...word].length;
+  if (len < (two ? 2 : WORD_MIN)) return 'short';
   const x = board.words.find(b => b.w === word);
   if (x) return isDone(x, state.found, visible(board, state.found, state.shown)) ? 'again' : 'found';
   if (state.bonus.includes(word)) return 'bonusAgain';
   if (offensive(m, word)) return 'none';                     // nor as a bonus word (offensive.js)
+  if (len < WORD_MIN) return TWO[m.lang]?.includes(word) ? 'bonus' : 'none';   // two letters: only the everyday ones
   return resolve(m, word) || m.extra.has(word) ? 'bonus' : 'none';
 }

@@ -1,19 +1,21 @@
 // Menu, game picker, new game, statistics, settings. Markup is the design handoff's
 // (design/handoff/*.html), with the dummy text replaced by t(...) and live data.
 import { t, plural, esc, num, decimal, clock, ago, dateTime, setLang, getLang, LANG_NAMES } from './i18n.js';
-import { settings, saveSettings, stats, listSaves, getSave, putSave, deleteSave, newGame, gameName, HARD_WIN } from './store.js';
-import { net, netKinds, netReady } from './net.js';
+import { settings, saveSettings, stats, listSaves, getSave, putSave, deleteSave, newGame, gameName, HARD_WIN, collected } from './store.js';
+import { net, netKinds, netReady, nearbyHere, openLocation } from './net.js';
 import { createGuest } from './session.js';
 import { has } from './dawg.js';
-import { load, loadWords, preload, resolve, pickSecret, lengthStats } from './engine.js';
+import { load, loadWords, preload, resolve, pickSecret, secretPool, secretWords, lengthStats } from './engine.js';
 import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js';
-import { makePuzzle, RANGE, RING_MIN, RING_MAX, visible, isDone } from './connect.js';
-import { BOARDS, STANDARD, LEVEL_ORDER, PLAYERS_MAX, newGame as tilesGame, apply as tilesApply, loadTileWords, valueOf, fullBag } from './tiles.js';
+import { makePuzzle, RANGE, RING_MIN, RING_MAX, WORD_MIN, visible, isDone } from './connect.js';
+import { BOARDS, STANDARD, LEVEL_ORDER, levelKey, PLAYERS_MAX, newGame as tilesGame, apply as tilesApply, loadTileWords, valueOf, fullBag } from './tiles.js';
 import { nameOf, topics, LABEL, bonusSeg, bonusOf, coloursSeg, tileSeg, applyTileLook } from './tiles-game.js';
 import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYPH, modeTag, TILE, squares, remindBt } from './ui.js';
 import { fitAll } from './fit.js';
 import { click } from './sound.js';
 import { VERSION, REPO } from './version.js';
+import { cleanCode, isCode } from './net-web.js';
+import { paintClock } from './playtime.js';
 import { checkUpdate, newer, updateShown, closeUpdate, updateUrl, openUrl, getUpdate, downloadState, installUpdate } from './update.js';
 
 const CATS = ['all', 'animals', 'food', 'household', 'clothing', 'tools', 'tech', 'vehicles', 'buildings',
@@ -23,6 +25,15 @@ const DIFFS = ['relaxed', 'easy', 'normal', 'hard'];
 const BANDS = ['short', 'medium', 'long', 'any'];
 const DOT = '<span class="dot">·</span>';
 const on = cond => cond ? 'on' : '';
+// "Only new words" (owner, 2026-09-28, with the Collection): a switch on New game - the secret is one not yet in this
+// mode's Collection; -2 when every word the choice could hide is there already
+const onlyNewCard = () => `<div class="card polish" id="only-new"><div class="row"><div class="row-text"><strong>${t('new.onlyNew')}</strong><span>${t('new.onlyNewDesc')}</span></div>
+  <button type="button" class="toggle" role="switch" aria-label="${t('new.onlyNew')}"></button></div></div>`;
+const paintOnlyNew = (root, o) => { const b = root.querySelector('#only-new .toggle'); b.classList.toggle('on', !!o.onlyNew); b.setAttribute('aria-checked', !!o.onlyNew); };
+function freshPick(m, list, mode, lang) {
+  const had = collected(mode, lang), left = list.filter(i => !had.has(m.words[i]));
+  return left.length ? left[Math.floor(Math.random() * left.length)] : -2;
+}
 
 // Each game's icon in its menu row (design v4, "Lexling Menu Four Games"): Guess two ranked strips,
 // Letters two rows of tiles, Connect a ring of real letters with a found word joined in green (SOWA /
@@ -61,16 +72,17 @@ export function menu(root, _, refresh) {
   root.innerHTML = `<div class="app" data-screen="menu">
   ${topbar({ right: `<span class="eyebrow lang-switch">${
     ['pl', 'en'].map(l => `<button type="button" data-lang="${l}" class="${on(getLang() === l)}" aria-label="${LANG_NAMES[l]}">${l.toUpperCase()}</button>`).join(DOT)}</span>` })}
-  <section class="hero four">
+  <section class="hero four tight">
     <div class="wm" aria-hidden="true">L/</div>
     <div class="hero-inner">
       <p class="eyebrow">${t('menu.eyebrow')} ${DOT} ${t('menu.offline')}</p>
       <h1 class="display">${t('menu.h1')}</h1>
       <p class="tagline">${t('menu.tagline')}</p>
-      <nav class="games" aria-label="${t('menu.modesAria')}">${GAMES.map(row).join('')}</nav>
-      <nav class="menu four" aria-label="${t('menu.nav')}">
-        <a class="btn btn-outline" href="#/stats">${t('menu.stats')} <span class="arrow">→</span></a>
-        <a class="btn btn-outline" href="#/settings">${t('menu.settings')} <span class="arrow">→</span></a>
+      <nav class="games tight" aria-label="${t('menu.modesAria')}">${GAMES.map(row).join('')}</nav>
+      <nav class="menu bar" aria-label="${t('menu.nav')}">
+        <a href="#/stats">${t('menu.stats')} <span class="arrow">→</span></a>
+        <a href="#/collection">${t('menu.collection')} <span class="arrow">→</span></a>
+        <a href="#/settings">${t('menu.settings')} <span class="arrow">→</span></a>
       </nav>
       <div class="upd-slot"></div>
     </div>
@@ -152,7 +164,7 @@ function connectMeta(g) {
 // A Tiles card (design v5): language, board, the computers' levels; the scores with each player's colour, the bag,
 // and whose turn it is.
 function tilesMeta(g) {
-  const s = g.state, levels = s.players.filter(x => x.cpu).map(x => t('diff.' + x.cpu));
+  const s = g.state, levels = s.players.filter(x => x.cpu).map(x => t(levelKey(x.cpu)));
   return [LANG_NAMES[g.lang], t('tiles.board.' + s.board), g.link ? t('net.tag.' + (g.link.kind ?? 'bt')) : levels.length ? [...new Set(levels)].join(', ') : t('stats.tiles.people'), ago(g.updated)]
     .map(v => `<span>${v}</span>`).join(DOT);
 }
@@ -283,7 +295,6 @@ function rename(el, game, refresh) {
 // ── How to play (owner, 2026-09-25) ── a card under the New game title that opens and closes - closed every time the
 // screen opens (owner, 2026-09-25: "collapsed every time"; until 0.36.0 it was open until the first finished game).
 const HOWTO = { guess: () => t('howto.guess'), letters: () => t('howto.letters'), connect: () => t('howto.connect'), tiles: () => t('howto.tiles') };
-const tilesPlayed = () => Object.values(stats.tl ?? {}).reduce((a, s) => a + s.played, 0);
 const howTo = mode => `<details class="card howto" data-mode="${mode}">
       <summary><span class="eyebrow">${t('howto.title')}</span><span class="arrow" aria-hidden="true">›</span></summary>
       ${HOWTO[mode]().split('\n').map(line => `<p class="help"><span class="arrow">→</span> ${line}</p>`).join('')}
@@ -297,7 +308,7 @@ const howTo = mode => `<details class="card howto" data-mode="${mode}">
 const remembered = mode => settings.rememberSetup ? settings.setup?.[mode] ?? {} : {};
 const remember = (mode, choices) => { if (settings.rememberSetup) settings.setup = { ...settings.setup, [mode]: choices }; };
 
-const NEW_GAME = { cat: 'all', band: 'any', diff: 'normal', friend: false };
+const NEW_GAME = { cat: 'all', band: 'any', diff: 'normal', friend: false, onlyNew: false };
 let pending = null;   // choices half-made, kept only across the re-render that a language switch causes
 
 export function newGameScreen(root, _, refresh) {
@@ -341,6 +352,7 @@ export function newGameScreen(root, _, refresh) {
           <p class="help"><span class="arrow">→</span> <span id="forms-help"></span></p>
         </div>
       </div>
+      ${onlyNewCard()}
       ${nameField()}
       <div class="cta">
         <p class="summary"></p>
@@ -358,6 +370,8 @@ export function newGameScreen(root, _, refresh) {
     toggle.classList.toggle('on', o.friend);
     toggle.setAttribute('aria-checked', o.friend);
     $('#secret-field').hidden = !o.friend;
+    $('#only-new').hidden = o.friend;
+    paintOnlyNew(root, o);
     $('#forms-help').innerHTML = t('new.formsHelp', { forms: o.lang === 'pl' ? '<em>żyrafie</em>, <em>żyrafy</em>' : '<em>giraffes</em>, <em>mice</em>' });
     // what the chosen category actually covers, so you are not hunting for a word it never hides
     $('#cat-about').textContent = t('about.' + o.cat);
@@ -399,19 +413,20 @@ export function newGameScreen(root, _, refresh) {
     sync();
   }));
   toggle.addEventListener('click', () => { o.friend = !o.friend; sync(); if (o.friend) secret.focus(); });
+  $('#only-new .toggle').addEventListener('click', () => { o.onlyNew = !o.onlyNew; sync(); });
   secret.addEventListener('input', () => { err.hidden = true; });
 
   $('form').addEventListener('submit', async e => {
     e.preventDefault();
     const m = await load(o.lang);
-    const idx = o.friend ? resolve(m, secret.value)?.idx ?? -1 : pickSecret(m, o);
+    const idx = o.friend ? resolve(m, secret.value)?.idx ?? -1 : o.onlyNew ? freshPick(m, secretPool(m, o), 'guess', o.lang) : pickSecret(m, o);
     if (idx < 0) {
-      err.textContent = t(o.friend ? 'new.errUnknown' : 'new.errNoWords');
+      err.textContent = t(o.friend ? 'new.errUnknown' : idx === -2 ? 'new.errAllFound' : 'new.errNoWords');
       err.hidden = false;
       return;
     }
     settings.newGame = { lang: o.lang };   // the next game starts from NEW_GAME again - or from these, remembered
-    remember('guess', { cat: o.cat, band: o.band, diff: o.diff, friend: o.friend });
+    remember('guess', { cat: o.cat, band: o.band, diff: o.diff, friend: o.friend, onlyNew: o.onlyNew });
     saveSettings();
     const game = newGame({ ...o, secret: m.words[idx], name: typedName() });
     location.replace('#/game/' + game.id);   // Back from the game goes to the picker, not to this form
@@ -420,7 +435,7 @@ export function newGameScreen(root, _, refresh) {
 
 // ── Letters: new game (design: handoff-letters/new-game-letters.html) ─────────────────────────────
 // Same footing rule as above: every game starts from these; the language and "Allow Polish letters" carry over.
-const LT_NEW = { cat: 'all', len: 5, anyLen: false, tries: 6, unlimited: false, diff: 'normal' };
+const LT_NEW = { cat: 'all', len: 5, anyLen: false, tries: 6, unlimited: false, diff: 'normal', onlyNew: false };
 let ltPending = null;
 
 export function lettersNewScreen(root, _, refresh) {
@@ -474,6 +489,7 @@ export function lettersNewScreen(root, _, refresh) {
         </div>
         <p class="help"><span class="arrow">→</span> <span id="polish-help"></span></p>
       </div>
+      ${onlyNewCard()}
       ${nameField()}
       <div class="cta">
         <p class="summary"></p>
@@ -493,6 +509,7 @@ export function lettersNewScreen(root, _, refresh) {
     root.querySelectorAll('[data-k]').forEach(b => b.classList.toggle('on', String(o[b.dataset.k]) === b.dataset.v));
     // a category means a noun (except Verbs) - said here rather than discovered in the game
     $('#cat-about').textContent = t('about.' + o.cat) + (o.cat === 'all' || o.cat === 'verbs' ? '' : ' ' + t('lt.catNouns'));
+    paintOnlyNew(root, o);
     const [shorter, longer] = $('#len').querySelectorAll('button');
     // "any" = the game picks: a random word of any length, so lengths come up as often as words of them do
     $('#len').classList.toggle('off', o.anyLen);
@@ -578,13 +595,15 @@ export function lettersNewScreen(root, _, refresh) {
   });
   unlimited.addEventListener('click', () => { o.unlimited = !o.unlimited; sync(); });
   anyLen.addEventListener('click', () => { o.anyLen = !o.anyLen; sync(); });
+  $('#only-new .toggle').addEventListener('click', () => { o.onlyNew = !o.onlyNew; sync(); });
   toggle.addEventListener('click', () => { o.marks = !o.marks; settings.polish = { ...settings.polish, letters: o.marks }; saveSettings(); sync(); });
 
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const m = await loadWords(o.lang);
-    const idx = pick(m, { len: o.anyLen ? null : o.len, ...choice() });
-    if (idx < 0) { err.hidden = false; return; }
+    const opts = { len: o.anyLen ? null : o.len, ...choice() };
+    const idx = o.onlyNew ? freshPick(m, pool(m, opts), 'letters', o.lang) : pick(m, opts);
+    if (idx < 0) { err.textContent = t(idx === -2 ? 'new.errAllFound' : 'lt.errNoWords'); err.hidden = false; return; }
     settings.newGame = { lang: o.lang };
     saveSettings();
     remember('letters', Object.fromEntries(Object.keys(LT_NEW).map(k => [k, o[k]])));
@@ -598,7 +617,7 @@ export function lettersNewScreen(root, _, refresh) {
 // ── Connect: new game (design v4, "Lexling Connect" 2) ─────────────────────────────────────────────
 // The Letters controls, rebuilt: letters in the circle, the level, the Polish-letters card. (No "Random" level since
 // 0.37.0, here and in Letters - owner.)
-const CN_NEW = { letters: 6, diff: 'normal' };
+const CN_NEW = { letters: 6, diff: 'normal', two: false };
 let cnPending = null;
 
 export function connectNewScreen(root, _, refresh) {
@@ -625,6 +644,13 @@ export function connectNewScreen(root, _, refresh) {
           <div class="seg" role="radiogroup" id="diff">${DIFFS.map(d => `<button type="button" data-k="diff" data-v="${d}">${t('diff.' + d)}</button>`).join('')}</div>
         </div>
         <p class="help"><span class="arrow">→</span> <span id="level-help"></span></p>
+      </div>
+      <div class="card polish" id="two">
+        <div class="row">
+          <div class="row-text"><strong>${t('cn.two')}</strong></div>
+          <button type="button" class="toggle" role="switch" aria-label="${t('cn.two')}"></button>
+        </div>
+        <p class="help"><span class="arrow">→</span> <span id="two-help"></span></p>
       </div>
       <div class="card polish" id="polish">
         <div class="row">
@@ -658,8 +684,11 @@ export function connectNewScreen(root, _, refresh) {
     toggle.classList.toggle('on', o.marks);
     toggle.setAttribute('aria-checked', o.marks);
     $('#polish-help').textContent = t(o.marks ? 'cn.polishOn' : 'cn.polishOff');
+    $('#two .toggle').classList.toggle('on', !!o.two);
+    $('#two .toggle').setAttribute('aria-checked', !!o.two);
+    $('#two-help').textContent = t(o.two ? 'cn.twoOn' : 'cn.twoOff');
     $('.summary').innerHTML = [LANG_NAMES[o.lang], `${o.letters} ${plural(o.letters, 'lt.letters')}`,
-      t('diff.' + o.diff), marks() && t('lt.marksShort')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
+      t('diff.' + o.diff), marks() && t('lt.marksShort'), o.two && t('cn.twoShort')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
     err.hidden = true;
     fitAll(root);
   };
@@ -682,19 +711,20 @@ export function connectNewScreen(root, _, refresh) {
     if (step) { o.letters = Math.min(RING_MAX, Math.max(RING_MIN, o.letters + step)); sync(); }
   });
   toggle.addEventListener('click', () => { o.marks = !o.marks; settings.polish = { ...settings.polish, connect: o.marks }; saveSettings(); sync(); });
+  $('#two .toggle').addEventListener('click', () => { o.two = !o.two; sync(); });
 
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const m = await loadWords(o.lang);
     const diff = o.diff;
-    const puzzle = makePuzzle(m, { letters: o.letters, diff, marks: o.lang !== 'pl' || o.marks });
+    const puzzle = makePuzzle(m, { letters: o.letters, diff, marks: o.lang !== 'pl' || o.marks, two: !!o.two });
     if (!puzzle) { err.textContent = t('cn.errNone'); err.hidden = false; return; }
     settings.newGame = { lang: o.lang };
     saveSettings();
     remember('connect', Object.fromEntries(Object.keys(CN_NEW).map(k => [k, o[k]])));
     saveSettings();
     const game = newGame({ name: typedName(), mode: 'connect', lang: o.lang, letters: o.letters, diff, marks: marks(),
-      ring: puzzle.ring, key: puzzle.key, board: puzzle.board, found: [], shown: [], bonus: [], hints: 0 });
+      ring: puzzle.ring, key: puzzle.key, board: puzzle.board, found: [], shown: [], bonus: [], hints: 0, two: !!o.two });
     location.replace('#/game/' + game.id);   // Back from the game goes to the list, not to this form
   });
 }
@@ -703,7 +733,7 @@ export function connectNewScreen(root, _, refresh) {
 // squares), 2-5 players - each a person or a computer with its level - who starts, and the rules, folded away.
 // The list is the order of play (↑ ↓ move a player); `first` = the player who starts, or null: drawn at random
 // (owner, 2026-09-25: "choose which player starts first, in which order they move, or random").
-const TL_NEW = () => ({ board: 'classic', players: [{ name: '', cpu: null }, { name: '', cpu: 'normal' }], first: null, rules: { ...STANDARD }, rulesOpen: false });
+const TL_NEW = () => ({ board: 'classic', players: [{ name: '', cpu: null }, { name: '', cpu: 'medium' }], first: null, rules: { ...STANDARD }, rulesOpen: false });
 const TL_TIMES = { move: [30, 60, 120, 180], game: [600, 1200, 1500, 1800] };   // seconds: per move, per game
 const TL_RULES = [['premiums', ['once', 'always']], ['check', ['auto', 'challenge']], ['exchange', ['bag7', 'always']], ['bingo', [50, 0]],
   ['undo', [false, true]], ['open', [false, true]], ['rating', [true, 'score', false]]];
@@ -780,6 +810,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
       </details>
       ${nameField()}
       <div class="cta">
+        <p class="help-warn" role="status" hidden></p>
         <p class="summary"></p>
         <button class="btn btn-primary btn-lg btn-block" type="submit"></button>
       </div>
@@ -798,7 +829,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
           <button type="button" class="btn btn-ghost mv" data-up="${p}" aria-label="${esc(t('tiles.up', { name: nameAt(p) }))}"${p === 0 ? ' disabled' : ''}>↑</button><button type="button" class="btn btn-ghost mv" data-down="${p}" aria-label="${esc(t('tiles.down', { name: nameAt(p) }))}"${p === last ? ' disabled' : ''}>↓</button>${
       o.players.length > 2 && !(o.net && x.here) ? `<button type="button" class="btn btn-ghost rm" data-rm="${p}" aria-label="${esc(t('tiles.remove', { name: nameAt(p) }))}">✕</button>` : ''}</span></div>
         ${o.net ? `<p class="help"><span class="arrow">→</span> ${t(x.here ? 'tiles.bt.you' : 'net.them')}</p>` : `<div class="kind"><div class="seg">${['person', 'cpu'].map(k => `<button type="button" data-kind="${k}" data-p="${p}" class="${on((k === 'cpu') === !!x.cpu)}">${t(k === 'cpu' ? 'tiles.cpu' : 'tiles.person')}</button>`).join('')}</div></div>`}
-        ${x.cpu ? `<div class="lv">${LEVEL_ORDER.map(l => `<button type="button" class="chip ${on(x.cpu === l)}" data-lv="${l}" data-p="${p}">${t('diff.' + l)}</button>`).join('')}</div>
+        ${x.cpu ? `<div class="lv">${LEVEL_ORDER.map(l => `<button type="button" class="chip ${on(x.cpu === l)}" data-lv="${l}" data-p="${p}">${t(levelKey(l))}</button>`).join('')}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.lvHelp.' + x.cpu)}</p>` : ''}
       </div>`).join('') + (o.players.length < PLAYERS_MAX ? `<button type="button" class="btn btn-outline" data-add>${t('tiles.addPlayer')} +</button>` : '')
       + `<div class="tl-first"><span class="eyebrow">${t('tiles.first')}</span><div class="chips" role="radiogroup">
@@ -834,7 +865,12 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
   }
   // Play over Bluetooth (owner, 2026-09-27): the same setup, then Start waits for the other phone to join
   function paintSummary() {
-    const who = o.players.map((x, p) => esc(nameAt(p)) + (x.cpu ? ` (${t('diff.' + x.cpu)})` : '')).join(', ');
+    // help on: those games leave the statistics' records and averages (owner, 2026-09-28: "show the alert")
+    const alone = o.players.filter(x => !x.cpu).length === 1 && o.players.some(x => x.cpu);
+    const helps = [o.rules.hints !== false && t('help.hints'), alone && o.rules.undo === true && t('help.undo'), o.rules.rating === true && t('help.best')].filter(Boolean);
+    $('.help-warn').hidden = !helps.length;
+    $('.help-warn').textContent = helps.length ? t('help.warnTiles', { what: helps.join(', ') }) : '';
+    const who = o.players.map((x, p) => esc(nameAt(p)) + (x.cpu ? ` (${t(levelKey(x.cpu))})` : '')).join(', ');
     const first = o.players.indexOf(o.first);
     $('.summary').innerHTML = [LANG_NAMES[o.lang], t('tiles.board.' + o.board), o.net && t('net.tag.' + o.net), who, first >= 0 && `${t('tiles.first')}: ${esc(nameAt(first))}`,
       !standard() && t('tiles.rules.own')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
@@ -889,13 +925,13 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     const b = e.target.closest('button');
     if (!b) return;
     const p = +b.dataset.p, swap = (i, j) => { [o.players[i], o.players[j]] = [o.players[j], o.players[i]]; };
-    if (b.dataset.kind) o.players[p].cpu = b.dataset.kind === 'cpu' ? o.players[p].cpu || 'normal' : null;
+    if (b.dataset.kind) o.players[p].cpu = b.dataset.kind === 'cpu' ? o.players[p].cpu || 'medium' : null;
     else if (b.dataset.lv) o.players[p].cpu = b.dataset.lv;
     else if (b.dataset.up) swap(+b.dataset.up, +b.dataset.up - 1);
     else if (b.dataset.down) swap(+b.dataset.down, +b.dataset.down + 1);
     else if (b.dataset.first) o.first = o.players[+b.dataset.first] ?? null;
     else if (b.dataset.rm) { if (o.first === o.players[+b.dataset.rm]) o.first = null; o.players.splice(+b.dataset.rm, 1); }
-    else if (b.dataset.add !== undefined) o.players.push({ name: '', cpu: o.net ? null : 'normal' });
+    else if (b.dataset.add !== undefined) o.players.push({ name: '', cpu: o.net ? null : 'medium' });
     else return;
     sync();
   });
@@ -947,8 +983,9 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
 // or join one. The connection chosen is remembered for next time.
 // which phones can play (owner, 2026-09-27, after a Pixel would not connect over Bluetooth: "add an alert that only some
 // devices support it")
-const devicesInfo = () => `<div class="card tl-hostinfo"><span class="eyebrow">${t('net.devices.title')}</span><ul>${
-  ['android', 'version', 'bt'].map(k => `<li>${t('net.devices.' + k, { v: VERSION })}</li>`).join('')}</ul></div>`;
+const devicesInfo = kinds => `<div class="card tl-hostinfo"><span class="eyebrow">${t('net.devices.title')}</span><ul>${
+  ['android', 'version', 'near', 'bt'].filter(k => !['near', 'bt'].includes(k) || kinds.includes(k)).map(k =>
+    `<li>${t(k === 'android' && kinds.includes('web') ? 'net.devices.androidWeb' : 'net.devices.' + k, { v: VERSION })}</li>`).join('')}</ul></div>`;
 export function tilesOnlineScreen(root) {
   const kinds = netKinds();
   let kind = kinds.includes(settings.netKind) ? settings.netKind : kinds[0] ?? 'bt';
@@ -956,11 +993,12 @@ export function tilesOnlineScreen(root) {
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.tiles}">${t('back.games')}</a>`, right: modeTag('tiles') })}
   <main class="main">
     <h1 class="title">${t('net.online')}</h1>
-    ${devicesInfo()}
+    ${devicesInfo(kinds)}
     <div class="field">
       <span class="eyebrow">${t('net.step.kind')}</span>
       <div class="tl-kinds" role="radiogroup">${kinds.map(k => `<button type="button" class="tl-kind" data-kind-net="${k}" role="radio"><strong>${t('net.kind.' + k)}</strong><span class="help">${
         t('net.kindHelp.' + k)}</span></button>`).join('')}</div>
+      <p class="help" id="kind-no" hidden>${t('net.kindNo.near')}</p>
     </div>
     <div class="field">
       <span class="eyebrow">${t('net.step.role')}</span>
@@ -976,15 +1014,24 @@ export function tilesOnlineScreen(root) {
     root.querySelector('[data-role=host]').href = '#/host/' + kind;
     root.querySelector('[data-role=join]').href = '#/join/' + kind;
   };
-  root.addEventListener('click', e => {
+  // on the screen itself, which goes when it is replaced (#root stays: a handler there stayed after leaving)
+  root.firstElementChild.addEventListener('click', e => {
     const b = e.target.closest('[data-kind-net]');
-    if (!b) return;
+    if (!b || b.disabled) return;
     kind = settings.netKind = b.dataset.kindNet;
     saveSettings();
     paint();
   });
   paint();
   fitAll(root);
+  // Nearby needs Google Play services: without it, greyed out, and said why
+  if (kinds.includes('near')) nearbyHere().then(ok => {
+    if (ok || !root.isConnected) return;
+    const b = root.querySelector('[data-kind-net=near]');
+    b.disabled = true;
+    root.querySelector('#kind-no').hidden = false;
+    if (kind === 'near') { kind = kinds.find(k => k !== 'near') ?? 'bt'; paint(); }
+  });
 }
 
 // ── Tiles: Join a game (owner, 2026-09-27) ── on another phone, over Bluetooth (the phones nearby, and those paired
@@ -1010,6 +1057,8 @@ export function tilesJoinScreen(root, chosen) {
     </div>
     <div class="card tl-join">
       <p class="tl-join-note"></p>
+      ${kind === 'web' ? `<form class="tl-coderow" id="web-form"><input class="input" id="web-code" maxlength="9" value="${esc(settings.webCode ?? '')}" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="KQ7M2P" aria-label="${
+        t('net.web.code')}"><button class="btn btn-primary" type="submit" id="web-join">${t('net.web.join')} <span class="arrow">→</span></button></form>` : ''}
       <div class="tl-devices"></div>
     </div>
   </main>
@@ -1019,32 +1068,46 @@ export function tilesJoinScreen(root, chosen) {
   const note = (key, vars, dots) => { $('.tl-join-note').innerHTML = (dots ? '<span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span> ' : '') + t(key, vars); };
   // what went wrong, small under the note - to tell a phone out of reach from one not hosting
   const why = e => { const m = String(e?.message ?? e ?? '').replace(/^cannot connect:\s*/, ''); if (m) $('.tl-join-note').insertAdjacentHTML('beforeend', `<small class="tl-why">${esc(m)}</small>`); };
+  // not ready: why - with a button to Android's Location settings when that is it
+  const noteLocation = why => {
+    note('tiles.bt.' + why);
+    if (why === 'location') $('.tl-join-note').insertAdjacentHTML('beforeend', ` <button class="btn btn-outline" type="button" data-act="location">${t('tiles.bt.locationOpen')}</button>`);
+  };
   const paint = () => {
     $('#join-help').textContent = t('net.joinHelp.' + kind);
+    if ($('#web-join')) $('#web-join').disabled = busy;
     $('.tl-devices').innerHTML = [...found].sort(([, a], [, b]) => (b.rssi ?? -999) - (a.rssi ?? -999)).map(([address, { name }]) =>
       `<button type="button" class="tl-device" data-address="${esc(address)}"${busy ? ' disabled' : ''}><strong>${esc(name || address)}</strong>${name && kind === 'bt' ? `<span class="help">${esc(address)}</span>` : ''}</button>`).join('');
   };
   // its permission, its events, the list
   async function start() {
     paint();
-    const ready = await netReady(kind).catch(() => 'unsupported');
+    const ready = await netReady(kind, true).catch(() => 'unsupported');
     if (gone) return;
-    // Bluetooth off, or not allowed: said so, and the search starts by itself once it is on (owner: "refresh all the time
-    // until you're connected or leave") - looked at every few seconds, never asked again and again
+    // Bluetooth off, or not allowed, or Location off (Android 11 and older): said so, and the search starts by itself
+    // once it is on (owner: "refresh it all the time until you're connected or leave") - looked at every few seconds,
+    // never asked again and again
     if (ready !== 'ok') {
-      note('tiles.bt.' + ready);
+      noteLocation(ready);
       const wait = setInterval(async () => {
         if (gone) return clearInterval(wait);
         const st = await wire().state().catch(() => ({}));
-        if (st.on && st.allowed) { clearInterval(wait); start(); }
+        if (st.on && st.allowed && !st.locationOff) { clearInterval(wait); start(); }
       }, 3000);
       return;
     }
     const on = async (event, fn) => { const h = await wire().on(event, fn); if (gone) h.remove(); else handles.push(h); };
+    // the internet: no search - the host's code, typed in
+    if (kind === 'web') {
+      await on('message', ({ id, text }) => { if (id === conn) party?.message(text); });
+      await on('disconnected', ({ id }) => { if (id === conn && !answer) answer = 'lost'; });
+      if (!busy) note('net.web.enterCode');
+      return;
+    }
     // only what could host a game: phones, tablets and computers (not headphones, cars, watches…), and only found now -
     // never the phone's list of devices paired over the years (owner, 2026-09-27: "everything except what it should")
     await on('found', d => {
-      if (kind === 'bt' && ![0x100, 0x200, 0x1f00, -1].includes(d.major ?? -1)) return;
+      if (kind === 'bt' && ![0x100, 0x200, 0x1f00, 0, -1].includes(d.major ?? -1)) return;
       const was = found.get(d.address);
       found.set(d.address, { name: d.name || was?.name || '', rssi: d.rssi ?? was?.rssi, seen: Date.now() });
       if (!gone) paint();
@@ -1059,31 +1122,40 @@ export function tilesJoinScreen(root, chosen) {
     });
     await on('message', ({ id, text }) => { if (id === conn) party?.message(text); });
     await on('disconnected', ({ id }) => { if (id === conn && !answer) answer = 'lost'; });
+    // Bluetooth: the direct connection did not come up - the last try pairs the phones (Android asks on both)
+    if (kind === 'bt') await on('pairing', () => { if (busy && !conn) note('tiles.bt.pairing', {}, true); });
     if (!gone) search();
   }
   async function search() {
-    if (busy || gone || searching) return;
+    if (busy || gone || searching || kind === 'web') return;
     if (kind === 'lan' && !(await wire().state().catch(() => ({}))).on) { note('net.noWifi'); return setTimeout(search, 3000); }
     searching = true;
     paint();
     if (!found.size) note('net.searching.' + kind, {}, true);
-    try { await wire().search(); } catch { searching = false; paint(); note('tiles.bt.searchFailed'); setTimeout(search, 3000); }
+    try { await wire().search(); } catch (e) {
+      searching = false;
+      paint();
+      if (/location/.test(e?.message ?? e)) noteLocation('location'); else note('tiles.bt.searchFailed');
+      setTimeout(search, 3000);
+    }
   }
   async function join(address) {
     busy = true;
     answer = '';
     welcome = null;
     paint();
-    const name = esc(found.get(address)?.name || address);
+    let name = esc(found.get(address)?.name || address);
     note('tiles.bt.joining', { name }, true);
     await wire().stopSearch().catch(() => {});
     searching = false;   // stopped, with no "done" to say so: else the search never started again (owner: "seen only once")
-    try { conn = (await wire().join(address)).id; } catch (e) {
+    try { const j = await wire().join(address, true); conn = j.id; if (j.name) name = esc(j.name); } catch (e) {
       busy = false;
-      if (!gone) { paint(); note('tiles.bt.joinFailed', { name }); why(e); setTimeout(search, 2500); }
+      const m = String(e?.message ?? e), key = kind !== 'web' ? 'tiles.bt.joinFailed' : /no game/.test(m) ? 'net.web.noGame' : /bad code/.test(m) ? 'net.web.badCode' : 'net.web.joinFailed';
+      if (!gone) { paint(); note(key, { name }); if (/joinFailed/.test(key)) why(e); setTimeout(search, 2500); }
       return;
     }
     settings.btName = $('#bt-name').value.trim();
+    if (kind === 'web') settings.webCode = address;   // there next time (back after the page was closed, or the next game)
     saveSettings();
     // for the host to let in (up to 2 minutes) - the host names the players (owner, 2026-09-27); then its game
     party = createGuest({ name: settings.btName, send: text => { wire().send(conn, text).catch(() => {}); }, on: {
@@ -1105,9 +1177,19 @@ export function tilesJoinScreen(root, chosen) {
     joined = gone = true;   // the game screen carries on with this connection
     location.replace('#/game/' + m.id);
   }
-  root.addEventListener('click', e => {
+  // on the screen itself, which goes when it is replaced: on #root, every visit to Join left one more handler behind,
+  // and one tap on a phone then started a join from each of them at once
+  root.firstElementChild.addEventListener('click', e => {
+    if (e.target.closest('[data-act=location]')) return openLocation(kind);
     const d = e.target.closest('[data-address]');
     if (d && !busy) join(d.dataset.address);
+  });
+  $('#web-form')?.addEventListener('submit', e => {
+    e.preventDefault();
+    const code = cleanCode($('#web-code').value);
+    if (busy) return;
+    if (!isCode(code)) return note('net.web.badCode');
+    join(code);
   });
   start();
   return () => {
@@ -1115,157 +1197,293 @@ export function tilesJoinScreen(root, chosen) {
     handles.splice(0).forEach(h => h.remove());
     wire().stopSearch().catch(() => {});
     if (!joined && conn) { party?.leave(); const w = wire(), c = conn; setTimeout(() => w.close(c).catch(() => {}), 300); }
-    if (!joined && kind === 'bt') remindBt();
+    if (!joined && (kind === 'bt' || kind === 'near')) remindBt();
   };
 }
 
-let statsTab = 'guess';   // which game the stats screen shows, kept while the app is open
-// one tab per game (design v4)
-const STAT_TABS = ['guess', 'letters', 'connect', 'tiles'];
-let tlLang = 'all', tlLevel = 'all';   // the Tiles tab's filters, kept while the app is open
+let statsTab = 'general';   // which tab the stats screen shows, kept while the app is open
+// General, then one tab per game (Statistics v2 design, 2026-09-28)
+const STAT_TABS = ['general', 'guess', 'letters', 'connect', 'tiles'];
+const statFilter = {};      // per game: { lang, lv } - the language and the level shown, kept while the app is open
+const MODES = ['guess', 'letters', 'connect', 'tiles'];
 
+// The statistics (owner, 2026-09-28; the look: design "Lexling Statistics", design/stats-v6), worked out from each
+// game's record (store.js): every game from its first move, by language and level. Records and averages leave out
+// help - Guess: hints (and a category, and a word a friend chose); Connect: words found with a hinted letter; Tiles:
+// games with undo or best-move ratings on, and moves made with a hint.
 export function statsScreen(root, _, refresh) {
-  const s = stats, lt = s.lt;
-  if (!STAT_TABS.includes(statsTab)) statsTab = 'guess';
-  // a game not played yet says so, above its numbers - which show in dim ink
-  const cn = s.cn, tlPlayed = tilesPlayed();
-  const none = { guess: !s.played, letters: !lt.played, connect: !cn.played, tiles: !tlPlayed }[statsTab];
-  // Numbers in groups (owner, 2026-09-26: "add more fields, group them better, some boxes are bigger than they should"):
-  // a card per group with its title, the numbers in a grid inside it - no box per number, so none is stretched to its
-  // neighbour's height. A game not played yet: the numbers in dim ink.
-  const cell = (label, value, sub = '', wide = false) => `<div class="scell${wide ? ' wide' : ''}"><span class="lbl">${label}</span><span class="num">${value}</span>${
-    sub ? `<span class="sub">${sub}</span>` : ''}</div>`;
-  const group = (title, cells) => `<section class="card sgroup${none ? ' dim' : ''}"><h2 class="eyebrow">${title}</h2><div class="scells">${cells.join('')}</div></section>`;
+  if (!STAT_TABS.includes(statsTab)) statsTab = 'general';
+  const all = Object.values(stats.rec ?? {});
+  const f = statFilter[statsTab] ??= { lang: 'all', lv: 'all' };
+  const mine = all.filter(r => r.m === statsTab), recs = mine.filter(r => (f.lang === 'all' || r.lang === f.lang) && (f.lv === 'all' || r.lv === f.lv));
+  const none = statsTab !== 'general' && !mine.length, nothing = !none && statsTab !== 'general' && !recs.length;
+  const sum = (rs, k) => rs.reduce((a, r) => a + (+r[k] || 0), 0);
+  const closed = rs => rs.filter(r => r.end);
+  // numbers as the design writes them: a narrow no-break space in thousands and before "%", a decimal comma in Polish
+  const nn = n => num(n).replace(/ /g, ' ');
   const per = (a, b) => b ? decimal((a / b).toFixed(1)) : '—';
-  const pct = (a, b) => b ? Math.round(a / b * 100) + ' %' : '';
-  // hints used, and how many a game on average - Guess and Letters counted since 0.29.0, Connect from the start
-  const hintCell = (hints = 0, games = 0) => cell(t('stats.hints'), num(hints), games ? t('stats.hintsPerGame', { n: per(hints, games) }) : '');
-  const dist = (title, help, rows, tone = '', ink = '') => {
-    const max = Math.max(...rows.map(r => r[1]));
-    return `<div class="card dist"${tone ? ` style="--tone:${tone};--tone-ink:${ink}"` : ''}>
-      <div class="dist-head"><span class="eyebrow">${title}</span><span class="help">${help}</span></div>
-      <ol>${rows.map(([k, v]) => `<li class="${v === max ? 'top' : ''}"><span>${k}</span><b style="--pct:${Math.max(10, Math.round(v / max * 100))}%">${num(v)}</b></li>`).join('')}</ol>
+  const share = (a, b) => b ? Math.round(a / b * 100) : 0;
+  const pc = p => `${p} %`;
+  // A cell: label, big number (+ unit), a line (its percentage in bold), a 3px bar (grey for given up)
+  const cell = (k, v, o = {}) => `<div class="scell${o.cls ? ' ' + o.cls : ''}${v === '—' ? ' dash' : ''}"><span class="lbl">${k}</span><span class="num">${v}${
+    o.unit ? `<span class="unit">${o.unit}</span>` : ''}</span>${o.pre || o.b || o.post ? `<span class="sub">${o.pre ?? ''}${o.b ? `<b>${o.b}</b>` : ''}${o.post ?? ''}</span>` : ''}${
+    o.bar != null ? `<span class="bar${o.quiet ? ' quiet' : ''}"><i style="--p:${o.bar}%"></i></span>` : ''}</div>`;
+  const group = (title, cells, note = '') => `<section class="card sgroup${none ? ' dim' : ''}"><h2 class="eyebrow">${title}</h2><div class="scells">${cells.join('')}</div>${
+    note && !none ? `<p class="snote">${note}</p>` : ''}</section>`;
+  // "53 % won" under a count of games: done = the games that ended
+  const rate = (n, done, word, quiet = false) => done ? { b: pc(share(n, done)), post: word, bar: share(n, done), quiet } : {};
+  // hints used; in how many of the games, and how many in such a game (owner: not spread over the games without any)
+  const hintCell = (rs, k = 'h') => { const n = sum(rs, k), with_ = rs.filter(r => r[k] > 0).length;
+    return cell(t('stats.hints'), nn(n), with_ ? { pre: t('stats.sub.hintsPre'), b: pc(share(with_, rs.length)), post: t('stats.sub.hintsPost', { n: per(n, with_) }) } : {}); };
+  // one chart style: columns standing up, the count on top, the tallest in the game's colour
+  const chart = (title, help, rows, { tone = '', modes = false } = {}) => {
+    const max = Math.max(1, ...rows.map(r => r[1]));
+    return `<div class="card chart${modes ? ' modes' : ''}${none ? ' dim' : ''}"${tone ? ` style="--tone:${tone}"` : ''}>
+      <div class="chart-head"><span class="eyebrow">${title}</span><span class="help">${help}</span></div>
+      <ol style="--n:${rows.length}">${rows.map(([label, v, mode]) => `<li class="${v && v === max ? 'top' : ''}${v ? '' : ' zero'}${mode ? ' m-' + mode : ''}"><span class="plot"><b>${nn(v)}</b><i style="--k:${(v / max).toFixed(3)}"></i></span><span class="cl">${
+        mode ? GLYPH[mode] : ''}${label}</span></li>`).join('')}</ol>
     </div>`;
   };
-  // Each game's one "shape" card (design v4): how many tries its wins took, the commonest bar in the
-  // game's colour. Counted from 0.24.0 on - older wins were only ever kept as a total.
-  const gd = s.guessDist ?? {}, gWins = Object.values(gd).reduce((a, b) => a + b, 0);
-  const guessPanel = () => `<div class="sgroups">
-      ${group(t('stats.g.games'), [
-    cell(t('stats.played'), num(s.played)),
-    cell(t('stats.won'), num(s.won), pct(s.won, s.played)),
-    cell(t('stats.givenUp'), num(s.givenUp))])}
-      ${group(t('stats.g.words'), [
-    cell(t('stats.words'), num(s.words)),
-    cell(t('stats.wordsPerGame'), per(s.words, s.played)),
-    cell(t('stats.unique'), num(s.unique.length)),
-    cell(t('stats.letters'), num(s.letters)),
-    cell(t('stats.avgLen'), per(s.letters, s.words))])}
-      ${group(t('stats.g.records'), [
-    cell(t('stats.bestWin'), s.bestWin ? num(s.bestWin) : '—', s.bestWin ? plural(s.bestWin, 'n.guesses') : ''),
-    cell(t('stats.avgWin'), s.wonRated ? per(s.wonGuesses, s.wonRated) : '—', t('stats.perWon')),
-    cell(t('stats.hardWins'), num(s.hardWins ?? 0), t('stats.hardWinsSub', { n: HARD_WIN })),
-    cell(t('stats.hardest'), s.hardest ? `<span class="word">${esc(s.hardest.w)}</span>` : '—', s.hardest ? t('stats.hardestSub', { n: s.hardest.score }) : '', true)])}
-      ${group(t('stats.g.more'), [
-    cell(t('stats.pools'), num(Object.keys(s.wonPools ?? {}).length), t('stats.poolsSub', { n: CATS.length })),
-    cell(t('stats.byLang'), `${num(s.wonLang?.pl ?? 0)} / ${num(s.wonLang?.en ?? 0)}`),
-    hintCell(s.hints, s.hintGames),
-    cell(t('stats.time'), `${clock(s.timeMs, true)}<span class="unit"> h</span>`, t('stats.timeSub'))])}
-    </div>
-    ${gWins ? dist(t('stats.perWinGuess'), `${num(gWins)} ${plural(gWins, 'n.wins')}`,
-    [['1–10', gd.a || 0], ['11–25', gd.b || 0], ['26–50', gd.c || 0], ['51+', gd.d || 0]], 'var(--fill-hot)', '#000') : ''}
-    <p class="help">${t('stats.noCat')}</p>`;
-  const ld = lt.dist ?? {}, lWins = ['1', '2', '3', '4', '5', '6', '7+'].reduce((a, k) => a + (ld[k] || 0), 0), lLost = ld.x || 0;
-  // wins at each word length, 3 to 13, so the player sees which ones are missing
-  const lengthsStrip = `<div class="lengths" aria-label="${t('stats.byLen')}">${Array.from({ length: 11 }, (_, i) => i + 3).map(len =>
-    `<span class="${lt.wonLen[len] ? 'won' : ''}"><b>${lt.wonLen[len] ? num(lt.wonLen[len]) : '·'}</b><em>${len}</em></span>`).join('')}</div>`;
-  // the word length won most often
-  const fav = Object.entries(lt.wonLen ?? {}).reduce((a, [len, n]) => n > (a?.[1] ?? 0) ? [len, n] : a, null);
-  const lettersPanel = () => `<div class="sgroups">
-        ${group(t('stats.g.games'), [
-    cell(t('stats.played'), num(lt.played)),
-    cell(t('stats.won'), num(lt.won), pct(lt.won, lt.played)),
-    cell(t('stats.lost'), num(lt.lost ?? 0)),
-    cell(t('stats.givenUp'), num(lt.givenUp ?? 0))])}
-        ${group(t('stats.g.streaks'), [
-    cell(t('stats.streakNow'), num(lt.streak)),
-    cell(t('stats.streakTop'), num(lt.bestStreak)),
-    cell(t('stats.avgWin'), lt.won ? per(lt.wonTries, lt.won) : '—', t('stats.perWonLt')),
-    cell(t('stats.favLen'), fav ? num(+fav[0]) : '—', fav ? `${num(fav[1])} ${plural(fav[1], 'n.wins')}` : '')])}
-      </div>
-      ${lWins + lLost ? dist(t('stats.perWinLt'), `${num(lWins)} ${plural(lWins, 'n.wins')} ${DOT} ${num(lLost)} ${plural(lLost, 'n.losses')}`,
-    [...['1', '2', '3', '4', '5', '6'].map(k => [k, ld[k] || 0]), ...(ld['7+'] ? [['7+', ld['7+']]] : []), ['✕', lLost]]) : ''}
-      <h2 class="title">${t('stats.byLen')}</h2>
-      ${lengthsStrip}`;
-  // Connect: its numbers, then the longest word found drawn in green tiles (design v4)
-  const cnDone = cn.solved + cn.givenUp;
-  const connectPanel = () => `<div class="sgroups">
-        ${group(t('stats.g.games'), [
-    cell(t('stats.played'), num(cn.played)),
-    cell(t('stats.solved'), num(cn.solved), pct(cn.solved, cn.played)),
-    cell(t('stats.givenUp'), num(cn.givenUp ?? 0))])}
-        ${group(t('stats.g.words'), [
-    cell(t('stats.wordsFound'), num(cn.words)),
-    cell(t('stats.wordsPerGame'), per(cn.words, cnDone)),
-    cell(t('stats.bonusWords'), num(cn.bonus)),
-    cell(t('stats.bonusPerGame'), per(cn.bonus, cnDone)),
-    hintCell(cn.hints, cnDone)])}
-      </div>
-      ${cn.longest ? `<div class="card best"><span class="eyebrow">${t('stats.longest')}</span>${squares(Array([...cn.longest.w].length).fill('hit'), 32, [...cn.longest.w])}
-        <p class="help">${t('stats.longestSub', { n: [...cn.longest.w].length, letters: plural([...cn.longest.w].length, 'lt.letters'), g: esc(cn.longest.game), ago: ago(cn.longest.at) })}</p></div>` : ''}`;
-  // Tiles: every game on this device, several people included (owner, 2026-09-25), by language and by level -
-  // the strongest computer in a game, or "People only" (store.js recordTilesEnd)
-  const tlRows = Object.entries(s.tl ?? {}).filter(([k]) => {
-    const [l, lv] = k.split('|');
-    return (tlLang === 'all' || l === tlLang) && (tlLevel === 'all' || lv === tlLevel);
-  }).map(([k, v]) => ({ ...v, lang: k.split('|')[0] }));
-  const tsum = k => tlRows.reduce((a, v) => a + (v[k] || 0), 0);
-  const tilesPanel = () => {
-    const games = tsum('games'), vsCpu = tsum('vsCpu'), moves = tsum('moves'), rateBest = tsum('rateBest');
-    const best = tlRows.reduce((a, v) => v.bestGame !== null && v.bestGame > a ? v.bestGame : a, -1);
-    const bm = tlRows.reduce((a, v) => v.bestMove && (!a || v.bestMove.score > a.score) ? { ...v.bestMove, lang: v.lang } : a, null);
-    return `<div class="tl-filters">
-        <div class="seg" role="radiogroup">${['all', 'pl', 'en'].map(l => `<button type="button" data-tl-lang="${l}" class="${on(tlLang === l)}">${l === 'all' ? t('stats.tiles.bothLangs') : LANG_NAMES[l]}</button>`).join('')}</div>
-        <div class="chips">${['all', ...LEVEL_ORDER, 'people'].map(l => `<button type="button" class="chip ${on(tlLevel === l)}" data-tl-level="${l}">${
-      l === 'all' ? t('stats.tiles.allLevels') : l === 'people' ? t('stats.tiles.people') : t('diff.' + l)}</button>`).join('')}</div>
-      </div>
-      <div class="sgroups">
-        ${group(t('stats.g.games'), [
-      cell(t('stats.played'), num(tsum('played'))),
-      cell(t('stats.tiles.won'), num(tsum('won')), pct(tsum('won'), vsCpu)),
-      cell(t('stats.tiles.lost'), num(vsCpu - tsum('won'))),
-      cell(t('stats.tiles.peopleGames'), num(tsum('played') - vsCpu))])}
-        ${group(t('stats.g.points'), [
-      cell(t('stats.tiles.best'), best >= 0 ? num(best) : '—'),
-      cell(t('stats.tiles.avg'), games ? num(Math.round(tsum('points') / games)) : '—'),
-      cell(t('stats.tiles.points'), num(tsum('points'))),
-      cell(t('stats.tiles.perMove'), moves ? per(tsum('movePoints'), moves) : '—')])}
-        ${group(t('stats.g.moves'), [
-      cell(t('stats.tiles.moves'), num(moves)),
-      cell(t('stats.tiles.bingos'), num(tsum('bingos'))),
-      cell(t('stats.tiles.passes'), num(tsum('passes'))),
-      hintCell(tsum('hints'), games),
-      cell(t('stats.tiles.rating'), rateBest ? Math.round(tsum('ratePlayed') / rateBest * 100) + ' %' : '—', t(rateBest ? 'stats.tiles.ratingSub' : 'stats.tiles.ratingNone'))])}
-      </div>
-      ${bm ? `<div class="card best"><span class="eyebrow">${t('stats.tiles.bestMove')}</span><div class="tl-best"><span class="mt-row">${[...bm.w].map(ch =>
-      `<i class="mtl" style="--s:36px">${esc(ch)}<i class="p">${valueOf(bm.lang, ch) ?? ''}</i></i>`).join('')}</span><span class="num">${bm.score}</span></div></div>` : ''}`;
+  const levelName = (m, l) => l === 'people' ? t('stats.tiles.people') : t(m === 'tiles' ? levelKey(l) : 'diff.' + l);
+  const filters = m => `<div class="st-filters${none ? ' off' : ''}">
+      <div class="seg" role="radiogroup">${['all', 'pl', 'en'].map(l => `<button type="button" data-f-lang="${l}" class="${on(f.lang === l)}">${l === 'all' ? t('stats.tiles.bothLangs') : LANG_NAMES[l]}</button>`).join('')}</div>
+      <div class="st-levels"><div class="chips">${['all', ...(m === 'tiles' ? [...LEVEL_ORDER, 'people'] : DIFFS)].map(l => `<button type="button" class="chip ${on(f.lv === l)}" data-f-lv="${l}">${
+    l === 'all' ? t('stats.tiles.allLevels') : levelName(m, l)}</button>`).join('')}</div></div>
+    </div>`;
+
+  // ── General: every game, the time, the games by mode ──
+  const hours = stats.timeMs >= 360000000 ? nn(Math.floor(stats.timeMs / 3600000)) : clock(stats.timeMs, true);   // h:mm under 100 h
+  const generalPanel = () => group(t('stats.g.games'), [
+    cell(t('stats.allGames'), nn(all.length), { cls: 'hero' }),
+    cell(t('stats.time'), hours, { unit: 'h', post: t('stats.timeSub') })],
+  stats.before?.games ? t('stats.before', { n: nn(stats.before.games) }) : '')
+    + (all.length ? chart(t('stats.byMode'), `${nn(all.length)} ${plural(all.length, 'n.games')}`, MODES.map(m => [t('mode.' + m), all.filter(r => r.m === m).length, m]), { modes: true }) : '');
+
+  // ── Guess ──
+  const guessPanel = () => {
+    const done = closed(recs), gave = done.filter(r => r.end !== 'won').length, wins = recs.filter(r => r.end === 'won');
+    const rated = wins.filter(r => !r.h && !r.fr && r.cat === 'all'), hardest = rated.filter(r => r.dif >= 0).reduce((a, r) => !a || r.dif > a.dif ? r : a, null);
+    const fewest = rated.reduce((a, r) => !a || r.g < a ? r.g : a, 0), words = sum(recs, 'g');
+    const uniq = stats.unique.filter(x => f.lang === 'all' || x.startsWith(f.lang + ':')).length;
+    const band = g => g <= 10 ? 0 : g <= 25 ? 1 : g <= 50 ? 2 : 3, shape = [0, 0, 0, 0], plain = wins.filter(r => !r.h && !r.fr);
+    plain.forEach(r => shape[band(r.g)]++);
+    return group(t('stats.g.games'), [cell(t('stats.played'), nn(recs.length), done.length ? { pre: t('stats.sub.givenUp', { n: nn(gave) }), ...rate(gave, done.length, '', true) } : {})])
+      + group(t('stats.g.words'), [
+        cell(t('stats.words'), nn(words)),
+        cell(t('stats.wordsPerGame'), per(words, recs.length)),
+        cell(t('stats.unique'), nn(uniq)),
+        cell(t('stats.letters'), nn(sum(recs, 'ch')))])
+      + group(t('stats.g.records'), [
+        cell(t('stats.bestWin'), fewest ? nn(fewest) : '—', fewest ? { post: plural(fewest, 'n.guesses') } : {}),
+        cell(t('stats.avgWin'), rated.length ? per(sum(rated, 'g'), rated.length) : '—', { post: t('stats.perWon') }),
+        cell(t('stats.hardWins'), nn(rated.filter(r => r.dif >= HARD_WIN).length), { post: t('stats.hardWinsSub', { n: HARD_WIN }) }),
+        cell(t('stats.hardest'), hardest ? esc(hardest.w) : '—', { cls: 'wide word', post: hardest ? t('stats.hardestSub', { n: hardest.dif }) : '' })], t('stats.noCat'))
+      + group(t('stats.g.more'), [
+        cell(t('stats.pools'), nn(new Set(plain.map(r => r.cat)).size), { post: t('stats.poolsSub', { n: CATS.length }) }),
+        cell(t('stats.byLang'), `${nn(wins.filter(r => !r.fr && r.lang === 'pl').length)} / ${nn(wins.filter(r => !r.fr && r.lang === 'en').length)}`),
+        hintCell(recs)])
+      + (plain.length ? chart(t('stats.perWinGuess'), `${nn(plain.length)} ${t('stats.winsNoHelp')}`, [['1–10', shape[0]], ['11–25', shape[1]], ['26–50', shape[2]], ['51+', shape[3]]], { tone: 'var(--fill-hot)' }) : '');
   };
+
+  // ── Letters (no hints in this game) ──
+  const lettersPanel = () => {
+    const done = closed(recs).sort((a, b) => a.ea - b.ea), wins = done.filter(r => r.end === 'won');
+    let streak = 0, best = 0;
+    for (const r of done) { streak = r.end === 'won' ? streak + 1 : 0; best = Math.max(best, streak); }
+    const byLen = Array.from({ length: LEN_MAX - LEN_MIN + 1 }, (_, i) => [String(i + LEN_MIN), wins.filter(r => r.len === i + LEN_MIN).length]);
+    const fav = byLen.reduce((a, x) => x[1] > (a?.[1] ?? 0) ? x : a, null);
+    return group(t('stats.g.games'), [cell(t('stats.played'), nn(recs.length), rate(wins.length, done.length, t('stats.sub.won')))])
+      + group(t('stats.g.streaks'), [
+        cell(t('stats.streakNow'), nn(streak)),
+        cell(t('stats.streakTop'), nn(best)),
+        cell(t('stats.favLen'), fav ? nn(+fav[0]) : '—', fav ? { post: `${nn(fav[1])} ${plural(fav[1], 'n.wins')}` } : {})])
+      + (wins.length ? chart(t('stats.byLen'), `${nn(wins.length)} ${plural(wins.length, 'n.wins')}`, byLen, { tone: 'var(--lt-hit)' }) : '');
+  };
+
+  // ── Connect: its numbers, then the longest word found drawn in green tiles ──
+  const connectPanel = () => {
+    const done = closed(recs), solved = done.filter(r => r.end === 'won').length, found = sum(recs, 'f'), bonus = sum(recs, 'b');
+    const longest = recs.filter(r => r.long).reduce((a, r) => !a || [...r.long].length > [...a.long].length ? r : a, null);
+    return group(t('stats.g.games'), [cell(t('stats.played'), nn(recs.length), rate(solved, done.length, t('stats.sub.solved')))])
+      + group(t('stats.g.words'), [
+        cell(t('stats.wordsFound'), nn(found)),
+        cell(t('stats.wordsPerGame'), per(found, recs.length)),
+        cell(t('stats.bonusWords'), nn(bonus)),
+        cell(t('stats.bonusPerGame'), per(bonus, recs.length)),
+        hintCell(recs)], t('stats.cnNote'))
+      + (longest ? `<div class="card best"><span class="eyebrow">${t('stats.longest')}</span>${squares(Array([...longest.long].length).fill('hit'), 32, [...longest.long])}
+        <p class="help">${t('stats.longestSub', { n: [...longest.long].length, letters: plural([...longest.long].length, 'lt.letters'), g: esc(longest.gn ?? ''), ago: ago(longest.ea ?? longest.at) })}</p></div>` : '');
+  };
+
+  // ── Tiles: every game on this device, several people included (owner, 2026-09-25) ──
+  const tilesPanel = () => {
+    const vs = recs.filter(r => r.vsCpu), vsDone = closed(vs), ppl = recs.filter(r => r.lv === 'people'), pplDone = closed(ppl).filter(r => r.alone);
+    // points and records: no undo, no best moves shown (owner: "the points section won't be touched by you"); the best and
+    // the average game score not with a single hint either
+    const clean = recs.filter(r => !r.u && !r.bs), plain = closed(clean).filter(r => !r.hints && r.games);
+    const best = plain.reduce((a, r) => r.bestGame > a ? r.bestGame : a, -1);
+    const bm = clean.reduce((a, r) => r.ownBest && (!a || r.ownBest.score > a.score) ? { ...r.ownBest, lang: r.lang } : a, null);
+    const rb = sum(clean, 'rb');
+    return group(t('stats.g.games'), [
+      cell(t('stats.played'), nn(recs.length)),
+      cell(t('stats.vsCpu'), nn(vs.length), rate(sum(vsDone, 'won'), vsDone.length, t('stats.sub.won'))),
+      cell(t('stats.vsPeople'), nn(ppl.length), rate(sum(pplDone, 'beat'), pplDone.length, t('stats.sub.won')))])
+      + group(t('stats.g.points'), [
+        cell(t('stats.tiles.best'), best >= 0 ? nn(best) : '—'),
+        cell(t('stats.tiles.avg'), sum(plain, 'games') ? nn(Math.round(sum(plain, 'points') / sum(plain, 'games'))) : '—'),
+        cell(t('stats.tiles.points'), nn(sum(clean, 'ownPoints'))),
+        cell(t('stats.tiles.perMove'), sum(clean, 'ownMoves') ? per(sum(clean, 'ownPoints'), sum(clean, 'ownMoves')) : '—')], t('stats.tiles.pointsNote'))
+      + group(t('stats.g.moves'), [
+        cell(t('stats.tiles.moves'), nn(sum(recs, 'moves'))),
+        cell(t('stats.tiles.bingos'), nn(sum(clean, 'ownBingos'))),
+        cell(t('stats.tiles.passes'), nn(sum(recs, 'passes'))),
+        cell(t('stats.tiles.rating'), rb ? pc(share(sum(clean, 'rp'), rb)) : '—', { post: t(rb ? 'stats.tiles.ratingSub' : 'stats.tiles.ratingNone') })])
+      + group(t('stats.g.help'), [hintCell(recs, 'hints')])
+      + (bm ? `<div class="card best"><span class="eyebrow">${t('stats.tiles.bestMove')}</span><div class="tl-best"><span class="mt-row">${[...bm.w].map(ch =>
+        `<i class="mtl" style="--s:36px">${esc(ch)}<i class="p">${valueOf(bm.lang, ch) ?? ''}</i></i>`).join('')}</span><span class="num">${bm.score}</span></div></div>` : '');
+  };
+
+  const panel = { general: generalPanel, guess: guessPanel, letters: lettersPanel, connect: connectPanel, tiles: tilesPanel }[statsTab];
   root.innerHTML = `<div class="app" data-screen="stats">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
   <main class="main">
     <h1 class="title">${t('stats.title')}</h1>
-    <div class="seg tabs tabs4" role="tablist"${STAT_TABS.length < 4 ? ` style="grid-template-columns:repeat(${STAT_TABS.length},minmax(0,1fr))"` : ''}>${STAT_TABS.map(m =>
-    `<button type="button" role="tab" data-tab="${m}" class="${on(statsTab === m)}" aria-selected="${statsTab === m}">${GLYPH[m]}${t('mode.' + m)}</button>`).join('')}</div>
+    <div class="seg st-tabs" role="tablist">${STAT_TABS.map(m =>
+    `<button type="button" role="tab" data-tab="${m}" class="${on(statsTab === m)}" aria-selected="${statsTab === m}"><span class="tg">${GLYPH[m === 'general' ? 'all' : m] ?? ''}</span>${
+      t(m === 'general' ? 'stats.general' : 'mode.' + m)}</button>`).join('')}</div>
+    ${statsTab === 'general' ? '' : filters(statsTab)}
     <section class="section" role="tabpanel">
       ${none ? `<div class="none"><strong>${t('stats.none', { g: t('mode.' + statsTab) })}</strong><p class="help">${t('stats.noneHelp')}</p></div>` : ''}
-      ${{ letters: lettersPanel, connect: connectPanel, tiles: tilesPanel }[statsTab]?.() ?? guessPanel()}
-      <div class="shared"><span>${t('stats.allGames')} <b>${num(s.played + lt.played + cn.played + tlPlayed)}</b></span>${DOT}<span><b>${clock(s.timeMs, true)}</b> ${t('stats.hours')}</span></div>
+      ${nothing ? `<div class="none nothing"><strong>${t('stats.filterNone')}</strong><button type="button" class="btn btn-ghost" data-f-reset>${t('stats.showAll')} <span class="arrow">→</span></button></div>` : panel()}
     </section>
   </main>
 </div>`;
+  // the level chosen in view (the chips scroll sideways on a phone)
+  const lv = root.querySelector('.st-levels'), chosen = lv?.querySelector('.chip.on');
+  if (lv && chosen) lv.scrollLeft = Math.max(0, chosen.offsetLeft - lv.clientWidth / 2 + chosen.offsetWidth / 2);
   root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { statsTab = b.dataset.tab; refresh(); }));
-  root.querySelectorAll('[data-tl-lang]').forEach(b => b.addEventListener('click', () => { tlLang = b.dataset.tlLang; refresh(); }));
-  root.querySelectorAll('[data-tl-level]').forEach(b => b.addEventListener('click', () => { tlLevel = b.dataset.tlLevel; refresh(); }));
+  root.querySelectorAll('[data-f-lang]').forEach(b => b.addEventListener('click', () => { f.lang = b.dataset.fLang; refresh(); }));
+  root.querySelectorAll('[data-f-lv]').forEach(b => b.addEventListener('click', () => { f.lv = b.dataset.fLv; refresh(); }));
+  root.querySelector('[data-f-reset]')?.addEventListener('click', () => { f.lang = 'all'; f.lv = 'all'; refresh(); });
+}
+
+
+// ── The Collection (owner, 2026-09-28: "which words from the category you have ever guessed; the ones you didn't as
+// question marks ... and the percentage") ── every word typed in a game (store.js collect) against the words each game
+// can hide: per mode, by category (Connect, which has none, by length), and all of them together. Menu → Collection.
+const COL_TABS = ['all', 'guess', 'letters', 'connect'];
+let colTab = 'all', colLang = null, colCat = null, colLen = 0;   // kept while the app is open
+const colPools = new Map();                                        // 'lang|mode|cat' → word indexes, most common first
+function colPool(m, mode, cat) {
+  const k = `${m.lang}|${mode}|${cat}`;
+  if (!colPools.has(k)) colPools.set(k, mode === 'guess' ? secretWords(m, cat)
+    : mode === 'connect' ? pool(m, { diff: 'random', marks: true }).filter(i => [...m.words[i]].length === +cat)
+    : pool(m, { cat, diff: 'random', marks: true }));
+  return colPools.get(k);
+}
+const colCats = mode => mode === 'connect' ? Array.from({ length: RING_MAX - WORD_MIN + 1 }, (_, i) => String(i + WORD_MIN)) : CATS;
+
+export async function collectionScreen(root, _, refresh) {
+  colLang ??= settings.lang;
+  const tabs = `<div class="seg st-tabs" role="tablist">${COL_TABS.map(m => `<button type="button" role="tab" data-ctab="${m}" class="${on(colTab === m)}" aria-selected="${colTab === m}"><span class="tg">${
+    GLYPH[m] ?? ''}</span>${t(m === 'all' ? 'col.all' : 'mode.' + m)}</button>`).join('')}</div>
+    <div class="seg co-lang" role="radiogroup">${['pl', 'en'].map(l => `<button type="button" data-clang="${l}" class="${on(colLang === l)}">${LANG_NAMES[l]}</button>`).join('')}</div>`;
+  const shell = body => `<div class="app" data-screen="collection">
+  ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
+  <main class="main">
+    <h1 class="title">${t('col.title')}</h1>
+    ${tabs}
+    <section class="section">${body}<p class="co-help">${t('col.help')}</p></section>
+  </main>
+</div>`;
+  // while the words load (~1 s): the line, and quiet rows where the rows will be
+  root.innerHTML = shell(`<div class="co-loading"><p>${t('col.loading')}</p>${'<i></i>'.repeat(6)}</div>`);
+  const wire = () => {
+    root.querySelectorAll('[data-ctab]').forEach(b => b.addEventListener('click', () => { colTab = b.dataset.ctab; colCat = null; refresh(); }));
+    root.querySelectorAll('[data-clang]').forEach(b => b.addEventListener('click', () => { colLang = b.dataset.clang; colCat = null; refresh(); }));
+    root.querySelectorAll('[data-ccat]').forEach(b => b.addEventListener('click', () => { colCat = b.dataset.ccat; colLen = 0; refresh(); }));
+    root.querySelectorAll('[data-clen]').forEach(b => b.addEventListener('click', () => { colLen = +b.dataset.clen; refresh(); }));
+    root.querySelector('[data-cback]')?.addEventListener('click', () => { colCat = null; refresh(); });
+  };
+  wire();
+  const m = await loadWords(colLang).catch(() => null);
+  if (!m || !root.querySelector('[data-screen=collection]')) return;
+  const pctOf = (a, b) => b ? Math.round(a / b * 100) : 0;
+  // one bar everywhere, green = found - a sliver as soon as one word is
+  const bar = (a, b) => `<span class="co-bar${a ? '' : ' zero'}"><i style="--p:${Math.max(pctOf(a, b), a ? 1 : 0)}%"></i></span>`;
+  const pcs = (a, b) => `${pctOf(a, b)}\u202F%`;
+  // a row: [glyph] name …… 34 / 120 · 28 %  ›, the bar under it; tapping opens the game or the category
+  const row = (attr, name, a, b) => `<li><button type="button" class="co-row${a ? '' : ' none'}" ${attr}><span class="co-top"><span class="co-name">${name}</span><span class="co-count"><b>${num(a)}</b> / ${num(b)} · <span class="pc">${
+    pcs(a, b)}</span></span></span><span class="chev" aria-hidden="true">›</span>${bar(a, b)}</button></li>`;
+  const foundIn = (mode, list) => { const had = collected(mode, colLang); return list.filter(i => had.has(m.words[i])).length; };
+  const letters = n => `${n} ${plural(+n, 'lt.letters')}`;
+  let body, map = null;
+  if (colTab === 'all') {
+    // every word any game can hide (Letters' pool holds Connect's), and every one typed in any of them
+    const everyWord = new Set([...colPool(m, 'guess', 'all'), ...colPool(m, 'letters', 'all')]);
+    const typed = new Set(['guess', 'letters', 'connect'].flatMap(md => [...collected(md, colLang)]));
+    const got = [...everyWord].filter(i => typed.has(m.words[i])).length;
+    body = `<div class="card co-hero"><span class="eyebrow">${t('col.everything')}</span><span class="co-pct">${pctOf(got, everyWord.size)}<small>%</small></span>
+      <p class="co-line">${t('col.totalLine', { n: `<b>${num(got)}</b>`, of: num(everyWord.size) })}</p>${bar(got, everyWord.size)}</div>
+      <ul class="co-rows">${['guess', 'letters', 'connect'].map(md => {
+        const list = md === 'connect' ? colCats('connect').flatMap(c => colPool(m, 'connect', c)) : colPool(m, md, 'all');
+        return row(`data-ctab-go="${md}"`, `${GLYPH[md] ?? ''}${t('mode.' + md)}`, foundIn(md, list), list.length);
+      }).join('')}</ul>`;
+  } else if (!colCat) {
+    body = `<p class="co-lead">${t(colTab === 'connect' ? 'col.byLength' : 'col.byCategory')}</p><ul class="co-rows two">${colCats(colTab).map(c => {
+      const list = colPool(m, colTab, c);
+      return list.length ? row(`data-ccat="${c}"`, colTab === 'connect' ? letters(c) : t('cat.' + c), foundIn(colTab, list), list.length) : '';
+    }).join('')}</ul>`;
+  } else {
+    // one category: its lengths (how many found of each), then the words of one length - the found ones written out,
+    // the rest a map, one dot per word, green where found (design option A: thousands of "???" would drown the found)
+    const list = colPool(m, colTab, colCat), had = collected(colTab, colLang), f = foundIn(colTab, list);
+    const byLen = new Map();
+    for (const i of list) { const n = [...m.words[i]].length; if (!byLen.has(n)) byLen.set(n, []); byLen.get(n).push(i); }
+    const lens = [...byLen.keys()].sort((x, y) => x - y);
+    if (!byLen.has(colLen)) colLen = lens[0];
+    const range = lens.length ? Array.from({ length: lens.at(-1) - lens[0] + 1 }, (_, k) => lens[0] + k) : [];
+    const words = byLen.get(colLen) ?? [], got = words.filter(i => had.has(m.words[i]));
+    map = words.map(i => had.has(m.words[i]));
+    body = `<button type="button" class="btn btn-ghost co-back" data-cback>← ${t(colTab === 'connect' ? 'col.lengths' : 'col.categories')}</button>
+      <div class="card co-cat"><h2>${colTab === 'connect' ? letters(colCat) : t('cat.' + colCat)}</h2><p class="co-line"><span><b>${num(f)}</b> / ${num(list.length)} · ${pcs(f, list.length)}</span></p>${bar(f, list.length)}</div>
+      ${range.length > 1 ? `<div class="co-lens">${range.map(n => { const ws = byLen.get(n) ?? [], g = ws.filter(i => had.has(m.words[i])).length;
+        return `<button type="button" class="co-len${n === colLen ? ' on' : ''}${ws.length ? '' : ' empty'}" data-clen="${n}"><span class="num">${n}</span><small class="${g ? 'got' : ''}">${num(g)}</small></button>`; }).join('')}</div>
+      <div class="co-lenhead"><strong>${letters(colLen)}</strong><span>${t('col.foundOf', { n: num(got.length), of: num(words.length) })}</span></div>` : ''}
+      ${got.length ? `<div class="co-found">${got.map(i => `<span class="co-w">${esc(m.words[i])}</span>`).join('')}</div>` : ''}
+      ${words.length > got.length ? `<div class="co-map"><div class="co-maphead"><span><b>${num(words.length - got.length)}</b> ${t('col.notYet')}</span><span>${t('col.dotIs')}</span></div>
+        <canvas class="co-dots" role="img" aria-label="${t('col.foundOf', { n: num(got.length), of: num(words.length) })}"></canvas><span class="co-dots" hidden><i></i><i class="g"></i></span></div>` : ''}`;
+  }
+  root.innerHTML = shell(body);
+  wire();
+  root.querySelectorAll('[data-ctab-go]').forEach(b => b.addEventListener('click', () => { colTab = b.dataset.ctabGo; colCat = null; refresh(); }));
+  const canvas = root.querySelector('canvas.co-dots');
+  if (canvas && map) dotMap(canvas, map);
+}
+
+// The words not found yet, as a map: a 6px dot per word in the list's order, 2px apart, green where found - drawn on one
+// canvas (a category can hold thousands of words), again when its width changes.
+function dotMap(canvas, flags) {
+  const probe = canvas.nextElementSibling.children, colour = [getComputedStyle(probe[0]).backgroundColor, getComputedStyle(probe[1]).backgroundColor];
+  const draw = () => {
+    const w = canvas.clientWidth, cols = Math.max(1, Math.floor((w + 2) / 8)), rows = Math.ceil(flags.length / cols), h = Math.max(6, rows * 8 - 2);
+    const step = cols > 1 ? (w - 6) / (cols - 1) : 0, dpr = window.devicePixelRatio || 1;
+    canvas.style.height = h + 'px';
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    flags.forEach((got, k) => {
+      ctx.fillStyle = colour[got ? 1 : 0];
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect((k % cols) * step, Math.floor(k / cols) * 8, 6, 6, 1.5); else ctx.rect((k % cols) * step, Math.floor(k / cols) * 8, 6, 6);
+      ctx.fill();
+    });
+  };
+  draw();
+  let last = canvas.clientWidth;
+  const watch = new ResizeObserver(() => { if (!canvas.isConnected) return watch.disconnect(); if (canvas.clientWidth !== last) { last = canvas.clientWidth; draw(); } });
+  watch.observe(canvas);
 }
 
 let dataIndex;
@@ -1290,7 +1508,16 @@ export async function settingsScreen(root, _, refresh) {
       <div class="row"><div class="row-text"><strong>${t('set.fuzzy')}</strong><span>${t('set.fuzzyDesc')}</span></div><button type="button" class="toggle ${on(settings.fuzzy)}" data-toggle="fuzzy" role="switch" aria-checked="${settings.fuzzy}" aria-label="${t('set.fuzzy')}"></button></div>
       <div class="row"><div class="row-text"><strong>${t('set.sound')}</strong><span>${t('set.soundDesc')}</span></div><button type="button" class="toggle ${on(settings.sound)}" data-toggle="sound" role="switch" aria-checked="${settings.sound}" aria-label="${t('set.sound')}"></button></div>
       ${netKinds().includes('bt') ? `<div class="row"><div class="row-text"><strong>${t('set.btRemind')}</strong><span>${t('set.btRemindDesc')}</span></div><button type="button" class="toggle ${on(settings.btRemind)}" data-toggle="btRemind" role="switch" aria-checked="${!!settings.btRemind}" aria-label="${t('set.btRemind')}"></button></div>` : ''}
+      <div class="row"><div class="row-text"><strong>${t('set.botReasoning')}</strong><span>${t('set.botReasoningDesc')}</span></div><button type="button" class="toggle ${on(settings.botReasoning)}" data-toggle="botReasoning" role="switch" aria-checked="${!!settings.botReasoning}" aria-label="${t('set.botReasoning')}"></button></div>
       <div class="row"><div class="row-text"><strong>${t('set.remember')}</strong><span>${t('set.rememberDesc')}</span></div><button type="button" class="toggle ${on(settings.rememberSetup)}" data-toggle="rememberSetup" role="switch" aria-checked="${!!settings.rememberSetup}" aria-label="${t('set.remember')}"></button></div>
+    </section>
+    <section class="group">
+      <h2 class="title">${t('set.time')}</h2>
+      <div class="row"><div class="row-text"><strong>${t('set.clock')}</strong><span>${t('set.clockDesc')}</span></div><button type="button" class="toggle ${on(settings.showClock)}" data-toggle="showClock" role="switch" aria-checked="${!!settings.showClock}" aria-label="${t('set.clock')}"></button></div>
+      <div class="row"><div class="row-text"><strong>${t('set.remind')}</strong><span>${t('set.remindDesc')}</span></div><button type="button" class="toggle ${on(settings.playRemind)}" data-toggle="playRemind" role="switch" aria-checked="${!!settings.playRemind}" aria-label="${t('set.remind')}"></button></div>
+      <div class="row" id="rm-row"${settings.playRemind ? '' : ' hidden'}><div class="rm-every"><span>${t('set.every')}</span>
+        <input class="input" type="number" inputmode="numeric" id="rm-h" min="0" max="12" value="${Math.floor((settings.remindMin || 90) / 60)}" aria-label="${t('set.hours')}"><span>${t('set.hours')}</span>
+        <input class="input" type="number" inputmode="numeric" id="rm-m" min="0" max="59" step="5" value="${(settings.remindMin || 90) % 60}" aria-label="${t('set.minutes')}"><span>${t('set.minutes')}</span></div></div>
     </section>
     <section class="group">
       <h2 class="title">${t('set.updates')}</h2>
@@ -1330,6 +1557,8 @@ export async function settingsScreen(root, _, refresh) {
     el.setAttribute('aria-checked', settings[key]);
     if (key === 'sound') click();
     if (key === 'updateCheck' && settings.updateCheck) checkUpdate();
+    if (key === 'showClock') paintClock();
+    if (key === 'playRemind') root.querySelector('#rm-row').hidden = !settings.playRemind;
   }));
   root.querySelectorAll('[data-accent]').forEach(el => el.addEventListener('click', () => {
     settings.accent = el.dataset.accent;
@@ -1349,6 +1578,13 @@ export async function settingsScreen(root, _, refresh) {
   // GitHub (was "Check manually" - owner, 2026-09-25: the check sometimes fails): straight to the releases page
   root.querySelector('#manual')?.addEventListener('click', () => open(`https://github.com/${REPO}/releases`));
 
+  // how often the reminder comes: hours and minutes, any mix (owner) - 5 minutes at least
+  const every = () => {
+    const h = Math.min(12, Math.max(0, parseInt(root.querySelector('#rm-h').value, 10) || 0)), m = Math.min(59, Math.max(0, parseInt(root.querySelector('#rm-m').value, 10) || 0));
+    settings.remindMin = Math.max(5, h * 60 + m);
+    saveSettings();
+  };
+  root.querySelectorAll('#rm-h, #rm-m').forEach(i => i.addEventListener('change', every));
   const check = root.querySelector('#check');
   check?.addEventListener('click', async () => {
     check.disabled = true;

@@ -42,14 +42,24 @@ Playable in **Polish and English** (both the UI and the word libraries).
   (with diacritic-insensitive matching for Polish — typing `zolw` finds `żółw`).
 - Multiple games at once: save, resume, give up (reveals the word); name a game on New game or rename it later -
   it shows as "Name (Game 12)". Settings can remember your New game choices for next time.
-- Statistics for each game (no achievements, since 0.23.0).
+- Statistics (no achievements, since 0.23.0): a General tab (every game, the time, games by mode) and one per game,
+  each by language and by level. Since 0.60.0 every game keeps its own record from its first move - saved as it is
+  played, so leaving, giving up or deleting a game keeps its numbers; a game with no move made does not count.
+  Records and averages leave help out: Guess - hints (and a category, and a word a friend chose); Connect - words found
+  with a hinted letter; Tiles - games with undo or best-move ratings on, and moves made with a hint. Where help is
+  switched on, Lexling says so. (Numbers from before 0.60.0 cannot be split that way; they are kept, not shown.)
 - Polish + English, switchable.
 - **Letters mode**: one box per letter, its own on-screen keyboard (keys coloured by what the guesses
   showed; tap a tile to edit it; Space leaves a tile empty, ← → move along the row; the phone's keyboard
   as an option), no hints (since 0.34.0 - run out of tries and it is over), and its own statistics.
+- **Time** (since 0.62.0, Settings, both off by default): the current time under the Lexling name, and a reminder
+  every so often (hours and minutes of your choice) of how long you have been playing - on-screen time only.
+- **Collection** (since 0.61.0, Menu): every word you typed in a game, per game and category, against the words each
+  game can hide - found ones written out, the rest a dot each; "Only new words" on New game hides only words not collected yet.
 - **Connect mode**: drag across a circle of 4–10 letters to fill a small crossword; other real
   words are bonus words; free hints, a random letter at a time, until half of a word shows (rounded up); a hinted
-  letter stays marked, in green, once its word is done. Its own statistics.
+  letter stays marked, in green, once its word is done. An option for one or two everyday two-letter words on the
+  board (since 0.60.0). Its own statistics.
 - **How to play** on every New game screen: a short card, closed until you open it.
 - **A gear in every game's top bar**: the settings that matter while playing (Sound; in Tiles also its colours).
 - **What a word means**: words in the games open their meaning in the browser - sjp.pl for Polish, Wiktionary for
@@ -57,10 +67,13 @@ Playable in **Polish and English** (both the UI and the word libraries).
 - **No scores anywhere** (since 0.29.0): the games are for fun; statistics show how you are doing,
   hints used included.
 - **Tiles mode** (since 0.35.0), the classic crossword-tile game for 2–5 players - people passing
-  one device and/or the computer (five levels, Relaxed to Expert), in the order you set, the first chosen or
+  one device and/or the computer (six levels, Relaxed, Easy, Medium, Intermediate, Hard, Expert - Medium since 0.60.0;
+  Settings → "Better bot reasoning" makes a level only how many words the computer knows, to compare), in the order you set, the first chosen or
   drawn. Four boards (Classic, Bonus, Diamond; Quick - 11 × 11 with about half the tiles), the
   full 100-tile sets, sjp.pl / ENABLE word lists. **Play online** (Android, since 0.53.0): 2–5 people, a phone each,
-  over Bluetooth or the local network (Wi-Fi) - one phone hosts the game (it alone keeps it; it lets each phone in),
+  over **Nearby** (since 0.63.0: Google's Nearby Connections - Bluetooth and Wi-Fi together, no pairing; needs Google
+  Play services), Bluetooth or the local network (Wi-Fi) - or over the **internet** with a 6-character game code (since 0.59.0,
+  once the Firebase project below is set up; Android and Windows) - one phone hosts the game (it alone keeps it; it lets each phone in),
   the others join, the host naming the players and choosing which one each phone takes over; while a phone is away
   the others play on and only its own turn waits - each phone shows whether the others are in the app or without a
   connection; a phone that drops out goes back to its own seat, and a saved game can be opened again later for any
@@ -148,6 +161,28 @@ Needs the Android SDK (`%LOCALAPPDATA%\Android\Sdk`) and Android Studio's bundle
 points at both, so neither has to be on PATH — plus `npm install` once for the Capacitor CLI. The APK
 wraps the very same `app/` folder as the desktop build; `cap sync` copies it into `android/`.
 
+## Play online over the internet (Firebase)
+
+Internet play goes through a free **Firebase Realtime Database** (Google; the free "Spark" plan has no end date and does
+not pause when unused). Lexling talks to it through its plain web interface - no library - and each player is signed in
+anonymously (no accounts). Until `app/js/online-config.js` holds the project's details, Internet is not offered.
+
+Setting it up, once:
+1. [console.firebase.google.com](https://console.firebase.google.com) → **Add project** (e.g. `lexling-online`; the name
+   ends up in the app's address for the database, which is public). Google Analytics is not needed.
+2. **Build → Realtime Database → Create database**, a location near the players, **locked mode** (never test mode: its
+   rules switch everything off after 30 days).
+3. Realtime Database → **Rules**: replace everything with [`firebase/database.rules.json`](firebase/database.rules.json)
+   → **Publish**. (Each player writes only their own messages; only a room's host reads what is sent to it.)
+4. **Build → Authentication → Get started → Sign-in method → Anonymous → Enable.**
+5. **Project settings → Your apps → Web (`</>`)** → register → copy `apiKey` and `databaseURL` from the
+   `firebaseConfig` it shows into `app/js/online-config.js`. (The apiKey only names the project; the rules protect the
+   data.)
+
+What it keeps: `rooms/<code>` while a game is hosted - the host's name and the messages not read yet (each side deletes
+what it has read); the host deletes the room when it stops. The free plan's limits (100 devices connected at once, 1 GB
+stored, 10 GB a month downloaded) are far above a word game's moves.
+
 ## Rebuilding the word data
 
 `app/data/` is generated — never edit it by hand. It only needs rebuilding after changing
@@ -218,8 +253,10 @@ app/                the game itself — single-page app, no build step, no depen
   js/tiles-game.js  the Tiles game screen: board, rack, zoom, placing, the computer's turns, the hand-over
                     between people, the history / letters-left / check panel, the end and the look-back
   js/session.js     Tiles online: what the host and the joining phones say (tests: tools/test-session.mjs)
-  js/net.js         Tiles online: the connections - Bluetooth or Wi-Fi (the Android plugins BluetoothLinkPlugin,
-                    LanLinkPlugin and their shared Links)
+  js/net.js         Tiles online: the connections - Nearby, Bluetooth or Wi-Fi (the Android plugins NearbyLinkPlugin,
+                    BluetoothLinkPlugin, LanLinkPlugin and their shared Links), or the internet (net-web.js)
+  js/net-web.js     Tiles online over the internet: Firebase's Realtime Database - rooms under a game code, anonymous
+                    sign-in; its project in js/online-config.js, its access rules in firebase/database.rules.json
   js/dawg.js        the word graph Tiles looks words up in (build, save to bytes, load, walk)
   data/<lang>/tiles.bin  Tiles' word graphs (tools/build-tiles-words.mjs)
   js/engine.js      word data loading, rank scoring, form→lemma, autocomplete, secret picking
