@@ -1322,10 +1322,7 @@ export function statsScreen(root, _, refresh) {
     // the average game score not with a single hint either
     const clean = recs.filter(r => !r.u && !r.bs), plain = closed(clean).filter(r => !r.hints && r.games);
     const best = plain.reduce((a, r) => r.bestGame > a ? r.bestGame : a, -1);
-    // a best move kept from before the statistics started again (0.60.0), on a phone whose player asked for it (owner,
-    // 2026-09-29: stats.kept, put there by hand) - it takes part like any other, under its language and level
-    const kept = stats.kept?.tilesBestMove, keptIn = kept && (f.lang === 'all' || f.lang === kept.lang) && (f.lv === 'all' || f.lv === kept.lv) ? kept : null;
-    const bm = clean.reduce((a, r) => r.ownBest && (!a || r.ownBest.score > a.score) ? { ...r.ownBest, lang: r.lang } : a, keptIn);
+    const bm = clean.reduce((a, r) => r.ownBest && (!a || r.ownBest.score > a.score) ? { ...r.ownBest, lang: r.lang } : a, null);
     const rb = sum(clean, 'rb');
     return group(t('stats.g.games'), [
       cell(t('stats.played'), nn(recs.length)),
