@@ -74,7 +74,8 @@ export const saveStats = () => { stats.unique = [...unique]; write('wg.stats', s
 // computer did), brought up to date as it is played, and kept whatever happens to the game: finished, given up, left,
 // deleted. The statistics screen works its numbers out of these. The totals above are from before 0.60.0: they cannot
 // be split by level or cleaned of hints, so they are kept as they were and no longer added to; `before` says how many
-// games they cover.
+// games they cover. `kept` (owner, 2026-09-29): what a player asked to keep from them, put on that phone by hand -
+// { tilesBestMove: { w, score, lang, lv, at } }.
 //   every record: m (mode), lang, lv (the difficulty; Tiles: the strongest computer, or 'people'), at (the first move),
 //                 end (null while it is played; 'won' | 'lost' | 'gave' | 'left' (deleted unfinished) | 'done' (Tiles)),
 //                 ea (when it ended)
