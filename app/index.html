@@ -13,6 +13,20 @@ try {
   if (theme === 'system') theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
   document.documentElement.dataset.theme = theme;
 } catch (e) {}
+// Tablets (owner, 2026-10-12): the phone layout, bigger - the page is laid out about 640 px on its short side and the
+// screen zooms it to fill itself, so letters, tiles and buttons grow with the screen; held sideways, the wide layouts.
+// Phones and computers as before. (The Android app turns its WebView's wide viewport on for this - MainActivity.)
+(function () {
+  var meta = document.querySelector('meta[name=viewport]'), plain = meta.content;
+  function fit() {
+    var w = Math.max(screen.width, screen.height), h = Math.min(screen.width, screen.height), k = Math.min(1.6, h / 640);
+    if (k < 1.1 || !matchMedia('(pointer: coarse)').matches) { if (meta.content !== plain) meta.content = plain; return; }
+    var content = 'width=' + Math.round((innerWidth > innerHeight ? w : h) / k) + ', viewport-fit=cover, interactive-widget=resizes-content';
+    if (meta.content !== content) meta.content = content;
+  }
+  fit();
+  addEventListener('resize', fit);
+})();
 </script>
 <link rel="preload" href="fonts/BarlowCondensed-ExtraBold.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="preload" href="fonts/BarlowCondensed-Bold.ttf" as="font" type="font/ttf" crossorigin>

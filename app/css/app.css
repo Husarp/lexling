@@ -698,6 +698,15 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
 .cn-bonus .num{font-size:22px}
 .cn-bonus small{font:600 9px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted)}
 .cn-bonus.open{border-color:var(--accent)}
+/* wide and low - a tablet on its side (owner, 2026-10-12): the crossword on the left, the circle beside it, so the
+   crossword gets the whole height instead of a strip above the circle */
+@media (min-aspect-ratio:4/3) and (min-width:820px) and (max-height:820px){
+  [data-screen=connect] .main{--col:1080px}
+  [data-screen=connect] .play{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,380px);grid-template-rows:1fr auto auto;column-gap:var(--space-6)}
+  [data-screen=connect] .cw-wrap{grid-column:1;grid-row:1/4;min-height:0}
+  [data-screen=connect] .say{grid-column:2;grid-row:2}
+  [data-screen=connect] .dock{grid-column:2;grid-row:3}
+}
 @keyframes cn-bump{0%,100%{transform:none}50%{transform:scale(1.18);border-color:var(--accent)}}
 .cn-bonus.bump{animation:cn-bump 150ms var(--ease) 300ms}
 /* labels appear once there's room: stacked under the icon on a half-screen phone (the side columns
@@ -1060,14 +1069,22 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-prow .rm{min-height:36px;padding:0 var(--space-2)}
 .tl-prow .kind{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-2)}
 /* the rules, folded away */
-.tl-rules summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);min-height:48px;cursor:pointer}
-.tl-rules summary::-webkit-details-marker{display:none}
-.tl-rules summary .arrow{display:inline-grid;place-items:center;width:24px;height:24px;font-size:20px;line-height:1;color:var(--text-muted);transition:transform var(--dur) var(--ease)}
-.tl-rules[open] summary .arrow{transform:rotate(90deg)}
-.tl-rules{padding:0 var(--space-4)}
-.tl-rules .rule{display:grid;gap:6px;padding:var(--space-2) 0 var(--space-3)}
-.tl-rules .rule .seg button{font-size:11px}
+:is(.tl-rules,.tl-assists) summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);min-height:48px;cursor:pointer}
+:is(.tl-rules,.tl-assists) summary::-webkit-details-marker{display:none}
+:is(.tl-rules,.tl-assists) summary .arrow{display:inline-grid;place-items:center;width:24px;height:24px;font-size:20px;line-height:1;color:var(--text-muted);transition:transform var(--dur) var(--ease)}
+:is(.tl-rules,.tl-assists)[open] summary .arrow{transform:rotate(90deg)}
+:is(.tl-rules,.tl-assists){padding:0 var(--space-4)}
+:is(.tl-rules,.tl-assists) .rule{display:grid;gap:6px;padding:var(--space-2) 0 var(--space-3)}
+:is(.tl-rules,.tl-assists) .rule .seg button{font-size:11px}
 .tl-rules .muted{color:var(--text-dim);font-weight:500;text-transform:none;letter-spacing:0}
+/* Assists (owner, 2026-10-12): on its own, its state on the folded line - in the warning's amber while any is on */
+.tl-assists .state{color:var(--text-dim);font-weight:500;text-transform:none;letter-spacing:0}
+.tl-assists.used{border-color:color-mix(in srgb,var(--warn,#e0a800) 55%,transparent)}
+.tl-assists.used .state{color:var(--warn,#e0a800)}
+.tl-assists>.help{margin:0 0 var(--space-3)}
+.tl-assists{scroll-margin-top:calc(72px + var(--safe-t))}
+.tl-assists .tl-hints{padding:0 0 var(--space-2)}
+.help-warn .btn-link{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--accent);text-decoration:underline;cursor:pointer}
 /* the end: several people - one line per player, in place order */
 .tl-places{list-style:none;padding:0;margin:0;display:grid;gap:6px}
 .tl-places li{display:grid;grid-template-columns:2ch 12px minmax(0,1fr) auto;align-items:center;gap:var(--space-2);font-size:15px}

@@ -1,8 +1,10 @@
 package com.husarp.lexling;
 
+import android.content.pm.ActivityInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.WindowManager;
+import android.webkit.WebSettings;
 
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -39,6 +41,14 @@ public class MainActivity extends BridgeActivity {
             getWindow().setAttributes(layout);
         }
         hideSystemBars();
+        // A tablet (owner, 2026-10-12): any way round, and the page sets the width it is laid out at (index.html), which
+        // a WebView only follows with the wide viewport on. A phone stays upright, as the manifest says.
+        if (getResources().getConfiguration().smallestScreenWidthDp >= 600) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_USER);
+            WebSettings web = getBridge().getWebView().getSettings();
+            web.setUseWideViewPort(true);
+            web.setLoadWithOverviewMode(true);
+        }
     }
 
     /** Android shows the bars again after some interactions (the keyboard, a swipe): hide them once more. */

@@ -736,7 +736,11 @@ export function connectNewScreen(root, _, refresh) {
 const TL_NEW = () => ({ board: 'classic', players: [{ name: '', cpu: null }, { name: '', cpu: 'medium' }], first: null, rules: { ...STANDARD }, rulesOpen: false });
 const TL_TIMES = { move: [30, 60, 120, 180], game: [600, 1200, 1500, 1800] };   // seconds: per move, per game
 const TL_RULES = [['premiums', ['once', 'always']], ['check', ['auto', 'challenge']], ['exchange', ['bag7', 'always']], ['bingo', [50, 0]],
-  ['undo', [false, true]], ['open', [false, true]], ['rating', [true, 'score', false]]];
+  ['open', [false, true]]];
+// Assists, a section of their own (owner, 2026-10-12: the settings behind the "this game leaves the records" warning were
+// "hidden in the rules ... the user might not know where they are"): hints, undo, move ratings
+const TL_ASSISTS = [['undo', [false, true]], ['rating', [true, 'score', false]]];
+const ASSIST_KEYS = ['hints', 'hintMax', 'hintCost', 'undo', 'rating'];
 // hints: how many of each level a player may take (null = no limit, 0 = that level off)
 const TL_HINT_MAX = [0, 1, 3, 5, 10, null];
 let tlPending = null;
@@ -803,14 +807,19 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
         <div id="bonus">${bonusSeg()}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.bonusHelp')}</p>
       </div>
-      <div class="card tl-hints" id="hints"></div>
+      <details class="card tl-assists"${o.assistsOpen ? ' open' : ''}>
+        <summary><span class="eyebrow">${t('tiles.assists')} <span class="state"></span></span><span class="arrow" aria-hidden="true">›</span></summary>
+        <p class="help">${t('tiles.assists.help')}</p>
+        <div class="tl-hints" id="hints"></div>
+        <div class="assists-body"></div>
+      </details>
       <details class="card tl-rules"${o.rulesOpen ? ' open' : ''}>
         <summary><span class="eyebrow">${t('tiles.rules')} <span class="muted"></span></span><span class="arrow" aria-hidden="true">›</span></summary>
         <div class="rules-body"></div>
       </details>
       ${nameField()}
       <div class="cta">
-        <p class="help-warn" role="status" hidden></p>
+        <p class="help-warn" role="status" hidden><span></span> <button type="button" class="btn-link" data-assists>${t('help.change')}</button></p>
         <p class="summary"></p>
         <button class="btn btn-primary btn-lg btn-block" type="submit"></button>
       </div>
@@ -820,7 +829,10 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
   const $ = sel => root.querySelector(sel);
   const list = () => ({ players: o.players.map(x => ({ name: '', cpu: x.cpu })) });   // for the default names
   const nameAt = p => o.players[p].name.trim() || nameOf(list(), p);
-  const standard = () => Object.keys(STANDARD).every(k => JSON.stringify(o.rules[k]) === JSON.stringify(STANDARD[k]));
+  const standard = () => Object.keys(STANDARD).every(k => ASSIST_KEYS.includes(k) || JSON.stringify(o.rules[k]) === JSON.stringify(STANDARD[k]));
+  // one person against the computer: only then undo (owner, 2026-09-25)
+  const alone = () => o.players.filter(x => !x.cpu).length === 1 && o.players.some(x => x.cpu);
+  const helps = () => [o.rules.hints !== false && t('help.hints'), alone() && o.rules.undo === true && t('help.undo'), o.rules.rating === true && t('help.best')].filter(Boolean);
 
   function paintPlayers() {
     const last = o.players.length - 1, first = o.players.indexOf(o.first);
@@ -849,15 +861,20 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
         `<button type="button" data-cost="${v}" class="${on((o.rules.hintCost ?? null) === v)}">${t('tiles.hints.cost.' + (v ?? 'none'))}</button>`).join('')}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.hints.costHelp')}</p></div>` : ''}`;
   }
+  const ruleRows = list => list.map(([k, vals]) => `<div class="rule"><span class="eyebrow">${t('tiles.r.' + k)}</span><div class="seg">${vals.map(v =>
+    `<button type="button" data-rule="${k}" data-v="${v}" class="${on(String(o.rules[k]) === String(v))}">${t(`tiles.r.${k}.${v}`)}</button>`).join('')}</div>${
+    ['check', 'undo', 'open', 'rating'].includes(k) ? `<p class="help">${t(`tiles.r.${k}Help`)}</p>` : ''}</div>`).join('');
+  function paintAssists() {
+    $('.assists-body').innerHTML = ruleRows(TL_ASSISTS.filter(([k]) => k !== 'undo' || alone()));
+    const used = helps();
+    $('.tl-assists').classList.toggle('used', used.length > 0);
+    $('.tl-assists .state').textContent = used.length ? t('tiles.assists.on', { what: used.join(', ') }) : t('tiles.assists.off');
+  }
   function paintRules() {
     const r = o.rules, per = r.time?.per ?? 'none';
-    // Undo only when one person plays against the computer (owner, 2026-09-25)
-    const vsCpu = o.players.filter(x => !x.cpu).length === 1 && o.players.some(x => x.cpu);
     // everyone's tiles: only with two people or more (owner, 2026-09-25: "play with your friend")
     const friends = o.players.filter(x => !x.cpu).length > 1 && !o.net;   // on several phones each has their own
-    const seg = (key, vals, label) => `<div class="seg">${vals.map(v => `<button type="button" data-rule="${key}" data-v="${v}" class="${on(String(r[key]) === String(v))}">${label(v)}</button>`).join('')}</div>`;
-    $('.rules-body').innerHTML = TL_RULES.filter(([k]) => (k !== 'undo' || vsCpu) && (k !== 'open' || friends)).map(([k, vals]) => `<div class="rule"><span class="eyebrow">${t('tiles.r.' + k)}</span>${seg(k, vals, v => t(`tiles.r.${k}.${v}`))}${
-      ['check', 'undo', 'open', 'rating'].includes(k) ? `<p class="help">${t(`tiles.r.${k}Help`)}</p>` : ''}</div>`).join('')
+    $('.rules-body').innerHTML = ruleRows(TL_RULES.filter(([k]) => k !== 'open' || friends))
       + `<div class="rule"><span class="eyebrow">${t('tiles.r.time')}</span><div class="seg">${['none', 'move', 'game'].map(v =>
         `<button type="button" data-time="${v}" class="${on(per === v)}">${t('tiles.r.time.' + v)}</button>`).join('')}</div>${per === 'none' ? '' : `<div class="seg">${TL_TIMES[per].map(s =>
         `<button type="button" data-secs="${s}" class="${on(r.time.seconds === s)}">${s < 60 ? t('tiles.sec', { n: s }) : t('tiles.min', { n: s / 60 })}</button>`).join('')}</div><p class="help">${t('tiles.r.timeHelp.' + per)}</p>`}</div>`;
@@ -866,10 +883,9 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
   // Play over Bluetooth (owner, 2026-09-27): the same setup, then Start waits for the other phone to join
   function paintSummary() {
     // help on: those games leave the statistics' records and averages (owner, 2026-09-28: "show the alert")
-    const alone = o.players.filter(x => !x.cpu).length === 1 && o.players.some(x => x.cpu);
-    const helps = [o.rules.hints !== false && t('help.hints'), alone && o.rules.undo === true && t('help.undo'), o.rules.rating === true && t('help.best')].filter(Boolean);
-    $('.help-warn').hidden = !helps.length;
-    $('.help-warn').textContent = helps.length ? t('help.warnTiles', { what: helps.join(', ') }) : '';
+    const used = helps();
+    $('.help-warn').hidden = !used.length;
+    $('.help-warn span').textContent = used.length ? t('help.warnTiles', { what: used.join(', ') }) : '';
     const who = o.players.map((x, p) => esc(nameAt(p)) + (x.cpu ? ` (${t(levelKey(x.cpu))})` : '')).join(', ');
     const first = o.players.indexOf(o.first);
     $('.summary').innerHTML = [LANG_NAMES[o.lang], t('tiles.board.' + o.board), o.net && t('net.tag.' + o.net), who, first >= 0 && `${t('tiles.first')}: ${esc(nameAt(first))}`,
@@ -889,6 +905,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     $('#bonus').innerHTML = bonusSeg();
     paintPlayers();
     paintHints();
+    paintAssists();
     paintRules();
     paintSummary();
     $('[type=submit]').innerHTML = `${t(o.net ? 'net.start.' + o.net : 'new.start')} <span class="arrow">→</span>`;
@@ -912,6 +929,9 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
   $('#tile-looks').addEventListener('click', e => { const b = e.target.closest('[data-tc]'); if (b) { settings.tilesTile = b.dataset.tc; saveSettings(); applyTileLook(); $('#tile-looks').innerHTML = tileSeg(); } });
   $('#bonus').addEventListener('click', e => { const b = e.target.closest('[data-bonus]'); if (b) { settings.tilesBonus = bonusOf(b.dataset.bonus); saveSettings(); sync(); } });
   $('.tl-rules').addEventListener('toggle', e => { o.rulesOpen = e.target.open; });
+  $('.tl-assists').addEventListener('toggle', e => { o.assistsOpen = e.target.open; });
+  // "Change" by the warning: open the assists and bring them into view
+  $('[data-assists]').addEventListener('click', () => { $('.tl-assists').open = true; $('.tl-assists').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   $('.tl-players').addEventListener('input', e => {
     const p = e.target.dataset.name;
     if (p === undefined) return;
@@ -943,11 +963,11 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     else if (b.dataset.cost) o.rules.hintCost = b.dataset.cost === 'null' ? null : b.dataset.cost;
     else return;
     paintHints();
+    paintAssists();
     paintSummary();
-    $('.tl-rules .muted').textContent = t(standard() ? 'tiles.rules.standard' : 'tiles.rules.own');
     fitAll(root);
   });
-  $('.rules-body').addEventListener('click', e => {
+  const onRule = e => {
     const b = e.target.closest('button');
     if (!b) return;
     const v = b.dataset.v;
@@ -955,10 +975,13 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     else if (b.dataset.time) o.rules.time = b.dataset.time === 'none' ? null : { per: b.dataset.time, seconds: b.dataset.time === 'move' ? 60 : 1500 };
     else if (b.dataset.secs) o.rules.time = { ...o.rules.time, seconds: +b.dataset.secs };
     else return;
+    paintAssists();
     paintRules();
     paintSummary();
     fitAll(root);
-  });
+  };
+  $('.rules-body').addEventListener('click', onRule);
+  $('.assists-body').addEventListener('click', onRule);
 
   $('form').addEventListener('submit', async e => {
     e.preventDefault();
