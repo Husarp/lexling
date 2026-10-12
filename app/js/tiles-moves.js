@@ -11,8 +11,8 @@ import { step, has } from './dawg.js';
 import { sizeOf, centre, premiums, letterSet, wordsMade, valueOf, unseen, canExchange, apply, replay, RACK, BINGO, BLANK, LETTER_X, WORD_X } from './tiles.js';
 
 // Every legal move for `rack` (default: the player whose turn it is) on the board of `state`, each
-// { placed: [{ r, c, ch, blank }], word, score }. `word` = the word along the move's line; the full list
-// of words it makes, and their scores, is wordsMade(state, placed).
+// { placed: [{ r, c, ch, blank }], word, made, score }. `word` = the word along the move's line, `made` = how many
+// words the move makes; the full list of them, and their scores, is wordsMade(state, placed).
 export function findMoves(state, dict, rack = state.racks[state.turn]) {
   const n = sizeOf(state.board), prem = premiums(state.board), { values } = letterSet(state.lang);
   // the game's rules: bonus squares every time, not only under new tiles; the seven-tile bonus
@@ -128,7 +128,7 @@ export function findMoves(state, dict, rack = state.racks[state.turn]) {
       if (down && placedCount === 1) {
         for (let c = s; c < e; c++) if (cells[r * n + c] < 0 && cross[r * n + c] >= 0) return;
       }
-      let sum = 0, mul = 1, extra = 0, word = '';
+      let sum = 0, mul = 1, extra = 0, word = '', made = 1;
       const placed = [];
       for (let c = s; c < e; c++) {
         const i = r * n + c;
@@ -141,11 +141,11 @@ export function findMoves(state, dict, rack = state.racks[state.turn]) {
         const k = newK[c], b = newB[c], v = b ? 0 : val[k], lx = LETTER_X[prem[i]] || 1, wx = WORD_X[prem[i]] || 1;
         sum += v * lx;
         mul *= wx;
-        if (cross[i] >= 0) extra += (cross[i] + v * lx) * wx * crossX[i];
+        if (cross[i] >= 0) { extra += (cross[i] + v * lx) * wx * crossX[i]; made++; }
         word += dict.letters[k];
         placed.push(down ? { r: c, c: r, ch: dict.letters[k], blank: !!b } : { r, c, ch: dict.letters[k], blank: !!b });
       }
-      out.push({ placed, word, score: sum * mul + extra + (placed.length === RACK ? bingo : 0) });
+      out.push({ placed, word, made, score: sum * mul + extra + (placed.length === RACK ? bingo : 0) });
     }
   }
 }
@@ -168,7 +168,7 @@ export const SMALL_SHARE = 0.5, SMALL_TILES = 4;
 export function hintLevels(state, dict, rankOf = () => 0, rand = Math.random) {
   const moves = findMoves(state, dict).sort((x, y) => y.score - x.score);
   if (!moves.length) return { small: null, big: null, master: null };
-  const common = m => wordsMade(state, m.placed).words.every(x => rankOf(x.w) < LEVELS.easy.known);
+  const common = m => wordsMade(state, m.placed).words.every(x => rankOf(x.w) < COMMON);
   const rack = state.racks[state.turn];
   const valued = moves.map(m => ({ ...m, value: m.score + (state.bag.length ? leaveValue(state.lang, rest(rack, m.placed)) : 0) }))
     .sort((x, y) => y.value - x.value);
@@ -183,31 +183,48 @@ export const sameMove = (a, b) => !!a && !!b && JSON.stringify([...a.placed].sor
   === JSON.stringify([...b.placed].sort((x, y) => x.r - y.r || x.c - y.c));
 
 // ── The computer ─────────────────────────────────────────────────────────────────────────────────
-// A level is how many words the computer knows and how hard it tries. `known`: only words whose base word is
-// among that many of the most common (the word list is most-common-first; the same measure as Connect's
-// levels) - Hard and Expert know every word. `aim`: it plays the move scoring nearest to that share of the best
-// it can see. Hard also weighs what it keeps on its rack (`leave`) and swaps a hopeless rack; Expert (the
-// owner's plan) also tries its best few moves against what the next player could answer (`simulate`).
-// First values, to be tuned by playing. Medium (owner, 2026-09-28: "the medium bot is pretty good ... I still lost by a
-// lot") sits between Easy and the old Medium - now called Intermediate, its key still 'normal'.
+// A level plays like a person of that strength (owner, 2026-10-12: "a lower level has a smaller range of words ... it
+// can still get a lot of points if a very simple word scores a lot"; moves making more than two words "are really
+// quite rare" between people, "and here the bot makes them very often"):
+// - the words it knows: `spoken` = among that many of the words people say most (spoken.txt, from film subtitles -
+//   every form on its own, so pasje and wyrzucał are known where kotą and triu are not); a word of three letters only
+//   among the `short` most said (ten, kot - not esy, cze), and of two only from the everyday ones in TWO (films say la,
+//   de and se too). `known` = also any word whose base word is
+//   among that many of the most common in web text (the frequency list the other games use). `rare` = the share of the
+//   other words it knows all the same, a different few each game. Expert knows every word.
+// - the moves it sees: one making three words or more (tiles laid along others, each making its own word) only with
+//   the chance `multi`, again for each word more - Expert sees most of them, Relaxed hardly any.
+// - among those: Relaxed to Intermediate play any move scoring at least `pick` of their best, so they do not always
+//   find it; Hard also weighs what it keeps on its rack (`leave`) and swaps a hopeless rack; Expert (the owner's plan)
+//   also tries its best few moves against what the next player could answer (`simulate`).
+// Measured with tools/bot-strength.mjs. Medium is the default computer; Intermediate's key is still 'normal'.
 export const LEVELS = {
-  relaxed: { known: 5000, aim: 0.5 },
-  easy: { known: 8000, aim: 0.7 },
-  medium: { known: 12000, aim: 0.77 },
-  normal: { known: 20000, aim: 0.85 },
-  hard: { known: Infinity, aim: 1, leave: true },
-  expert: { known: Infinity, aim: 1, leave: true, simulate: true },
+  relaxed: { spoken: 8000, short: 1500, known: 0, multi: 0.08, pick: 0.35 },
+  easy: { spoken: 15000, short: 2500, known: 0, multi: 0.12, pick: 0.45 },
+  medium: { spoken: 30000, short: 4000, known: 0, multi: 0.2, pick: 0.55 },
+  normal: { spoken: 60000, short: 8000, known: 0, rare: 0.03, multi: 0.35, pick: 0.8 },
+  hard: { spoken: Infinity, short: Infinity, known: 30000, rare: 0.5, multi: 0.6, leave: true },
+  expert: { known: Infinity, multi: 0.85, leave: true, simulate: true },
 };
-// "Better bot reasoning" (Settings; owner, 2026-09-28: "imagine that the difficulty means how many difficult words the
-// bot knows ... he can still pick the best option if it's a very known word, even on easy"): a level is only the words
-// it knows - among those it plays the best move (Relaxed and Easy any of their moves scoring at least `pick` of their
-// best, so they do not always find it). No obscure words below Hard. For comparing with the levels above.
-export const REASONING = {
-  relaxed: { known: 700, aim: 1, pick: 0.5 },
-  easy: { known: 1800, aim: 1, pick: 0.7 },
-  medium: { known: 4000, aim: 1, pick: 0.85 },
-  normal: { known: 10000, aim: 1 },
+// the two-letter words everyone knows - the levels below Hard know no others
+const TWO = {
+  pl: new Set('as au aż ba bo by ci co da do eh ej go ha hm iż ja je ją ku ma mi mu my na ni no od oh oj ok on oś pa po są ta tą te tę to tu ty uf ul we wy za ze że ów'.split(' ')),
+  en: new Set('ah am an as at aw ax be by do go ha he hi hm if in is it ma me mm my no of oh on or ow ox pa so to uh um up us we ya yo'.split(' ')),
 };
+// the words the Small hint keeps to: everyday ones
+export const COMMON = 8000;
+
+// The words people say in a language (tools/build-spoken.mjs), word -> its place in that list.
+const spokenLists = {};
+export const loadSpoken = lang => spokenLists[lang] ??= fetch(`data/${lang}/spoken.txt`).then(r => r.text())
+  .then(t => new Map(t.split('\n').filter(Boolean).map((w, i) => [w, i])));
+
+// the same number in [0, 1) for a word all game long, another in the next game
+function odds(w, seed) {
+  let h = (seed ^ 0x811c9dc5) >>> 0;
+  for (const ch of w) h = Math.imul(h ^ ch.codePointAt(0), 16777619) >>> 0;
+  return h / 2 ** 32;
+}
 
 // What the tiles kept on the rack are worth to the next turns, in points - a rule of thumb, as players think of
 // it: a blank is gold; a balance of vowels and consonants keeps words coming; doubles, and the heavy letters (5+
@@ -265,26 +282,30 @@ function simulated(state, dict, moves, rand, samples = 10) {
 // The computer's turn, as an action for apply() in tiles.js: { type: 'place', placed }, { type: 'exchange',
 // tiles }, { type: 'pass' } - or { type: 'challenge' } when challenges are on and the move just made has a word
 // that is not allowed (the computer knows the list; it never challenges a good word).
-// `rankOf(word)` = the place of the word's base word in the frequency list, or Infinity when unknown.
-// With nothing it knows to play, it swaps its whole rack while it may, and passes when it may not.
-export function computerMove(state, dict, level = 'normal', rankOf = () => 0, rand = Math.random, reasoning = false) {
+// `rankOf(word)` = the place of the word's base word in the frequency list, or Infinity when unknown; `spokenOf(word)`
+// = its place in the spoken list (loadSpoken), or Infinity when not in it. With nothing it knows to play, it swaps its whole rack
+// while it may, and passes when it may not.
+export function computerMove(state, dict, level = 'normal', rankOf = () => 0, rand = Math.random, spokenOf = () => 0) {
   if (state.pending) {
     const move = state.moves[state.moves.length - 1];
     if (move.words.some(x => !has(dict, x.w))) return { type: 'challenge' };
   }
-  const L = (reasoning && REASONING[level]) || LEVELS[level] || LEVELS.normal, rack = state.racks[state.turn];
+  const L = LEVELS[level] || LEVELS.normal, rack = state.racks[state.turn], seed = state.start?.seed ?? 0;
   const swapAll = () => canExchange(state, rack.length) ? { type: 'exchange', tiles: [...rack] } : { type: 'pass' };
-  const moves = findMoves(state, dict).sort((x, y) => y.score - x.score);
+  const moves = findMoves(state, dict).filter(m => m.made < 3 || rand() < L.multi ** (m.made - 2)).sort((x, y) => y.score - x.score);
+  const said = w => w.length > 3 ? spokenOf(w) < L.spoken : w.length === 3 ? spokenOf(w) < L.short : L.short === Infinity || TWO[state.lang]?.has(w);
+  const word = w => said(w) || rankOf(w) < L.known || odds(w, seed) < L.rare;
+  // looking words up is the slow part, so only as far as needed
+  const knows = m => L.known === Infinity || wordsMade(state, m.placed).words.every(x => word(x.w));
   if (L.leave) {
-    if (!moves.length) return swapAll();
     // what a move is worth: its points, and - while there is a bag to draw from - what it leaves on the rack
     const valued = moves.map(m => ({ ...m, value: m.score + (state.bag.length ? leaveValue(state.lang, rest(rack, m.placed)) : 0) }))
       .sort((x, y) => y.value - x.value);
-    let best = valued[0];
-    if (L.simulate) {
-      const tried = simulated(state, dict, valued.slice(0, 6), rand).sort((x, y) => y.value - x.value);
-      best = tried[0].m;
-    }
+    const known = [];
+    for (const m of valued) if (knows(m) && known.push(m) >= (L.simulate ? 6 : 1)) break;
+    if (!known.length) return swapAll();
+    let best = known[0];
+    if (L.simulate) best = simulated(state, dict, known, rand).sort((x, y) => y.value - x.value)[0].m;
     const keep = bestKeep(state.lang, rack);
     const out = rack.length - keep.keep.length;
     if (best.score < 10 && keep.value > best.value + 8 && canExchange(state, out)) {
@@ -294,21 +315,11 @@ export function computerMove(state, dict, level = 'normal', rankOf = () => 0, ra
     }
     return { type: 'place', placed: best.placed };
   }
-  // looking words up is the slow part, so only as far as needed: the best move it knows, then outward from its aim
-  const knows = m => L.known === Infinity || wordsMade(state, m.placed).words.every(x => rankOf(x.w) < L.known);
   const top = moves.find(knows);
   if (!top) return swapAll();
-  // reasoning: any move it knows scoring at least that share of its best
-  if (L.pick) {
-    const good = moves.filter(m => m.score >= top.score * L.pick && knows(m));
-    return { type: 'place', placed: good[Math.floor(rand() * good.length)].placed };
-  }
-  const want = top.score * L.aim, gaps = new Map();
-  for (const m of moves) { const g = Math.abs(m.score - want); gaps.set(g, [...gaps.get(g) ?? [], m]); }
-  for (const g of [...gaps.keys()].sort((x, y) => x - y)) {
-    const near = gaps.get(g).filter(knows);
-    if (near.length) return { type: 'place', placed: near[Math.floor(rand() * near.length)].placed };
-  }
+  // any move it knows scoring at least that share of its best
+  const good = moves.filter(m => m.score >= top.score * L.pick && knows(m));
+  return { type: 'place', placed: good[Math.floor(rand() * good.length)].placed };
 }
 
 // ── After the game: looking back (the owner's plan) ──────────────────────────────────────────────

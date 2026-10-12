@@ -52,3 +52,10 @@ desktop.ini
 *.tmp
 *.bak
 *.log
+# Claude / agent files of this project - never committed, kept in the Vault (../Vault/Lexling/KEEP)
+CLAUDE.md
+AGENTS.md
+.mcp.json
+.loki/
+# Linux build scripts (they name this machine's paths) - kept in the Vault
+_build/

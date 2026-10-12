@@ -212,6 +212,10 @@ abbreviations riding on a real word) and the words let back in (gra, muzyka) - i
 `node tools/build-pool-fix.mjs` from the same `slowa.txt`, sjp.pl's inflection list `tools/raw/tiles/odm.txt`
 (https://sjp.pl/sl/odmiany/ - unzip `sjp-odm-YYYYMMDD.zip`) and `tools/raw/cc.pl.tokens.txt`.
 
+`app/data/<lang>/spoken.txt` - the Tiles words people really say, most said first, which the computer's levels below Hard
+keep to - is built by `node tools/build-spoken.mjs` (after the Tiles word files); it downloads FrequencyWords' subtitle
+lists into `tools/raw/spoken/` itself.
+
 ## Data sources & licences
 
 The shipped word data is *derived from* these sources — keep this list in the game's credits
@@ -226,6 +230,7 @@ when it is distributed (to-do in PLAN.md M5). Not legal advice; check the terms 
 | SJP.PL "słownik do gier" (word-games dictionary, sjp.pl) | Tiles: Polish words (`app/data/pl/tiles.bin`; changed: slurs and vulgar words left out) | GPL 2 or CC BY 4.0 — we use CC BY 4.0: attribution |
 | ENABLE word list | Tiles: English words (`app/data/en/tiles.bin`) | public domain |
 | SJP.PL "odmiany" (sjp.pl inflection list) | Letters / Connect: which words are base words (`app/data/pl/pool.json`) | GPL 2, LGPL 2.1, Apache 2.0 or CC BY 4.0 — we use CC BY 4.0: attribution |
+| FrequencyWords (Hermit Dave), from OpenSubtitles 2018 | Tiles: the words people say, for the computer's levels (`app/data/<lang>/spoken.txt`) | CC BY-SA 4.0 — attribution + share-alike |
 | Barlow Condensed, Inter | fonts | SIL OFL (licence files in `app/fonts/`) |
 
 ## Licence
@@ -234,7 +239,8 @@ when it is distributed (to-do in PLAN.md M5). Not legal advice; check the terms 
 download and play, but the game may not be copied, changed, shared, sold or built upon without
 written permission. The exceptions are the third-party parts above, which keep their own licences:
 the word data derived from fastText stays under CC BY-SA 3.0, the Polish Tiles word file derived from
-SJP.PL under CC BY 4.0, and the fonts under the SIL OFL. Full
+SJP.PL under CC BY 4.0, the spoken-word lists derived from FrequencyWords under CC BY-SA 4.0, and the fonts under
+the SIL OFL. Full
 terms in [LICENSE](LICENSE).
 
 ## Project layout

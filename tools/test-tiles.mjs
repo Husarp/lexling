@@ -11,7 +11,7 @@ globalThis.fetch = async url => { const b = readFileSync(new URL(url, ROOT));
 const { loadWords, resolve } = await import('../app/js/engine.js');
 const { buildDawg, has, toBytes, fromBytes } = await import('../app/js/dawg.js');
 const T = await import('../app/js/tiles.js');
-const { findMoves, computerMove, hint, lookBack, leaveValue, LEVELS } = await import('../app/js/tiles-moves.js');
+const { findMoves, computerMove, hint, lookBack, leaveValue, LEVELS, COMMON, loadSpoken } = await import('../app/js/tiles-moves.js');
 const { BOARDS, sizeOf, premiums, letterSet, fullBag, loadTileWords, newGame, placementError, wordsMade, checkMove,
   play, exchange, pass, resign, canExchange, apply, replay, hinted, unseen, checkWord, results, STANDARD, RACK, BINGO, BLANK } = T;
 
@@ -400,6 +400,25 @@ for (const [lang, board, levels, seed, rules = {}] of [['pl', 'classic', ['hard'
 }
 check('levels: the app\'s four, and Expert for this game', Object.keys(LEVELS), ['relaxed', 'easy', 'medium', 'normal', 'hard', 'expert']);
 
+// ── a computer that plays like a person (owner, 2026-10-12) ──
+{
+  const spoken = await loadSpoken('pl'), spokenOf = w => spoken.get(w) ?? Infinity, isWord = w => has(dicts.pl, w), rand = seeded(50);
+  let s = newGame({ lang: 'pl', players: [{ cpu: 'medium' }, { cpu: 'medium' }], seed: 50, words: dicts.pl.tag });
+  let madeOk = true, words = [], multi = 0, plays = 0;
+  while (!s.over) {
+    if (!findMoves(s, dicts.pl).slice(0, 300).every(m => m.made === wordsMade(s, m.placed).words.length)) madeOk = false;
+    const a = computerMove(s, dicts.pl, 'medium', rankOf('pl'), rand, spokenOf);
+    if (a.type === 'place') { const w = wordsMade(s, a.placed).words.map(x => x.w); words.push(...w); plays++; if (w.length > 2) multi++; }
+    s = apply(s, a, isWord);
+  }
+  check('a move knows how many words it makes', madeOk, true);
+  const two = new Set('as au aż ba bo by ci co da do eh ej go ha hm iż ja je ją ku ma mi mu my na ni no od oh oj ok on oś pa po są ta tą te tę to tu ty uf ul we wy za ze że ów'.split(' '));
+  check('Medium: only words people say - of two letters everyday ones, of three among the 4 000 most said, longer among 30 000',
+    words.filter(w => w.length === 2 ? !two.has(w) : spokenOf(w) >= (w.length === 3 ? 4000 : 30000)), []);
+  check('Medium: a move making three words or more is rare', multi <= plays * 0.1, true);
+  check('Medium knows no word-game words: pe, esy, kotą not among the words people say', ['pe', 'esy', 'kotą'].map(w => spoken.has(w)), [false, false, false]);
+}
+
 // ── what the computer keeps on its rack ──
 check('leave: a blank is worth keeping', leaveValue('en', ['?', 'e']) > leaveValue('en', ['e']), true);
 check('leave: heavy letters and doubles are not', [leaveValue('pl', ['ź', 'ń']) < 0, leaveValue('en', ['u', 'u', 'u']) < leaveValue('en', ['u', 'r', 's'])], [true, true]);
@@ -458,7 +477,7 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   for (let k = 0; k < 4; k++) s = apply(s, computerMove(s, dicts.pl, 'hard', rankOf('pl'), rand), isWord);
   const lv = hintLevels(s, dicts.pl, rankOf('pl'), rand), all = findMoves(s, dicts.pl);
   check('hint Big: the move that scores the most', lv.big.score, Math.max(...all.map(m => m.score)));
-  check('hint Small: every word it makes is an everyday one', lv.small && wordsMade(s, lv.small.placed).words.every(x => rankOf('pl')(x.w) < LEVELS.easy.known), true);
+  check('hint Small: every word it makes is an everyday one', lv.small && wordsMade(s, lv.small.placed).words.every(x => rankOf('pl')(x.w) < COMMON), true);
   check('hint Small: four tiles at most, and never the best move when the best takes more', [lv.small.placed.length <= 4, lv.big.placed.length <= 4 || !sameMove(lv.small, lv.big)], [true, true]);
   check('hint Small: never more points than Big', lv.small.score <= lv.big.score, true);
   check('hint Master: a legal move', checkMove(s, lv.master.placed, isWord).error, undefined);

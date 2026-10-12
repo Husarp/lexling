@@ -41,9 +41,9 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:none;box-
 .topbar{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--space-3);min-height:56px;padding:var(--space-2) var(--gutter);background:var(--bg);border-bottom:1px solid var(--line-soft)}   /* no accent line along the top (owner, 2026-09-25) */
 .brand{font:800 clamp(22px,3vw,26px)/1 var(--font-display);letter-spacing:-.02em;text-transform:uppercase;white-space:nowrap}
 .brand b{color:var(--accent);font-weight:800}
-/* the time under the name (Settings → Show the time, 0.62.0) - out of the flow, so the bar keeps its height */
-.brand{position:relative}
-.tb-clock{position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%);font:600 11px/1 var(--font-body);letter-spacing:.04em;color:var(--text-dim);text-transform:none}
+/* the time beside the name (Settings → Show the time, 0.62.0) - not under it, where it crossed the bar's bottom line
+   (owner, 2026-10-12); the sides give way to it */
+.tb-clock{margin-left:.5em;font:600 12px/1 var(--font-body);letter-spacing:.04em;color:var(--text-dim);text-transform:none;vertical-align:.3em}
 .tb-clock:empty{display:none}
 .rm-every{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap}
 .rm-every .input{width:72px;text-align:center}
@@ -1611,8 +1611,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-screen=menu] .menu.bar .arrow{display:none}
 @container (min-width:600px){[data-screen=menu] .menu.bar a{min-height:54px;font-size:18px}[data-screen=menu] .menu.bar .arrow{display:inline}}
 
-/* ── Time: the clock under the name, the reminder ── (.tb-clock and .rm-every are in app.css)
-   The clock is 11px, --text-dim, tabular, and sits 3px under LEX/LING without moving the bar. */
+/* ── Time: the clock beside the name, the reminder ── (.tb-clock and .rm-every are in app.css)
+   The clock is 12px, --text-dim, tabular, right of LEX/LING. */
 .tb-clock{font-variant-numeric:tabular-nums}
 .remind{display:grid;gap:var(--space-3)}
 .remind .num{font-size:44px;line-height:.95;color:var(--text)}

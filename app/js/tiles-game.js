@@ -9,7 +9,7 @@ import { loadWords, resolve } from './engine.js';
 import { has } from './dawg.js';
 import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, checkMove, apply, canExchange,
   unseen, undo, loadTileWords, checkWord, fullBag, hintCost, BLANK, newGame as startOf, outOf, levelKey } from './tiles.js';
-import { hint as bestMove, hintLevels, sameMove, computerMove, lookBack, LEVELS } from './tiles-moves.js';
+import { hint as bestMove, hintLevels, sameMove, computerMove, lookBack, LEVELS, loadSpoken } from './tiles-moves.js';
 import { topbar, modeTag, confirmClick, outcome, openDialog, settingRows, wireSettingRows, meaningButton, wordLink, gameTitle, remindBt } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
@@ -133,12 +133,16 @@ function boardInner(S, { draft = [], bad = false, cursor = null, drop = -1, hint
 
 export async function tilesGameScreen(root, id) {
   const game = getSave(id);
-  let dict = null, lex = null;
+  let dict = null, lex = null, spoken = null;
   if (game) {
-    // the word frequencies matter to a computer that knows fewer words (tiles-moves.js LEVELS) - the Small hint
-    // needs them too, but that can wait (below)
-    const slow = game.state.players.some(x => x.cpu && LEVELS[x.cpu]?.known !== Infinity);
-    try { [dict, lex] = await Promise.all([loadTileWords(game.lang), slow ? loadWords(game.lang) : null]); } catch { dict = null; }
+    // the word frequencies and the words people say matter to a computer that knows fewer words (tiles-moves.js
+    // LEVELS) - the Small hint needs the frequencies too, but that can wait (below)
+    const levels = game.state.players.filter(x => x.cpu).map(x => LEVELS[x.cpu] ?? LEVELS.normal);
+    const slow = levels.some(L => L.known > 0 && L.known !== Infinity), says = levels.some(L => L.spoken);
+    try {
+      [dict, lex, spoken] = await Promise.all([loadTileWords(game.lang), slow ? loadWords(game.lang) : null,
+        says ? loadSpoken(game.lang).catch(() => new Map()) : null]);
+    } catch { dict = null; }
   }
   if (!dict) { location.replace('#/games/tiles'); return; }
   if (location.hash !== '#/game/' + id) return;   // left while the words loaded: a newer screen is up
@@ -146,7 +150,7 @@ export async function tilesGameScreen(root, id) {
   let S = game.state;
   const { lang } = S, n = sizeOf(S.board);
   const isWord = w => has(dict, w);
-  const rankOf = w => (lex && resolve(lex, w)?.idx) ?? Infinity;
+  const rankOf = w => (lex && resolve(lex, w)?.idx) ?? Infinity, spokenOf = w => spoken?.get(w) ?? Infinity;
   if (!lex && S.rules.hints !== false) loadWords(lang).then(m => { lex = m; }).catch(() => {});
   const cpu = p => !!S.players[p].cpu;
   const people = S.players.map((x, p) => x.cpu ? -1 : p).filter(p => p >= 0);
@@ -658,7 +662,7 @@ export async function tilesGameScreen(root, id) {
     setTimeout(() => {
       if (!app.isConnected || S !== at) return;
       let action = null;
-      try { action = computerMove(S, dict, S.players[p].cpu, rankOf, Math.random, !!settings.botReasoning); } catch { /* it passes */ }
+      try { action = computerMove(S, dict, S.players[p].cpu, rankOf, Math.random, spokenOf); } catch { /* it passes */ }
       const took = Date.now() - started;
       setTimeout(() => {
         if (!app.isConnected || S !== at) return;

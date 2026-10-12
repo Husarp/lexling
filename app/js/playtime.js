@@ -10,7 +10,7 @@ let played = 0, sinceLast = 0, last = Date.now();
 const now = () => new Date().toLocaleTimeString(getLang() === 'pl' ? 'pl-PL' : 'en-GB', { hour: '2-digit', minute: '2-digit' });
 const span = ms => { const m = Math.round(ms / 60000), h = Math.floor(m / 60); return h ? t('time.hm', { h, m: m % 60 }) : t('time.m', { m }); };
 
-// the time, under the Lexling name at the top (ui.js topbar)
+// the time, beside the Lexling name at the top (ui.js topbar)
 export function paintClock() {
   for (const el of document.querySelectorAll('.tb-clock')) el.textContent = settings.showClock ? now() : '';
 }
