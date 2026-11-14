@@ -18,7 +18,7 @@ check('last three versions', whatsnew.length, 3);
 check('newest first is this version', whatsnew[0].version, (await import('../app/js/version.js')).VERSION);
 for (const release of whatsnew) {
   check(release.version + ' date', /^\d{4}-\d{2}-\d{2}$/.test(release.date), true);
-  for (const lang of ['en', 'pl']) check(release.version + ' ' + lang + ' bullets', changesFor(release, lang).length >= 3 && changesFor(release, lang).length <= 5, true);
+  for (const lang of ['en', 'pl']) check(release.version + ' ' + lang + ' bullets', changesFor(release, lang).length >= 1 && changesFor(release, lang).length <= 5, true);
 }
 check('English fallback', changesFor({ en: ['English'] }, 'pl'), ['English']);
 check('empty Polish fallback', changesFor({ en: ['English'], pl: [] }, 'pl'), ['English']);

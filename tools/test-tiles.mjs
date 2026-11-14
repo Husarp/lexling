@@ -758,6 +758,10 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   check('veto: the accepted hinted move and its tiles keep the hint', [accepted.moves.at(-1).hinted, placed.every(t => accepted.cells[t.r * 15 + t.c].hint === 'big')], ['big', true]);
   const silent = apply(v, { type: 'voteEnd', ms: 80 }, isWord);
   check('veto: voteEnd treats all silence as acceptance and credits ms', [silent.vote, fields(silent)], [null, fields(normal)]);
+  // a vote's time is charged to the mover, so it is capped and never negative (security review, 2026-11-14)
+  check('veto: voteEnd time capped at 25 s', apply(v, { type: 'voteEnd', ms: 9e9 }, isWord).clock[0] - v.clock[0], 25000);
+  check('veto: a closing vote time capped at 25 s', apply(voted, { type: 'vote', p: 2, veto: false, ms: 9e9 }, isWord).clock[0] - voted.clock[0], 25000);
+  check('veto: negative or invalid time adds nothing', [-500, NaN, 'x'].map(ms => apply(v, { type: 'voteEnd', ms }, isWord).clock[0] - v.clock[0]), [0, 0, 0]);
   const partial = apply(v, { type: 'vote', p: 1, veto: false }, isWord);
   check('veto: silence accepts after a partial vote too', apply(partial, { type: 'voteEnd' }, isWord).moves.at(-1).kind, 'play');
 

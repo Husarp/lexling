@@ -328,7 +328,9 @@ export function apply(state, action, isWord) {
     closes = voteCertain(s);
   }
   if (action.type === 'voteEnd' && !s.vote) throw new Error('no vote is open');
-  const ms = action.type === 'vote' && !closes ? 0 : action.ms || 0;
+  // time is only ever added, and a vote (sent by another player, charged to the mover) at most the vote's 20 s and a little
+  const raw = Number.isFinite(action.ms) && action.ms > 0 ? action.ms : 0;
+  const ms = action.type === 'vote' && !closes ? 0 : ['vote', 'voteEnd'].includes(action.type) ? Math.min(raw, VOTE_CAP) : raw;
   // any other action accepts the move waiting for a challenge (shuffling the bag is no move)
   if (s.pending && !['challenge', 'shuffle', 'hint'].includes(action.type)) s = { ...s, pending: null };
   if (ms) s = { ...s, clock: s.clock.map((t, p) => p === s.turn ? t + ms : t) };
@@ -365,6 +367,7 @@ export const outOf = state => state.out ?? state.players.map(() => false);
 export const vetoVoters = (state, p = state.turn) => state.players[p].cpu ? []
   : state.players.map((q, i) => i !== p && !q.cpu && !outOf(state)[i] ? i : -1).filter(i => i >= 0);
 // The host chooses a count; departed voters must never make it unreachable (owner, 2026-11-14).
+const VOTE_CAP = 25000;
 export const vetoNeed = (n, rule) => Math.min(n, Math.max(1, Number.isFinite(rule) ? Math.floor(rule) : Math.ceil(n / 2)));
 export function voteCertain(state) {
   const { voters, votes } = state.vote;
