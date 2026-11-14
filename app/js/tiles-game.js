@@ -1492,7 +1492,8 @@ export async function tilesGameScreen(root, id) {
         take: (seat, n, action) => {
           // Concurrent votes may name an earlier log length; the proposal and seat identify them (owner, 2026-11-14).
           if (action.type === 'vote') { if (voteFits(S, seat, action)) act(action, true); return true; }
-          if (action.type === 'voteEnd' || (S.vote && action.type === 'timeout')) return false;
+          // ending the game for everyone and taking a player out are the host's alone (security review, 2026-11-14)
+          if (action.type === 'voteEnd' || action.type === 'end' || action.removed || (S.vote && action.type === 'timeout')) return false;
           if (S.over || n !== S.log.length || startWaits() || (action.type === 'resign' ? action.p !== seat : S.turn !== seat)) return false;
           thinking = false;
           return act(action, true);

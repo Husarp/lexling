@@ -762,6 +762,7 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   check('veto: voteEnd time capped at 25 s', apply(v, { type: 'voteEnd', ms: 9e9 }, isWord).clock[0] - v.clock[0], 25000);
   check('veto: a closing vote time capped at 25 s', apply(voted, { type: 'vote', p: 2, veto: false, ms: 9e9 }, isWord).clock[0] - voted.clock[0], 25000);
   check('veto: negative or invalid time adds nothing', [-500, NaN, 'x'].map(ms => apply(v, { type: 'voteEnd', ms }, isWord).clock[0] - v.clock[0]), [0, 0, 0]);
+  check('veto: giving up out of turn charges the mover no time', apply(v, { type: 'resign', p: 2, ms: 9e9 }, isWord).clock[0] - v.clock[0], 0);
   const partial = apply(v, { type: 'vote', p: 1, veto: false }, isWord);
   check('veto: silence accepts after a partial vote too', apply(partial, { type: 'voteEnd' }, isWord).moves.at(-1).kind, 'play');
 
@@ -808,9 +809,9 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   let quitting = open(game(4));
   quitting = apply(apply(quitting, { type: 'vote', p: 1, veto: true }, isWord), { type: 'vote', p: 3, veto: false }, isWord);
   quitting = apply(quitting, { type: 'resign', p: 1, ms: 30 }, isWord);
-  check('veto: a resigning voter and their previous vote are removed', [quitting.vote.voters, quitting.vote.votes, quitting.turn, quitting.used], [[2, 3], { 3: false }, 0, 30]);
+  check('veto: a resigning voter and their previous vote are removed', [quitting.vote.voters, quitting.vote.votes, quitting.turn, quitting.used], [[2, 3], { 3: false }, 0, 0]); // out of turn: no time charged (security review, 2026-11-14)
   quitting = apply(quitting, { type: 'resign', p: 2, ms: 20 }, isWord);
-  check('veto: resignation closes when everyone remaining has accepted', [quitting.vote, quitting.moves.map(m => m.kind), quitting.turn, quitting.clock, quitting.used], [null, ['resign', 'resign', 'play'], 3, [50, 0, 0, 0], 0]);
+  check('veto: resignation closes when everyone remaining has accepted', [quitting.vote, quitting.moves.map(m => m.kind), quitting.turn, quitting.clock, quitting.used], [null, ['resign', 'resign', 'play'], 3, [0, 0, 0, 0], 0]);
   let shrinking = open(game(4));
   shrinking = apply(apply(shrinking, { type: 'vote', p: 1, veto: true }, isWord), { type: 'vote', p: 2, veto: false }, isWord);
   shrinking = apply(shrinking, { type: 'resign', p: 3 }, isWord);

@@ -330,7 +330,9 @@ export function apply(state, action, isWord) {
   if (action.type === 'voteEnd' && !s.vote) throw new Error('no vote is open');
   // time is only ever added, and a vote (sent by another player, charged to the mover) at most the vote's 20 s and a little
   const raw = Number.isFinite(action.ms) && action.ms > 0 ? action.ms : 0;
-  const ms = action.type === 'vote' && !closes ? 0 : ['vote', 'voteEnd'].includes(action.type) ? Math.min(raw, VOTE_CAP) : raw;
+  // giving up out of turn is not the mover's time: it charges nothing (security review, 2026-11-14)
+  const ms = action.type === 'vote' && !closes ? 0 : ['vote', 'voteEnd'].includes(action.type) ? Math.min(raw, VOTE_CAP)
+    : action.type === 'resign' && (action.p ?? s.turn) !== s.turn ? 0 : raw;
   // any other action accepts the move waiting for a challenge (shuffling the bag is no move)
   if (s.pending && !['challenge', 'shuffle', 'hint'].includes(action.type)) s = { ...s, pending: null };
   if (ms) s = { ...s, clock: s.clock.map((t, p) => p === s.turn ? t + ms : t) };

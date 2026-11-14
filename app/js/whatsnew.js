@@ -1,5 +1,10 @@
 // Recent releases in player language (owner, 2026-11-14). Keep the last three at release.
 export const whatsnew = [
+  { version: '0.67.2', date: '2026-11-14', en: [
+    'Online games: only the host can end the game for everyone or take a player out, and giving up out of turn no longer costs the player on turn any time.',
+  ], pl: [
+    'Gra online: tylko gospodarz może zakończyć grę dla wszystkich lub usunąć gracza, a poddanie się poza swoją kolejką nie zabiera czasu graczowi, który ma ruch.',
+  ] },
   { version: '0.67.1', date: '2026-11-14', en: [
     'Veto: a vote can no longer take extra time off the clock of the player who made the word.',
   ], pl: [
@@ -17,17 +22,6 @@ export const whatsnew = [
     'Kafelki ze znajomymi: opcja Weto pozwala innym odrzucić słowo; sam wybierasz, ile wet trzeba.',
     'Gra online: ustaw swoje imię raz w Ustawieniach; gospodarz wpuszcza Cię i wybiera miejsce.',
     'Palety kolorów, jasny lub ciemny tryb w grach, style planszy i premie przyjazne daltonistom.',
-  ] },
-  { version: '0.66.0', date: '2026-10-12', en: [
-    'Larger letters, tiles and buttons make better use of tablet screens.',
-    'Play sideways on Android tablets; Connect shows the crossword beside the letter circle.',
-    'Tiles hints, undo and move ratings are together under Assists on New game.',
-    'Tap Change in the statistics warning to go straight to Assists.',
-  ], pl: [
-    'Większe litery, płytki i przyciski lepiej wykorzystują ekran tabletu.',
-    'Na tabletach z Androidem można grać poziomo; w Połącz krzyżówka jest obok koła liter.',
-    'Podpowiedzi, cofanie i oceny ruchów w Kafelkach są razem w Ułatwieniach na ekranie nowej gry.',
-    'Przycisk Zmień w ostrzeżeniu o statystykach prowadzi prosto do Ułatwień.',
   ] },
 ];
 
