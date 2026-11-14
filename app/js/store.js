@@ -12,7 +12,7 @@ const write = (key, value) => { try { localStorage.setItem(key, JSON.stringify(v
 
 export const settings = read('wg.settings', {
   lang: (navigator.language || 'en').toLowerCase().startsWith('pl') ? 'pl' : 'en',
-  theme: 'dark', accent: 'orange', sound: true, fuzzy: true, langChosen: false, lastCheck: 0, latest: '',
+  theme: 'dark', palette: 'classic', accent: 'orange', sound: true, fuzzy: true, langChosen: false, lastCheck: 0, latest: '',
   // Letters: tapping the tiles also opens the phone's own keyboard (the keys on screen stay) - owner, 2026-09-25
   phoneKb: false,
   // "Allow Polish letters" on the new-game screens: on at first, then whatever the player chose last - each
@@ -23,8 +23,12 @@ export const settings = read('wg.settings', {
   // Tiles: the bonus squares in their colours - off: one quiet grey with the labels only (owner, 2026-09-25: "too many
   // colours on the board")
   tilesBonus: 'text',        // labels only - the default since 0.51.3 (owner)
+  // Classic / muted board and bonus shapes as well as colour (owner, 2026-11-14).
+  tilesBoardStyle: 'classic', tilesCb: false,
   // Tiles: after each of your moves, how good it was - its points against the best move there was (owner, 2026-09-26)
   tilesRate: true,
+  // Under a move: rating, base-word rarity or both; adjustable rarity colour limits (owner, 2026-11-14).
+  tilesUnder: 'rating', tilesRareTiers: [1, 5, 20],
   // Tiles: the tiles on the board raised, like real ones - easier to see (owner, 2026-09-26)
   tiles3d: false,
   // Tiles: the tiles' own colour - yellow, white, cream, wood or mint (owner, 2026-09-26)
@@ -37,8 +41,10 @@ export const settings = read('wg.settings', {
   // Tiles on several phones: after a game, a reminder when Bluetooth is still on and Lexling switched it on (owner,
   // 2026-09-27: on by default, can be switched off)
   btRemind: true,
+  // Your name is set once in Settings and used when joining online Tiles (owner, 2026-11-14).
+  myName: '',
   // Settings → Check for updates: on opening and on coming back (APP-STANDARDS.md: on by default)
-  updateCheck: true,
+  updateCheck: true, seenVersion: null,
   // Settings → Time (owner, 2026-09-28): the current time on screen; a reminder of the time played, every remindMin minutes
   showClock: false, playRemind: false, remindMin: 90,
 });
@@ -46,6 +52,8 @@ export const saveSettings = () => write('wg.settings', settings);
 // Remembering New game choices became the default in 0.51.1 (owner) - switched on once for those whose settings still
 // carry the old default (off); off again after that stays off.
 if (!settings.rememberSetupOn) { settings.rememberSetup = true; settings.rememberSetupOn = true; saveSettings(); }
+// Carry the old Join name over once; clearing Your name later must not bring it back (owner, 2026-11-14).
+if (!settings.myNameOn) { settings.myName = (settings.myName?.trim() || settings.btName?.trim() || '').slice(0, 16); settings.myNameOn = true; saveSettings(); }
 
 export const stats = read('wg.stats', {
   // wonGuesses / wonRated are the average-win stat; they count only the wins that qualify (see recordEnd)

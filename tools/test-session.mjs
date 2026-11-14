@@ -2,8 +2,8 @@
 // engine (tiles.js) over pretend connections: joining, being asked about, turned away, moving, a phone dropping out and
 // coming back to its own seat, going quiet, the end.
 // Run: node tools/test-session.mjs
-import { newGame, apply } from '../app/js/tiles.js';
-import { createHost, createGuest, PROTOCOL, QUIET, QUIET_AWAY } from '../app/js/session.js';
+import { newGame, apply, voteFits } from '../app/js/tiles.js';
+import { createHost, createGuest, seatName, PROTOCOL, QUIET, QUIET_AWAY } from '../app/js/session.js';
 
 let pass = 0, fail = 0;
 const check = (name, got, want) => {
@@ -16,14 +16,16 @@ const setupOf = s => ({ lang: s.lang, board: s.board, players: s.players, first:
 const place = s => ({ type: 'place', placed: s.racks[s.turn].slice(0, 2).map((ch, i) => ({ r: 7, c: 7 + i, ch: ch === '?' ? 'e' : ch, ...(ch === '?' ? { blank: true } : {}) })) });
 
 // the host's phone: its game, its session; the line to each phone is a queue flushed by run()
-function table(players = 3) {
-  const q = [], h = { S: newGame({ lang: 'en', players: Array.from({ length: players }, () => ({ name: '' })), first: 0, seed: 11, rules: { exchange: 'always' } }), asks: [], changes: [] };
+function table(players = 3, rules = {}) {
+  const q = [], h = { S: newGame({ lang: 'en', players: Array.from({ length: players }, () => ({ name: '' })), first: 0, seed: 11, rules: { exchange: 'always', ...rules } }), asks: [], changes: [] };
   const phones = new Map();   // conn → phone
   h.phones = phones;
   h.session = createHost({
     players, me: 0,
     game: () => ({ id: 'g1', title: 'Game 1', setup: setupOf(h.S), log: h.S.log }),
     take: (seat, n, a) => {
+      if (a.type === 'vote') { if (voteFits(h.S, seat, a)) h.play(a); return true; }
+      if (a.type === 'voteEnd' || (h.S.vote && a.type === 'timeout')) return false;
       if (n !== h.S.log.length || h.session.missing().length || (a.type === 'resign' ? a.p !== seat : h.S.turn !== seat)) return false;
       h.S = apply(h.S, a, isWord);
       h.session.flush(h.S.log);
@@ -33,7 +35,7 @@ function table(players = 3) {
     drop: conn => q.push(['drop', conn]),
     onChange: c => {
       h.changes.push(c);
-      if (c.name) { h.S = { ...h.S, players: h.S.players.map((x, i) => i === c.seat ? { ...x, name: c.name } : x) }; h.session.names(h.S.players.map(x => x.name)); }
+      if (!c.left) { h.S = { ...h.S, players: h.S.players.map((x, i) => i === c.seat ? { ...x, name: seatName(x.name, c.name) } : x) }; h.session.names(h.S.players.map(x => x.name)); }
     },
     onAsk: a => h.asks.push(a),
   });
@@ -170,6 +172,112 @@ function table(players = 3) {
   // a host whose seat 2 is out of the game
   const s2 = createHost({ players: 3, me: 0, game: () => ({ id: 'g', title: '', setup: {}, log: [] }), take: () => false, send: () => {}, drop: () => {}, usable: i => !gone.has(i), onAsk: () => {} });
   check('a seat out of the game: neither missing nor free', s2.missing(), [1]);
+}
+
+// the first name belongs to the seat for this game, not to the latest phone (owner, 2026-11-14)
+{
+  check('an unnamed seat takes the offered name', seatName('', 'Kasia'), 'Kasia');
+  check('old saves without a name take the offered name', seatName(undefined, 'Jan'), 'Jan');
+  check('a missing offered name stays empty', seatName('', undefined), '');
+  check('an empty offered name stays empty', seatName('', ''), '');
+  check('only spaces do not name a seat', seatName('', '   '), '');
+  check('an offered name is trimmed', seatName('', '  Łucja  '), 'Łucja');
+  check('an offered name is capped at 16 characters', seatName('', '  abcdefghijklmnopq  '), 'abcdefghijklmnop');
+  check('an existing name stays exactly as it was', seatName('For this game', 'New name'), 'For this game');
+}
+{
+  const h = table(3), a = h.phone('c1', 'AA', 'Kasia'), b = h.phone('c2', 'BB', 'Łucja');
+  a.connect(); h.run();
+  check('first phone: the next free seat and only empty choices', [h.asks.at(-1)?.seat, h.asks.at(-1)?.seats], [1, [1, 2]]);
+  h.session.letIn('c1'); h.run();
+  check('first phone names its seat before welcome', [h.S.players[1].name, a.S.players[1].name], ['Kasia', 'Kasia']);
+  b.connect(); h.run();
+  check('second phone: the next free seat is the only choice', [h.asks.at(-1)?.seat, h.asks.at(-1)?.seats], [2, [2]]);
+  const changesBefore = h.changes.length;
+  h.session.letIn('c2', 1); h.run();
+  check('an occupied seat cannot be replaced or renamed', [b.seat, h.changes.length, h.S.players[1].name, a.up, a.here], [-1, changesBefore, 'Kasia', true, [true, true, false]]);
+  h.session.letIn('c2'); h.run();
+  check('the next name reaches the host, joining phone and existing phone', [h.S.players[2].name, b.S.players[2].name, a.S.players[2].name], ['Łucja', 'Łucja', 'Łucja']);
+
+  a.cut(); h.run();
+  const back = h.phone('c3', 'AA', 'Changed in Settings');
+  back.connect(); h.run();
+  check('the same phone returns to its own seat automatically', [back.seat, h.asks.at(-1), back.events], [1, null, ['welcome']]);
+  check('reconnecting with another name keeps the first name everywhere', [h.S.players[1].name, back.S.players[1].name, b.S.players[1].name], ['Kasia', 'Kasia', 'Kasia']);
+
+  h.play(place(h.S)); h.run();
+  back.cut(); h.run();
+  const replacement = h.phone('c4', 'CC', 'New person');
+  replacement.connect(); h.run();
+  check('mid-game: a new phone is offered only the missing seat', [h.S.log.length, h.asks.at(-1)?.conn, h.asks.at(-1)?.seat, h.asks.at(-1)?.seats], [1, 'c4', 1, [1]]);
+  h.session.letIn('c4', 1); h.run();
+  check('a replacement plays under that seat\'s original name everywhere', [replacement.seat, replacement.S.players[1].name, h.S.players[1].name, b.S.players[1].name], [1, 'Kasia', 'Kasia', 'Kasia']);
+  replacement.move({ type: 'pass' }); h.run();
+  check('the replacement can play on with the same game and names', [h.S.log.length, same(replacement.S, h.S), same(b.S, h.S)], [2, true, true]);
+}
+
+// A proposal is sent once, without applying it or consuming the next log index (owner, 2026-11-14).
+{
+  const messages = [], g = createGuest({ name: '', send: text => messages.push(JSON.parse(text)) });
+  g.connected();
+  g.message(JSON.stringify({ t: 'welcome', log: [{ type: 'pass' }] }));
+  const vote = { type: 'vote', p: 1, veto: true, at: 0, ms: 123 };
+  g.propose(1, vote);
+  check('propose sends the exact move envelope', messages.at(-1), { t: 'move', n: 1, a: vote });
+  g.flush([{ type: 'pass' }, { type: 'pass', ms: 7 }]);
+  check('propose leaves sent unchanged for the next real action', messages.at(-1), { t: 'move', n: 1, a: { type: 'pass', ms: 7 } });
+  g.synced(3); g.propose(3, vote);
+  const count = messages.length;
+  g.flush(Array(3).fill({ type: 'pass' }));
+  check('propose also leaves a synced log cursor unchanged', messages.length, count);
+  g.disconnected(); g.propose(3, vote);
+  check('a disconnected guest sends no proposal', messages.length, count);
+}
+
+// Three phones: a guest's word, simultaneous votes, stale messages, acceptance, silence and the clock.
+for (const outcome of ['veto', 'accept', 'silence', 'timeout']) {
+  const h = table(3, { veto: true }), a = h.phone('v1', 'VA', 'Ada'), b = h.phone('v2', 'VB', 'Ben');
+  a.connect(); h.run(); h.session.letIn('v1'); h.run();
+  b.connect(); h.run(); h.session.letIn('v2'); h.run();
+  h.play({ type: 'pass', ms: 10 }); h.run();   // seat 1 plays the first word
+  const originalRack = [...a.S.racks[1]], originalCells = [...a.S.cells];
+  a.move({ ...place(a.S), ms: 100 }); h.run();
+  const at = h.S.vote.at;
+  check(`${outcome}: a guest's word opens the same vote everywhere`, [h.S.vote.p, same(h.S, a.S), same(h.S, b.S), h.S.moves.at(-1).kind], [1, true, true, 'pass']);
+
+  if (outcome === 'veto' || outcome === 'accept') {
+    const vote = { type: 'vote', p: 2, veto: false, at, ms: 1800 }, n = b.S.log.length;
+    b.guest.propose(n, vote);
+    check(`${outcome}: a phone's vote is not applied before the host echoes it`, [b.S.log.length, b.S.vote.votes], [n, {}]);
+    // The host votes before the guest's queued proposal arrives: its n is now behind, but the vote still fits.
+    h.play({ type: 'vote', p: 0, veto: outcome === 'veto', at, ms: 1200 });
+    b.guest.propose(n, { ...vote, at: at - 1 });
+    b.guest.propose(n, { ...vote, p: 0 });
+    b.guest.propose(n, vote);   // duplicate after closure
+    h.run();
+    check(`${outcome}: concurrent votes close on the host, with the expected result`, [h.S.vote, h.S.moves.at(-1).kind, h.S.log.length, h.S.clock[1]], [null, outcome === 'veto' ? 'vetoed' : 'play', outcome === 'veto' ? 3 : 4, outcome === 'veto' ? 1300 : 1900]);
+    check(`${outcome}: every phone has the identical JSON state`, [JSON.stringify(a.S), JSON.stringify(b.S)], [JSON.stringify(h.S), JSON.stringify(h.S)]);
+    check(`${outcome}: stale, forged and duplicate votes need no rejection or resync`, [a.events, b.events], [['welcome'], ['welcome']]);
+    if (outcome === 'veto') {
+      check('veto: the guest keeps its rack, board, turn and used time', [h.S.racks[1], h.S.cells, h.S.turn, h.S.used], [originalRack, originalCells, 1, 1300]);
+      a.move({ ...place(a.S), ms: 200 }); h.run();
+      check('veto: playing again opens a fresh vote on all phones', [h.S.vote.at > at, same(a.S, h.S), same(b.S, h.S)], [true, true, true]);
+      const before = JSON.stringify(h.S);
+      b.guest.propose(b.S.log.length, vote); h.run();
+      check('veto: a previous proposal cannot vote on the next word', [JSON.stringify(h.S), b.events], [before, ['welcome']]);
+      const now = h.S.vote.at;
+      b.guest.propose(b.S.log.length, { ...vote, at: now, veto: false, ms: 400 }); h.run();
+      const afterVote = JSON.stringify(h.S);
+      b.guest.propose(b.S.log.length, { ...vote, at: now, veto: true, ms: 500 }); h.run();
+      check('veto: a repeated vote while still open is silently ignored', [JSON.stringify(h.S), b.events], [afterVote, ['welcome']]);
+      h.play({ type: 'vote', p: 0, veto: false, at: now, ms: 600 }); h.run();
+      check('veto: the re-move can be accepted and is identical everywhere', [h.S.moves.map(m => m.kind), h.S.turn, h.S.clock[1], same(a.S, h.S), same(b.S, h.S)], [['pass', 'vetoed', 'play'], 2, 2100, true, true]);
+    }
+  } else {
+    h.play(outcome === 'silence' ? { type: 'voteEnd', ms: 20000 } : { type: 'timeout', ms: 900 }); h.run();
+    check(`${outcome}: the authority closes the unvoted word everywhere`, [h.S.vote, h.S.moves.at(-1).kind, h.S.turn, same(a.S, h.S), same(b.S, h.S)], [null, outcome === 'silence' ? 'play' : 'timeout', 2, true, true]);
+    check(`${outcome}: the mover's clock includes proposal and voting time`, h.S.clock[1], outcome === 'silence' ? 20100 : 1000);
+  }
 }
 
 console.log(fail ? `${fail} of ${pass + fail} session tests FAILED` : `all ${pass} session tests passed`);

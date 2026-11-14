@@ -5,6 +5,7 @@ import { load, resolve, suggest, rankAll, pct, hint, HINT_FLOOR } from './engine
 import { topbar, fillColor, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink, gameTitle, flashTap } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
+import { bump } from './achievements.js';
 
 const FORM_EXAMPLE = { pl: { a: 'psami', b: 'pies' }, en: { a: 'mice', b: 'mouse' } };
 
@@ -188,6 +189,7 @@ export async function gameScreen(root, id) {
   function finish(won) {
     game.status = won ? 'won' : 'gaveup';
     recordEnd(game, won, m.hardOf.get(secretIdx) ?? -1);
+    if (won && !game.guesses.some(g => g.hint)) bump('guess.won');
     if (won) chime();
     say('');
     paintStatus();

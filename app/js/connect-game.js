@@ -7,6 +7,7 @@ import { WORD_MIN, cellsOf, visible, isDone, nextHint, judge } from './connect.j
 import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear, wordLink, gameTitle, flashTap } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
+import { bump } from './achievements.js';
 
 // Where the letters sit on the circle, in % of its box, clockwise from the top (design v4).
 const POS = {
@@ -181,7 +182,10 @@ export async function connectGameScreen(root, id) {
     if (verdict === 'found') {
       game.found.push(word);
       recordMove(game, connectRecord());
-      if (!cellsOf(x).some(k => game.shown.includes(k))) collect('connect', game.lang, word);
+      if (!cellsOf(x).some(k => game.shown.includes(k))) {
+        collect('connect', game.lang, word);
+        bump('connect.words');
+      }
       unpick();
       putSave(game);
       click();
@@ -198,6 +202,7 @@ export async function connectGameScreen(root, id) {
     } else if (verdict === 'bonus') {
       // a real word that is not on the board: its chips fly into the counter, which then bumps
       game.bonus.push(word);
+      bump('connect.words');
       recordMove(game, connectRecord());
       collect('connect', game.lang, word);
       putSave(game);

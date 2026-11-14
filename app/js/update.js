@@ -3,12 +3,15 @@
 // APK on Android, the installer on Windows, else the release page.
 import { settings, saveSettings } from './store.js';
 import { VERSION, REPO } from './version.js';
+import { newer, whatsnewShown } from './whatsnew.js';
+export { newer } from './whatsnew.js';
 
-export function newer(a, b) {
-  const x = a.split('.').map(Number), y = b.split('.').map(Number);
-  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
-  return false;
-}
+// First install stays quiet; an update is acknowledged by opening What's new or closing its notice (owner, 2026-11-14).
+if (!settings.seenVersion) { settings.seenVersion = VERSION; saveSettings(); }
+export const recentUpdateShown = () => whatsnewShown(settings.seenVersion, VERSION);
+export const closeRecentUpdate = () => {
+  if (recentUpdateShown()) { settings.seenVersion = VERSION; saveSettings(); }
+};
 
 const EVERY = 5 * 60000;   // at most every five minutes: GitHub answers 60 unsigned checks an hour
 let running = null;

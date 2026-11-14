@@ -332,6 +332,11 @@ export function lookBack(state, dict, everyone = false) {
     const before = states[i];
     // (a turn passed for a player whose phone was away is no move of theirs)
     if (!['place', 'exchange', 'pass', 'timeout'].includes(a.type) || a.away || (!everyone && before.players[before.turn].cpu)) return;
+    // a vetoed word never became a turn; neither did a vote interrupted by the clock or giving up (owner, 2026-11-14)
+    if (a.type === 'place' && states[i + 1].vote?.at === i) {
+      const closed = states.find((s, j) => j > i + 1 && s.vote?.at !== i);
+      if (!closed || closed.moves.length === before.moves.length || closed.moves.at(-1)?.kind !== 'play') return;
+    }
     const best = hint(before, dict);
     const made = a.type === 'place' ? wordsMade(before, a.placed) : null;
     out.push({ i, p: before.turn, kind: a.type, played: made ? made.score : 0, word: made?.words[0]?.w ?? '', hinted: a.hint ?? null,

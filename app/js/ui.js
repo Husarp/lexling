@@ -1,7 +1,37 @@
+import { achievementIcon } from './achievement-icons.js';
+import { achievementDetail, achievementInk } from './achievement-view.js';
 import { settings, saveSettings, gameName } from './store.js';
 import { t, esc } from './i18n.js';
+import { TIERS } from './achievements.js';
 import { click } from './sound.js';
 import { btStillOn, btLetBe, btSettings } from './net.js';
+
+// The same SVG medal on Android and Windows, outlined while locked (owner, 2026-11-14).
+export const achievementMedal = (earned = true) => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m8 10-4-7h5l3 5 3-5h5l-4 7"></path><circle cx="12" cy="15" r="6"${earned ? ' fill="currentColor" fill-opacity=".18"' : ''}></circle>${earned ? '<path d="m12 11 1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4z"></path>' : ''}</svg>`;
+
+// A small notice on every screen, queued so simultaneous unlocks all get their moment (owner, 2026-11-14).
+const achievementQueue = [];
+let achievementNotice = null;
+function showAchievement() {
+  if (achievementNotice || !achievementQueue.length) return;
+  const [id, tier] = achievementQueue.shift().split('#');
+  const name = t('ach.' + id) + (tier === undefined ? '' : ' · ' + t('tier.' + TIERS[+tier]));
+  const notice = achievementNotice = document.createElement('div');
+  notice.className = 'achievement-notice';
+  notice.setAttribute('role', 'status');
+  notice.style?.setProperty('--ink', achievementInk(tier === undefined ? 5 : +tier));
+  notice.innerHTML = `<span class="ach-notice-icon">${achievementIcon(id)}</span><span><strong>${t('ach.unlocked')}</strong><b>${tier === undefined ? t('ach.earned') : t('tier.' + TIERS[+tier])}</b><span>${esc(name)}</span></span><span class="ach-notice-actions"><button data-see>${t('ach.see')}</button><button data-close>${t('ach.nice')}</button></span>`;
+  let closed = false;
+  const close = () => { if (closed) return; closed = true; notice.remove(); achievementNotice = null; showAchievement(); };
+  notice.querySelector?.('[data-close]')?.addEventListener('click', close);
+  notice.querySelector?.('[data-see]')?.addEventListener('click', () => { close(); achievementDetail(id); });
+  document.body.append(notice);
+  setTimeout(close, 3000);
+}
+document.addEventListener('lexling:achievement', e => {
+  achievementQueue.push(...e.detail.keys);
+  showAchievement();
+});
 
 // A game's name in its top bar (owner, 2026-09-26: "Name (Game 12)"): a long name gives way, its number always shows.
 export const gameTitle = g => g.name
@@ -30,7 +60,7 @@ document.addEventListener('click', e => {
 document.addEventListener('pointerdown', e => { if (e.target.closest?.('.mw')) e.preventDefault(); });
 
 // The gear in every game's top bar (owner, 2026-09-26: "a settings button, the usual icon only"): the settings that
-// matter while playing, in a small window over the game - Sound for now. The keys go to the window alone while it
+// matter while playing, in a small window over the game. The keys go to the window alone while it
 // is open (a game would otherwise type into itself, and Esc would leave the screen).
 const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
 export const gearButton = (cls = '') => `<button class="btn btn-ghost gs-open${cls ? ' ' + cls : ''}" type="button" aria-label="${t('set.title')}" title="${t('set.title')}">${GEAR}</button>`;
@@ -47,7 +77,9 @@ export function flashTap(el) {
   el.flashTimer = setTimeout(() => el.classList.remove('tap-flash'), 500);
 }
 export const wireGear = (root, extra = [], onChange = () => {}) =>
-  wireDialog(root, '.gs-open', t('set.title'), [['sound', t('set.sound'), t('set.soundDesc')], ...extra], onChange);
+  wireDialog(root, '.gs-open', t('set.title'), [['sound', t('set.sound'), t('set.soundDesc')],
+    // the same theme choice inside every game (owner, 2026-11-14)
+    ['theme', t('set.theme'), t('set.themeQuick'), ['dark', 'light', 'system'].map(v => [v, t('theme.' + v)])], ...extra], onChange);
 // A small settings window opened by `trigger` (the gear): its rows, changed as they are tapped.
 export function wireDialog(root, trigger, title, items, onChange = () => {}) {
   root.firstElementChild.addEventListener('click', e => {        // the screen, which goes when it is replaced
@@ -105,6 +137,7 @@ export function wireSettingRows(el, onChange = () => {}) {
       el.querySelectorAll(`[data-key="${key}"]`).forEach(b => b.classList.toggle('on', b === toggle));
     }
     saveSettings();
+    if (key === 'theme') applyTheme();
     if (key === 'sound') click(); else onChange(key);
   });
 }
@@ -183,10 +216,16 @@ export function confirmClick(btn, action, refit) {
   });
 }
 
+// Whole palettes (owner, 2026-11-14); keep in step with the backgrounds in index.html and css/app.css.
+export const PALETTES = { classic: { dark: '#000000', light: '#F5F5F5' }, paper: { dark: '#211D19', light: '#F7F0DF' },
+  ocean: { dark: '#101C28', light: '#EDF5FA' }, forest: { dark: '#142019', light: '#EFF5EC' }, contrast: { dark: '#000000', light: '#FFFFFF' } };
 const systemLight = matchMedia('(prefers-color-scheme: light)');
 export function applyTheme() {
-  const theme = settings.theme === 'system' ? (systemLight.matches ? 'light' : 'dark') : settings.theme;
+  const theme = settings.theme === 'system' ? (systemLight.matches ? 'light' : 'dark') : settings.theme === 'light' ? 'light' : 'dark';
+  const palette = Object.hasOwn(PALETTES, settings.palette) ? settings.palette : 'classic';
   document.documentElement.dataset.theme = theme;
-  document.querySelector('meta[name=theme-color]').content = theme === 'light' ? '#F5F5F5' : '#000000';
+  document.documentElement.dataset.palette = palette;
+  document.documentElement.style.backgroundColor = PALETTES[palette][theme];
+  document.querySelector('meta[name=theme-color]').content = PALETTES[palette][theme];
 }
 systemLight.addEventListener('change', applyTheme);

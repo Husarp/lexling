@@ -1,3 +1,5 @@
+import { achievementIcon, achievementLock, tierShape } from './achievement-icons.js';
+import { achievementInk, achievementState, achievementPips, achievementBar, achievementDetail } from './achievement-view.js';
 // Menu, game picker, new game, statistics, settings. Markup is the design handoff's
 // (design/handoff/*.html), with the dummy text replaced by t(...) and live data.
 import { t, plural, esc, num, decimal, clock, ago, dateTime, setLang, getLang, LANG_NAMES } from './i18n.js';
@@ -5,18 +7,21 @@ import { settings, saveSettings, stats, listSaves, getSave, putSave, deleteSave,
 import { net, netKinds, netReady, nearbyHere, openLocation } from './net.js';
 import { createGuest } from './session.js';
 import { has } from './dawg.js';
+import { cleanTiers, RARE_TIERS } from './rarity.js';
+import { TIERS, TIERED, CHALLENGES, progress, gotAt } from './achievements.js';
 import { load, loadWords, preload, resolve, pickSecret, secretPool, secretWords, lengthStats } from './engine.js';
 import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js';
 import { makePuzzle, RANGE, RING_MIN, RING_MAX, WORD_MIN, visible, isDone } from './connect.js';
 import { BOARDS, STANDARD, LEVEL_ORDER, levelKey, PLAYERS_MAX, newGame as tilesGame, apply as tilesApply, loadTileWords, valueOf, fullBag } from './tiles.js';
-import { nameOf, topics, LABEL, bonusSeg, bonusOf, coloursSeg, tileSeg, applyTileLook } from './tiles-game.js';
-import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, GLYPH, modeTag, TILE, squares, remindBt } from './ui.js';
+import { nameOf, topics, LABEL, bonusSeg, bonusOf, boardStyleSeg, coloursSeg, tileSeg, applyTileLook } from './tiles-game.js';
+import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, PALETTES, GLYPH, modeTag, TILE, squares, remindBt } from './ui.js';
 import { fitAll } from './fit.js';
 import { click } from './sound.js';
 import { VERSION, REPO } from './version.js';
 import { cleanCode, isCode } from './net-web.js';
 import { paintClock } from './playtime.js';
-import { checkUpdate, newer, updateShown, closeUpdate, updateUrl, openUrl, getUpdate, downloadState, installUpdate } from './update.js';
+import { checkUpdate, newer, recentUpdateShown, closeRecentUpdate, updateShown, closeUpdate, updateUrl, openUrl, getUpdate, downloadState, installUpdate } from './update.js';
+import { whatsnew, changesFor } from './whatsnew.js';
 
 const CATS = ['all', 'animals', 'food', 'household', 'clothing', 'tools', 'tech', 'vehicles', 'buildings',
   'nature', 'weather', 'body', 'people', 'jobs', 'school', 'science', 'sport', 'music', 'feelings',
@@ -25,6 +30,9 @@ const DIFFS = ['relaxed', 'easy', 'normal', 'hard'];
 const BANDS = ['short', 'medium', 'long', 'any'];
 const DOT = '<span class="dot">·</span>';
 const on = cond => cond ? 'on' : '';
+// One name in Settings or on the first Join; changes apply to the next game (owner, 2026-11-14).
+const myNameInput = () => `<input class="input" type="text" id="my-name" maxlength="16" autocomplete="off" value="${esc(settings.myName ?? '')}" placeholder="${t('set.myNamePh')}" aria-label="${t('set.myName')}">`;
+const wireMyName = root => root.querySelectorAll('#my-name').forEach(i => i.addEventListener('input', () => { settings.myName = i.value.trim().slice(0, 16); saveSettings(); }));
 // "Only new words" (owner, 2026-09-28, with the Collection): a switch on New game - the secret is one not yet in this
 // mode's Collection; -2 when every word the choice could hide is there already
 const onlyNewCard = () => `<div class="card polish" id="only-new"><div class="row"><div class="row-text"><strong>${t('new.onlyNew')}</strong><span>${t('new.onlyNewDesc')}</span></div>
@@ -81,6 +89,7 @@ export function menu(root, _, refresh) {
       <nav class="games tight" aria-label="${t('menu.modesAria')}">${GAMES.map(row).join('')}</nav>
       <nav class="menu bar" aria-label="${t('menu.nav')}">
         <a href="#/stats">${t('menu.stats')} <span class="arrow">→</span></a>
+        <a href="#/achievements">${t('menu.ach')} <span class="arrow">→</span></a>
         <a href="#/collection">${t('menu.collection')} <span class="arrow">→</span></a>
         <a href="#/settings">${t('menu.settings')} <span class="arrow">→</span></a>
       </nav>
@@ -109,9 +118,11 @@ export function menu(root, _, refresh) {
       : d.phase === 'failed' ? `<div class="upd" role="status"><span class="upd-text">${t(d.why === 'offline' ? 'upd.offline' : 'upd.failed')}</span><div class="upd-acts">${btn('upd-get', 'upd.again')}<span class="upd-pair"><button class="btn btn-outline upd-gh" type="button">GitHub</button>${x}</span></div></div>`
       : `<div class="upd" role="status"><span class="upd-text">${t('upd.available', { v })}</span><div class="upd-acts">${btn('upd-get', 'upd.get')}${x}</div>${
         handed ? `<span class="upd-note">${t(navigator.onLine === false ? 'upd.offline' : 'upd.opened')}</span>` : ''}</div>`;
+    if (recentUpdateShown()) slot.innerHTML += `<div class="upd" role="status"><a class="upd-text" href="#/whatsnew">${t('wn.updated', { v: VERSION })}</a><button class="btn btn-ghost wn-close" type="button" aria-label="${t('upd.close')}">✕</button></div>`;
   };
   menuUpdate();
   slot.addEventListener('click', async e => {
+    if (e.target.closest('.wn-close')) { closeRecentUpdate(); return menuUpdate(); }
     if (e.target.closest('.upd-x')) { closeUpdate(); return menuUpdate(); }
     if (e.target.closest('.upd-gh')) return openUrl(`https://github.com/${REPO}/releases/latest`);
     if (e.target.closest('.upd-install')) return installUpdate();
@@ -739,8 +750,8 @@ const TL_RULES = [['premiums', ['once', 'always']], ['check', ['auto', 'challeng
   ['open', [false, true]]];
 // Assists, a section of their own (owner, 2026-10-12: the settings behind the "this game leaves the records" warning were
 // "hidden in the rules ... the user might not know where they are"): hints, undo, move ratings
-const TL_ASSISTS = [['undo', [false, true]], ['rating', [true, 'score', false]]];
-const ASSIST_KEYS = ['hints', 'hintMax', 'hintCost', 'undo', 'rating'];
+const TL_ASSISTS = [['undo', [false, true]], ['veto', [false, true]], ['rating', [true, 'score', false]]];
+const ASSIST_KEYS = ['hints', 'hintMax', 'hintCost', 'undo', 'rating', 'veto', 'vetoNeed'];
 // hints: how many of each level a player may take (null = no limit, 0 = that level off)
 const TL_HINT_MAX = [0, 1, 3, 5, 10, null];
 let tlPending = null;
@@ -769,11 +780,12 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     return { ...fresh, board: r.board, players, first: players[r.first] ?? null, rules: { ...STANDARD, ...r.rules } };
   })();
   tlPending = null;
+  let vetoManual = o.vetoNeedManual ?? Number.isFinite(o.rules.vetoNeed);
   // hosting an online game (Play online → the connection → Host): people only, the first of them on this phone; undo
   // and the others' tiles off, no hints, ratings without the best move - all but undo can be changed below (owner)
   if (hostKind && o.net !== hostKind) {
     o.net = hostKind;
-    o.players = o.players.map((x, p) => ({ name: x.cpu ? '' : x.name, cpu: null, here: p === 0 }));
+    o.players = o.players.map((x, p) => ({ name: p === 0 ? (x.cpu ? '' : x.name.trim()) || (settings.myName ?? '') : '', cpu: null, here: p === 0 }));
     if (!o.players.includes(o.first)) o.first = null;
     o.rules = { ...o.rules, hints: false, undo: false, open: false, rating: o.rules.rating === false ? false : 'score' };
   }
@@ -806,6 +818,11 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
         <div class="row"><div class="row-text"><strong>${t('tiles.bonus')}</strong></div></div>
         <div id="bonus">${bonusSeg()}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.bonusHelp')}</p>
+        <div class="row"><div class="row-text"><strong>${t('tiles.boardStyle')}</strong></div></div>
+        <div id="board-style">${boardStyleSeg()}</div>
+        <p class="help"><span class="arrow">→</span> ${t('tiles.boardStyleHelp')}</p>
+        <div class="row"><div class="row-text"><strong>${t('tiles.cb')}</strong><span>${t('tiles.cbHelp')}</span></div>
+          <button type="button" id="tiles-cb" class="toggle" role="switch" aria-label="${t('tiles.cb')}"></button></div>
       </div>
       <details class="card tl-assists"${o.assistsOpen ? ' open' : ''}>
         <summary><span class="eyebrow">${t('tiles.assists')} <span class="state"></span></span><span class="arrow" aria-hidden="true">›</span></summary>
@@ -832,15 +849,16 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
   const standard = () => Object.keys(STANDARD).every(k => ASSIST_KEYS.includes(k) || JSON.stringify(o.rules[k]) === JSON.stringify(STANDARD[k]));
   // one person against the computer: only then undo (owner, 2026-09-25)
   const alone = () => o.players.filter(x => !x.cpu).length === 1 && o.players.some(x => x.cpu);
+  const canVeto = () => !!o.net || o.players.filter(x => !x.cpu).length > 1;
   const helps = () => [o.rules.hints !== false && t('help.hints'), alone() && o.rules.undo === true && t('help.undo'), o.rules.rating === true && t('help.best')].filter(Boolean);
 
   function paintPlayers() {
     const last = o.players.length - 1, first = o.players.indexOf(o.first);
     $('.tl-players').innerHTML = o.players.map((x, p) => `<div class="tl-prow pc${p}">
-        <div class="top"><i class="dot-p" aria-hidden="true"></i><input class="input" type="text" maxlength="16" data-name="${p}" value="${esc(x.name)}" placeholder="${esc(nameOf(list(), p))}" aria-label="${t('tiles.nameAria', { n: p + 1 })}"><span class="acts">
+        <div class="top"><i class="dot-p" aria-hidden="true"></i>${o.net && !x.here ? `<strong>${esc(nameOf(list(), p))}</strong>` : `<input class="input" type="text" maxlength="16" data-name="${p}" value="${esc(x.name)}" placeholder="${esc(nameOf(list(), p))}" aria-label="${t('tiles.nameAria', { n: p + 1 })}">`}<span class="acts">
           <button type="button" class="btn btn-ghost mv" data-up="${p}" aria-label="${esc(t('tiles.up', { name: nameAt(p) }))}"${p === 0 ? ' disabled' : ''}>↑</button><button type="button" class="btn btn-ghost mv" data-down="${p}" aria-label="${esc(t('tiles.down', { name: nameAt(p) }))}"${p === last ? ' disabled' : ''}>↓</button>${
       o.players.length > 2 && !(o.net && x.here) ? `<button type="button" class="btn btn-ghost rm" data-rm="${p}" aria-label="${esc(t('tiles.remove', { name: nameAt(p) }))}">✕</button>` : ''}</span></div>
-        ${o.net ? `<p class="help"><span class="arrow">→</span> ${t(x.here ? 'tiles.bt.you' : 'net.them')}</p>` : `<div class="kind"><div class="seg">${['person', 'cpu'].map(k => `<button type="button" data-kind="${k}" data-p="${p}" class="${on((k === 'cpu') === !!x.cpu)}">${t(k === 'cpu' ? 'tiles.cpu' : 'tiles.person')}</button>`).join('')}</div></div>`}
+        ${o.net ? `<p class="help"><span class="arrow">→</span> ${t(x.here ? 'tiles.bt.you' : 'net.namedOnJoin')}</p>` : `<div class="kind"><div class="seg">${['person', 'cpu'].map(k => `<button type="button" data-kind="${k}" data-p="${p}" class="${on((k === 'cpu') === !!x.cpu)}">${t(k === 'cpu' ? 'tiles.cpu' : 'tiles.person')}</button>`).join('')}</div></div>`}
         ${x.cpu ? `<div class="lv">${LEVEL_ORDER.map(l => `<button type="button" class="chip ${on(x.cpu === l)}" data-lv="${l}" data-p="${p}">${t(levelKey(l))}</button>`).join('')}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.lvHelp.' + x.cpu)}</p>` : ''}
       </div>`).join('') + (o.players.length < PLAYERS_MAX ? `<button type="button" class="btn btn-outline" data-add>${t('tiles.addPlayer')} +</button>` : '')
@@ -863,9 +881,14 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
   }
   const ruleRows = list => list.map(([k, vals]) => `<div class="rule"><span class="eyebrow">${t('tiles.r.' + k)}</span><div class="seg">${vals.map(v =>
     `<button type="button" data-rule="${k}" data-v="${v}" class="${on(String(o.rules[k]) === String(v))}">${t(`tiles.r.${k}.${v}`)}</button>`).join('')}</div>${
-    ['check', 'undo', 'open', 'rating'].includes(k) ? `<p class="help">${t(`tiles.r.${k}Help`)}</p>` : ''}</div>`).join('');
+    ['check', 'undo', 'open', 'rating', 'veto'].includes(k) ? `<p class="help">${t(`tiles.r.${k}Help`)}</p>` : ''}</div>`).join('');
+  const voterMax = () => Math.max(1, o.players.filter(x => !x.cpu).length - 1);
   function paintAssists() {
-    $('.assists-body').innerHTML = ruleRows(TL_ASSISTS.filter(([k]) => k !== 'undo' || alone()));
+    // Follow the player list until the host sets a count by hand (owner, 2026-11-14).
+    o.rules.vetoNeed = Math.min(voterMax(), Math.max(1, vetoManual ? o.rules.vetoNeed : Math.ceil(voterMax() / 2)));
+    o.vetoNeedManual = vetoManual;
+    $('.assists-body').innerHTML = TL_ASSISTS.filter(([k]) => (k !== 'undo' || alone()) && (k !== 'veto' || canVeto())).map(([k, vals]) => ruleRows([[k, vals]])
+      + (k === 'veto' && o.rules.veto ? `<div class="rule"><span class="eyebrow">${t('tiles.r.vetoNeed')}</span><div class="seg"><button type="button" data-veto-step="-1" aria-label="${esc(t('tiles.r.vetoNeed'))} −" ${o.rules.vetoNeed <= 1 ? 'disabled' : ''}>−</button><output>${o.rules.vetoNeed}</output><button type="button" data-veto-step="1" aria-label="${esc(t('tiles.r.vetoNeed'))} +" ${o.rules.vetoNeed >= voterMax() ? 'disabled' : ''}>+</button></div></div>` : '')).join('');
     const used = helps();
     $('.tl-assists').classList.toggle('used', used.length > 0);
     $('.tl-assists .state').textContent = used.length ? t('tiles.assists.on', { what: used.join(', ') }) : t('tiles.assists.off');
@@ -889,7 +912,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     const who = o.players.map((x, p) => esc(nameAt(p)) + (x.cpu ? ` (${t(levelKey(x.cpu))})` : '')).join(', ');
     const first = o.players.indexOf(o.first);
     $('.summary').innerHTML = [LANG_NAMES[o.lang], t('tiles.board.' + o.board), o.net && t('net.tag.' + o.net), who, first >= 0 && `${t('tiles.first')}: ${esc(nameAt(first))}`,
-      !standard() && t('tiles.rules.own')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
+      canVeto() && o.rules.veto && t('tiles.r.veto'), canVeto() && o.rules.veto && `${t('tiles.r.vetoNeed')}: ${o.rules.vetoNeed}`, !standard() && t('tiles.rules.own')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
   }
   const sync = () => {
     root.querySelectorAll('[data-lang]').forEach(b => b.classList.toggle('on', b.dataset.lang === o.lang));
@@ -903,6 +926,9 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     // the same choices as in Settings and in the game (owner, 2026-09-25: "also on the setup")
     $('#colour-looks').innerHTML = coloursSeg();
     $('#bonus').innerHTML = bonusSeg();
+    $('#board-style').innerHTML = boardStyleSeg();
+    $('#tiles-cb').classList.toggle('on', !!settings.tilesCb);
+    $('#tiles-cb').setAttribute('aria-checked', !!settings.tilesCb);
     paintPlayers();
     paintHints();
     paintAssists();
@@ -928,6 +954,8 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
   $('#colour-looks').addEventListener('click', e => { const b = e.target.closest('[data-colours]'); if (b) { settings.tilesColours = bonusOf(b.dataset.colours); saveSettings(); sync(); } });
   $('#tile-looks').addEventListener('click', e => { const b = e.target.closest('[data-tc]'); if (b) { settings.tilesTile = b.dataset.tc; saveSettings(); applyTileLook(); $('#tile-looks').innerHTML = tileSeg(); } });
   $('#bonus').addEventListener('click', e => { const b = e.target.closest('[data-bonus]'); if (b) { settings.tilesBonus = bonusOf(b.dataset.bonus); saveSettings(); sync(); } });
+  $('#board-style').addEventListener('click', e => { const b = e.target.closest('[data-board-style]'); if (b) { settings.tilesBoardStyle = b.dataset.boardStyle; saveSettings(); sync(); } });
+  $('#tiles-cb').addEventListener('click', () => { settings.tilesCb = !settings.tilesCb; saveSettings(); sync(); $('.howto .tl-topics').outerHTML = topics(); });
   $('.tl-rules').addEventListener('toggle', e => { o.rulesOpen = e.target.open; });
   $('.tl-assists').addEventListener('toggle', e => { o.assistsOpen = e.target.open; });
   // "Change" by the warning: open the assists and bring them into view
@@ -971,7 +999,8 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     const b = e.target.closest('button');
     if (!b) return;
     const v = b.dataset.v;
-    if (b.dataset.rule) o.rules[b.dataset.rule] = b.dataset.rule === 'bingo' ? +v : v === 'true' ? true : v === 'false' ? false : v;
+    if (b.dataset.vetoStep) { vetoManual = true; o.rules.vetoNeed += +b.dataset.vetoStep; }
+    else if (b.dataset.rule) o.rules[b.dataset.rule] = b.dataset.rule === 'bingo' ? +v : v === 'true' ? true : v === 'false' ? false : v;
     else if (b.dataset.time) o.rules.time = b.dataset.time === 'none' ? null : { per: b.dataset.time, seconds: b.dataset.time === 'move' ? 60 : 1500 };
     else if (b.dataset.secs) o.rules.time = { ...o.rules.time, seconds: +b.dataset.secs };
     else return;
@@ -988,12 +1017,12 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     const dict = await loadTileWords(o.lang);
     settings.newGame = { lang: o.lang };
     saveSettings();
-    const players = o.players.map(x => ({ name: x.name.trim(), cpu: x.cpu })), first = o.players.indexOf(o.first);
+    const players = o.players.map(x => ({ name: o.net && !x.here ? '' : x.name.trim(), cpu: x.cpu })), first = o.players.indexOf(o.first);
     if (!o.net) remember('tiles', { board: o.board, players, first, rules: o.rules });
     saveSettings();
     const humans = players.filter(x => !x.cpu).length, vsCpu = humans === 1 && players.some(x => x.cpu);
     const state = tilesGame({ lang: o.lang, board: o.board, players, first: first >= 0 ? first : undefined, words: dict.tag,
-      rules: { ...o.rules, undo: vsCpu && o.rules.undo, open: humans > 1 && !o.net && o.rules.open } });
+      rules: { ...o.rules, undo: vsCpu && o.rules.undo, open: humans > 1 && !o.net && o.rules.open, veto: canVeto() && o.rules.veto === true } });
     // several phones: this one hosts - its player is the row marked "on this phone"; the others' seats fill as they join
     const link = o.net ? { link: { kind: o.net, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), role: 'host', me: Math.max(0, o.players.findIndex(x => x.here)), seats: [] } } : {};
     const game = newGame({ name: typedName(), mode: 'tiles', lang: o.lang, state, firstSet: first >= 0, order: [], turnMs: 0, ...link });
@@ -1073,11 +1102,7 @@ export function tilesJoinScreen(root, chosen) {
     <h1 class="title">${t('net.join')}</h1>
     <p class="help tl-online-kind"><span class="eyebrow">${t('net.step.kind')}</span> ${t('net.kind.' + kind)}</p>
     <p class="help" id="join-help"></p>
-    <div class="field">
-      <span class="eyebrow">${t('net.forHost')}</span>
-      <input class="input" type="text" id="bt-name" maxlength="16" autocomplete="off" value="${esc(settings.btName ?? '')}" aria-label="${t('net.forHost')}">
-      <p class="help">${t('net.forHostHelp')}</p>
-    </div>
+    ${settings.myName ? `<p>${t('net.joinAs', { name: `<strong>${esc(settings.myName)}</strong>` })} <a class="btn-link" href="#/settings">${t('net.joinAsChange')}</a></p>` : `<div class="field"><label class="eyebrow" for="my-name">${t('set.myName')}</label>${myNameInput()}</div>`}
     <div class="card tl-join">
       <p class="tl-join-note"></p>
       ${kind === 'web' ? `<form class="tl-coderow" id="web-form"><input class="input" id="web-code" maxlength="9" value="${esc(settings.webCode ?? '')}" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="KQ7M2P" aria-label="${
@@ -1087,6 +1112,7 @@ export function tilesJoinScreen(root, chosen) {
   </main>
 </div>`;
   const $ = sel => root.querySelector(sel);
+  wireMyName(root);
   const wire = () => net(kind);
   const note = (key, vars, dots) => { $('.tl-join-note').innerHTML = (dots ? '<span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span> ' : '') + t(key, vars); };
   // what went wrong, small under the note - to tell a phone out of reach from one not hosting
@@ -1177,11 +1203,10 @@ export function tilesJoinScreen(root, chosen) {
       if (!gone) { paint(); note(key, { name }); if (/joinFailed/.test(key)) why(e); setTimeout(search, 2500); }
       return;
     }
-    settings.btName = $('#bt-name').value.trim();
     if (kind === 'web') settings.webCode = address;   // there next time (back after the page was closed, or the next game)
     saveSettings();
-    // for the host to let in (up to 2 minutes) - the host names the players (owner, 2026-09-27); then its game
-    party = createGuest({ name: settings.btName, send: text => { wire().send(conn, text).catch(() => {}); }, on: {
+    // The host lets this phone in (up to 2 minutes); its own name goes with it (owner, 2026-11-14).
+    party = createGuest({ name: settings.myName ?? '', send: text => { wire().send(conn, text).catch(() => {}); }, on: {
       welcome: m => { welcome = m; }, refused: () => { answer = 'refused'; }, full: () => { answer = 'full'; }, version: () => { answer = 'version'; },
     } });
     party.connected();
@@ -1229,6 +1254,36 @@ let statsTab = 'general';   // which tab the stats screen shows, kept while the 
 const STAT_TABS = ['general', 'guess', 'letters', 'connect', 'tiles'];
 const statFilter = {};      // per game: { lang, lv } - the language and the level shown, kept while the app is open
 const MODES = ['guess', 'letters', 'connect', 'tiles'];
+
+// Approved square achievement grid; progress and dates come from the live ledger.
+let achievementTab = 'all';
+export function achievementsScreen(root) {
+  const reached = TIERED.reduce((n, d) => n + TIERS.filter((_, i) => gotAt(`${d.id}#${i}`) !== null).length, 0);
+  const filtered = ds => ds.filter(d => achievementTab === 'all' || d.game === achievementTab);
+  const tile = d => {
+    const level = achievementState(d);
+    return `<button class="ach-tile ${level < 0 ? 'locked' : 'earned'}" data-ach="${d.id}" style="--ink:${achievementInk(level)}" aria-label="${t('ach.' + d.id)} · ${level < 0 ? t('ach.locked') : level === 5 ? t('ach.earned') : t('tier.' + TIERS[level])} · ${t('ach.detail')}">${d.th ? achievementIcon(d.id) : `<span class="ach-frame">${achievementIcon(d.id)}</span>`}${level < 0 ? achievementLock : ''}<strong>${t('ach.' + d.id)}</strong>${d.th ? achievementPips(level) + achievementBar(d) : ''}</button>`;
+  };
+  root.innerHTML = `<div class="app" data-screen="achievements">
+    ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
+    <main class="main"><h1 class="title">${t('ach.title')}</h1>
+      <div class="ach-summary"><div><b class="num">${num(reached)}</b><small>${t('ach.tiers', { a: num(reached), b: num(25) })}</small></div>${TIERS.map((tier, i) => `<span class="ach-count" title="${t('tier.' + tier)}" aria-label="${t('tier.' + tier)}: ${TIERED.filter(d => gotAt(`${d.id}#${i}`) !== null).length}">${tierShape(i)}${num(TIERED.filter(d => gotAt(`${d.id}#${i}`) !== null).length)}</span>`).join('')}</div>
+      <p class="help">${t('ach.since', { d: dateTime(stats.ach.since) })}</p>
+      <div class="ach-tabs" role="tablist" aria-label="${t('ach.title')}">${['all', ...GAMES].map(game => `<button role="tab" tabindex="${game === achievementTab ? 0 : -1}" aria-selected="${game === achievementTab}" data-ach-tab="${game}">${t(game === 'all' ? 'col.all' : 'mode.' + game)}</button>`).join('')}</div>
+      ${filtered(TIERED).length ? `<h2 class="ach-heading">${t('ach.milestones')}</h2><div class="ach-grid">${filtered(TIERED).map(tile).join('')}</div>` : ''}
+      ${filtered(CHALLENGES).length ? `<h2 class="ach-heading">${t('ach.challenges')} · ${num(CHALLENGES.filter(d => gotAt(d.id) !== null).length)} / ${num(CHALLENGES.length)}</h2><div class="ach-grid">${filtered(CHALLENGES).map(tile).join('')}</div><p class="help">${t('ach.fair')}</p>` : ''}
+    </main></div>`;
+  root.querySelectorAll('[data-ach-tab]').forEach(b => {
+    b.addEventListener('click', () => { achievementTab = b.dataset.achTab; achievementsScreen(root); root.querySelector('[aria-selected=true]')?.focus(); });
+    b.addEventListener('keydown', e => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+      e.preventDefault();
+      const tabs = [...root.querySelectorAll('[data-ach-tab]')], i = tabs.indexOf(b);
+      tabs[e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length].click();
+    });
+  });
+  root.querySelectorAll('[data-ach]').forEach(b => b.addEventListener('click', () => achievementDetail(b.dataset.ach)));
+}
 
 // The statistics (owner, 2026-09-28; the look: design "Lexling Statistics", design/stats-v6), worked out from each
 // game's record (store.js): every game from its first move, by language and level. Records and averages leave out
@@ -1371,6 +1426,7 @@ export function statsScreen(root, _, refresh) {
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
   <main class="main">
     <h1 class="title">${t('stats.title')}</h1>
+    <a class="btn btn-outline" href="#/achievements">${t('menu.ach')} <span class="arrow">→</span></a>
     <div class="seg st-tabs" role="tablist">${STAT_TABS.map(m =>
     `<button type="button" role="tab" data-tab="${m}" class="${on(statsTab === m)}" aria-selected="${statsTab === m}"><span class="tg">${GLYPH[m === 'general' ? 'all' : m] ?? ''}</span>${
       t(m === 'general' ? 'stats.general' : 'mode.' + m)}</button>`).join('')}</div>
@@ -1514,6 +1570,7 @@ let dataIndex;
 export async function settingsScreen(root, _, refresh) {
   dataIndex ??= await fetch('data/index.json').then(r => r.json());
   const seg = (key, values, label) => `<div class="seg">${values.map(v => `<button type="button" data-k="${key}" data-v="${v}" class="${on(settings[key] === v)}">${label(v)}</button>`).join('')}</div>`;
+  const rareTiers = cleanTiers(settings.tilesRareTiers);
   const waiting = REPO && settings.latest && newer(settings.latest, VERSION);
   const updateLine = !REPO ? t('set.noRepo')
     : waiting ? t('set.available', { v: settings.latest })
@@ -1523,8 +1580,11 @@ export async function settingsScreen(root, _, refresh) {
   <main class="main">
     <h1 class="title">${t('set.title')}</h1>
     <section class="group">
+      <div class="row"><div class="row-text"><label for="my-name"><strong>${t('set.myName')}</strong></label><span>${t('set.myNameDesc')}</span></div>${myNameInput()}</div>
       <div class="row"><div class="row-text"><strong>${t('set.lang')}</strong><span>${t('set.langDesc')}</span></div>${seg('lang', ['pl', 'en'], l => LANG_NAMES[l])}</div>
       <div class="row"><div class="row-text"><strong>${t('set.theme')}</strong><span>${t('set.themeDesc')}</span></div>${seg('theme', ['dark', 'light', 'system'], v => t('theme.' + v))}</div>
+      <div class="row"><div class="row-text"><strong>${t('set.palette')}</strong><span>${t('set.paletteDesc')}</span></div>
+        <div class="palette-swatches">${Object.keys(PALETTES).map(id => `<button type="button" data-palette-choice="${id}" class="${on((settings.palette ?? 'classic') === id)}" aria-label="${t('palette.' + id)}" aria-pressed="${(settings.palette ?? 'classic') === id}"><span class="palette-preview" data-preview="${id}" aria-hidden="true"><i>Aa</i></span><span>${t('palette.' + id)}</span></button>`).join('')}</div></div>
       <div class="row"><div class="row-text"><strong>${t('set.accent')}</strong><span>${t('set.accentDesc')}</span></div>
         <div class="swatches">${Object.entries(ACCENTS).map(([name, hex]) =>
     `<button type="button" data-accent="${name}" class="${on(settings.accent === name)}" style="--swatch:${hex}" aria-label="${name}"></button>`).join('')}</div></div>
@@ -1542,12 +1602,20 @@ export async function settingsScreen(root, _, refresh) {
         <input class="input" type="number" inputmode="numeric" id="rm-m" min="0" max="59" step="5" value="${(settings.remindMin || 90) % 60}" aria-label="${t('set.minutes')}"><span>${t('set.minutes')}</span></div></div>
     </section>
     <section class="group">
+      <h2 class="title">${t('set.tiles')}</h2>
+      <div class="row"><div class="row-text"><strong>${t('tiles.under')}</strong><span>${t('tiles.underHelp')}</span></div>${seg('tilesUnder', ['rating', 'rarity', 'both'], v => t('tiles.under.' + v))}</div>
+      <div class="row"><div class="row-text"><strong>${t('set.rareTiers')}</strong><span id="rare-help">${t('set.rareTiersHelp', { pl: num(dataIndex.counts.pl), en: num(dataIndex.counts.en) })}</span></div>
+        <div class="rare-tiers">${['purple', 'gold', 'blue'].map((tier, i) => `<label class="rare-${tier}"><i aria-hidden="true"></i><input class="input" type="number" inputmode="numeric" min="1" max="100" step="1" data-rare-tier="${i}" value="${rareTiers[i]}" aria-label="${t('tiles.rare.tier.' + tier)}" aria-describedby="rare-help"><span>%</span></label>`).join('')}
+        <button type="button" class="btn btn-ghost" id="rare-reset">${t('set.rareReset')}</button></div></div>
+    </section>
+    <section class="group">
       <h2 class="title">${t('set.updates')}</h2>
       <div class="row"><div class="row-text"><strong>${t('set.autoCheck')}</strong><span>${t('set.autoCheckDesc')}</span></div><button type="button" class="toggle ${on(settings.updateCheck)}" data-toggle="updateCheck" role="switch" aria-checked="${!!settings.updateCheck}" aria-label="${t('set.autoCheck')}"></button></div>
       <div class="row"><div class="row-text"><strong>${t('set.version', { v: VERSION })}</strong><span id="update-line">${updateLine}</span></div>
         <div class="row-actions">${waiting ? `<button type="button" class="btn btn-primary" id="get">${t('set.get')} <span class="arrow">→</span></button>` : ''}
         <button type="button" class="btn btn-outline" id="check" ${REPO ? '' : 'disabled'}>${t('set.check')}</button>
         <button type="button" class="btn btn-ghost" id="manual" ${REPO ? '' : 'disabled'}>${t('set.manual')}</button></div></div>
+      <div class="row"><a class="btn btn-outline" href="#/whatsnew">${t('wn.title')} <span class="arrow">→</span></a></div>
     </section>
     <section class="group">
       <h2 class="title">${t('set.about')}</h2>
@@ -1564,11 +1632,21 @@ export async function settingsScreen(root, _, refresh) {
   </main>
   <footer class="footer"><span>Lexling v${VERSION}</span>${DOT}<span>© 2026 Husarp</span>${DOT}<span>${t('foot.rights')}</span></footer>
 </div>`;
+  wireMyName(root);
+  // Save and show the same cleaned limits; invalid edits reset all three (owner, 2026-11-14).
+  const tierInputs = [...root.querySelectorAll('[data-rare-tier]')];
+  const saveTiers = values => {
+    settings.tilesRareTiers = cleanTiers(values);
+    saveSettings();
+    tierInputs.forEach((input, i) => { input.value = settings.tilesRareTiers[i]; });
+  };
+  tierInputs.forEach(input => input.addEventListener('change', () => saveTiers(tierInputs.map(el => el.value))));
+  root.querySelector('#rare-reset').addEventListener('click', () => saveTiers(RARE_TIERS));
   root.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.k === 'lang') return switchLang(b.dataset.v, refresh);
-    settings.theme = b.dataset.v;
+    settings[b.dataset.k] = b.dataset.v;
     saveSettings();
-    applyTheme();
+    if (b.dataset.k === 'theme') applyTheme();
     refresh();
   }));
   root.querySelectorAll('[data-toggle]').forEach(el => el.addEventListener('click', () => {
@@ -1587,6 +1665,15 @@ export async function settingsScreen(root, _, refresh) {
     saveSettings();
     applyAccent();
     root.querySelectorAll('[data-accent]').forEach(o => o.classList.toggle('on', o === el));
+  }));
+  root.querySelectorAll('[data-palette-choice]').forEach(el => el.addEventListener('click', () => {
+    settings.palette = el.dataset.paletteChoice;
+    saveSettings();
+    applyTheme();
+    root.querySelectorAll('[data-palette-choice]').forEach(o => {
+      o.classList.toggle('on', o === el);
+      o.setAttribute('aria-pressed', o === el);
+    });
   }));
   // Telling someone an update exists and then leaving them to find it is half an answer, so when one
   // is waiting the button becomes the way to get it: the release page, with the installer and the
@@ -1616,4 +1703,17 @@ export async function settingsScreen(root, _, refresh) {
     check.disabled = false;
     check.textContent = t('set.check');
   });
+}
+
+// Recent changes, reachable even after the menu notice has been dismissed.
+export function whatsnewScreen(root) {
+  closeRecentUpdate();
+  root.innerHTML = `<div class="app" data-screen="whatsnew">
+    ${topbar({ left: `<a class="btn btn-ghost" href="#/settings">${t('wn.back')}</a>` })}
+    <main class="main"><h1 class="title">${t('wn.title')}</h1>
+      ${whatsnew.map(release => `<section class="group">
+        <h2 class="title">${esc(release.version)}</h2><time datetime="${esc(release.date)}">${esc(release.date)}</time>
+        <ul class="wn-changes">${changesFor(release, getLang()).map(text => `<li>${esc(text)}</li>`).join('')}</ul>
+      </section>`).join('')}
+    </main></div>`;
 }

@@ -12,6 +12,9 @@ export const QUIET = 15000;   // nothing heard for this long: the connection cou
 // a phone showing another app: Android may pause Lexling there, so its pings can stop - only a closed connection counts
 export const QUIET_AWAY = 300000;
 
+// a seat takes its first name for the whole game, even when another phone takes over (owner, 2026-11-14)
+export const seatName = (current, offered) => current || String(offered ?? '').trim().slice(0, 16);
+
 const parse = text => { try { return JSON.parse(text); } catch { return null; } };
 
 // The host. players: how many seats; me: the host's own seat. known: per seat, the phone that sat there last
@@ -152,6 +155,8 @@ export function createGuest({ name, send, on = {} }) {
       sent = Math.max(sent, log.length);
     },
     synced: length => { sent = Math.max(sent, length); },
+    // Votes wait for the host's log; proposing one does not advance our sent actions (owner, 2026-11-14).
+    propose: (n, a) => say({ t: 'move', n, a }),
     resync: () => say({ t: 'hello', v: PROTOCOL, name }),
     // this phone shows Lexling again, or another app
     app: open => say({ t: 'app', open }),

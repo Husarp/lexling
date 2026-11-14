@@ -9,6 +9,7 @@ import { topbar, modeTag, confirmClick, TILE, outcome, gearButton, wireGear, mea
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 import { offensive } from './offensive.js';
+import { bump } from './achievements.js';
 
 const ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
 // A row of its own in a Polish game that allows them. A game that does not has neither the letters in the
@@ -326,6 +327,7 @@ export async function lettersGameScreen(root, id) {
   function finish(status, afterReveal = false) {
     game.status = status;
     recordLettersEnd(game);
+    if (status === 'won') bump('letters.won');
     if (status === 'won') chime();
     if (!afterReveal) return paintEnd();
     revealing = true;

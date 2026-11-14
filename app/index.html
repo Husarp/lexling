@@ -6,13 +6,21 @@
 <meta name="theme-color" content="#000000">
 <title>Lexling</title>
 <!-- the page is already the right colour before any stylesheet or script arrives: no white flash -->
-<style>html{background:#000}html[data-theme=light]{background:#F5F5F5}</style>
+<style>html{background:var(--bg,#000)}</style>
 <script>
+// Whole palettes before first paint (owner, 2026-11-14); keep in step with PALETTES in js/ui.js and css/app.css.
+var palettes = { classic: { dark: '#000000', light: '#F5F5F5' }, paper: { dark: '#211D19', light: '#F7F0DF' },
+  ocean: { dark: '#101C28', light: '#EDF5FA' }, forest: { dark: '#142019', light: '#EFF5EC' }, contrast: { dark: '#000000', light: '#FFFFFF' } };
+var saved = {};
 try {
-  var theme = (JSON.parse(localStorage.getItem('wg.settings')) || {}).theme || 'dark';
-  if (theme === 'system') theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  document.documentElement.dataset.theme = theme;
+  saved = JSON.parse(localStorage.getItem('wg.settings')) || {};
 } catch (e) {}
+var theme = saved.theme === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : saved.theme === 'light' ? 'light' : 'dark';
+var palette = Object.hasOwn(palettes, saved.palette) ? saved.palette : 'classic';
+document.documentElement.dataset.theme = theme;
+document.documentElement.dataset.palette = palette;
+document.documentElement.style.backgroundColor = palettes[palette][theme];
+document.querySelector('meta[name=theme-color]').content = palettes[palette][theme];
 // Tablets (owner, 2026-10-12): the phone layout, bigger - the page is laid out about 640 px on its short side and the
 // screen zooms it to fill itself, so letters, tiles and buttons grow with the screen; held sideways, the wide layouts.
 // Phones and computers as before. (The Android app turns its WebView's wide viewport on for this - MainActivity.)
