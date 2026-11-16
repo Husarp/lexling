@@ -7,7 +7,7 @@ import { WORD_MIN, cellsOf, visible, isDone, nextHint, judge } from './connect.j
 import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear, wordLink, gameTitle, flashTap } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
-import { bump } from './achievements.js';
+import { bump, recordAchievementEnd, recordConnectBonus } from './achievements.js';
 
 // Where the letters sit on the circle, in % of its box, clockwise from the top (design v4).
 const POS = {
@@ -202,6 +202,7 @@ export async function connectGameScreen(root, id) {
     } else if (verdict === 'bonus') {
       // a real word that is not on the board: its chips fly into the counter, which then bumps
       game.bonus.push(word);
+      recordConnectBonus(game);
       bump('connect.words');
       recordMove(game, connectRecord());
       collect('connect', game.lang, word);
@@ -394,6 +395,7 @@ export async function connectGameScreen(root, id) {
   function finish(status) {
     game.status = status;
     recordConnectEnd(game, connectRecord());
+    recordAchievementEnd(game, 'connect');
     if (status === 'won') chime();
     setTimeout(() => { if (app.isConnected) paintEnd(); }, status === 'won' ? 700 : 0);
   }

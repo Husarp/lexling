@@ -1,30 +1,51 @@
 import { stats, saveStats } from './store.js';
 
-export const TIERS = ['bronze', 'silver', 'gold', 'diamond', 'amethyst'];
+export const TIERS = ['common', 'rare', 'epic', 'legendary', 'mythical'];
 export const TIERED = [
-  { id: 'guess.won', game: 'guess', th: [3, 10, 30, 80, 200] },
+  { id: 'guess.won', game: 'guess', th: [5, 20, 50, 100, 200] },
   { id: 'letters.won', game: 'letters', th: [5, 25, 100, 300, 1000] },
   { id: 'connect.words', game: 'connect', th: [50, 250, 1000, 3000, 10000] },
   { id: 'tiles.words', game: 'tiles', th: [25, 100, 500, 2000, 5000] },
   { id: 'tiles.points', game: 'tiles', th: [500, 2500, 10000, 50000, 150000] },
 ];
+TIERED.push(
+  { id: 'connect.boards', game: 'connect', th: [10, 30, 75, 200, 500] },
+  { id: 'connect.bonusHunter', game: 'connect', th: [5, 10, 15, 20, 30] },
+);
 export const CHALLENGES = [
   'tiles.bingo', 'tiles.len8', 'tiles.len10', 'tiles.triple', 'tiles.move100', 'tiles.rare1', 'tiles.multi3', 'tiles.beatHard', 'tiles.beatExpert',
 ].map(id => ({ id, game: 'tiles' }));
+
+for (const game of ['guess', 'letters', 'connect']) {
+  const ids = { guess: ['sharpshooter'], letters: ['lucky', 'longHaul', 'everyLength'], connect: ['unaided', 'hardBoard'] }[game];
+  CHALLENGES.push(...ids.map(id => ({ id: `${game}.${id}`, game })));
+}
 
 // Achievements return, counted from now on without back-filling old statistics (owner, 2026-11-14).
 stats.ach ??= { since: Date.now(), n: {}, got: {} };
 const ach = stats.ach;
 export const gotAt = key => ach.got[key] ?? null;
 
-// Reconcile lower Guess thresholds silently, keeping existing award dates.
-const guess = TIERED.find(d => d.id === 'guess.won');
-const reached = guess.th.flatMap((th, i) => (ach.n[guess.id] ?? 0) >= th && gotAt(`${guess.id}#${i}`) === null ? [`${guess.id}#${i}`] : []);
-if (reached.length) {
-  const at = Date.now();
-  for (const key of reached) ach.got[key] = at;
-  saveStats();
+// Remove retired awards and reconcile every ladder without startup notifications.
+const removed = ['guess.streak', 'letters.streak', 'guess.mindReader', 'guess.deepCut', 'guess.noHelp'];
+let migrated = false;
+for (const bag of [ach.n, ach.got]) {
+  for (const key of Object.keys(bag)) {
+    if (removed.some(id => key === id || key.startsWith(id + '#')) || (bag === ach.got && key === 'connect.bonusHunter')) {
+      delete bag[key]; migrated = true;
+    }
+  }
 }
+if ('streak' in ach) { delete ach.streak; migrated = true; }
+for (const def of TIERED) {
+  def.th.forEach((th, i) => {
+    const key = `${def.id}#${i}`;
+    if ((ach.n[def.id] ?? 0) >= th && gotAt(key) === null) {
+      ach.got[key] = Date.now(); migrated = true;
+    }
+  });
+}
+if (migrated) saveStats();
 
 export function playChallenges(move, { rarePct = null } = {}) {
   if (move.kind !== 'play' || move.hinted || move.approved) return [];
@@ -77,4 +98,28 @@ export function progress(def) {
   const value = ach.n[def.id] ?? 0, tiers = def.th.filter(th => value >= th).length;
   const next = def.th[tiers] ?? null;
   return { value, tiers, next, pct: next === null ? 100 : Math.round(Math.min(100, value / next * 100)) };
+}
+
+// Called only on a new terminal transition; reopening a finished save never counts it again.
+export function recordAchievementEnd(game, mode, difficulty = -1) {
+  const won = game.status === 'won';
+  if (won && mode === 'guess' && game.guesses.length <= 10) grant('guess.sharpshooter');
+  if (won && mode === 'letters') {
+    if (game.guesses.length <= 2) grant('letters.lucky');
+    const length = [...game.secret].length;
+    if (length >= 8) grant('letters.longHaul');
+    ach.lengths ??= [];
+    if (length >= 3 && length <= 13 && !ach.lengths.includes(length)) ach.lengths.push(length);
+    if (Array.from({ length: 11 }, (_, i) => i + 3).every(n => ach.lengths.includes(n))) grant('letters.everyLength');
+  }
+  if (won && mode === 'connect') {
+    bump('connect.boards');
+    if (!game.hints && !game.shown.length) grant('connect.unaided');
+    if (game.diff === 'hard') grant('connect.hardBoard');
+  }
+  saveStats();
+}
+export function recordConnectBonus(game) {
+  const best = ach.n['connect.bonusHunter'] ?? 0;
+  if (game.bonus.length > best) bump('connect.bonusHunter', game.bonus.length - best);
 }

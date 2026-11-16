@@ -3,7 +3,7 @@ const paths=[
 '<path d="M8 1.6 14.4 8 8 14.4 1.6 8Z"/>',
 '<path d="M8 1.4 13.7 4.7v6.6L8 14.6l-5.7-3.3V4.7Z"/>',
 '<path d="M8 .8C8.6 5.4 10.6 7.4 15.2 8 10.6 8.6 8.6 10.6 8 15.2 7.4 10.6 5.4 8.6 .8 8 5.4 7.4 7.4 5.4 8 .8Z"/>',
-'<path d="M8 .6 9.1 5.3 12.2 3.8 10.7 6.9 15.4 8 10.7 9.1 12.2 12.2 9.1 10.7 8 15.4 6.9 10.7 3.8 12.2 5.3 9.1 .6 8 5.3 6.9 3.8 3.8 6.9 5.3Z"/>'
+'<path d="m8 .8 2.2 4.5 5 .7-3.6 3.5.9 5L8 12.1l-4.5 2.4.9-5L.8 6l5-.7Z"/>'
 ];
 export const achievementLock='<svg class="lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="1.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>';
 const rect=(x,y,w=6,h=6)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1"/>`;
@@ -25,5 +25,14 @@ const drawings={
 };
 
 const icons = {"guess.won": "detective", "letters.won": "letters", "connect.words": "connect", "tiles.words": "builder", "tiles.points": "points", "tiles.bingo": "seven", "tiles.len8": "long", "tiles.len10": "longer", "tiles.triple": "triple", "tiles.move100": "century", "tiles.rare1": "rare", "tiles.beatHard": "hard", "tiles.beatExpert": "expert", "tiles.multi3": "multi"};
+drawings['connect.boards'] = '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18M15 9v12M9 15h12"/>'; icons['connect.boards'] = 'connect.boards';
+drawings['letters.lucky'] = '<path d="M12 12C1 13 2 3 8 5c4-6 10 0 4 7 11-1 10 9 4 7-4 6-10 0-4-7ZM12 12l-8 9"/>'; icons['letters.lucky'] = 'letters.lucky';
+drawings['letters.longHaul'] = '<rect x="1" y="8" width="22" height="8" rx="1"/><path d="M6.5 8v8M12 8v8M17.5 8v8M3 20h18m-3-2 3 2-3 2"/>'; icons['letters.longHaul'] = 'letters.longHaul';
+drawings['letters.everyLength'] = '<path d="M4 5h4M4 10h7M4 15h10M4 20h13m-3-13 3 3 5-6"/>'; icons['letters.everyLength'] = 'letters.everyLength';
+drawings['connect.unaided'] = '<path d="m4 12 5 5 11-11"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="19" r="2"/>'; icons['connect.unaided'] = 'connect.unaided';
+drawings['connect.bonusHunter'] = '<path d="m12 2 3 6 6 1-4 5 1 7-6-3-6 3 1-7-4-5 6-1ZM9 12h6M12 9v6"/>'; icons['connect.bonusHunter'] = 'connect.bonusHunter';
+drawings['connect.hardBoard'] = '<path d="m12 2 8 4v6c0 4-4 8-8 10-4-2-8-6-8-10V6ZM8 8h8v8H8ZM12 8v8M8 12h8"/>'; icons['connect.hardBoard'] = 'connect.hardBoard';
 export const achievementIcon = id => `<svg class="ach-icon" viewBox="0 0 24 24" aria-hidden="true">${drawings[icons[id]]}</svg>`;
-export const tierShape = (i, earned = true) => `<svg class="ach-shape" viewBox="0 0 16 16" aria-hidden="true" style="color:var(--${earned ? 'tier-' + ['bronze', 'silver', 'gold', 'diamond', 'amethyst'][i] : 'line'})">${paths[i]}</svg>`;
+export const tierShape = (i, earned = true) => `<svg class="ach-shape" viewBox="0 0 16 16" aria-hidden="true" style="color:var(--${earned ? 'tier-' + ['common', 'rare', 'epic', 'legendary', 'mythical'][i] : 'line'})">${paths[i]}</svg>`;
+
+drawings['guess.sharpshooter'] = '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 1v5M12 18v5M1 12h5M18 12h5"/>'; icons['guess.sharpshooter'] = 'guess.sharpshooter';

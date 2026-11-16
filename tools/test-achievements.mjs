@@ -19,20 +19,20 @@ const realNow = Date.now;
 let now = 1800000000000;
 Date.now = () => now;
 const { stats } = await import('../app/js/store.js');
-const { TIERS, TIERED, CHALLENGES, playChallenges, gameChallenges, bump, grant, progress, gotAt } = await import('../app/js/achievements.js');
+const { TIERS, TIERED, CHALLENGES, playChallenges, gameChallenges, bump, grant, progress, gotAt, recordAchievementEnd, recordConnectBonus } = await import('../app/js/achievements.js');
 const def = id => TIERED.find(d => d.id === id);
 
-check('the five tiers, in order', TIERS, ['bronze', 'silver', 'gold', 'diamond', 'amethyst']);
-check('the counters belong to their games and have five thresholds', TIERED, [
-  { id: 'guess.won', game: 'guess', th: [3, 10, 30, 80, 200] },
+check('the five tiers, in order', TIERS, ['common', 'rare', 'epic', 'legendary', 'mythical']);
+check('the counters belong to their games and have five thresholds', TIERED.slice(0, 5), [
+  { id: 'guess.won', game: 'guess', th: [5, 20, 50, 100, 200] },
   { id: 'letters.won', game: 'letters', th: [5, 25, 100, 300, 1000] },
   { id: 'connect.words', game: 'connect', th: [50, 250, 1000, 3000, 10000] },
   { id: 'tiles.words', game: 'tiles', th: [25, 100, 500, 2000, 5000] },
   { id: 'tiles.points', game: 'tiles', th: [500, 2500, 10000, 50000, 150000] },
 ]);
-check('the nine Tiles challenges', CHALLENGES, ['bingo', 'len8', 'len10', 'triple', 'move100', 'rare1', 'multi3', 'beatHard', 'beatExpert'].map(id => ({ id: 'tiles.' + id, game: 'tiles' })));
+check('the nine Tiles challenges', CHALLENGES.filter(d => d.game === 'tiles'), ['bingo', 'len8', 'len10', 'triple', 'move100', 'rare1', 'multi3', 'beatHard', 'beatExpert'].map(id => ({ id: 'tiles.' + id, game: 'tiles' })));
 check('old statistics do not unlock anything or fill counters', stats.ach, { since: now, n: {}, got: {} });
-check('an unseen counter starts at zero', progress(def('guess.won')), { value: 0, tiers: 0, next: 3, pct: 0 });
+check('an unseen counter starts at zero', progress(def('guess.won')), { value: 0, tiers: 0, next: 5, pct: 0 });
 check('an unseen key has no timestamp', gotAt('tiles.bingo'), null);
 
 const move = (words = ['cat'], fields = {}) => ({ kind: 'play', words: words.map(w => ({ w, score: 1 })), score: 20, bingo: false, placed: Array(3).fill({ ch: 'a' }), ...fields });
@@ -97,9 +97,9 @@ check('grant timestamp', gotAt('tiles.bingo'), now);
 now++;
 check('grant only once', grant('tiles.bingo'), []);
 check('grant keeps its first timestamp', gotAt('tiles.bingo'), now - 1);
-check('add below a tier without document', bump('guess.won', 2), []);
-check('save below a tier', JSON.parse(storage.get('wg.stats')).ach.n['guess.won'], 2);
-check('progress below a tier', progress(def('guess.won')), { value: 2, tiers: 0, next: 3, pct: 67 });
+check('add below a tier without document', bump('guess.won', 4), []);
+check('save below a tier', JSON.parse(storage.get('wg.stats')).ach.n['guess.won'], 4);
+check('progress below a tier', progress(def('guess.won')), { value: 4, tiers: 0, next: 5, pct: 80 });
 
 const events = [];
 Object.defineProperty(globalThis, 'CustomEvent', { configurable: true, value: class {
@@ -112,17 +112,17 @@ Object.defineProperty(globalThis, 'document', { configurable: true, writable: tr
 } } });
 check('cross one tier with default increment', bump('guess.won'), ['guess.won#0']);
 check('tier timestamp', gotAt('guess.won#0'), now);
-check('progress at a tier', progress(def('guess.won')), { value: 3, tiers: 1, next: 10, pct: 30 });
+check('progress at a tier', progress(def('guess.won')), { value: 5, tiers: 1, next: 20, pct: 25 });
 check('tier notice', events, [{ type: 'lexling:achievement', detail: { keys: ['guess.won#0'] } }]);
 now++;
-check('cross two tiers together', bump('guess.won', 27), ['guess.won#1', 'guess.won#2']);
+check('cross two tiers together', bump('guess.won', 45), ['guess.won#1', 'guess.won#2']);
 check('two tiers share a notice', events.at(-1), { type: 'lexling:achievement', detail: { keys: ['guess.won#1', 'guess.won#2'] } });
-check('progress rounds percentage', progress(def('guess.won')), { value: 30, tiers: 3, next: 80, pct: 38 });
+check('progress rounds percentage', progress(def('guess.won')), { value: 50, tiers: 3, next: 100, pct: 50 });
 check('old tiers keep their timestamps', gotAt('guess.won#0'), now - 1);
 check('new tiers have the current timestamp', [gotAt('guess.won#1'), gotAt('guess.won#2')], [now, now]);
 check('no key twice', bump('guess.won'), []);
 check('no notice below next threshold', events.length, 2);
-check('finish the ladder', bump('guess.won', 169), ['guess.won#3', 'guess.won#4']);
+check('finish the ladder', bump('guess.won', 149), ['guess.won#3', 'guess.won#4']);
 check('completed progress', progress(def('guess.won')), { value: 200, tiers: 5, next: null, pct: 100 });
 check('beyond the ladder', bump('guess.won'), []);
 check('completed percentage stays at 100', progress(def('guess.won')), { value: 201, tiers: 5, next: null, pct: 100 });
@@ -181,6 +181,14 @@ for (const value of [2, 3, 10, 30, 80, 200]) {
   check(`migration at ${value}: saves newly reached tiers`, saves.length, tiers > (value >= 5 ? 1 : 0) ? 1 : 0);
   check(`migration at ${value}: next bump awards only newly crossed tiers`, migrated.bump('guess.won'), def('guess.won').th.flatMap((th, i) => value < th && value + 1 >= th ? [`guess.won#${i}`] : []));
 }
+
+const retiredStats = { ach: { since: 123, n: { 'guess.streak': 8, 'letters.streak': 5, 'connect.boards': 200, 'connect.bonusHunter': 20 }, got: { 'guess.streak#0': 1, 'guess.mindReader': 1, 'guess.deepCut': 1, 'guess.noHelp': 1, 'letters.streak#1': 1, 'connect.bonusHunter': 1 }, streak: { guess: 2 } } };
+const retiredEvents = [];
+runInNewContext(achievementSource, { stats: retiredStats, saveStats() {}, Date, document: { dispatchEvent: e => retiredEvents.push(e) } });
+check('migration removes retired counters', Object.keys(retiredStats.ach.n).sort(), ['connect.boards', 'connect.bonusHunter']);
+check('migration removes old streak state', 'streak' in retiredStats.ach, false);
+check('migration reconciles boards and bonus best silently', [Object.keys(retiredStats.ach.got).sort(), retiredEvents.length], [
+  ['connect.boards#0','connect.boards#1','connect.boards#2','connect.boards#3','connect.bonusHunter#0','connect.bonusHunter#1','connect.bonusHunter#2','connect.bonusHunter#3'].sort(), 0]);
 
 const tilesSource = read('app/js/tiles-game.js');
 const { listedPct } = await import('../app/js/rarity.js');
@@ -284,14 +292,14 @@ function finishHook(file, signature, endMarker, ctx) {
   const source = read('app/js/' + file), at = source.indexOf(signature);
   return runInNewContext('(' + source.slice(at, source.indexOf(endMarker, at)).trim() + ')', ctx);
 }
-for (const [won, hint, expected] of [[true, false, 1], [true, true, 0], [false, false, 0]]) {
+for (const [won, hint, expected] of [[true, false, 1], [true, true, 1], [false, false, 0]]) {
   const calls = [], ctx = { game: { guesses: hint ? [{ hint: true }] : [] }, m: { hardOf: new Map() }, secretIdx: 0,
-    recordEnd() {}, bump: id => calls.push(id), chime() {}, say() {}, paintStatus() {}, paintEntry() {}, paintBoard() {}, refit() {}, window: { scrollTo() {} } };
+    recordEnd() {}, recordAchievementEnd() {}, bump: id => calls.push(id), chime() {}, say() {}, paintStatus() {}, paintEntry() {}, paintBoard() {}, refit() {}, window: { scrollTo() {} } };
   finishHook('game.js', '  function finish(won)', '\n  const box', ctx)(won);
   check(`Guess win=${won}, hint=${hint}`, calls, Array(expected).fill('guess.won'));
 }
 for (const status of ['won', 'lost', 'gaveup']) {
-  const calls = [], ctx = { game: {}, recordLettersEnd() {}, chime() {}, bump: id => calls.push(id), paintEnd() {} };
+  const calls = [], ctx = { game: {}, recordLettersEnd() {}, recordAchievementEnd() {}, chime() {}, bump: id => calls.push(id), paintEnd() {} };
   finishHook('letters-game.js', '  function finish(status', '\n  function paintEnd', ctx)(status);
   check('Letters ' + status, calls, status === 'won' ? ['letters.won'] : []);
 }
@@ -305,8 +313,64 @@ for (const shown of [[], ['1-1'], ['9-9']]) {
 }
 const bonusHook = connectSource.slice(connectSource.indexOf('      game.bonus.push(word);'), connectSource.indexOf('      putSave(game);', connectSource.indexOf('      game.bonus.push(word);')));
 const bonusCalls = [];
-runInNewContext(bonusHook, { game: { bonus: [], shown: ['1-1'] }, word: 'bonus', recordMove() {}, connectRecord() {}, collect() {}, bump: id => bonusCalls.push(id) });
+runInNewContext(bonusHook, { game: { bonus: [], shown: ['1-1'] }, word: 'bonus', recordConnectBonus() {}, recordMove() {}, connectRecord() {}, collect() {}, bump: id => bonusCalls.push(id) });
 check('Connect bonus word is unhinted', bonusCalls, ['connect.words']);
+
+check('new milestone thresholds', TIERED.slice(5).map(d => d.th), [[10,30,75,200,500],[5,10,15,20,30]]);
+check('removed definitions are absent', [...TIERED, ...CHALLENGES].some(d => /streak|mindReader|deepCut|noHelp/.test(d.id)), false);
+const end = (mode, fields = {}, difficulty = -1) => recordAchievementEnd({ status: 'won', guesses: Array(6).fill({}), secret: 'cat', hints: 0, shown: [], diff: 'normal', ...fields }, mode, difficulty);
+end('guess', { guesses: Array(11).fill({}) });
+check('eleven guesses misses sharpshooter', gotAt('guess.sharpshooter'), null);
+end('guess', { status: 'gaveup', guesses: [{}] });
+check('loss misses sharpshooter', gotAt('guess.sharpshooter'), null);
+end('guess', { guesses: Array(10).fill({hint:true}) });
+check('ten guesses including hints earns sharpshooter', gotAt('guess.sharpshooter'), now);
+end('letters', {guesses:Array(3).fill({})});
+check('three guesses misses lucky', gotAt('letters.lucky'), null);
+end('letters', {guesses:[{}]});
+check('one guess earns lucky', gotAt('letters.lucky'), now);
+delete stats.ach.got['letters.lucky'];
+end('letters', {guesses:[{},{}]});
+check('two guesses earns lucky', gotAt('letters.lucky'), now);
+end('letters', {secret:'abcdefg'});
+check('seven letters is not long haul', gotAt('letters.longHaul'), null);
+end('letters', {secret:'abcdefgh'});
+check('eight letters is long haul', gotAt('letters.longHaul'), now);
+for(let n=3;n<=12;n++) end('letters', {secret:'a'.repeat(n)});
+check('missing one length keeps challenge locked', gotAt('letters.everyLength'), null);
+end('letters', {secret:'a'.repeat(13),status:'lost'});
+check('lost length does not count', gotAt('letters.everyLength'), null);
+end('letters', {secret:'a'.repeat(13)});
+check('all eleven lengths unlock challenge', gotAt('letters.everyLength'), now);
+end('connect', {status:'gaveup'});
+check('abandoned board does not count', progress(def('connect.boards')).value, 0);
+end('connect', {hints:1,shown:['1-1']});
+check('hinted board counts but unaided stays locked', [progress(def('connect.boards')).value, gotAt('connect.unaided')], [1,null]);
+end('connect', {diff:'hard'});
+check('hard unhinted board earns both challenges', [gotAt('connect.unaided'),gotAt('connect.hardBoard')], [now,now]);
+recordConnectBonus({bonus:Array(4).fill('cat')});
+check('four bonus words insufficient', gotAt('connect.bonusHunter#0'), null);
+for (const n of [5,10,15,20,30]) {
+  recordConnectBonus({bonus:Array(n).fill('cat')});
+  check('bonus best at ' + n, progress(def('connect.bonusHunter')).value, n);
+}
+recordConnectBonus({bonus:Array(5).fill('cat')});
+check('bonus never accumulates across boards', progress(def('connect.bonusHunter')).value, 30);
+check('bonus all tiers', progress(def('connect.bonusHunter')).tiers, 5);
+for(let i=2;i<500;i++) end('connect');
+check('500 completed boards reaches all tiers',progress(def('connect.boards')).tiers,5);
+
+const savedNew = spawnSync(process.execPath, ['--input-type=module', '-e', `
+  const entries = new Map(JSON.parse(process.env.ACH_FIXTURE));
+  globalThis.localStorage = { getItem: k => entries.get(k) ?? null, setItem() {} };
+  const { stats } = await import(${JSON.stringify(new URL('../app/js/store.js', import.meta.url).href)});
+  await import(${JSON.stringify(new URL('../app/js/achievements.js', import.meta.url).href)});
+  console.log(JSON.stringify(stats.ach));
+`], { encoding: 'utf8', env: { ...process.env, ACH_FIXTURE: JSON.stringify([...storage]) } });
+check('new streaks, lengths, best counters and award dates survive reload', savedNew.status === 0 ? JSON.parse(savedNew.stdout) : savedNew.stderr, stats.ach);
+for (const [file, mode] of [['game.js','guess'],['letters-game.js','letters'],['connect-game.js','connect']]) {
+  check('production end hook: ' + mode, read('app/js/' + file).includes(`recordAchievementEnd(game, '${mode}'`), true);
+}
 
 // Render the actual screen and run the global notice listener against a tiny DOM stand-in.
 const listeners = new Map(), notices = [], timers = [];
@@ -330,17 +394,18 @@ for (const lang of ['en', 'pl']) {
     check(`${lang}: achievement name ${d.id}`, t('ach.' + d.id) !== 'ach.' + d.id, true);
     check(`${lang}: achievement description ${d.id}`, t(`ach.${d.id}.d`) !== `ach.${d.id}.d`, true);
   }
+  check(`${lang}: final tier names`, TIERS.map(k => t('tier.' + k)), lang === 'en' ? ['Common','Rare','Epic','Legendary','Mythical'] : ['Zwykły','Rzadki','Epicki','Legendarny','Mityczny']);
   check(`${lang}: action language`, t('ach.see'), lang === 'en' ? 'See it' : 'Zobacz');
   achievementsScreen(root);
   const html = root.innerHTML;
   check(`${lang}: five game tabs`, (html.match(/role="tab"/g) ?? []).length, 5);
-  check(`${lang}: fourteen achievement squares`, (html.match(/data-ach="/g) ?? []).length, 14);
-  check(`${lang}: five progress bars`, (html.match(/role="progressbar"/g) ?? []).length, 5);
-  check(`${lang}: twenty-five tier pips plus summary`, (html.match(/class="ach-shape"/g) ?? []).length, 30);
-  check(`${lang}: nine round challenge frames`, (html.match(/class="ach-frame"/g) ?? []).length, 9);
+  check(`${lang}: twenty-two achievement squares`, (html.match(/data-ach="/g) ?? []).length, 22);
+  check(`${lang}: seven progress bars`, (html.match(/role="progressbar"/g) ?? []).length, 7);
+  check(`${lang}: thirty-five tier pips plus summary`, (html.match(/class="ach-shape"/g) ?? []).length, 40);
+  check(`${lang}: no challenge frames`, (html.match(/class="ach-frame"/g) ?? []).length, 0);
   check(`${lang}: locked and earned tiles`, html.includes('ach-tile locked') && html.includes('ach-tile earned'), true);
-  check(`${lang}: counted since timestamp`, html.includes(t('ach.since', { d: dateTime(stats.ach.since) })), true);
-  check(`${lang}: summary counts only milestone tiers`, html.includes(t('ach.tiers', { a: num(TIERED.reduce((n, d) => n + TIERS.filter((_, i) => gotAt(`${d.id}#${i}`) !== null).length, 0)), b: num(25) })), true);
+  check(`${lang}: no counted-since timestamp`, html.includes(t('ach.since', { d: dateTime(stats.ach.since) })), false);
+  check(`${lang}: summary counts only milestone tiers`, html.includes(t('ach.tiers', { a: num(TIERED.reduce((n, d) => n + TIERS.filter((_, i) => gotAt(`${d.id}#${i}`) !== null).length, 0)), b: num(35) })), true);
   for (const key of ['tiers', 'milestones', 'challenges', 'see', 'nice', 'earned', 'detail']) check(`${lang}: translated ${key}`, t('ach.' + key) !== 'ach.' + key, true);
   statsScreen(root, null, () => {});
   check(`${lang}: Statistics links to achievements`, root.innerHTML.includes('href="#/achievements"'), true);
@@ -364,7 +429,7 @@ announce(['tiles.move100']);
 check('later unlock joins the queue', notices.length, 1);
 root.innerHTML = '<div>another screen</div>';
 timers.shift().fn();
-check('tier notice follows across screen changes', notices[0].innerHTML.includes(t('ach.guess.won') + ' · ' + t('tier.bronze')), true);
+check('tier notice follows across screen changes', notices[0].innerHTML.includes(t('ach.guess.won') + ' · ' + t('tier.common')), true);
 timers.shift().fn();
 check('later notice preserves queue order', notices[0].innerHTML.includes(t('ach.tiles.move100')), true);
 timers.shift().fn();
@@ -395,7 +460,7 @@ for (const d of [...TIERED, ...CHALLENGES]) {
   else check('challenge date or lock: ' + d.id, dialogs[0].innerHTML.includes(gotAt(d.id) === null ? t('ach.locked') : t('ach.got', { d: dateTime(gotAt(d.id)) })), true);
 }
 achievementDetail('letters.won');
-check('detail displays remaining progress', dialogs[0].innerHTML.includes(t('ach.toGo', { n: num(20), tier: t('tier.silver') })), true);
+check('detail displays remaining progress', dialogs[0].innerHTML.includes(t('ach.toGo', { n: num(20), tier: t('tier.rare') })), true);
 let prevented = false, stopped = false;
 dialogs[0].handlers.keydown({ key: 'Escape', preventDefault() { prevented = true; }, stopPropagation() { stopped = true; } });
 check('Escape closes detail without navigating away', [dialogs[0].open, prevented, stopped], [false, true, true]);

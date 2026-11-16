@@ -1,5 +1,16 @@
 // Recent releases in player language (owner, 2026-11-14). Keep the last three at release.
 export const whatsnew = [
+  { version: '0.70.0', date: '2026-11-16', en: [
+    'Achievements look closer to a game: Common, Rare, Epic, Legendary and Mythical levels, rounded cards and tabs per game.',
+    'New achievements for Guess, Letters and Connect - ones every player can reach, no win streaks.',
+    'Guess: with a category chosen, its words come first in the suggestions.',
+    'Word boxes show a single green border while typing.',
+  ], pl: [
+    'Osiągnięcia wyglądają bardziej jak w grze: poziomy Zwykły, Rzadki, Epicki, Legendarny i Mityczny, zaokrąglone karty i zakładki dla każdej gry.',
+    'Nowe osiągnięcia w Znaczeniu, Literach i Połącz - takie, które każdy może zdobyć, bez serii zwycięstw.',
+    'Znaczenie: przy wybranej kategorii jej słowa są pierwsze w podpowiedziach.',
+    'Pola na słowa mają podczas pisania jedno zielone obramowanie.',
+  ] },
   { version: '0.69.0', date: '2026-11-16', en: [
     'A new look for the main menu: four equal buttons with coloured icons.',
     'Tiles: a clearer last-move highlight in dark mode, thinner outlines, and the move cards centred right under the board.',
@@ -21,11 +32,6 @@ export const whatsnew = [
     'Ze znajomymi: słowa spoza słownika mogą przejść głosowaniem, a karta pokazuje, kto się zgodził, kto nie, a kto jeszcze wybiera.',
     'Ruch z kilkoma błędnymi słowami zaznacza je wszystkie naraz.',
     'Większa plansza na telefonach, przyciski powiększenia, rozpisanie punktów po dotknięciu ruchu oraz jaśniejsze wskazówki i ostrzeżenia.',
-  ] },
-  { version: '0.67.2', date: '2026-11-14', en: [
-    'Online games: only the host can end the game for everyone or take a player out, and giving up out of turn no longer costs the player on turn any time.',
-  ], pl: [
-    'Gra online: tylko gospodarz może zakończyć grę dla wszystkich lub usunąć gracza, a poddanie się poza swoją kolejką nie zabiera czasu graczowi, który ma ruch.',
   ] },
 ];
 

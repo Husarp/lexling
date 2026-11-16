@@ -5,7 +5,7 @@ import { load, resolve, suggest, rankAll, pct, hint, HINT_FLOOR } from './engine
 import { topbar, fillColor, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink, gameTitle, flashTap } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
-import { bump } from './achievements.js';
+import { bump, recordAchievementEnd } from './achievements.js';
 
 const FORM_EXAMPLE = { pl: { a: 'psami', b: 'pies' }, en: { a: 'mice', b: 'mouse' } };
 
@@ -100,7 +100,7 @@ export async function gameScreen(root, id) {
   }
 
   function paintAc() {
-    items = suggest(m, input.value, 4, settings.fuzzy);
+    items = suggest(m, input.value, 4, settings.fuzzy, game.friend ? null : game.cat);
     ac.hidden = !items.length;
     const n = input.value.trim().length;
     ac.innerHTML = items.map((h, i) => `<button type="button" role="option" data-i="${i}" class="${i === hl ? 'hl' : ''}"><span><b>${esc(h.w.slice(0, n))}</b>${esc(h.w.slice(n))}</span><span class="to">${
@@ -154,7 +154,7 @@ export async function gameScreen(root, id) {
   function submit(option) {
     const text = input.value.trim();
     if (!text) return;
-    option ??= picked ? items[hl] : null;
+    option ??= items[picked ? hl : 0];
     const hit = option ? { idx: option.idx, typed: option.w } : resolve(m, text) ?? (items[0] && { idx: items[0].idx, typed: items[0].w });
     if (!hit) return say(t('game.unknown', { w: text }));
     const word = m.words[hit.idx];
@@ -189,7 +189,8 @@ export async function gameScreen(root, id) {
   function finish(won) {
     game.status = won ? 'won' : 'gaveup';
     recordEnd(game, won, m.hardOf.get(secretIdx) ?? -1);
-    if (won && !game.guesses.some(g => g.hint)) bump('guess.won');
+    if (won) bump('guess.won');
+    recordAchievementEnd(game, 'guess', m.hardOf.get(secretIdx) ?? -1);
     if (won) chime();
     say('');
     paintStatus();

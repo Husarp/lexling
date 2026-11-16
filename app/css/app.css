@@ -92,7 +92,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:none;box-
 .toggle::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform var(--dur) var(--ease)}
 .toggle.on{background:var(--accent)}.toggle.on::after{transform:translateX(20px)}
 .input{width:100%;min-height:48px;padding:0 var(--space-4);background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius-sm);color:var(--text);font:500 16px/1.2 var(--font-body);transition:border-color var(--dur) var(--ease)}
-.input::placeholder{color:var(--text-dim)}.input:focus{border-color:var(--accent);box-shadow:var(--focus);outline:0}
+.input::placeholder{color:var(--text-dim)}.input:focus{border-color:var(--success);box-shadow:none;outline:0}
 input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3) var(--space-4);padding:var(--space-4) 0;border-bottom:1px solid var(--line-soft)}
 .row-text{flex:1 1 220px;min-width:0}
@@ -1576,10 +1576,10 @@ input,textarea{-webkit-user-select:text;user-select:text}
    The glyph sits above the name, names are Barlow Condensed, and each tab is only as wide as its name (flex auto),
    so "ZNACZENIE" takes the room "OGÓLNE" doesn't need. At 320 the five fit with ~20px to spare.
    From a 600px column the glyph moves beside the name. */
-[data-screen=stats] .seg.st-tabs{position:sticky;top:0;z-index:4;display:flex;gap:2px;padding:3px}
-[data-screen=stats] .seg.st-tabs button{flex:1 1 auto;min-width:0;min-height:52px;padding:7px 4px 6px;display:grid;justify-items:center;align-content:center;gap:7px;border-radius:11px;font:700 14px/1 var(--font-display);letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
-[data-screen=stats] .st-tabs .tg{height:14px;display:grid;place-items:center}
-@container (min-width:600px){[data-screen=stats] .seg.st-tabs button{grid-auto-flow:column;gap:9px;min-height:46px;padding:0 10px;font-size:16px}}
+:is([data-screen=stats],[data-screen=achievements]) .seg.st-tabs{position:sticky;top:0;z-index:4;display:flex;gap:2px;padding:3px}
+:is([data-screen=stats],[data-screen=achievements]) .seg.st-tabs button{flex:1 1 auto;min-width:0;min-height:52px;padding:7px 4px 6px;display:grid;justify-items:center;align-content:center;gap:7px;border-radius:11px;font:700 14px/1 var(--font-display);letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
+:is([data-screen=stats],[data-screen=achievements]) .st-tabs .tg{height:14px;display:grid;place-items:center}
+@container (min-width:600px){:is([data-screen=stats],[data-screen=achievements]) .seg.st-tabs button{grid-auto-flow:column;gap:9px;min-height:46px;padding:0 10px;font-size:16px}}
 /* General's glyph: one square per game, in the colours the "games by mode" chart uses */
 .glyph.all{display:grid;grid-template-columns:repeat(2,6px);grid-auto-rows:6px;gap:2px}
 .glyph.all i{border-radius:1.5px}
@@ -1850,8 +1850,8 @@ canvas.co-dots{display:block;width:100%}
 }
 
 /* Achievements return: design "1b Tier ladder", in every palette (owner, 2026-11-14). */
-:root{--tier-bronze:#A9713F;--tier-silver:#B9BFC7;--tier-gold:#E0AF2B;--tier-diamond:#DDF3FF;--tier-amethyst:#9B6BB0}
-[data-theme=light]{--tier-bronze:#805023;--tier-silver:#52606C;--tier-gold:#775700;--tier-diamond:#285F7C;--tier-amethyst:#74458F}
+:root{--tier-common:#69db7c;--tier-rare:#74c0fc;--tier-epic:#da77f2;--tier-legendary:#ffd43b;--tier-mythical:#ff3b2a}
+[data-theme=light]{--tier-common:#2f9e44;--tier-rare:#1c7ed6;--tier-epic:#9c36b5;--tier-legendary:#e09400;--tier-mythical:#e8261c}
 [data-screen=menu] .menu.bar{grid-template-columns:repeat(2,minmax(0,1fr))}
 [data-screen=menu] .menu.bar a:nth-child(3){border-left:0}
 [data-screen=menu] .menu.bar a:nth-child(n+3){border-top:1px solid var(--line-soft)}
@@ -1867,21 +1867,15 @@ canvas.co-dots{display:block;width:100%}
 .ach-summary .num{display:block;font-size:32px}
 .ach-summary small{display:block;color:var(--text-muted);font-size:11px}
 .ach-count{display:grid;justify-items:center;gap:5px;font-size:12px}
-.ach-tabs{display:flex;border-bottom:1px solid var(--line-soft);margin:18px 0;overflow:auto}
-.ach-tabs button{flex:1;padding:10px 4px;border:0;border-bottom:3px solid transparent;background:none;color:var(--text-muted);font:inherit;font-size:12px;cursor:pointer}
-.ach-tabs [aria-selected=true]{border-bottom-color:var(--accent);color:var(--text)}
 .ach-heading{font-size:12px;color:var(--text-muted);margin:20px 0 10px}
 .ach-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:20px}
-.ach-tile{position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-width:0;padding:8px 4px;border:1px solid color-mix(in srgb,var(--ink) 22%,var(--line-soft));background:color-mix(in srgb,var(--ink) 17%,var(--surface));color:var(--text);cursor:pointer;font:inherit}
+.ach-tile{border-radius:10px;position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-width:0;padding:8px 4px;border:1px solid color-mix(in srgb,var(--ink) 22%,var(--line-soft));background:color-mix(in srgb,var(--ink) 17%,var(--surface));color:var(--text);cursor:pointer;font:inherit}
 .ach-tile strong{font-size:clamp(10px,2.7vw,14px);line-height:1.25;text-align:center;font-weight:600;overflow-wrap:anywhere}
 .ach-tile.locked{background:var(--surface);color:var(--text-muted)}
 .ach-tile.locked .ach-icon{opacity:.55}
 .ach-tile>.lock{position:absolute;right:5px;top:5px;width:12px;height:12px}
 .lock{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .ach-tile>.ach-bar{width:70%;flex:none}
-.ach-frame{display:grid;place-items:center;width:42px;height:42px;border:1.5px solid var(--ink);border-radius:50%}
-.ach-frame .ach-icon{width:27px;height:27px}
-.locked .ach-frame{border-style:dashed}
 .achievement-detail{margin:auto;width:min(360px,calc(100% - 24px));max-height:85dvh;box-sizing:border-box;overflow:auto;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:20px;padding:24px;box-shadow:var(--shadow-md)}
 .achievement-detail::backdrop{background:#0008}
 @media (hover:hover) and (pointer:fine){
@@ -1911,8 +1905,6 @@ canvas.co-dots{display:block;width:100%}
 
 [data-screen=achievements] .main{gap:0}
 [data-screen=achievements] .main>.title{margin-bottom:0}
-.ach-hero>.ach-frame{margin:0 auto 12px;width:76px;height:76px}
-.ach-hero>.ach-frame .ach-icon{width:48px;height:48px}
 
 .word-meaning{max-height:60vh;overflow:auto;line-height:1.6}
 .word-meaning ol{padding-left:24px}.word-meaning li+li{margin-top:8px}
@@ -1939,7 +1931,7 @@ canvas.co-dots{display:block;width:100%}
 
 /* Ticket 30: one border for checking words, independent of result and accent. */
 .tl-check .input{border:1px solid #60656d;outline:none;box-shadow:none}
-.tl-check .input:focus{border-color:#959ba5;outline:none;box-shadow:none}
+.tl-check .input:focus{border-color:var(--success);outline:none;box-shadow:none}
 [data-screen=games] .save-last .vs .player-icon{width:12px;height:12px;flex:none;color:var(--pc)}
 /* Keep unused board space above the board, with centred cards immediately below. */
 [data-screen=tiles] .tl-bwrap{justify-content:flex-end}

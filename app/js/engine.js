@@ -126,7 +126,12 @@ function variants(key, lang) {
 
 // Suggestions while typing: exact spellings first, then the most common base words starting with the
 // text, then inflected forms. One row per word. `spelling` also tries the confusable spellings above.
-export function suggest(m, text, limit = 4, spelling = true) {
+export function suggest(m, text, limit = 4, spelling = true, category = null) {
+  if (category && category !== 'all' && m.cats?.[category]?.length) {
+    const preferred = new Set(m.cats[category]);
+    const rows = suggest(m, text, m.count, spelling);
+    return [...rows.filter(row => preferred.has(row.idx)), ...rows.filter(row => !preferred.has(row.idx))].slice(0, limit);
+  }
   const written = text.trim().toLowerCase();
   const typed = fold(written);
   if (!typed) return [];

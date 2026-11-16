@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fold, suggest } from '../app/js/engine.js';
+let passed = 0;
+const check = (name, actual, expected) => { assert.deepEqual(actual, expected, name); passed++; };
+const words = ['słońce', 'słowo', 'słodki', 'słownik', 'słoń', 'słonka'];
+const ac = [...words, 'słonie'].sort((a,b) => fold(a) < fold(b) ? -1 : fold(a) > fold(b) ? 1 : 0);
+const m = { lang:'pl', words, count:words.length, folded:words.map(fold), ac,
+  acIdx: ac.map(w => w === 'słonie' ? 4 : words.indexOf(w)), secretSet:new Set(words.map((_,i)=>i)), cats:{animals:[4,5]} };
+const rows = (text, cat, limit=4) => suggest(m,text,limit,false,cat).map(r=>r.w);
+check('unchanged without category', rows('sło'), words.slice(0,4));
+check('all category unchanged', rows('sło','all'), rows('sło'));
+check('category words beyond normal limit move first', rows('sło','animals'), ['słoń','słonka','słońce','słowo']);
+check('folded prefix category ranking', rows('slo','animals'), rows('sło','animals'));
+check('exact word remains among results after category first', rows('słońce','animals'), ['słońce']);
+check('inflection inherits base category', rows('słonie','animals'), ['słonie']);
+check('empty category unchanged', rows('sło','missing'), rows('sło'));
+check('empty query', rows('','animals'), []);
+check('limit respected', rows('sło','animals',1), ['słoń']);
+const source = readFileSync(new URL('../app/js/game.js', import.meta.url),'utf8');
+check('Enter uses first suggestion unless another is highlighted', source.includes('option ??= items[picked ? hl : 0]'), true);
+check('Guess passes selected category and excludes friend games', source.includes('settings.fuzzy, game.friend ? null : game.cat'), true);
+console.log(`All ${passed} Guess suggestion tests passed`);

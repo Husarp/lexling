@@ -1265,22 +1265,22 @@ const statFilter = {};      // per game: { lang, lv } - the language and the lev
 const MODES = ['guess', 'letters', 'connect', 'tiles'];
 
 // Approved square achievement grid; progress and dates come from the live ledger.
+const gameTabs = (tabs, selected, attr, generalLabel) => `<div class="seg st-tabs" role="tablist">${tabs.map(m => `<button type="button" role="tab" data-${attr}="${m}" class="${on(selected === m)}" ${attr === 'ach-tab' ? `tabindex="${selected === m ? 0 : -1}"` : ''} aria-selected="${selected === m}"><span class="tg">${GLYPH[m === 'general' ? 'all' : m] ?? ''}</span>${t(m === 'general' || m === 'all' ? generalLabel : 'mode.' + m)}</button>`).join('')}</div>`;
 let achievementTab = 'all';
 export function achievementsScreen(root) {
   const reached = TIERED.reduce((n, d) => n + TIERS.filter((_, i) => gotAt(`${d.id}#${i}`) !== null).length, 0);
   const filtered = ds => ds.filter(d => achievementTab === 'all' || d.game === achievementTab);
   const tile = d => {
     const level = achievementState(d);
-    return `<button class="ach-tile ${level < 0 ? 'locked' : 'earned'}" data-ach="${d.id}" style="--ink:${achievementInk(level)}" aria-label="${t('ach.' + d.id)} · ${level < 0 ? t('ach.locked') : level === 5 ? t('ach.earned') : t('tier.' + TIERS[level])} · ${t('ach.detail')}">${d.th ? achievementIcon(d.id) : `<span class="ach-frame">${achievementIcon(d.id)}</span>`}${level < 0 ? achievementLock : ''}<strong>${t('ach.' + d.id)}</strong>${d.th ? achievementPips(level) + achievementBar(d) : ''}</button>`;
+    return `<button class="ach-tile ${level < 0 ? 'locked' : 'earned'}" data-ach="${d.id}" style="--ink:${achievementInk(level)}" aria-label="${t('ach.' + d.id)} · ${level < 0 ? t('ach.locked') : level === 5 ? t('ach.earned') : t('tier.' + TIERS[level])} · ${t('ach.detail')}">${achievementIcon(d.id)}${level < 0 ? achievementLock : ''}<strong>${t('ach.' + d.id)}</strong>${d.th ? achievementPips(level) + achievementBar(d) : ''}</button>`;
   };
   root.innerHTML = `<div class="app" data-screen="achievements">
     ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
     <main class="main"><h1 class="title">${t('ach.title')}</h1>
-      <div class="ach-summary"><div><b class="num">${num(reached)}</b><small>${t('ach.tiers', { a: num(reached), b: num(25) })}</small></div>${TIERS.map((tier, i) => `<span class="ach-count" title="${t('tier.' + tier)}" aria-label="${t('tier.' + tier)}: ${TIERED.filter(d => gotAt(`${d.id}#${i}`) !== null).length}">${tierShape(i)}${num(TIERED.filter(d => gotAt(`${d.id}#${i}`) !== null).length)}</span>`).join('')}</div>
-      <p class="help">${t('ach.since', { d: dateTime(stats.ach.since) })}</p>
-      <div class="ach-tabs" role="tablist" aria-label="${t('ach.title')}">${['all', ...GAMES].map(game => `<button role="tab" tabindex="${game === achievementTab ? 0 : -1}" aria-selected="${game === achievementTab}" data-ach-tab="${game}">${t(game === 'all' ? 'col.all' : 'mode.' + game)}</button>`).join('')}</div>
+      <div class="ach-summary"><div><b class="num">${num(reached)}</b><small>${t('ach.tiers', { a: num(reached), b: num(TIERED.length * TIERS.length) })}</small></div>${TIERS.map((tier, i) => `<span class="ach-count" title="${t('tier.' + tier)}" aria-label="${t('tier.' + tier)}: ${TIERED.filter(d => gotAt(`${d.id}#${i}`) !== null).length}">${tierShape(i)}${num(TIERED.filter(d => gotAt(`${d.id}#${i}`) !== null).length)}</span>`).join('')}</div>
+      ${gameTabs(['all', ...GAMES], achievementTab, 'ach-tab', 'col.all')}
       ${filtered(TIERED).length ? `<h2 class="ach-heading">${t('ach.milestones')}</h2><div class="ach-grid">${filtered(TIERED).map(tile).join('')}</div>` : ''}
-      ${filtered(CHALLENGES).length ? `<h2 class="ach-heading">${t('ach.challenges')} · ${num(CHALLENGES.filter(d => gotAt(d.id) !== null).length)} / ${num(CHALLENGES.length)}</h2><div class="ach-grid">${filtered(CHALLENGES).map(tile).join('')}</div><p class="help">${t('ach.fair')}</p>` : ''}
+      ${filtered(CHALLENGES).length ? `<h2 class="ach-heading">${t('ach.challenges')} · ${num(filtered(CHALLENGES).filter(d => gotAt(d.id) !== null).length)} / ${num(filtered(CHALLENGES).length)}</h2><div class="ach-grid">${filtered(CHALLENGES).map(tile).join('')}</div><p class="help">${t('ach.fair')}</p>` : ''}
     </main></div>`;
   root.querySelectorAll('[data-ach-tab]').forEach(b => {
     b.addEventListener('click', () => { achievementTab = b.dataset.achTab; achievementsScreen(root); root.querySelector('[aria-selected=true]')?.focus(); });
@@ -1436,9 +1436,7 @@ export function statsScreen(root, _, refresh) {
   <main class="main">
     <h1 class="title">${t('stats.title')}</h1>
     <a class="btn btn-outline" href="#/achievements">${t('menu.ach')} <span class="arrow">→</span></a>
-    <div class="seg st-tabs" role="tablist">${STAT_TABS.map(m =>
-    `<button type="button" role="tab" data-tab="${m}" class="${on(statsTab === m)}" aria-selected="${statsTab === m}"><span class="tg">${GLYPH[m === 'general' ? 'all' : m] ?? ''}</span>${
-      t(m === 'general' ? 'stats.general' : 'mode.' + m)}</button>`).join('')}</div>
+    ${gameTabs(STAT_TABS, statsTab, 'tab', 'stats.general')}
     ${statsTab === 'general' ? '' : filters(statsTab)}
     <section class="section" role="tabpanel">
       ${none ? `<div class="none"><strong>${t('stats.none', { g: t('mode.' + statsTab) })}</strong><p class="help">${t('stats.noneHelp')}</p></div>` : ''}
