@@ -359,17 +359,6 @@ export async function tilesGameScreen(root, id) {
     const shownDraft = draft.filter((_, i) => i !== lifted);
     tb.className = `tb n${n}${zoom.z > 1 ? ' zoom' : ''}${looks()}`;
     tb.innerHTML = boardInner(S, { draft: shownDraft, bad: !!res?.error && res.error !== 'word', badWords: res?.bad ?? [], cursor: myTurn() && mode === 'play' ? cursor : null, drop: dropAt, hinted: hintedCells(), peek: peekAt });
-    const marks = [];
-    if (res?.error === 'centre') marks.push(centre(S.board));
-    if (res?.error === 'alone') marks.push(...shownDraft.map(d => d.r * n + d.c));
-    if (res?.error === 'gap') {
-      const across = draft.every(d => d.r === draft[0].r), positions = draft.map(d => across ? d.c : d.r);
-      for (let k = Math.min(...positions); k <= Math.max(...positions); k++) {
-        const i = across ? draft[0].r * n + k : k * n + draft[0].c;
-        if (!S.cells[i] && !draft.some(d => d.r * n + d.c === i)) marks.push(i);
-      }
-    }
-    tb.innerHTML += marks.map(i => `<span class="tl-fix" aria-hidden="true" style="grid-row:${Math.floor(i / n) + 1};grid-column:${i % n + 1}">!</span>`).join('');
     applyZoom(!!(pinch || press?.drag));
     // tiles that just came down settle in, 150 ms each, 60 apart (design: motion)
     landing?.forEach((i, k) => tb.querySelector(`[data-i="${i}"]`)?.animate([{ transform: 'translateY(-35%) scale(1.15)', opacity: 0 }, { transform: 'none', opacity: 1 }],

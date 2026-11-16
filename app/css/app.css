@@ -851,10 +851,10 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .t{--ring:transparent;--rw:0px;box-shadow:inset 0 0 0 var(--rw) var(--ring),inset 0 calc(var(--cs) * -.07) 0 rgba(0,0,0,.2)}
 /* Only the last move outlined until the next one (owner, 2026-11-14). Tile ink stays legible on every tile colour;
    the inset ring follows raised faces and fades with peek. Hint previews keep their own dashed look. */
-.t.last{--ring:var(--tl-ink);--rw:calc(var(--cs) * .055)}
+.t.last{--ring:#388DB5;--rw:1px;background:color-mix(in srgb,var(--tl-tile) 78%,#77CDED)}
 /* this turn's tiles: a theme-colour ring; red when the move can't be played */
-.t.new{--ring:var(--accent);--rw:calc(var(--cs) * .1)}
-.tb .t.bad{--ring:var(--error);--rw:calc(var(--cs) * .1);outline:calc(var(--cs) * .06) solid var(--error);outline-offset:calc(var(--cs) * -.07)}
+.t.new{--ring:var(--accent);--rw:1px}
+.tb .t.bad{--ring:var(--error);--rw:1px;outline:none}
 /* a hint: the look every Lexling hint has — no fill, dashed edge, muted letter */
 .t.hint{background:var(--surface);color:var(--text-muted);box-shadow:none;outline:calc(var(--cs) * .06) dashed var(--text-muted);outline-offset:calc(var(--cs) * -.07)}
 .t.hint .p{color:var(--text-muted)}
@@ -1396,7 +1396,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
   [data-screen=tiles] .status-actions:not(:has([data-act=undo])) .btn:not(.tl-find){padding:0 6px}
 }
 /* white tiles on the light board's near-white squares: a thin grey edge, so a tile still stands out (a new tile's ring wins) */
-:root[data-theme=light][data-tilecolour=white] .t:not(.new):not(.hint){--ring:#BFC5D0;--rw:1px}
+:root[data-theme=light][data-tilecolour=white] .t:not(.new):not(.hint):not(.last):not(.bad){--ring:#BFC5D0;--rw:1px}
 /* the desktop layout's side column is 360 px wide - the same one-line row as a narrow phone (four icons since 0.47.0) */
 @container (min-width:900px){
   [data-screen=tiles] .status-actions:not(:has([data-act=undo])){flex-wrap:nowrap;gap:4px;min-width:0}
@@ -1685,14 +1685,16 @@ input,textarea{-webkit-user-select:text;user-select:text}
   [data-screen=menu] .games.tight .g-name{font-size:28px}
   [data-screen=menu] .games.tight .g-desc{font-size:13px}
 }
-/* Statistics · Collection · Settings: one bar of three, divided by hairlines - one row at every width, and quieter than
-   the games above it. Barlow Condensed, so "USTAWIENIA" fits a 93px third at 320. */
-[data-screen=menu] .menu.bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));max-width:none;margin-top:var(--space-1);background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-lg);overflow:hidden}
-[data-screen=menu] .menu.bar a{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;min-height:50px;padding:0 4px;font:700 16px/1 var(--font-display);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;color:var(--text);transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
-[data-screen=menu] .menu.bar a+a{border-left:1px solid var(--line-soft)}
-[data-screen=menu] .menu.bar a:hover{color:var(--accent);background:var(--accent-soft)}
-[data-screen=menu] .menu.bar .arrow{display:none}
-@container (min-width:600px){[data-screen=menu] .menu.bar a{min-height:54px;font-size:18px}[data-screen=menu] .menu.bar .arrow{display:inline}}
+/* Main menu: equal option-C cards with palette-aware outline badges. */
+[data-screen=menu] .menu.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-width:none;margin-top:var(--space-1)}
+[data-screen=menu] .menu.cards a{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-width:0;height:94px;padding:10px 6px;border:1px solid var(--line-soft);border-radius:12px;background:var(--surface);box-shadow:var(--shadow-md);color:var(--text);font:700 17px/1.1 var(--font-display);letter-spacing:.025em;text-transform:uppercase;text-align:center;overflow-wrap:anywhere;transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+[data-screen=menu] .menu.cards a:hover{background:var(--accent-soft);border-color:var(--accent)}
+[data-screen=menu] .menu.cards a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.menu-badge{display:grid;place-items:center;box-sizing:border-box;flex:none;width:36px;height:36px;padding:6px;border-radius:10px;background:var(--rare-blue-bg);color:var(--rare-blue-ink)}
+.menu.cards a:nth-child(2) .menu-badge{background:var(--rare-gold-bg);color:var(--rare-gold-ink)}
+.menu.cards a:nth-child(3) .menu-badge{background:var(--rare-purple-bg);color:var(--rare-purple-ink)}
+.menu.cards a:nth-child(4) .menu-badge{background:var(--rare-grey-bg);color:var(--rare-grey-ink)}
+.menu-badge svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 
 /* ── Time: the clock beside the name, the reminder ── (.tb-clock and .rm-every are in app.css)
    The clock is 12px, --text-dim, tabular, right of LEX/LING. */
@@ -1919,7 +1921,6 @@ canvas.co-dots{display:block;width:100%}
 /* Tiles: keep the board's controls outside the playable squares. */
 [data-screen=tiles] .tl-moves{min-height:0}
 .tl-moves .mc-bag:empty{display:none}
-.tl-fix{z-index:30;border:2px dashed var(--error);border-radius:4px;color:var(--error);font-weight:800;display:grid;place-items:center;pointer-events:none;background:transparent;text-shadow:0 1px var(--surface)}
 .tl-moves button.pt{background:none;border:0;padding:4px;cursor:pointer;text-decoration:underline;text-underline-offset:4px;min-height:36px}
 .tl-moves button.pt:disabled{text-decoration:none;cursor:default}
 .ps .nm{white-space:normal;overflow-wrap:anywhere;overflow:visible}
@@ -1935,3 +1936,26 @@ canvas.co-dots{display:block;width:100%}
 
 .tl-dock .play:has(#tl-play-reason){flex-direction:column;gap:2px;padding:4px 8px}
 #tl-play-reason{font:500 11px/1.2 var(--font-body);letter-spacing:0;text-transform:none}
+
+/* Ticket 30: one border for checking words, independent of result and accent. */
+.tl-check .input{border:1px solid #60656d;outline:none;box-shadow:none}
+.tl-check .input:focus{border-color:#959ba5;outline:none;box-shadow:none}
+[data-screen=games] .save-last .vs .player-icon{width:12px;height:12px;flex:none;color:var(--pc)}
+/* Keep unused board space above the board, with centred cards immediately below. */
+[data-screen=tiles] .tl-bwrap{justify-content:flex-end}
+[data-screen=tiles] .tl-messages{width:100%;max-width:560px;justify-self:center;min-width:0}
+@container (min-width:900px){
+  [data-screen=tiles] .tl-play{grid-template-rows:auto auto auto minmax(0,1fr) auto auto;grid-template-areas:"board status" "board rack" "board dock" "board panel" "say panel" ". keys"}
+}
+/* Native details content remains rendered during closing, animating height and fade. */
+@supports (interpolate-size:allow-keywords){
+  details{interpolate-size:allow-keywords}
+  details::details-content{height:0;opacity:0;overflow:clip;transition:height 200ms ease,opacity 200ms ease,content-visibility 200ms allow-discrete}
+  details[open]::details-content{height:auto;opacity:1}
+}
+@media(prefers-reduced-motion:reduce){
+  details::details-content{transition:none}
+}
+
+[data-screen=tiles] .tl-messages .tl-moves{grid-area:auto}
+.tb .t.bad.hint{outline:none;box-shadow:inset 0 0 0 1px var(--error)}

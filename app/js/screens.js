@@ -87,11 +87,11 @@ export function menu(root, _, refresh) {
       <h1 class="display">${t('menu.h1')}</h1>
       <p class="tagline">${t('menu.tagline')}</p>
       <nav class="games tight" aria-label="${t('menu.modesAria')}">${GAMES.map(row).join('')}</nav>
-      <nav class="menu bar" aria-label="${t('menu.nav')}">
-        <a href="#/stats">${t('menu.stats')} <span class="arrow">→</span></a>
-        <a href="#/achievements">${t('menu.ach')} <span class="arrow">→</span></a>
-        <a href="#/collection">${t('menu.collection')} <span class="arrow">→</span></a>
-        <a href="#/settings">${t('menu.settings')} <span class="arrow">→</span></a>
+      <nav class="menu cards" aria-label="${t('menu.nav')}">
+        <a href="#/stats"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="13" width="3" height="7" rx=".5"/><rect x="10.5" y="4" width="3" height="16" rx=".5"/><rect x="17" y="9" width="3" height="11" rx=".5"/></svg></span><span>${t('menu.stats')}</span></a>
+        <a href="#/achievements"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg></span><span>${t('menu.ach')}</span></a>
+        <a href="#/collection"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="4" height="15" rx=".5"/><rect x="10" y="3" width="4" height="17" rx=".5"/><path d="m16 6 3-1 3 14-3 1z"/></svg></span><span>${t('menu.collection')}</span></a>
+        <a href="#/settings"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9.5 3-.5 2a7.5 7.5 0 0 0-2 1.2l-2-.6-2 3.4L4.5 10a7.5 7.5 0 0 0 0 4L3 15l2 3.4 2-.6A7.5 7.5 0 0 0 9 19l.5 2h5l.5-2a7.5 7.5 0 0 0 2-1.2l2 .6 2-3.4-1.5-1a7.5 7.5 0 0 0 0-4L21 9l-2-3.4-2 .6A7.5 7.5 0 0 0 15 5l-.5-2z"/><circle cx="12" cy="12" r="3"/></svg></span><span>${t('menu.settings')}</span></a>
       </nav>
       <div class="upd-slot"></div>
     </div>
@@ -234,9 +234,12 @@ export function games(root, mode, refresh) {
   };
   const tilesCard = g => {
     const s = g.state, np = s.players.length, alone = s.players.filter(x => !x.cpu).length === 1;
+    const playerIcon = p => `<svg class="player-icon pc${p}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${s.players[p].cpu
+      ? '<rect x="3" y="3" width="18" height="13" rx="2"/><path d="M12 16v5m-5 0h10"/>'
+      : '<circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>'}</svg>`;
     const vs = np === 2
-      ? `<span class="vs"><i class="pc0"></i>${esc(nameOf(s, 0))} <b class="num">${s.scores[0]}</b> : <b class="num">${s.scores[1]}</b> ${esc(nameOf(s, 1))}<i class="pc1"></i></span>`
-      : `<span class="vs">${s.players.map((_, p) => `<i class="pc${p}"></i>${esc(nameOf(s, p))} <b class="num">${s.scores[p]}</b>`).join(' ')}</span>`;
+      ? `<span class="vs">${playerIcon(0)}${esc(nameOf(s, 0))} <b class="num">${s.scores[0]}</b> : <b class="num">${s.scores[1]}</b> ${esc(nameOf(s, 1))}${playerIcon(1)}</span>`
+      : `<span class="vs">${s.players.map((_, p) => `${playerIcon(p)}${esc(nameOf(s, p))} <b class="num">${s.scores[p]}</b>`).join(' ')}</span>`;
     const turn = (g.link ? s.turn === g.link.me : alone && !s.players[s.turn].cpu) ? t('tiles.save.yourTurn') : t('tiles.save.turn', { name: esc(nameOf(s, s.turn)) });
     return `<article class="card save" data-id="${g.id}">
   <div>
