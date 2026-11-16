@@ -207,7 +207,7 @@ export const LEVELS = {
   expert: { known: Infinity, multi: 0.85, leave: true, simulate: true },
 };
 // the two-letter words everyone knows - the levels below Hard know no others
-const TWO = {
+export const TWO = {
   pl: new Set('as au aż ba bo by ci co da do eh ej go ha hm iż ja je ją ku ma mi mu my na ni no od oh oj ok on oś pa po są ta tą te tę to tu ty uf ul we wy za ze że ów'.split(' ')),
   en: new Set('ah am an as at aw ax be by do go ha he hi hm if in is it ma me mm my no of oh on or ow ox pa so to uh um up us we ya yo'.split(' ')),
 };

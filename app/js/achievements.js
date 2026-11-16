@@ -27,7 +27,7 @@ if (reached.length) {
 }
 
 export function playChallenges(move, { rarePct = null } = {}) {
-  if (move.kind !== 'play' || move.hinted) return [];
+  if (move.kind !== 'play' || move.hinted || move.approved) return [];
   const words = (move.words ?? []).map(x => [...x.w]);
   const keys = [];
   if (move.placed?.length === 7) keys.push('tiles.bingo');

@@ -1,5 +1,16 @@
 // Recent releases in player language (owner, 2026-11-14). Keep the last three at release.
 export const whatsnew = [
+  { version: '0.68.0', date: '2026-11-16', en: [
+    'Tiles: a new "Familiar words" dictionary (New game, Rules) - everyday words in all their forms, without the strange ones.',
+    'With friends: words outside the dictionary can be allowed by a vote, and a card shows who agreed, who refused and who is still choosing.',
+    'A move with several wrong words marks them all at once.',
+    'A bigger board on phones, zoom buttons, a points breakdown when you tap a move, and clearer hints and warnings.',
+  ], pl: [
+    'Kafelki: nowy słownik "Znane słowa" (Nowa gra, Zasady) - codzienne słowa we wszystkich odmianach, bez tych dziwnych.',
+    'Ze znajomymi: słowa spoza słownika mogą przejść głosowaniem, a karta pokazuje, kto się zgodził, kto nie, a kto jeszcze wybiera.',
+    'Ruch z kilkoma błędnymi słowami zaznacza je wszystkie naraz.',
+    'Większa plansza na telefonach, przyciski powiększenia, rozpisanie punktów po dotknięciu ruchu oraz jaśniejsze wskazówki i ostrzeżenia.',
+  ] },
   { version: '0.67.2', date: '2026-11-14', en: [
     'Online games: only the host can end the game for everyone or take a player out, and giving up out of turn no longer costs the player on turn any time.',
   ], pl: [
@@ -9,19 +20,6 @@ export const whatsnew = [
     'Veto: a vote can no longer take extra time off the clock of the player who made the word.',
   ], pl: [
     'Weto: głosowanie nie może już zabrać dodatkowego czasu z zegara gracza, który ułożył słowo.',
-  ] },
-  { version: '0.67.0', date: '2026-11-14', en: [
-    'Achievements are back - levels in every game and one-time challenges in Tiles, with their own icons.',
-    'Tiles: the last move is outlined, a word can show how rare it is, and tapping a played word shows its meaning.',
-    'Tiles with friends: a Veto option lets the others reject a word; you choose how many vetoes it takes.',
-    'Playing online: set your name once in Settings; the host lets you in and picks your seat.',
-    'Colour palettes, light or dark inside the games, board styles and colour-blind bonus squares.',
-  ], pl: [
-    'Wracają osiągnięcia - poziomy w każdej grze i jednorazowe wyzwania w Kafelkach, z własnymi ikonami.',
-    'Kafelki: ostatni ruch jest obrysowany, przy słowie widać, jak jest rzadkie, a dotknięcie słowa pokazuje jego znaczenie.',
-    'Kafelki ze znajomymi: opcja Weto pozwala innym odrzucić słowo; sam wybierasz, ile wet trzeba.',
-    'Gra online: ustaw swoje imię raz w Ustawieniach; gospodarz wpuszcza Cię i wybiera miejsce.',
-    'Palety kolorów, jasny lub ciemny tryb w grach, style planszy i premie przyjazne daltonistom.',
   ] },
 ];
 

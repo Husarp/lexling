@@ -73,7 +73,7 @@ function table(players = 3, rules = {}) {
 
 // ── two phones join a game for three: each asked about, let in, given the whole game ──
 {
-  const h = table(3), a = h.phone('c1', 'AA'), b = h.phone('c2', 'BB', 'Kasia');
+  const h = table(3, { dictionary: 'familiar' }), a = h.phone('c1', 'AA'), b = h.phone('c2', 'BB', 'Kasia');
   a.connect(); h.run();
   check('the host is asked about the first phone', [h.asks.at(-1)?.conn, h.asks.at(-1)?.device, h.asks.at(-1)?.seat], ['c1', 'Phone c1', 1]);
   b.connect(); h.run();
@@ -83,6 +83,7 @@ function table(players = 3, rules = {}) {
   check('then the second is asked about, with its name', [h.asks.at(-1)?.conn, h.asks.at(-1)?.name], ['c2', 'Kasia']);
   h.session.letIn('c2'); h.run();
   check('the second gets seat 2, named', [b.seat, h.S.players[2].name, b.S.players[2].name], [2, 'Kasia', 'Kasia']);
+  check('both guests retain the host word list', [a.S.rules.dictionary, b.S.rules.dictionary], ['familiar', 'familiar']);
   check('everyone here, on every phone', [h.session.missing(), a.here, b.here], [[], [true, true, true], [true, true, true]]);
   check('nobody left to ask about', h.asks.at(-1), null);
 

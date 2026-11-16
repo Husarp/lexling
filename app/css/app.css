@@ -854,7 +854,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .t.last{--ring:var(--tl-ink);--rw:calc(var(--cs) * .055)}
 /* this turn's tiles: a theme-colour ring; red when the move can't be played */
 .t.new{--ring:var(--accent);--rw:calc(var(--cs) * .1)}
-.t.new.bad{--ring:var(--error)}
+.tb .t.bad{--ring:var(--error);--rw:calc(var(--cs) * .1);outline:calc(var(--cs) * .06) solid var(--error);outline-offset:calc(var(--cs) * -.07)}
 /* a hint: the look every Lexling hint has — no fill, dashed edge, muted letter */
 .t.hint{background:var(--surface);color:var(--text-muted);box-shadow:none;outline:calc(var(--cs) * .06) dashed var(--text-muted);outline-offset:calc(var(--cs) * -.07)}
 .t.hint .p{color:var(--text-muted)}
@@ -1063,6 +1063,14 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-voter>span{flex:1;min-width:0;overflow-wrap:anywhere;color:var(--pc)}
 .tl-voter .btn{min-height:40px;padding:0 var(--space-2)}
 .tl-voter small{color:var(--text-muted)}
+.tl-vote-state{flex:none;font-style:normal;font-size:1.25rem;line-height:1}
+.tl-vote .yes{color:var(--success)}
+.tl-vote .no{color:var(--error)}
+.tl-vote-state.choosing{color:var(--text-muted);animation:tl-vote-spin 1.2s linear infinite}
+.tl-vote-result{margin:0;font-weight:700}
+@keyframes tl-vote-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.tl-vote-state.choosing{animation:none}}
+
 .tl-voting .tl-dock{pointer-events:none}
 /* a tool that is only there sometimes (Challenge) keeps the row's size */
 .tl-tool.chal{color:var(--accent)}
@@ -1907,3 +1915,23 @@ canvas.co-dots{display:block;width:100%}
 .word-meaning{max-height:60vh;overflow:auto;line-height:1.6}
 .word-meaning ol{padding-left:24px}.word-meaning li+li{margin-top:8px}
 .meaning-notice{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:1000;max-width:90vw;padding:12px 18px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:0 4px 20px #0003}
+
+/* Tiles: keep the board's controls outside the playable squares. */
+[data-screen=tiles] .tl-moves{min-height:0}
+.tl-moves .mc-bag:empty{display:none}
+.tl-fix{z-index:30;border:2px dashed var(--error);border-radius:4px;color:var(--error);font-weight:800;display:grid;place-items:center;pointer-events:none;background:transparent;text-shadow:0 1px var(--surface)}
+.tl-moves button.pt{background:none;border:0;padding:4px;cursor:pointer;text-decoration:underline;text-underline-offset:4px;min-height:36px}
+.tl-moves button.pt:disabled{text-decoration:none;cursor:default}
+.ps .nm{white-space:normal;overflow-wrap:anywhere;overflow:visible}
+.tl-moves .who{max-width:none;white-space:normal;overflow-wrap:anywhere;overflow:visible}
+.tl-moves .w,.tl-moves .bw{white-space:normal;overflow:visible;overflow-wrap:anywhere}
+.tl-calculation p{margin-bottom:12px;line-height:1.6;overflow-wrap:anywhere}
+@media(max-width:899px){
+  .tl-moves .mcards{grid-template-columns:minmax(0,1fr) auto auto}
+  .tl-moves .who{grid-column:1 / -1;font-size:10px}
+  .tl-moves .msg,.tl-moves .bw{grid-column:1 / -1}
+  .tl-moves .mc{padding:4px 8px}
+}
+
+.tl-dock .play:has(#tl-play-reason){flex-direction:column;gap:2px;padding:4px 8px}
+#tl-play-reason{font:500 11px/1.2 var(--font-body);letter-spacing:0;text-transform:none}

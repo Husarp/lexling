@@ -10,8 +10,8 @@ import { lookupMeaning } from './meaning.js';
 import { has } from './dawg.js';
 import { cleanTiers, moveRarity, listedPct } from './rarity.js';
 import { bump, grant, playChallenges, gameChallenges } from './achievements.js';
-import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, checkMove, apply, canExchange,
-  unseen, undo, loadTileWords, checkWord, fullBag, hintCost, BLANK, newGame as startOf, outOf, levelKey, voteFits, voteCertain } from './tiles.js';
+import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, pointsBreakdown, checkMove, apply, canExchange,
+  unseen, undo, wordList, loadTileWords, checkWord, fullBag, hintCost, BLANK, newGame as startOf, outOf, levelKey, voteFits, voteCertain, voteStatus, canApprove } from './tiles.js';
 import { hint as bestMove, hintLevels, sameMove, computerMove, lookBack, LEVELS, loadSpoken } from './tiles-moves.js';
 import { topbar, modeTag, confirmClick, outcome, openDialog, settingRows, wireSettingRows, meaningButton, wordLink, gameTitle, remindBt } from './ui.js';
 import { fitAll } from './fit.js';
@@ -28,6 +28,8 @@ const ICON = {
   hint: svg('<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path>'),
   challenge: svg('<path d="M4 22V4"></path><path d="M4 4h12l-2 4 2 4H4"></path>'),
   undo: svg('<path d="M9 14 4 9l5-5"></path><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"></path>'),
+  zoomIn: svg('<circle cx="10" cy="10" r="7"></circle><path d="m15 15 6 6M7 10h6M10 7v6"></path>'),
+  wholeBoard: svg('<path d="M9 3H3v6M15 3h6v6M3 15v6h6M21 15v6h-6"></path>'),
   redo: svg('<path d="m15 14 5-5-5-5"></path><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"></path>'),
 };
 const CLOSE = svg('<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>');
@@ -40,6 +42,25 @@ const ERR = { line: 'tiles.err.line', gap: 'tiles.err.gap', alone: 'tiles.err.to
 // the move being built when its squares are under 32 px, and pinches up to 2.5 ×
 const THINK_MS = 900, TOAST_MS = 1200, SMALL = 32, AUTO_ZOOM = 2, ZOOM_MAX = 2.5;
 const VOTE_MS = 20000;
+// What another phone may send on its turn, rebuilt from the fields each action needs (security review, 2026-11-14):
+// no 'shuffle' (it reseeds the bag), no 'end' / 'voteEnd' / taking players out (the host's own), a hint's cost a
+// non-negative number, time a non-negative number of at most an hour. null = refused.
+export function guestAction(a) {
+  const ms = Number.isFinite(a.ms) && a.ms > 0 ? Math.min(a.ms, 3600000) : 0, t = ms ? { ms } : {};
+  switch (a.type) {
+    case 'place': return { type: 'place', placed: a.placed, ...(a.hint ? { hint: a.hint } : {}), ...t };
+    case 'vote': return typeof a.veto === 'boolean' && Number.isInteger(a.p) && Number.isInteger(a.at) ? { type: 'vote', p: a.p, veto: a.veto, at: a.at, ...t } : null;
+    case 'exchange': return { type: 'exchange', tiles: a.tiles, ...t };
+    case 'pass': case 'challenge': case 'timeout': return { type: a.type, ...t };
+    case 'resign': return { type: 'resign', p: a.p, ...t };
+    case 'hint': return ['small', 'big', 'master'].includes(a.level) && Number.isFinite(a.cost) && a.cost >= 0
+      ? { type: 'hint', level: a.level, cost: a.cost, ...t } : null;
+    default: return null;
+  }
+}
+export const exchangeLetters = (rack, picks, blank) => [...picks].sort((a, b) => a - b).map(i => rack[i] === BLANK ? blank : rack[i].toUpperCase()).join(', ');
+export const endingNext = S => S.zeros + 1 >= 2 * S.players.filter((_, p) => !outOf(S)[p]).length;
+
 const clampPan = (v, z) => Math.min(0, Math.max(-(1 - 1 / z), v));
 
 // How good a move was (owner, 2026-09-26): its points against the best move there was on that board with that rack -
@@ -99,14 +120,14 @@ export function topics(rules = null) {
 // Check a word (owner, 2026-09-25: any time) - the Check tab of a game's panel.
 const checkHtml = () => `<div class="tl-check"><form novalidate><input class="input" type="text" maxlength="20" placeholder="${t('tiles.check.ph')}" aria-label="${
   t('tiles.check')}" autocomplete="off" autocapitalize="none" spellcheck="false"><button class="btn btn-outline" type="submit">${t('tiles.checkTab')}</button></form><p class="res" role="status"></p><div class="mean-slot"></div></div>`;
-function wireCheck(box, langOf) {
+function wireCheck(box, langOf, rules) {
   const input = box.querySelector('input'), res = box.querySelector('.res');
   box.querySelector('form').addEventListener('submit', async e => {
     e.preventDefault();
     if (!input.value.trim()) return;
-    const lang = langOf(), r = checkWord(await loadTileWords(lang), lang, input.value);
+    const lang = langOf(), r = checkWord(await loadTileWords(lang, rules), lang, input.value);
     res.className = 'res ' + (r.ok ? 'ok' : 'no');
-    res.textContent = t(r.ok ? 'tiles.check.ok' : 'tiles.check.' + r.why, { w: r.word.toUpperCase() });
+    res.textContent = t('tiles.checkedList', { list: t('tiles.r.dictionary.' + wordList(rules)) }) + ' · ' + t(r.ok ? 'tiles.check.ok' : 'tiles.check.' + r.why, { w: r.word.toUpperCase() });
     // what it means - in the browser (owner, 2026-09-26); a word too short or with a letter no tile has, never
     box.querySelector('.mean-slot').innerHTML = r.why === 'short' || r.why === 'letters' ? '' : meaningButton(r.word, lang);
   });
@@ -116,9 +137,19 @@ function wireCheck(box, langOf) {
 // squares are the grid's background). `draft` = this turn's tiles. No points on the board, ever (owner, 2026-09-26) - the
 // message line and Play show them.
 // `hinted` = squares of tiles already down that belong to a hinted word: they take the hint look too.
-export function boardInner(S, { draft = [], bad = false, cursor = null, drop = -1, hinted = new Set(), peek = -1 } = {}) {
+export function boardInner(S, { draft = [], bad = false, badWords = [], cursor = null, drop = -1, hinted = new Set(), peek = -1 } = {}) {
   const n = sizeOf(S.board), prem = premiums(S.board), mid = centre(S.board);
   const fresh = new Map((S.vote?.placed ?? draft).map(d => [d.r * n + d.c, d]));
+  // Mark the whole rejected word, including letters already on the board. Shared letters
+  // belong to the rejected word too; other valid words keep their usual appearance.
+  const rejected = new Set();
+  if (badWords.length && draft.length) {
+    for (const word of wordsMade(S, draft).words) {
+      if (!badWords.includes(word.w)) continue;
+      for (let k = 0; k < [...word.w].length; k++)
+        rejected.add((word.r + (word.across ? 0 : k)) * n + word.c + (word.across ? k : 0));
+    }
+  }
   // Only the last move, by anyone; a withdrawn or vetoed word clears it (owner, 2026-11-14).
   const move = (S.moves ?? []).findLast(m => ['play', 'withdrawn', 'vetoed'].includes(m.kind));
   const last = new Set(move?.kind === 'play' ? (move.placed ?? []).map(d => d.r * n + d.c) : []);
@@ -137,8 +168,8 @@ export function boardInner(S, { draft = [], bad = false, cursor = null, drop = -
   // who put a tile down: its class pN tints it in that player's colour (owner, 2026-09-25: coloured tiles, no frames)
   // each row above the one before it, so a raised tile's face goes over the tile above (css .tb.raised)
   const tile = (i, ch, blank, cls) => `<b class="t ${cls}${blank ? ' bl' : ''}" data-i="${i}" style="${at(i)};z-index:${2 + Math.floor(i / n)}">${esc(ch)}<i class="p">${blank || !ch ? '' : valueOf(S.lang, ch)}</i></b>`;
-  S.cells.forEach((x, i) => { if (x) html += tile(i, x.ch, x.blank, (hinted.has(i) ? 'hint' : 'p' + x.by + (x.hint ? ' hinted' : '')) + (last.has(i) ? ' last' : '') + (i === peek ? ' peek' : '')); });
-  for (const [i, d] of fresh) html += tile(i, d.ch, d.blank, S.vote ? 'voting' : d.hint ? 'hint' : bad ? 'new bad' : 'new');
+  S.cells.forEach((x, i) => { if (x) html += tile(i, x.ch, x.blank, (hinted.has(i) ? 'hint' : 'p' + x.by + (x.hint ? ' hinted' : '')) + (last.has(i) ? ' last' : '') + (i === peek ? ' peek' : '') + (rejected.has(i) ? ' bad' : '')); });
+  for (const [i, d] of fresh) html += tile(i, d.ch, d.blank, (S.vote ? 'voting' : d.hint ? 'hint' : 'new') + (bad || rejected.has(i) ? ' bad' : ''));
   return html;
 }
 
@@ -152,7 +183,7 @@ export async function tilesGameScreen(root, id) {
     const levels = game.state.players.filter(x => x.cpu).map(x => LEVELS[x.cpu] ?? LEVELS.normal);
     const slow = levels.some(L => L.known > 0 && L.known !== Infinity), says = levels.some(L => L.spoken);
     try {
-      [dict, lex, spoken] = await Promise.all([loadTileWords(game.lang), slow ? loadWords(game.lang) : null,
+      [dict, lex, spoken] = await Promise.all([loadTileWords(game.lang, game.state.rules), slow ? loadWords(game.lang) : null,
         says ? loadSpoken(game.lang).catch(() => new Map()) : null]);
     } catch { dict = null; }
   }
@@ -204,7 +235,8 @@ export async function tilesGameScreen(root, id) {
   let landing = null;         // squares whose tiles just came down, to animate
   let endStep = false;        // the end, before the results: what the tiles left on the racks cost (finish)
   let thinking = false, toast = false, handOver = false, wide = false;
-  let voteAt = null, seenAt = 0, sentVote = null;
+  let voteAt = null, seenAt = 0, sentVote = null, lastVote = null, voteMoveAt = 0, voteResult = null;
+  let manualOverview = false, placedOnce = false;
   let zoom = { z: 1, x: 0, y: 0 };      // x / y: the board's shift, in fractions of its size (0 or less)
   let press = null, pinch = null, dragEl = null, dropAt = -1, rackGap = -1;
   const touches = new Map();
@@ -253,7 +285,14 @@ export async function tilesGameScreen(root, id) {
   // Each device starts its visible twenty seconds when it first sees this proposal (owner, 2026-11-14).
   function seeVote() {
     const at = S.vote?.at ?? null;
+    if (S.vote) { lastVote = S.vote; voteMoveAt = S.moves.length; voteResult = null; }
     if (at === voteAt) return;
+    if (at === null && lastVote) {
+      voteResult = voteStatus(S, lastVote, voteMoveAt);
+      const result = voteResult;
+      setTimeout(() => { if (voteResult === result) { voteResult = null; if (app.isConnected) paintVote(); } }, 4000);
+      lastVote = null;
+    }
     voteAt = at; seenAt = Date.now(); sentVote = null;
   }
   const voteMs = () => Math.max(0, Date.now() - seenAt);
@@ -290,7 +329,7 @@ export async function tilesGameScreen(root, id) {
       <button class="ps-bag" type="button" data-open="unseen" aria-label="${t('tiles.unseen')}"><span class="nm">${t('tiles.bag')}</span><span class="sc">${S.bag.length}</span></button>
       ${S.rules.time ? `<div class="tl-clock"><span class="eyebrow">${t('tiles.r.time')}</span><span class="num"></span></div>` : ''}
       ${open ? othersHtml() : ''}
-      <div class="status-actions"><a class="btn btn-ghost tl-exit" href="#/games/tiles">${DOOR}<span>${t(linked && !host ? 'net.leave' : 'game.saveExit')}</span></a><button class="btn btn-ghost tl-find" type="button" data-open="check" aria-label="${t('tiles.check')}" title="${t('tiles.check')}">${FIND}</button><button class="btn btn-ghost tl-opts" type="button" data-act="options">${LIST}<span>${t('tiles.options')}</span></button></div>`;
+      <div class="status-actions"><a class="btn btn-ghost tl-exit" href="#/games/tiles">${DOOR}<span>${t(linked && !host ? 'net.leave' : 'game.saveExit')}</span></a><button class="btn btn-ghost tl-find" type="button" data-open="check" aria-label="${t('tiles.check')}" title="${t('tiles.check')}">${FIND}</button>${['zoomIn', 'wholeBoard'].map(act => `<button class="btn btn-ghost tl-find" type="button" data-act="${act}" aria-label="${t('tiles.' + act)}" title="${t('tiles.' + act)}">${ICON[act]}</button>`).join('')}<button class="btn btn-ghost tl-opts" type="button" data-act="options">${LIST}<span>${t('tiles.options')}</span></button></div>`;
     paintClock();
     const row = status.querySelector('.ps-row.many'), cur = row?.querySelector('.ps.on');
     if (row) { row.scrollLeft = was; if (cur) row.scrollTo({ left: cur.offsetLeft - row.firstElementChild.offsetLeft, behavior: 'smooth' }); }
@@ -319,7 +358,18 @@ export async function tilesGameScreen(root, id) {
     const res = judge(), lifted = press?.drag && press.kind === 'tile' ? press.di : -1;
     const shownDraft = draft.filter((_, i) => i !== lifted);
     tb.className = `tb n${n}${zoom.z > 1 ? ' zoom' : ''}${looks()}`;
-    tb.innerHTML = boardInner(S, { draft: shownDraft, bad: !!res?.error, cursor: myTurn() && mode === 'play' ? cursor : null, drop: dropAt, hinted: hintedCells(), peek: peekAt });
+    tb.innerHTML = boardInner(S, { draft: shownDraft, bad: !!res?.error && res.error !== 'word', badWords: res?.bad ?? [], cursor: myTurn() && mode === 'play' ? cursor : null, drop: dropAt, hinted: hintedCells(), peek: peekAt });
+    const marks = [];
+    if (res?.error === 'centre') marks.push(centre(S.board));
+    if (res?.error === 'alone') marks.push(...shownDraft.map(d => d.r * n + d.c));
+    if (res?.error === 'gap') {
+      const across = draft.every(d => d.r === draft[0].r), positions = draft.map(d => across ? d.c : d.r);
+      for (let k = Math.min(...positions); k <= Math.max(...positions); k++) {
+        const i = across ? draft[0].r * n + k : k * n + draft[0].c;
+        if (!S.cells[i] && !draft.some(d => d.r * n + d.c === i)) marks.push(i);
+      }
+    }
+    tb.innerHTML += marks.map(i => `<span class="tl-fix" aria-hidden="true" style="grid-row:${Math.floor(i / n) + 1};grid-column:${i % n + 1}">!</span>`).join('');
     applyZoom(!!(pinch || press?.drag));
     // tiles that just came down settle in, 150 ms each, 60 apart (design: motion)
     landing?.forEach((i, k) => tb.querySelector(`[data-i="${i}"]`)?.animate([{ transform: 'translateY(-35%) scale(1.15)', opacity: 0 }, { transform: 'none', opacity: 1 }],
@@ -359,7 +409,8 @@ export async function tilesGameScreen(root, id) {
   // Zoomed in on the move being built: the first tile down zooms in when the squares are small, and the view
   // follows the word while it grows (design NOTES "placing on a phone").
   function follow() {
-    if (!draft.length || (zoom.z === 1 && boardEl.clientWidth / n >= SMALL)) return;
+    if (draft.length) placedOnce = true;
+    if (manualOverview || !draft.length || (zoom.z === 1 && boardEl.clientWidth / n >= SMALL)) return;
     if (zoom.z === 1) zoom.z = AUTO_ZOOM;
     const rs = draft.map(d => d.r), cs = draft.map(d => d.c);
     const cr = (Math.min(...rs) + Math.max(...rs) + 1) / 2 / n, cc = (Math.min(...cs) + Math.max(...cs) + 1) / 2 / n;
@@ -415,30 +466,47 @@ export async function tilesGameScreen(root, id) {
     const under = !ev ? '' : m.hinted === 'master' && band && m.score < ev.best ? t('tiles.rate.masterNote')
       : bestOn() && ev.best > (play ? m.score : 0) ? bestWas(ev) : '';
     return `<div class="mc ${cls} pc${m.p}">${whoCell(m.p)}<span class="w${play ? '' : ' quiet'}">${m.hinted ? hintMark() : ''}${
-      play ? cardWords(m.words, m.bingo) : m.kind === 'vetoed' ? `${cardWords(m.words, false)} · ${t('tiles.hist.vetoed')}` : t(m.kind === 'swap' ? 'tiles.look.swap' : 'tiles.look.pass')}</span><span class="pt">${play ? m.score : '–'}</span><span class="rr">${
+      play ? cardWords(m.words, m.bingo) : m.kind === 'vetoed' ? `${cardWords(m.words, false)} · ${t('tiles.hist.vetoed')}` : t(m.kind === 'swap' ? 'tiles.look.swap' : 'tiles.look.pass')}</span>${play ? `<button type="button" class="pt" data-points="${i}" aria-label="${t('tiles.pointsExplain')}">${m.score}</button>` : '<span class="pt">–</span>'}<span class="rr">${
       band ? `<small class="rate rate-${band}"><span class="bn">${t('tiles.rate.' + band)} · </span>${pctOf(m.score, ev.best)}%</small>` : ''}${rarityChip(m)}</span>${under ? `<span class="bw">${under}</span>` : ''}</div>`;
   }
+  const endWarning = () => endingNext(S) ? ' ' + t('tiles.endWarning', { n: S.zeros, limit: 2 * S.players.filter((_, p) => !isOut(p)).length }) : '';
   function paintSay() {
     const me = shown >= 0 ? shown : solo >= 0 ? solo : S.turn, res = judge();
     let text = '', err = false;
-    if (mode === 'exchange') text = t('tiles.ex.pick', { n: picks.size });
-    else if (mode === 'pass') text = t('tiles.pass.ask');
+    if (mode === 'exchange') text = t('tiles.ex.pick', { n: picks.size }) + (picks.size ? ' · ' + t('tiles.ex.summary', { letters: esc(exchangeLetters(rackOf(shown), picks, t('tiles.blankName'))) }) : '') + endWarning();
+    else if (mode === 'pass') text = t('tiles.pass.ask') + endWarning();
     else if (mode === 'hint') text = msg?.html ?? (levels?.big && S.rules.hintCost ? t('tiles.hint.pickCost', Object.fromEntries(['small', 'big', 'master'].map(l => [l, levels[l] ? hintCost(S.rules, l, levels) : '–'])))
       : t('tiles.hint.pick'));
-    else if (res?.error) { err = true; text = res.error === 'word' ? t('tiles.err.unknown', { w: esc(res.bad[0].toUpperCase()) }) : t(ERR[res.error]); }
+    else if (res?.error) { err = true; text = res.error === 'word' ? t(canApprove(S) ? 'tiles.approval.unknown' : 'tiles.err.unknown', { w: esc(res.bad.map(w => w.toUpperCase()).join(', ')) }) : t(ERR[res.error]); }
     else if (!res && msg) { text = msg.html; err = !!msg.err; }
     else if (!res && myTurn() && sel >= 0) text = t('tiles.say.tap');
     const mine = lastMove(p => p === me), theirs = lastMove(p => p !== me);
     const card = text ? `<div class="mc me pc${me}${err ? ' err' : ''}">${whoCell(me)}<span class="msg">${text}</span></div>`
-      : res ? `<div class="mc me live pc${me}">${whoCell(me)}<span class="w">${draft[0].hint ? hintMark() : ''}${cardWords(res.words, draft.length === 7)}</span><span class="pt">${res.score}</span><span class="rr">${
+      : res ? `<div class="mc me live pc${me}">${whoCell(me)}<span class="w">${draft[0].hint ? hintMark() : ''}${cardWords(res.words, draft.length === 7)}</span><button type="button" class="pt" data-points="draft" aria-label="${t('tiles.pointsExplain')}">${res.score}</button><span class="rr">${
         draft[0].hint ? `<small class="hlv">${t('tiles.hint.' + draft[0].hint)}${hintPaid ? ' −' + hintPaid : ''}</small>` : ''}</span></div>`
       : mine >= 0 ? moveCard(mine, 'me')
-      : `<div class="mc me pc${me}">${whoCell(me)}<span class="msg">${myTurn() ? t(S.cells.some(Boolean) ? (solo >= 0 ? 'tiles.say.turn' : 'tiles.say.turnOf') : 'tiles.say.first', { name: esc(nameOf(S, S.turn)) }) : ''}</span></div>`;
+      : `<div class="mc me pc${me}">${whoCell(me)}<span class="msg">${myTurn() ? t(S.cells.some(Boolean) ? (solo >= 0 ? 'tiles.say.turn' : 'tiles.say.turnOf') : 'tiles.placeCentre', { name: esc(nameOf(S, S.turn)) }) + (!placedOnce && !S.cells.some(Boolean) ? ' ' + t('tiles.firstCue') : '') : ''}</span></div>`;
     const other = thinking && S.turn !== me && !linked ? `<div class="mc them pc${S.turn}">${whoCell(S.turn)}<span class="msg">${t('tiles.say.thinking')}</span></div>`
       : theirs >= 0 ? moveCard(theirs, 'them') : '';
     say.innerHTML = `${linked ? linkLine() : ''}<div class="mcards">${card}${other}</div><p class="mc-bag">${fresh?.p === me ? t('tiles.drew', { l: `<b>${fresh.letters.map(x => x === BLANK ? '?' : esc(x.toUpperCase())).join(' · ')}</b>` }) : ''}</p>`;
+    paintDock();
   }
 
+  app.addEventListener('click', e => {
+    const b = e.target.closest('[data-points]');
+    if (!b || b.disabled) return;
+    let state = S, placed = placedOf();
+    if (b.dataset.points !== 'draft') {
+      const i = +b.dataset.points, m = S.moves[i];
+      placed = m.placed;
+      // Remove this and subsequent plays; premiums are then evaluated on the original board.
+      const cells = [...S.cells];
+      for (const move of S.moves.slice(i)) if (move.kind === 'play') for (const d of move.placed) cells[d.r * n + d.c] = null;
+      state = { ...S, cells };
+    }
+    const detail = pointsBreakdown(state, placed);
+    openDialog(t('tiles.pointsExplain'), `<div class="tl-calculation">${detail.words.map(w => `<p><b>${esc(w.w.toUpperCase())}</b>: (${w.letters.map(l => `${esc(l.ch.toUpperCase())}${l.blank ? ' (' + t('tiles.blankName') + ')' : ''} ${l.value}${l.multiplier > 1 ? ' × ' + l.multiplier : ''}`).join(' + ')}) × ${w.multiplier} = <b>${w.score}</b></p>`).join('')}${detail.bonus ? `<p>${t('tiles.sevenBonus')}: +${detail.bonus}</p>` : ''}<p><b>${t('tiles.pointsTotal')}: ${detail.score}</b></p></div>`);
+  });
   // two phones: the other player's side of things, one line above the move cards (owner, 2026-09-27) - their turn, or
   // the connection
   function linkLine() {
@@ -488,15 +556,20 @@ export async function tilesGameScreen(root, id) {
     const cancel = `<button class="btn btn-ghost wide" type="button" data-act="cancel">${t('tiles.cancel')}</button>`;
     if (mode === 'exchange') {
       const ok = picks.size && canExchange(S, picks.size);
-      dock.innerHTML = `${cancel}<button class="btn btn-primary play${ok ? '' : ' off'}" type="button" data-act="swap">${t('tiles.exchangeN', { n: picks.size })} <span class="arrow">→</span></button>`;
+      dock.innerHTML = `${cancel}<button class="btn btn-primary play${ok ? '' : ' off'}" type="button" data-act="swap"${ok && !off ? '' : ' disabled'}>${t('tiles.exchangeN', { n: picks.size })} <span class="arrow">→</span></button>`;
     } else if (mode === 'hint') {
       dock.innerHTML = ['small', 'big', 'master'].map(l => { const left = hintsLeft(l);
         return `<button class="btn btn-outline lvl${levels && fadedWhy(l) ? ' off' : ''}" type="button" data-level="${l}"${levels ? '' : ' disabled'}>${t('tiles.hint.' + l)}${Number.isFinite(left) ? ` · ${Math.max(0, left)}` : ''}</button>`; }).join('')
         + cancel;
     } else if (mode === 'pass') {
-      dock.innerHTML = `${cancel}<button class="btn btn-primary play" type="button" data-act="passYes">${t('tiles.passConfirm')} <span class="arrow">→</span></button>`;
+      dock.innerHTML = `${cancel}<button class="btn btn-primary play" type="button" data-act="passYes"${off ? ' disabled' : ''}>${t('tiles.passConfirm')} <span class="arrow">→</span></button>`;
     } else {
-      const res = judge(), ok = !off && res && !res.error;
+      const res = judge(), ok = !off && res && (!res.error || (res.error === 'word' && canApprove(S)));
+      let reason = ok || off ? '' : res?.error ? (res.error === 'word' ? t(canApprove(S) ? 'tiles.approval.unknown' : 'tiles.err.unknown', { w: esc(res.bad.join(', ').toUpperCase()) }) : t(ERR[res.error])) : t(S.cells.some(Boolean) ? 'tiles.placeTiles' : 'tiles.placeCentre');
+      // Compare rendered text so escaped word errors and the onboarding cue also match.
+      const reasonText = document.createElement('span');
+      reasonText.innerHTML = reason;
+      if (reason && say.querySelector('.mc.me .msg')?.textContent.includes(reasonText.textContent)) reason = '';
       dock.innerHTML = [
         draft.length ? tool('recall') : tool('shuffle', shown < 0 ? 'off' : ''),
         tool('exchange', off || !canExchange(S, 1) ? 'off' : ''),   // stays tappable to say why (design)
@@ -504,7 +577,7 @@ export async function tilesGameScreen(root, id) {
         hintsOn() ? tool('hint', off ? 'off' : '') : '',
         !off && S.pending ? tool('challenge', 'chal') : '',
         canUndo ? `<i class="br" aria-hidden="true"></i><button class="btn btn-ghost tl-tool ur" type="button" data-act="undo" aria-label="${t('tiles.undo')}" title="${t('tiles.undo')}"${undo(S, isWord, 0) ? '' : ' disabled'}>${ICON.undo}</button><button class="btn btn-ghost tl-tool ur" type="button" data-act="redo" aria-label="${t('tiles.redo')}" title="${t('tiles.redo')}"${redoStack.length && !thinking ? '' : ' disabled'}>${ICON.redo}</button>` : '',
-        `<button class="btn btn-primary play${ok ? '' : ' off'}" type="button" data-act="play">${t('tiles.play')}${ok ? ` <span class="num">${res.score}</span>` : ''}</button>`,
+        `<button class="btn btn-primary play${ok ? '' : ' off'}" type="button" data-act="play" ${reason ? 'aria-describedby="tl-play-reason"' : ''}${ok ? '' : ' disabled'}>${t(res?.error === 'word' && canApprove(S) ? 'tiles.approval.ask' : 'tiles.play')}${ok && !res.error ? ` <span class="num">${res.score}</span>` : ''}${reason ? `<small id="tl-play-reason">${reason}</small>` : ''}</button>`,
       ].join('');
     }
     refit();
@@ -512,22 +585,23 @@ export async function tilesGameScreen(root, id) {
 
   function paintVote() {
     seeVote();
-    const v = S.vote;
+    const v = S.vote || voteResult;
     voteEl.hidden = !v;
-    play.classList.toggle('tl-voting', !!v);
     if (!v) { voteEl.innerHTML = ''; return; }
-    const remaining = Math.max(0, VOTE_MS - voteMs()), waiting = v.voters.filter(p => !(p in v.votes));
-    const buttons = p => `<button class="btn btn-outline" type="button" data-voter="${p}" data-veto="true">${t('tiles.veto.veto')}</button><button class="btn btn-primary" type="button" data-voter="${p}" data-veto="false">${t('tiles.veto.accept')}</button>`;
-    const row = p => `<div class="tl-voter pc${p}"><span>${esc(nameOf(S, p))}</span>${p in v.votes || sentVote === v.at ? `<small>${t('tiles.veto.voted')}</small>` : buttons(p)}</div>`;
-    const ownVote = linked && v.voters.includes(linkMe) && !(linkMe in v.votes) && sentVote !== v.at;
-    if (linked && !ownVote) {
-      voteEl.innerHTML = `<p class="help">${t('tiles.veto.waiting', { names: waiting.map(p => esc(nameOf(S, p))).join(', ') })}</p>`;
-      return;
-    }
-    voteEl.innerHTML = `<div class="tl-vote-head"><strong>${t('tiles.veto.title', { name: esc(nameOf(S, v.p)) })}</strong><span class="num">${t('tiles.sec', { n: Math.ceil(remaining / 1000) })}</span></div>
+    const done = !S.vote, remaining = Math.max(0, VOTE_MS - voteMs());
+    const buttons = p => `<button class="btn btn-outline" type="button" data-voter="${p}" data-veto="true">${t(v.approval ? 'tiles.approval.allow' : 'tiles.veto.veto')}</button><button class="btn btn-primary" type="button" data-voter="${p}" data-veto="false">${t(v.approval ? 'tiles.approval.reject' : 'tiles.veto.accept')}</button>`;
+    const row = p => {
+      const voted = p in v.votes, agreed = v.approval ? v.votes[p] : !v.votes[p];
+      const label = voted ? t(v.approval ? agreed ? 'tiles.approval.allow' : 'tiles.approval.reject' : agreed ? 'tiles.veto.accept' : 'tiles.veto.veto') : t('tiles.vote.choosing');
+      const canVote = !done && !voted && (!linked || p === linkMe && sentVote !== v.at);
+      return `<div class="tl-voter pc${p}"><span>${esc(nameOf(S, p))}</span><i class="tl-vote-state ${voted ? agreed ? 'yes' : 'no' : done ? '' : 'choosing'}" role="img" aria-label="${esc(label)}" title="${esc(label)}">${voted ? agreed ? '✓' : '✕' : done ? '–' : '◌'}</i>${canVote ? buttons(p) : ''}</div>`;
+    };
+    voteEl.innerHTML = `<div class="tl-vote-head"><strong>${t(v.approval ? 'tiles.approval.title' : 'tiles.veto.title', { name: esc(nameOf(S, v.p)) })}</strong>${done ? '' : `<span class="num">${t('tiles.sec', { n: Math.ceil(remaining / 1000) })}</span>`}</div>
       <p class="tl-vote-words">${cardWords(v.words, v.bingo)} <b>· ${v.score}</b></p>
-      <div class="tl-vote-bar" role="progressbar" aria-label="${esc(t('tiles.r.veto'))}" aria-valuemin="0" aria-valuemax="20" aria-valuenow="${Math.ceil(remaining / 1000)}"><i style="width:${remaining / VOTE_MS * 100}%"></i></div>
-      ${!linked ? `<p class="help">${t('tiles.veto.yours')}</p>${v.voters.filter(p => !(p in v.votes)).map(row).join('')}` : `${v.p === linkMe ? `<p class="help">${t('tiles.veto.yours')}</p>` : ''}${ownVote ? row(linkMe) : ''}<p class="help">${t('tiles.veto.waiting', { names: waiting.map(p => esc(nameOf(S, p))).join(', ') })}</p>`}`;
+      ${!done && v.approval && (!linked || linkMe === v.p) ? `<p class="help">${t('tiles.approval.decide', { w: esc(v.approval.join(', ').toUpperCase()) })}</p>` : ''}
+      ${done ? '' : `<div class="tl-vote-bar" role="progressbar" aria-label="${esc(t(v.approval ? 'tiles.r.wordsVote' : 'tiles.r.veto'))}" aria-valuemin="0" aria-valuemax="20" aria-valuenow="${Math.ceil(remaining / 1000)}"><i style="width:${remaining / VOTE_MS * 100}%"></i></div>`}
+      ${v.voters.map(row).join('')}
+      ${done ? `<p class="tl-vote-result ${v.result ? 'yes' : 'no'}" role="status">${v.result ? '✓' : '✕'} ${t(v.approval ? v.result ? 'tiles.vote.allowed' : 'tiles.vote.denied' : v.result ? 'tiles.vote.accepted' : 'tiles.vote.vetoed')}</p>${v.voters.some(p => !(p in v.votes) && (!linked || p === linkMe)) ? `<p class="help">${t('tiles.vote.unneeded')}</p>` : ''}` : ''}`;
     voteEl.querySelectorAll('button').forEach(b => { b.disabled = linked && (!linkUp && !host || !party || !!ended); });
     refit();
   }
@@ -603,7 +677,7 @@ export async function tilesGameScreen(root, id) {
     more.innerHTML = html;
     const box = more.querySelector('.tl-check');
     if (box) {
-      wireCheck(box, () => lang);
+      wireCheck(box, () => lang, S.rules);
       if (kept) { box.querySelector('input').value = kept.value; box.querySelector('.res').className = kept.cls; box.querySelector('.res').textContent = kept.text; box.querySelector('.mean-slot').innerHTML = kept.mean; }
     }
     refit();
@@ -672,7 +746,7 @@ export async function tilesGameScreen(root, id) {
     refit();
   }
 
-  const paintTurn = () => { paintBoard(); paintSay(); paintRack(); paintDock(); paintVote(); };
+  const paintTurn = () => { paintBoard(); paintSay(); paintRack(); paintVote(); };
   const paintAll = () => { seeVote(); paintStatus(); paintTurn(); paintMore(); paintOver(); };
 
   // ── turns ──
@@ -711,10 +785,11 @@ export async function tilesGameScreen(root, id) {
       landing = [...played.placed].sort((a, b) => a.r - b.r || a.c - b.c).map(x => x.r * n + x.c);
     }
     // a challenge's outcome, or a turn lost to the clock, stays on the line while the next player moves
-    const said = vetoed ? { html: t('tiles.say.vetoed', { w: vetoed.words.map(x => esc(x.w.toUpperCase())).join(', '), name: esc(nameOf(S, vetoed.p)) }), err: true }
+    const approvalMove = vetoed?.approval ? vetoed : played?.approved ? played : null;
+    const said = approvalMove ? { html: t(played ? 'tiles.approval.allowed' : 'tiles.approval.denied', { name: esc(nameOf(S, approvalMove.p)), w: (approvalMove.approved || approvalMove.approval).map(w => esc(w.toUpperCase())).join(', ') }), err: !!vetoed } : vetoed ? { html: t('tiles.say.vetoed', { w: vetoed.words.map(x => esc(x.w.toUpperCase())).join(', '), name: esc(nameOf(S, vetoed.p)) }), err: true }
       : report(played ? { type: 'place' } : action, p, game.evals.at(-1));
     msg = msg?.keep && said && action.type !== 'challenge' ? { ...said, html: `${msg.html} ${said.html}` } : said;
-    if (vetoed) {
+    if (vetoed || approvalMove) {
       const notice = msg;
       setTimeout(() => { if (msg === notice) { msg = null; if (app.isConnected) paintSay(); } }, 4500);
     }
@@ -736,7 +811,7 @@ export async function tilesGameScreen(root, id) {
     if (action.type === 'timeout') return { html: t('tiles.say.timeout'), keep: true };
     if (action.type === 'challenge') {
       if (!m.ok) return { html: p === solo ? t('tiles.chal.okYou') : t('tiles.chal.ok', { name }) };
-      const w = esc(S.moves.at(-2).bad[0].toUpperCase());
+      const w = esc(S.moves.at(-2).bad.map(w => w.toUpperCase()).join(', '));
       return { html: cpu(p) ? t('tiles.chal.cpu', { name, w }) : t('tiles.chal.gone', { w }), err: true, keep: true };
     }
     return null;
@@ -885,7 +960,7 @@ export async function tilesGameScreen(root, id) {
       const res = judge();
       // a hint's move, or the same move put down by hand after its tiles went back to the rack
       const hint = draft[0]?.hint ?? turnHints.find(h => h.key === keyOf(placedOf()))?.level;
-      if (myTurn() && res && !res.error) act({ type: 'place', placed: placedOf(), ...(hint ? { hint } : {}) });
+      if (myTurn() && res && (!res.error || (res.error === 'word' && canApprove(S)))) act({ type: 'place', placed: placedOf(), ...(hint ? { hint } : {}) });
     },
     cancel() { mode = 'play'; picks = new Set(); levels = null; msg = null; paintTurn(); },
     swap() {
@@ -990,7 +1065,7 @@ export async function tilesGameScreen(root, id) {
     while (game.achDone < S.moves.length) {
       if (S.pending && game.achDone >= (S.pending.before?.moves?.length ?? S.moves.length - 1)) break;
       const m = S.moves[game.achDone++];
-      if (m.kind !== 'play' || m.hinted || cpu(m.p) || !mine.includes(m.p)) continue;
+      if (m.kind !== 'play' || m.hinted || m.approved || cpu(m.p) || !mine.includes(m.p)) continue;
       bump('tiles.words');
       bump('tiles.points', m.score);
       const rarePct = listedPct(m.words ?? [], rankOf, lex.count);
@@ -1195,6 +1270,7 @@ export async function tilesGameScreen(root, id) {
     const z = Math.min(ZOOM_MAX, Math.max(1, pinch.z * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.d));
     const u = (pinch.m[0] - box.left) / box.width / pinch.z - pinch.x, v = (pinch.m[1] - box.top) / box.height / pinch.z - pinch.y;
     const mx = ((a[0] + b[0]) / 2 - box.left) / box.width, my = ((a[1] + b[1]) / 2 - box.top) / box.height;
+    manualOverview = z === 1;
     zoom = z === 1 ? { z: 1, x: 0, y: 0 } : { z, x: clampPan(mx / z - u, z), y: clampPan(my / z - v, z) };
     applyZoom(true);
   }
@@ -1212,6 +1288,8 @@ export async function tilesGameScreen(root, id) {
     }
     if (el.dataset.ch) return pickLetter(el.dataset.ch);
     if (el.dataset.level) return pickHint(el.dataset.level);
+    if (el.dataset.act === 'wholeBoard') { zoomOut(); manualOverview = true; applyZoom(); return; }
+    if (el.dataset.act === 'zoomIn') { manualOverview = false; zoom.z = Math.min(ZOOM_MAX, zoom.z + .5); zoom.x = zoom.y = clampPan((1 / zoom.z - 1) / 2, zoom.z); follow(); applyZoom(); return; }
     TOOLS[el.dataset.act]?.(el);
   });
   over.addEventListener('change', e => {
@@ -1491,12 +1569,14 @@ export async function tilesGameScreen(root, id) {
         // thought it was
         take: (seat, n, action) => {
           // Concurrent votes may name an earlier log length; the proposal and seat identify them (owner, 2026-11-14).
-          if (action.type === 'vote') { if (voteFits(S, seat, action)) act(action, true); return true; }
+          if (action.type === 'vote') { const clean = guestAction(action); if (clean && voteFits(S, seat, clean)) act(clean, true); return true; }
           // ending the game for everyone and taking a player out are the host's alone (security review, 2026-11-14)
           if (action.type === 'voteEnd' || action.type === 'end' || action.removed || (S.vote && action.type === 'timeout')) return false;
           if (S.over || n !== S.log.length || startWaits() || (action.type === 'resign' ? action.p !== seat : S.turn !== seat)) return false;
+          const clean = guestAction(action);
+          if (!clean) return false;
           thinking = false;
-          return act(action, true);
+          return act(clean, true);
         },
         send: (conn, text) => { wire.send(conn, text).catch(() => {}); },
         drop: conn => setTimeout(() => wire.close(conn).catch(() => {}), 500),   // what was said to it goes first

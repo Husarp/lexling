@@ -746,12 +746,12 @@ export function connectNewScreen(root, _, refresh) {
 // (owner, 2026-09-25: "choose which player starts first, in which order they move, or random").
 const TL_NEW = () => ({ board: 'classic', players: [{ name: '', cpu: null }, { name: '', cpu: 'medium' }], first: null, rules: { ...STANDARD }, rulesOpen: false });
 const TL_TIMES = { move: [30, 60, 120, 180], game: [600, 1200, 1500, 1800] };   // seconds: per move, per game
-const TL_RULES = [['premiums', ['once', 'always']], ['check', ['auto', 'challenge']], ['exchange', ['bag7', 'always']], ['bingo', [50, 0]],
+const TL_RULES = [['dictionary', ['full', 'familiar']], ['premiums', ['once', 'always']], ['check', ['auto', 'challenge']], ['exchange', ['bag7', 'always']], ['bingo', [50, 0]],
   ['open', [false, true]]];
 // Assists, a section of their own (owner, 2026-10-12: the settings behind the "this game leaves the records" warning were
 // "hidden in the rules ... the user might not know where they are"): hints, undo, move ratings
-const TL_ASSISTS = [['undo', [false, true]], ['veto', [false, true]], ['rating', [true, 'score', false]]];
-const ASSIST_KEYS = ['hints', 'hintMax', 'hintCost', 'undo', 'rating', 'veto', 'vetoNeed'];
+const TL_ASSISTS = [['undo', [false, true]], ['veto', [false, true]], ['wordsVote', [false, true]], ['rating', [true, 'score', false]]];
+const ASSIST_KEYS = ['hints', 'hintMax', 'hintCost', 'undo', 'rating', 'veto', 'vetoNeed', 'wordsVote', 'approvalNeed'];
 // hints: how many of each level a player may take (null = no limit, 0 = that level off)
 const TL_HINT_MAX = [0, 1, 3, 5, 10, null];
 let tlPending = null;
@@ -780,6 +780,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     return { ...fresh, board: r.board, players, first: players[r.first] ?? null, rules: { ...STANDARD, ...r.rules } };
   })();
   tlPending = null;
+  let approvalManual = o.approvalNeedManual ?? Number.isFinite(o.rules.approvalNeed);
   let vetoManual = o.vetoNeedManual ?? Number.isFinite(o.rules.vetoNeed);
   // hosting an online game (Play online → the connection → Host): people only, the first of them on this phone; undo
   // and the others' tiles off, no hints, ratings without the best move - all but undo can be changed below (owner)
@@ -881,14 +882,17 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
   }
   const ruleRows = list => list.map(([k, vals]) => `<div class="rule"><span class="eyebrow">${t('tiles.r.' + k)}</span><div class="seg">${vals.map(v =>
     `<button type="button" data-rule="${k}" data-v="${v}" class="${on(String(o.rules[k]) === String(v))}">${t(`tiles.r.${k}.${v}`)}</button>`).join('')}</div>${
-    ['check', 'undo', 'open', 'rating', 'veto'].includes(k) ? `<p class="help">${t(`tiles.r.${k}Help`)}</p>` : ''}</div>`).join('');
+    ['dictionary', 'check', 'undo', 'open', 'rating', 'veto', 'wordsVote'].includes(k) ? `<p class="help">${t(`tiles.r.${k}Help`)}</p>` : ''}</div>`).join('');
   const voterMax = () => Math.max(1, o.players.filter(x => !x.cpu).length - 1);
   function paintAssists() {
     // Follow the player list until the host sets a count by hand (owner, 2026-11-14).
     o.rules.vetoNeed = Math.min(voterMax(), Math.max(1, vetoManual ? o.rules.vetoNeed : Math.ceil(voterMax() / 2)));
     o.vetoNeedManual = vetoManual;
-    $('.assists-body').innerHTML = TL_ASSISTS.filter(([k]) => (k !== 'undo' || alone()) && (k !== 'veto' || canVeto())).map(([k, vals]) => ruleRows([[k, vals]])
-      + (k === 'veto' && o.rules.veto ? `<div class="rule"><span class="eyebrow">${t('tiles.r.vetoNeed')}</span><div class="seg"><button type="button" data-veto-step="-1" aria-label="${esc(t('tiles.r.vetoNeed'))} −" ${o.rules.vetoNeed <= 1 ? 'disabled' : ''}>−</button><output>${o.rules.vetoNeed}</output><button type="button" data-veto-step="1" aria-label="${esc(t('tiles.r.vetoNeed'))} +" ${o.rules.vetoNeed >= voterMax() ? 'disabled' : ''}>+</button></div></div>` : '')).join('');
+    o.rules.approvalNeed = Math.min(voterMax(), Math.max(1, approvalManual ? o.rules.approvalNeed : Math.ceil(voterMax() / 2)));
+    o.approvalNeedManual = approvalManual;
+    if (!canVeto() || o.rules.check === 'challenge') o.rules.wordsVote = false;
+    $('.assists-body').innerHTML = TL_ASSISTS.filter(([k]) => (k !== 'undo' || alone()) && (!['veto', 'wordsVote'].includes(k) || canVeto())).map(([k, vals]) => ruleRows([[k, vals]])
+      + (k === 'veto' && o.rules.veto ? `<div class="rule"><span class="eyebrow">${t('tiles.r.vetoNeed')}</span><div class="seg"><button type="button" data-veto-step="-1" aria-label="${esc(t('tiles.r.vetoNeed'))} −" ${o.rules.vetoNeed <= 1 ? 'disabled' : ''}>−</button><output>${o.rules.vetoNeed}</output><button type="button" data-veto-step="1" aria-label="${esc(t('tiles.r.vetoNeed'))} +" ${o.rules.vetoNeed >= voterMax() ? 'disabled' : ''}>+</button></div></div>` : '') + (k === 'wordsVote' && o.rules.wordsVote ? `<div class="rule"><span class="eyebrow">${t('tiles.r.approvalNeed')}</span><div class="seg"><button type="button" data-approval-step="-1" aria-label="${esc(t('tiles.r.approvalNeed'))} −" ${o.rules.approvalNeed <= 1 ? 'disabled' : ''}>−</button><output>${o.rules.approvalNeed}</output><button type="button" data-approval-step="1" aria-label="${esc(t('tiles.r.approvalNeed'))} +" ${o.rules.approvalNeed >= voterMax() ? 'disabled' : ''}>+</button></div></div>` : '')).join('');
     const used = helps();
     $('.tl-assists').classList.toggle('used', used.length > 0);
     $('.tl-assists .state').textContent = used.length ? t('tiles.assists.on', { what: used.join(', ') }) : t('tiles.assists.off');
@@ -912,6 +916,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     const who = o.players.map((x, p) => esc(nameAt(p)) + (x.cpu ? ` (${t(levelKey(x.cpu))})` : '')).join(', ');
     const first = o.players.indexOf(o.first);
     $('.summary').innerHTML = [LANG_NAMES[o.lang], t('tiles.board.' + o.board), o.net && t('net.tag.' + o.net), who, first >= 0 && `${t('tiles.first')}: ${esc(nameAt(first))}`,
+      canVeto() && o.rules.wordsVote && t('tiles.r.wordsVote'), canVeto() && o.rules.wordsVote && `${t('tiles.r.approvalNeed')}: ${o.rules.approvalNeed}`,
       canVeto() && o.rules.veto && t('tiles.r.veto'), canVeto() && o.rules.veto && `${t('tiles.r.vetoNeed')}: ${o.rules.vetoNeed}`, !standard() && t('tiles.rules.own')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
   }
   const sync = () => {
@@ -938,7 +943,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     fitAll(root);
   };
   sync();
-  loadTileWords(o.lang).catch(() => {});      // the word list, ready by the time Start is pressed
+  loadTileWords(o.lang, o.rules).catch(() => {});      // the word list, ready by the time Start is pressed
 
   root.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => {
     o.lang = b.dataset.lang;
@@ -947,7 +952,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     tlPending = o;
     if (switchLang(o.lang, refresh, false)) return;
     tlPending = null;
-    loadTileWords(o.lang).catch(() => {});
+    loadTileWords(o.lang, o.rules).catch(() => {});
     sync();
   }));
   root.querySelectorAll('[data-board]').forEach(b => b.addEventListener('click', () => { o.board = b.dataset.board; sync(); }));
@@ -999,6 +1004,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     const b = e.target.closest('button');
     if (!b) return;
     const v = b.dataset.v;
+    if (b.dataset.approvalStep) { approvalManual = true; o.rules.approvalNeed += +b.dataset.approvalStep; }
     if (b.dataset.vetoStep) { vetoManual = true; o.rules.vetoNeed += +b.dataset.vetoStep; }
     else if (b.dataset.rule) o.rules[b.dataset.rule] = b.dataset.rule === 'bingo' ? +v : v === 'true' ? true : v === 'false' ? false : v;
     else if (b.dataset.time) o.rules.time = b.dataset.time === 'none' ? null : { per: b.dataset.time, seconds: b.dataset.time === 'move' ? 60 : 1500 };
@@ -1014,7 +1020,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
 
   $('form').addEventListener('submit', async e => {
     e.preventDefault();
-    const dict = await loadTileWords(o.lang);
+    const dict = await loadTileWords(o.lang, o.rules);
     settings.newGame = { lang: o.lang };
     saveSettings();
     const players = o.players.map(x => ({ name: o.net && !x.here ? '' : x.name.trim(), cpu: x.cpu })), first = o.players.indexOf(o.first);
@@ -1022,7 +1028,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     saveSettings();
     const humans = players.filter(x => !x.cpu).length, vsCpu = humans === 1 && players.some(x => x.cpu);
     const state = tilesGame({ lang: o.lang, board: o.board, players, first: first >= 0 ? first : undefined, words: dict.tag,
-      rules: { ...o.rules, undo: vsCpu && o.rules.undo, open: humans > 1 && !o.net && o.rules.open, veto: canVeto() && o.rules.veto === true } });
+      rules: { ...o.rules, undo: vsCpu && o.rules.undo, open: humans > 1 && !o.net && o.rules.open, wordsVote: canVeto() && o.rules.check !== 'challenge' && o.rules.wordsVote === true, veto: canVeto() && o.rules.veto === true } });
     // several phones: this one hosts - its player is the row marked "on this phone"; the others' seats fill as they join
     const link = o.net ? { link: { kind: o.net, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), role: 'host', me: Math.max(0, o.players.findIndex(x => x.here)), seats: [] } } : {};
     const game = newGame({ name: typedName(), mode: 'tiles', lang: o.lang, state, firstSet: first >= 0, order: [], turnMs: 0, ...link });
@@ -1215,7 +1221,7 @@ export function tilesJoinScreen(root, chosen) {
     if (gone) return;
     const fail = key => { wire().close(conn).catch(() => {}); conn = null; busy = false; paint(); note(key, { name }); setTimeout(search, 2500); };
     if (!welcome) return fail({ refused: 'tiles.bt.refused', full: 'net.full', version: 'tiles.bt.version', lost: 'tiles.bt.joinFailed' }[answer] ?? 'tiles.bt.noGame');
-    const m = welcome, dict = await loadTileWords(m.setup.lang).catch(() => null);
+    const m = welcome, dict = await loadTileWords(m.setup.lang, m.setup.rules).catch(() => null);
     if (!dict || dict.tag !== m.setup.words) return fail('tiles.bt.words');
     // the game as the host has it, here only while it is played
     const state = m.log.reduce((st, x) => tilesApply(st, x, w => has(dict, w)), tilesGame(m.setup));
@@ -1625,7 +1631,7 @@ export async function settingsScreen(root, _, refresh) {
           <dt>${t('set.vocab')}</dt><dd>${t('set.vocabText', { pl: num(dataIndex.counts.pl), en: num(dataIndex.counts.en) })}</dd>
           <dt>${t('set.vectors')}</dt><dd>${t('set.vectorsReal', { d: dataIndex.dims })}</dd>
           <dt>${t('set.saves')}</dt><dd>${t('set.savesText')}</dd>
-          <dt>${t('set.tiles')}</dt><dd>${t('set.credits')}</dd>
+          <dt>${t('set.tiles')}</dt><dd>${t('set.credits')} <a href="data/familiar-sources.txt" target="_blank" rel="noopener">${t('set.wordNotices')}</a> · <a href="data/SCOWL-Copyright.txt" target="_blank" rel="noopener">${t('set.scowlNotice')}</a></dd>
         </dl>
       </div>
     </section>

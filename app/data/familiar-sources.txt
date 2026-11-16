@@ -1,0 +1,40 @@
+Familiar words / Znane słowa
+
+Polish / polski: SJP.PL, https://sjp.pl/sl/growy/, CC BY 4.0.
+SJP game forms selected by NKJP exact count >=2, spoken/TWO lists, or a known
+Polimorf lemma (sum of counts >=1, any spoken form, or app vocab lemma).
+Neg-tagged nie forms require exact-form evidence; yoni excluded.
+Formy SJP wybierane według liczności NKJP >=2, list spoken/TWO lub znanego
+lematu Polimorf (suma >=1, forma spoken lub lemat w słowniku aplikacji).
+Formy nie z tagiem neg wymagają poświadczenia; wykluczono yoni.
+
+Polimorf 20261115, Morfeusz / SGJP, BSD 2-clause.
+https://download.sgjp.pl/morfeusz/20261115/polimorf-20261115.tab.gz
+Full copyright, conditions and disclaimer: Polimorf-Copyright.txt.
+Pełna informacja o prawach autorskich i warunkach: Polimorf-Copyright.txt.
+
+NKJP: Narodowy Korpus Języka Polskiego, Instytut Podstaw Informatyki PAN.
+https://zil.ipipan.waw.pl/NKJPNGrams
+Source: 1grams.gz, balanced 300-million-token corpus.
+The n-gram publisher grants Creative Commons Attribution (CC BY), without
+specifying a version on that page. https://creativecommons.org/licenses/by/
+Corpus counts were used for form and lemma selection; no corpus text ships.
+Liczności korpusowe służą do wyboru dokładnych form; teksty korpusu nie są dołączone.
+
+English / angielski: ENABLE (public domain / domena publiczna), intersected with
+SCOWL 2020.12.07 size <=60 english/american/british/british_z words categories,
+union the app's spoken and two-letter lists; yoni and xu excluded.
+Przecięcie ENABLE i SCOWL, suma z listami słów mówionych i dwuliterowych;
+wykluczono yoni i xu.
+SCOWL: Kevin Atkinson and contributors; full notices in SCOWL-Copyright.txt.
+https://downloads.sourceforge.net/wordlist/scowl-2020.12.07.tar.gz
+
+Spoken lists / listy słów mówionych: FrequencyWords, Hermit Dave,
+from OpenSubtitles / z napisów OpenSubtitles, CC BY-SA 4.0.
+https://github.com/hermitdave/FrequencyWords
+https://creativecommons.org/licenses/by-sa/4.0/
+The filtered familiar graphs are adaptations distributed under CC BY-SA 4.0,
+with the SJP, NKJP and SCOWL attributions and notices retained.
+Filtrowane grafy znanych słów są adaptacjami udostępnianymi na CC BY-SA 4.0,
+z zachowaniem informacji o autorstwie i licencjach SJP, NKJP i SCOWL.
+Build / generowanie: tools/build-familiar-words.mjs, tools/build-familiar-lemmas.mjs.

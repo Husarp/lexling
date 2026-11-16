@@ -20,6 +20,66 @@ let passed = 0;
 const check = (name, actual, expected) => { assert.deepEqual(actual, expected, name); passed++; };
 const seeded = seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 
+// Quality of life: calculations use the scoring rules, selections preserve duplicates.
+{
+  const source = readFileSync(new URL('../app/js/tiles-game.js', import.meta.url), 'utf8');
+  const context = { BLANK, outOf: T.outOf };
+  runInNewContext(source.slice(source.indexOf('export const exchangeLetters'), source.indexOf('const clampPan')).replaceAll('export ', '') + '\nthis.exchangeLetters = exchangeLetters; this.endingNext = endingNext;', context);
+  check('exchange summary: duplicate letters and named blanks', context.exchangeLetters(['a', '?', 'a'], new Set([2, 1, 0]), 'Blank'), 'A, Blank, A');
+  check('exchange summary: deselection', context.exchangeLetters(['a', '?', 'a'], new Set([2]), 'Blank'), 'A');
+  check('exchange summary: cancellation', context.exchangeLetters(['a'], new Set(), 'Blank'), '');
+  const state = newGame({ lang: 'en', players: [{}, {}, {}], first: 0, seed: 12 });
+  for (const zeros of [0, 1, 2, 3]) check(`ending warning: two active players at ${zeros}`, context.endingNext({ ...state, out: [false, false, true], zeros }), zeros === 3);
+  check('ending warning: scoring resets warning', context.endingNext({ ...state, zeros: 0 }), false);
+  for (const lang of ['en', 'pl']) for (const premiums of ['new', 'always']) {
+    const S = { ...state, lang, rules: { ...state.rules, premiums }, cells: Array(225).fill(null) };
+    S.cells[6 * 15 + 7] = { ch: 'a' };
+    const placed = [...'at'].map((ch, k) => ({ r: 7, c: 7 + k, ch, blank: k === 0 }));
+    const detail = T.pointsBreakdown(S, placed);
+    check(`${lang} ${premiums}: cross words and blanks sum`, detail.words.reduce((sum, w) => sum + w.letters.reduce((v, l) => v + l.value * l.multiplier, 0) * w.multiplier, detail.bonus), wordsMade(S, placed).score);
+    check(`${lang} ${premiums}: blank has zero value`, detail.words[0].letters[0].value, 0);
+    const seven = Array.from({ length: 7 }, (_, k) => ({ r: 7, c: 4 + k, ch: 'a' }));
+    check(`${lang} ${premiums}: seven tile bonus sums`, T.pointsBreakdown(S, seven).score, T.pointsBreakdown(S, seven).words.reduce((sum, w) => sum + w.score, 50));
+    const opening = { ...S, cells: Array(225).fill(null) };
+    const air = [...'air'].map((ch, k) => ({ r: 7, c: 7 + k, ch }));
+    if (lang === 'en') check(`${premiums}: centre double word`, T.pointsBreakdown(opening, air).score, 6);
+    const consumed = { ...S, cells: [...S.cells] };
+    consumed.cells[112] = { ch: 'a' };
+    const extension = [{ r: 7, c: 8, ch: 't' }];
+    check(`${lang} ${premiums}: consumed word multiplier`, T.pointsBreakdown(consumed, extension).words.find(w => w.w === 'at').multiplier, premiums === 'always' ? 2 : 1);
+  }
+}
+
+// Unknown words use the same logged vote transport, with explicit consent required.
+{
+  check('approval: default off', STANDARD.wordsVote, false);
+  check('approval: count clamps', [T.vetoNeed(3, 99), T.vetoNeed(3, 0), T.vetoNeed(3, null)], [3, 1, 2]);
+  const base = newGame({ lang: 'en', players: [{}, {}, {}, {}], first: 0, seed: 42, rules: { wordsVote: true, veto: true, approvalNeed: 2 } });
+  const placed = base.racks[0].slice(0, 2).map((ch, i) => ({ r: 7, c: 7 + i, ch: ch === BLANK ? 'a' : ch, ...(ch === BLANK ? { blank: true } : {}) }));
+  const pending = apply(base, { type: 'place', placed }, () => false);
+  check('approval: opens for unknown word', !!pending.vote.approval, true);
+  const vote = (s, p, veto) => apply(s, { type: 'vote', p, veto, at: 0 }, () => false);
+  const one = vote(pending, 1, true), accepted = vote(one, 2, true);
+  check('approval: early success skips veto', [accepted.vote, accepted.moves.at(-1).approved], [null, pending.vote.approval]);
+  check('approval: later dictionary check accepts word', checkMove({ ...accepted, cells: base.cells, racks: base.racks, turn: 0 }, placed, () => false).error, undefined);
+  const rejected = vote(vote(pending, 1, false), 2, false);
+  check('approval: early rejection restores same rack and turn', [rejected.vote, rejected.turn, rejected.racks, rejected.moves.at(-1).kind], [null, 0, base.racks, 'vetoed']);
+  const silent = apply(one, { type: 'voteEnd', ms: 20000 }, () => false);
+  check('approval: silence rejects and clock continues', [silent.turn, silent.moves.at(-1).kind, silent.used], [0, 'vetoed', 20000]);
+  check('approval: replay identical on every phone', replay(accepted, () => false).at(-1), accepted);
+  check('approval: replay rejection identical', replay(silent, () => false).at(-1), silent);
+  const departed = apply(one, { type: 'resign', p: 3 }, () => false);
+  check('approval: departure clamps required count', T.voteCertain({ ...departed, vote: { ...departed.vote, voters: [1] } }), true);
+  check('approval: challenge disables rule', newGame({ lang: 'en', players: [{}, {}], rules: { wordsVote: true, check: 'challenge' } }).rules.wordsVote, false);
+  check('approval: computer-only opponents disable rule', newGame({ lang: 'en', players: [{}, { cpu: 'easy' }], rules: { wordsVote: true } }).rules.wordsVote, false);
+  const { playChallenges } = await import('../app/js/achievements.js');
+  check('approval: excluded from challenges', playChallenges({ ...accepted.moves.at(-1), score: 100 }, { rarePct: 1 }), []);
+  const source = readFileSync(new URL('../app/js/tiles-game.js', import.meta.url), 'utf8');
+  const ctx = {};
+  runInNewContext(source.slice(source.indexOf('export function guestAction'), source.indexOf('export const exchangeLetters')).replace('export ', '') + '\nthis.clean = guestAction;', ctx);
+  check('approval: guest vote allowlist strips extra fields', JSON.stringify(ctx.clean({ type: 'vote', p: 1, veto: true, at: 0, approved: ['fake'] })), JSON.stringify({ type: 'vote', p: 1, veto: true, at: 0 }));
+}
+
 // ── rarity ──
 {
   const { RARE_TIERS, TIER_KEYS, rarePct, tierOf, cleanTiers, moveRarity, listedPct } = await import('../app/js/rarity.js');
@@ -669,6 +729,29 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   check('a better hint never costs less than a smaller one', T.hintCost({ hintCost: 'low' }, 'master', { small: { score: 10 }, big: { score: 40 }, master: { score: 20 } }), 8);
 }
 
+// Vote cards use logged choices, including the final vote that removes the live proposal.
+{
+  for (const approval of [false, true]) {
+    const base = { ...newGame({ lang: 'en', players: [{}, {}, {}], first: 0, seed: 12,
+      rules: { veto: true, wordsVote: approval, vetoNeed: 1, approvalNeed: 1 } }) };
+    const isWord = () => !approval;
+    const pending = apply(base, { type: 'place', placed: base.racks[0].filter(ch => ch !== BLANK).slice(0, 3).map((ch, k) => ({ r: 7, c: 7 + k, ch })) }, isWord);
+    check(`status ${approval}: pending rows`, T.voteStatus(pending).votes, {});
+    for (const choice of [false, true]) {
+      let state = apply(pending, { type: 'vote', p: 1, veto: choice, at: pending.vote.at }, isWord);
+      if (state.vote) state = apply(state, { type: 'vote', p: 2, veto: choice, at: pending.vote.at }, isWord);
+      const card = T.voteStatus(state, pending.vote, base.moves.length);
+      check(`status ${approval} ${choice}: decisive result`, card.result, approval ? choice : !choice);
+      check(`status ${approval} ${choice}: deciding vote from log`, card.votes[1], choice);
+      check(`status ${approval} ${choice}: early finish preserves undecided row`, 2 in card.votes, !choice);
+      check(`status ${approval} ${choice}: same card on replayed phone`, T.voteStatus(replay(state, isWord).at(-1), pending.vote, base.moves.length), card);
+    }
+    const silent = apply(pending, { type: 'voteEnd' }, isWord);
+    check(`status ${approval}: timeout result`, T.voteStatus(silent, pending.vote, 0).result, !approval);
+    check(`status ${approval}: cancellation has no result`, T.voteStatus(apply(pending, { type: 'timeout' }, isWord), pending.vote, 0), null);
+  }
+}
+
 // ── veto ──
 {
   const isWord = () => true, placed = row(7, 7, 'cat');
@@ -894,17 +977,17 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     const S = { ...newGame({ lang: 'en', players: Array.from({ length: players }, (_, p) => ({ name: `P${p + 1}` })), first: 0, seed: 12, rules: { veto: true, ...rules } }),
       racks: Array.from({ length: players }, () => [...'caters?']), bag: [...'aeiourstn'] };
     const number = { textContent: '', parentElement: { classList: { toggle() {} } } }, chip = { textContent: '' };
-    const ctx = { S, game: { state: S, turnMs: 120, evals: [] }, t, esc, clock, apply, isWord: () => true, voteFits: T.voteFits, voteCertain: T.voteCertain,
-      Date: { now: () => now }, VOTE_MS: 20000, voteAt: null, seenAt: 0, sentVote: null, linked: false, host: false, linkMe: 0, solo: -1, open: false,
+    const ctx = { S, game: { state: S, turnMs: 120, evals: [] }, t, esc, clock, apply, isWord: () => true, voteFits: T.voteFits, voteCertain: T.voteCertain, voteStatus: T.voteStatus,
+      Date: { now: () => now }, VOTE_MS: 20000, voteAt: null, seenAt: 0, sentVote: null, lastVote: null, voteMoveAt: 0, voteResult: null, linked: false, host: false, linkMe: 0, solo: -1, open: false,
       shown: 0, thinking: false, toast: false, handOver: false, linkUp: true, ended: '', party: null,
       draft: [], sel: -1, mode: 'play', picks: new Set(), levels: null, cursor: null, blankFor: -1, turnHints: ['remember hint'], redoStack: [],
       press: null, rackGap: -1, fresh: null, msg: null, landing: null, n: 15, lang: 'en', settings: {}, dict: {}, histOf: null,
-      BLANK, LABEL: { d: 'l2', t: 'l3', D: 'w2', T: 'w3' }, sizeOf, premiums, centre: T.centre, valueOf: T.valueOf,
+      BLANK, wordsMade, LABEL: { d: 'l2', t: 'l3', D: 'w2', T: 'w3' }, sizeOf, premiums, centre: T.centre, valueOf: T.valueOf,
       nameOf: (s, p) => s.players[p].name, cpu: p => !!ctx.S.players[p].cpu, remote: p => ctx.linked && p !== ctx.linkMe, netOk: () => true,
       rackOf: p => [...ctx.S.racks[p]], inDraft: i => ctx.draft.some(d => d.slot === i),
       rackEl: { innerHTML: '' }, dock: { innerHTML: '' }, voteEl: { hidden: true, innerHTML: '', querySelectorAll: () => [], addEventListener: (_, fn) => { ctx.voteClick = fn; } },
       status: { querySelector: s => s === '.tl-clock .num' ? number : chip }, play: { classList: { toggle() {} } }, app: { isConnected: true },
-      setTimeout: fn => { ctx.clearNotice = fn; }, document: { visibilityState: 'visible' }, setInterval: fn => { ctx.tickNow = fn; return 1; }, clearInterval() {},
+      timers: [], setTimeout: fn => { ctx.timers.push(fn); ctx.clearNotice = fn; }, document: { visibilityState: 'visible' }, setInterval: fn => { ctx.tickNow = fn; return 1; }, clearInterval() {},
       refit() {}, zoomOut() {}, paintSay() {}, paintAll: () => ctx.paintVote(), think() {}, putSave() {}, finish() {}, countAchievements() {}, quiet() {},
       statsNow: () => ({}), recorded: 0, drawn: [], evaluated: [], recordMove: () => ctx.recorded++, noteMove() {},
       drew: (...args) => ctx.drawn.push(args), bestMove: s => { ctx.evaluated.push(s); return { score: 20, word: 'cat' }; },
@@ -916,6 +999,27 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     return ctx;
   }
   const placed = row(7, 7, 'cat');
+  {
+    const c = screen(2, { veto: false });
+    c.S.cells[6 * 15 + 7] = { ch: 'x', by: 1 };
+    c.S.cells[6 * 15 + 9] = { ch: 'z', by: 1 };
+    const draft = row(7, 7, 'cat');
+    const result = checkMove(c.S, draft, w => w === 'cat');
+    check('multiple wrong words: all returned together', result.bad, ['xc', 'zt']);
+    const html = c.boardInner(c.S, { draft, badWords: result.bad });
+    const marked = [...html.matchAll(/<b class="([^"]*)" data-i="(\d+)"/g)]
+      .filter(m => m[1].split(' ').includes('bad')).map(m => +m[2]).sort((a, b) => a - b);
+    check('multiple wrong words: existing and new cells marked, valid-only cell spared', marked, [97, 99, 112, 114]);
+    check('multiple wrong words: correcting the draft clears marks', c.boardInner(c.S, { draft }).includes(' bad'), false);
+    const played = apply({ ...c.S, rules: { ...c.S.rules, check: 'challenge' } }, { type: 'place', placed: draft }, () => true);
+    c.S = apply(played, { type: 'challenge' }, w => w === 'cat');
+    for (const lang of ['en', 'pl']) {
+      setLang(lang);
+      const report = c.report({ type: 'challenge' }, 1);
+      check(`${lang}: challenge lists every wrong word`, report.html.includes('XC, ZT'), true);
+      check(`${lang}: rejection message lists every wrong word`, t('tiles.err.unknown', { w: 'XC, ZT' }).includes('XC, ZT'), true);
+    }
+  }
   for (const lang of ['en', 'pl']) {
     setLang(lang);
     const c = screen();
@@ -925,7 +1029,7 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     check(`${lang} screen: the shared-device rack is hidden and tools are off during voting`, [(c.rackEl.innerHTML.match(/visibility:hidden/g) ?? []).length, /data-slot|rt used/.test(c.rackEl.innerHTML), c.dock.innerHTML], [7, false, '']);
     const boardHtml = c.boardInner(c.S);
     check(`${lang} screen: proposed board tiles have their own look`, [(boardHtml.match(/class="t voting/g) ?? []).length, /class="t (new|hint|last)/.test(boardHtml)], [3, false]);
-    check(`${lang} screen: shared vote shows only the other person's two choices`, [c.voteEl.hidden, (c.voteEl.innerHTML.match(/data-voter="1"/g) ?? []).length, c.voteEl.innerHTML.includes(t('tiles.veto.yours')), c.voteEl.innerHTML.includes('aria-valuenow="20"')], [false, 2, true, true]);
+    check(`${lang} screen: shared vote shows only the other person's two choices`, [c.voteEl.hidden, (c.voteEl.innerHTML.match(/data-voter="1"/g) ?? []).length, c.voteEl.innerHTML.includes(t('tiles.vote.choosing')), c.voteEl.innerHTML.includes('aria-valuenow="20"')], [false, 2, true, true]);
     c.advance(5000); c.paintVote();
     check(`${lang} screen: repaint preserves first-seen time and shrinks the countdown`, [c.voteEl.innerHTML.includes('aria-valuenow="15"'), c.voteEl.innerHTML.includes('width:75%'), c.turnTime(), c.totalTime(0)], [true, true, 5120, 5120]);
     c.game.turnMs = 999;   // vote ms must never be overwritten by the mover's old accumulator
@@ -938,8 +1042,11 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     c.act({ type: 'place', placed });
     check(`${lang} screen: a re-move starts its own twenty-second window`, c.voteEl.innerHTML.includes('aria-valuenow="20"'), true);
     c.advance(800); c.castVote(1, false);
-    check(`${lang} screen: acceptance scores, draws, records and animates the played move`, [c.S.moves.at(-1).kind, c.S.vote, c.S.turn, c.recorded, c.drawn.length, plain(c.drawn[0][2]), plain(c.landing), plain(c.game.evals.at(-1)), c.voteEl.hidden], ['play', null, 1, 1, 1, [...'cat'], [112, 113, 114], { best: 20, word: 'cat' }, true]);
+    check(`${lang} screen: acceptance scores, draws, records and animates the played move`, [c.S.moves.at(-1).kind, c.S.vote, c.S.turn, c.recorded, c.drawn.length, plain(c.drawn[0][2]), plain(c.landing), plain(c.game.evals.at(-1)), c.voteEl.hidden], ['play', null, 1, 1, 1, [...'cat'], [112, 113, 114], { best: 20, word: 'cat' }, false]);
     check(`${lang} screen: acceptance hands over with the next rack hidden`, [c.handOver, c.shown], [true, -1]);
+    check(`${lang} screen: accepted result stays visible briefly`, c.voteEl.innerHTML.includes(t('tiles.vote.accepted')), true);
+    c.timers.at(-1)();
+    check(`${lang} screen: result card closes after its timer`, [c.voteEl.hidden, c.voteEl.innerHTML], [true, '']);
     check(`${lang} screen: closing ratings are computed before any proposed tiles land`, c.evaluated.every(s => s.cells.every(x => !x)), true);
     check(`${lang} screen: guide includes veto on setup and when enabled only`, [c.topics().includes(t('howto.tiles.veto.t')), c.topics({ veto: true }).includes(t('howto.tiles.veto.t')), c.topics({}).includes(t('howto.tiles.veto.t'))], [true, true, false]);
   }
@@ -954,6 +1061,8 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     phone.act({ type: 'vote', p: 1, veto: true, at: 0, ms: 200 }, true);
   }
   check('screen: every phone sees the vetoed word and player, including uninvolved voters', vetoPhones.map(p => p.msg.html), vetoPhones.map(() => t('tiles.say.vetoed', { name: 'P1', w: 'CAT' })));
+  check('screen: every phone shows the deciding vote and result', vetoPhones.map(p => [p.voteEl.hidden, p.voteEl.innerHTML.includes('tl-vote-state no'), p.voteEl.innerHTML.includes(t('tiles.vote.vetoed')), p.voteEl.innerHTML.includes('data-voter=')]), vetoPhones.map(() => [false, true, true, false]));
+  check('screen: only undecided voters see the unneeded notice', vetoPhones.map(p => p.voteEl.innerHTML.includes(t('tiles.vote.unneeded'))), [false, false, true]);
   check('screen: early veto has the same state on every phone', vetoPhones.map(p => JSON.stringify(p.S)), vetoPhones.map(() => JSON.stringify(vetoPhones[0].S)));
   vetoPhones.forEach(p => p.clearNotice());
   check('screen: every phone clears its transient veto notice', vetoPhones.map(p => p.msg), [null, null, null]);
@@ -962,7 +1071,7 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   check('screen: open-rack games retain the visible rack and mark proposed tiles used', [everyone.shown, (everyone.rackEl.innerHTML.match(/rt used/g) ?? []).length], [0, 3]);
   const multi = screen(3);
   multi.act({ type: 'place', placed }); multi.advance(1000); multi.castVote(1, false);
-  check('screen: a shared voter disappears after voting', [multi.voteEl.innerHTML.includes('data-voter="1"'), multi.voteEl.innerHTML.includes(t('tiles.veto.voted')), multi.voteEl.innerHTML.includes('data-voter="2"')], [false, false, true]);
+  check('screen: a shared voter loses buttons but keeps their logged status', [multi.voteEl.innerHTML.includes('data-voter="1"'), multi.voteEl.innerHTML.includes(t('tiles.veto.voted')), multi.voteEl.innerHTML.includes('data-voter="2"')], [false, false, true]);
   const guest = screen(3), proposals = [];
   guest.linked = true; guest.linkMe = guest.solo = 1;
   guest.party = { propose: (...a) => proposals.push(plain(a)), flush() {} };
@@ -970,7 +1079,7 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   check('screen: a linked voter retains only their own rack', guest.shown, 1);
   const before = JSON.stringify(guest.S);
   guest.advance(500); guest.castVote(2, true); guest.castVote(1, false); guest.castVote(1, true);
-  check('screen: a guest sends only its own vote once, waiting for the echo', [JSON.stringify(guest.S), proposals, guest.voteEl.innerHTML.includes('data-voter='), guest.voteEl.innerHTML.includes(t('tiles.veto.waiting', { names: 'P2, P3' }))], [before, [[1, { type: 'vote', p: 1, veto: false, at: 0, ms: 500 }]], false, true]);
+  check('screen: a guest sends only its own vote once, waiting for the echo', [JSON.stringify(guest.S), proposals, guest.voteEl.innerHTML.includes('data-voter='), guest.voteEl.innerHTML.includes('P2') && guest.voteEl.innerHTML.includes('P3') && (guest.voteEl.innerHTML.match(/tl-vote-state choosing/g) ?? []).length === 2], [before, [[1, { type: 'vote', p: 1, veto: false, at: 0, ms: 500 }]], false, true]);
   guest.advance(21000); guest.tickNow();
   check('screen: a guest updates the clock after expiry without closing the vote', [JSON.stringify(guest.S), guest.chip.textContent, guest.game.turnMs], [before, '0:21', 0]);
   for (const [name, rules, elapsed, host] of [['silence', {}, 20000, false], ['host silence', {}, 20000, true], ['timeout', { time: { per: 'move', seconds: 2 } }, 1900, true]]) {
@@ -1055,6 +1164,50 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     }
   }
   setLang('en');
+}
+
+// Every game, including guests and legacy saves, selects one graph for all callers.
+{
+  const source = readFileSync(new URL('../app/js/screens.js', import.meta.url), 'utf8');
+  check('guest loads the host rules before checking its graph tag', source.includes('loadTileWords(m.setup.lang, m.setup.rules)'), true);
+  check('old saves select full', T.wordList({}), 'full');
+  check('missing rules select full', T.wordList(), 'full');
+  for (const lang of ['pl', 'en']) {
+    const full = await loadTileWords(lang), familiar = await loadTileWords(lang, { dictionary: 'familiar' });
+    check(`${lang}: full remains default`, await loadTileWords(lang, {}), full);
+    check(`${lang}: separate familiar graph`, familiar === full, false);
+    check(`${lang}: yoni in full`, has(full, 'yoni'), true);
+    check(`${lang}: yoni absent in familiar`, has(familiar, 'yoni'), false);
+    const walk = (n, prefix) => {
+      if (familiar.final[n]) assert.ok(has(full, prefix), `${lang}: familiar subset: ${prefix}`);
+      for (let e = familiar.first[n]; e < familiar.first[n + 1]; e++) walk(familiar.target[e], prefix + familiar.letters[familiar.letter[e]]);
+    };
+    walk(0, ''); passed++;
+    const host = newGame({ lang, players: [{}, {}], rules: { dictionary: 'familiar' }, seed: 123 });
+    const setup = JSON.parse(JSON.stringify({ lang, players: host.players, rules: host.rules, seed: host.start.seed }));
+    const guest = newGame(setup);
+    check(`${lang}: guest uses host graph`, await loadTileWords(lang, guest.rules), familiar);
+    check(`${lang}: replay preserves list`, replay(host)[0].rules.dictionary, 'familiar');
+    for (const w of lang === 'pl' ? ['dolewałaś', 'nakradniemy', 'zazębionemu', 'skarboneczka', 'kotami', 'zrobiłem', 'domy', 'we', 'ze'] : ['dogs', 'went', 'children', 'houses', 'color', 'colour']) {
+      check(`${lang}: ordinary form ${w}`, has(familiar, w), true);
+    }
+    if (lang === 'pl') {
+      for (const w of ['yoni', 'niebandżulskimi', 'odsztafirujże', 'buławinkowca']) {
+        check(`pl: strange form ${w} absent`, has(familiar, w), false);
+      }
+      // Valid inflections of known kota/trio: deliberately retained by lemma policy.
+      for (const w of ['kotą', 'triu']) check(`pl: odd form ${w} blocked by hand`, has(familiar, w), false);
+    }
+    const valid = w => has(familiar, w);
+    const best = hint(host, familiar);
+    check(`${lang}: familiar hint exists`, !!best, true);
+    check(`${lang}: hint validates against familiar`, !checkMove(host, best.placed, valid).error, true);
+    for (const level of Object.keys(LEVELS)) {
+      const a = computerMove(host, familiar, level, () => 0, seeded(123), () => 0);
+      check(`${lang}: ${level} uses familiar words`, a.type !== 'place' || !checkMove(host, a.placed, valid).error, true);
+      assert.doesNotThrow(() => apply(host, a, valid)); passed++;
+    }
+  }
 }
 
 console.log(`all ${passed} Tiles tests passed`);

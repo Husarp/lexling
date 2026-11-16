@@ -137,8 +137,12 @@ export function fullBag(lang, board = 'classic') {
 // for word games in Polish (3.2 million words and forms, CC BY 4.0) and ENABLE in English (168 000, public
 // domain), 2 to 15 letters, minus slurs and vulgar words. The same promise to every caller.
 const graphs = {};
-export const loadTileWords = lang => graphs[lang] ??= fetch(`data/${lang}/tiles.bin`).then(r => r.arrayBuffer()).then(fromBytes)
-  .catch(e => { delete graphs[lang]; throw e; });
+export const wordList = rules => rules?.dictionary === 'familiar' ? 'familiar' : 'full';
+export function loadTileWords(lang, rules) {
+  const list = wordList(rules), key = `${lang}/${list}`;
+  return graphs[key] ??= fetch(`data/${lang}/tiles${list === 'familiar' ? '-familiar' : ''}.bin`).then(r => r.arrayBuffer()).then(fromBytes)
+    .catch(e => { delete graphs[key]; throw e; });
+}
 
 // "Check a word" (owner, 2026-09-25: any time, just to see whether a word is allowed): { word, ok, why } -
 // `why` = 'short' (under 2 letters), 'long' (over 15: no board holds it), 'letters' (a letter with no tile,
@@ -167,8 +171,8 @@ export function checkWord(dict, lang, text) {
 // hintMax: how many hints of each level a player may take - a number, or null for no limit (owner, 2026-09-26).
 // veto: off by default; other people vote before a person's move scores, a host-set count (default half rounded up) can veto it
 //   (owner, 2026-11-14). Computers never vote, and their moves go down without a vote (manager, 2026-11-14).
-export const STANDARD = { premiums: 'once', check: 'auto', exchange: 'bag7', bingo: BINGO, time: null, hints: false,   // hints off by default since 0.51.3 (owner)
-  hintMax: { small: null, big: null, master: null }, hintCost: null, undo: false, open: false, rating: true, veto: false, vetoNeed: null };
+export const STANDARD = { dictionary: 'full', premiums: 'once', check: 'auto', exchange: 'bag7', bingo: BINGO, time: null, hints: false,   // hints off by default since 0.51.3 (owner)
+  hintMax: { small: null, big: null, master: null }, hintCost: null, undo: false, open: false, rating: true, veto: false, vetoNeed: null, wordsVote: false, approvalNeed: null };
 // rating: false - a game without move ratings for anyone (owner, 2026-09-26): nothing under the board, no rating in
 // History, none at the end; each player's own setting ("Rate my moves") applies only when it is true.
 // hintCost: null, or 'low' / 'high' - a hint takes a share of the points of the move it shows off its player's score, a
@@ -205,6 +209,7 @@ const draw = (bag, rack) => { const b = [...bag], r = [...rack]; while (r.length
 // `first`: who starts - drawn from the seed when not given (the real game draws tiles for it).
 export function newGame({ lang, board = 'classic', players, first, seed = Math.floor(Math.random() * 2 ** 32), words = 0, rules = {} }) {
   if (players.length < PLAYERS_MIN || players.length > PLAYERS_MAX) throw new Error(`${players.length} players: 2 to 5 play`);
+  rules = { ...rules, wordsVote: rules.wordsVote === true && rules.check !== 'challenge' && players.filter(p => !p.cpu).length > 1 };
   let { list: bag, seed: s } = shuffle(fullBag(lang, board), seed);
   const racks = [];
   for (let p = 0; p < players.length; p++) { const d = draw(bag, []); bag = d.bag; racks.push(d.rack); }
@@ -287,14 +292,35 @@ export function wordsMade(state, placed) {
   return { words, score };
 }
 
+// Explain the same word scores, including blanks and bonuses already consumed.
+export function pointsBreakdown(state, placed) {
+  if (!placed.length) return { words: [], bonus: 0, score: 0 };
+  const made = wordsMade(state, placed), n = sizeOf(state.board), prem = premiums(state.board);
+  const fresh = new Map(placed.map(d => [d.r * n + d.c, d]));
+  const words = made.words.map(w => {
+    let multiplier = 1;
+    const letters = [...w.w].map((ch, k) => {
+      const i = (w.r + (w.across ? 0 : k)) * n + w.c + (w.across ? k : 0);
+      const tile = fresh.get(i) ?? state.cells[i], active = fresh.has(i) || state.rules?.premiums === 'always';
+      const letter = active ? LETTER_X[prem[i]] || 1 : 1;
+      multiplier *= active ? WORD_X[prem[i]] || 1 : 1;
+      return { ch, blank: !!tile.blank, value: valueOf(state.lang, tile.blank ? BLANK : ch), multiplier: letter };
+    });
+    return { ...w, letters, multiplier };
+  });
+  return { words, bonus: placed.length === RACK ? state.rules?.bingo ?? BINGO : 0, score: made.score };
+}
+
 // The whole check of a move, as the screen shows it before the player commits: { error } for a placement
 // that breaks the rules, { error: 'word', bad: [...] } for words the game does not know, otherwise
 // { words, score }. `isWord` = the word list's membership test.
+export const canApprove = state => !!(state.rules?.wordsVote && state.rules?.check !== 'challenge' && vetoVoters(state).length);
+
 export function checkMove(state, placed, isWord) {
   const error = placementError(state, placed);
   if (error) return { error };
   const made = wordsMade(state, placed);
-  const bad = made.words.map(x => x.w).filter(w => !isWord(w));
+  const bad = made.words.map(x => x.w).filter(w => !isWord(w) && !state.moves.some(m => m.kind === 'play' && m.approved?.includes(w)));
   return bad.length ? { error: 'word', bad: [...new Set(bad)] } : made;
 }
 
@@ -351,7 +377,7 @@ export function apply(state, action, isWord) {
     : null;
   if (!after) throw new Error('no such action: ' + action.type);
   // a veto leaves the same person moving, with their clock still running (owner, 2026-11-14)
-  return state.rules?.veto ? { ...after, used: !after.over && after.turn === state.turn ? (state.used || 0) + ms : 0 } : after;
+  return state.rules?.veto || state.rules?.wordsVote ? { ...after, used: !after.over && after.turn === state.turn ? (state.used || 0) + ms : 0 } : after;
 }
 // the same, one action at a time
 export const play = (state, placed, isWord) => apply(state, { type: 'place', placed }, isWord);
@@ -375,8 +401,21 @@ export function voteCertain(state) {
   const { voters, votes } = state.vote;
   const yes = voters.filter(p => votes[p] === true).length;
   const left = voters.filter(p => !(p in votes)).length;
-  const need = vetoNeed(voters.length, state.rules?.vetoNeed);
+  const need = vetoNeed(voters.length, state.vote.approval ? state.rules?.approvalNeed : state.rules?.vetoNeed);
   return !voters.length || yes >= need || yes + left < need;
+}
+// A closed card includes the deciding action, even when a phone receives several log entries together.
+export function voteStatus(state, previous = state.vote, moveAt = state.moves.length) {
+  if (state.vote) return { ...state.vote, result: null };
+  if (!previous) return null;
+  let voters = [...previous.voters], votes = { ...previous.votes };
+  for (const a of state.log.slice(previous.at + 1)) {
+    if (a.type === 'place') break;
+    if (a.type === 'vote' && (a.at === undefined || a.at === previous.at) && voters.includes(a.p)) votes[a.p] = !!a.veto;
+    if (a.type === 'resign') { voters = voters.filter(p => p !== a.p); delete votes[a.p]; }
+  }
+  const move = state.moves.slice(moveAt).find(m => m.p === previous.p && ['play', 'vetoed'].includes(m.kind));
+  return move ? { ...previous, voters, votes, result: move.kind === 'play' } : null;
 }
 // Late or repeated phone votes are ignored without a resync (owner, 2026-11-14).
 export const voteFits = (state, seat, action) => !!(!state.over && state.vote && action?.type === 'vote'
@@ -397,10 +436,12 @@ function place(state, placed, isWord, hint, voters = []) {
   const challenged = state.rules?.check === 'challenge' && !out;
   const error = placementError(state, placed);
   const made = error ? { error } : challenged ? wordsMade(state, placed) : checkMove(state, placed, isWord);
-  if (made.error) throw new Error('not a legal move: ' + made.error);
+  const approval = made.error === 'word' && canApprove(state) && !hint;
+  if (approval) { voters = vetoVoters(state); Object.assign(made, wordsMade(state, placed)); }
+  if (made.error && !approval) throw new Error('not a legal move: ' + made.error);
   const words = made.words.map(x => ({ w: x.w, score: x.score })), bingo = placed.length === RACK;
   if (voters.length) return { ...state, vote: { at: state.log.length - 1, p, placed, ...(hint ? { hint } : {}),
-    words, score: made.score, bingo, voters, votes: {} } };
+    words, score: made.score, bingo, voters, votes: {}, ...(approval ? { approval: made.bad } : {}) } };
   const cells = [...state.cells], rack = [...state.racks[p]];
   for (const t of placed) {
     cells[t.r * n + t.c] = { ch: t.ch, ...(t.blank ? { blank: true } : {}), by: p, ...(hint ? { hint } : {}) };
@@ -416,8 +457,14 @@ function place(state, placed, isWord, hint, voters = []) {
 
 // Voting is an extra check; a veto returns the same rack and the same turn (owner, 2026-11-14).
 function closeVote(state, isWord) {
-  const { p, placed, hint, words, score, voters, votes } = state.vote;
+  const { p, placed, hint, words, score, voters, votes, approval } = state.vote;
   const vetoes = voters.filter(q => votes[q] === true).length, s = { ...state, vote: null };
+  if (approval) {
+    if (!voters.length || vetoes < vetoNeed(voters.length, state.rules?.approvalNeed))
+      return { ...s, moves: [...s.moves, { p, kind: 'vetoed', placed, words, score, approval }] };
+    const after = place(s, placed, w => approval.includes(w) || isWord(w), hint);
+    return { ...after, moves: after.moves.map((m, i) => i === s.moves.length ? { ...m, approved: approval } : m) };
+  }
   return voters.length && vetoes >= vetoNeed(voters.length, state.rules?.vetoNeed)
     ? { ...s, moves: [...s.moves, { p, kind: 'vetoed', placed, words, score, vetoes, voters: voters.length }] }
     : place(s, placed, isWord, hint);
@@ -448,7 +495,7 @@ function swap(state, tiles) {
 // challenger then plays. Allowed: the challenger loses this turn.
 function challenge(state, isWord) {
   const { before, p } = state.pending, move = state.moves[state.moves.length - 1];
-  const bad = move.words.map(x => x.w).filter(w => !isWord(w));
+  const bad = move.words.map(x => x.w).filter(w => !isWord(w) && !state.moves.some(m => m.kind === 'play' && m.approved?.includes(w)));
   const who = state.turn;
   if (!bad.length) return scoreless({ ...state, pending: null }, { p: who, kind: 'challenge', ok: false, of: p });
   const moves = [...state.moves.slice(0, -1), { ...move, kind: 'withdrawn', bad }, { p: who, kind: 'challenge', ok: true, of: p }];
