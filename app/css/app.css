@@ -872,6 +872,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .t.voting{background:var(--tl-tile);color:var(--tl-ink);outline:calc(var(--cs) * .06) dashed var(--accent);outline-offset:calc(var(--cs) * -.09)}
 /* dragging: the square under the finger */
 .q.drop{z-index:2;box-shadow:inset 0 0 0 calc(var(--cs) * .12) var(--accent);background:var(--accent-soft)}
+.tb .t.drop{--ring:var(--accent);--rw:calc(var(--cs) * .12);background:var(--accent-soft)}
 /* typing: the cursor square and its direction */
 .q.cur{z-index:2;box-shadow:inset 0 0 0 calc(var(--cs) * .1) var(--accent);color:var(--accent);background:var(--accent-soft)}
 .q.cur::after{content:"";position:absolute;inset:0;margin:auto;width:calc(var(--cs) * .6);height:calc(var(--cs) * .6);background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M12.5 5.5 19 12l-6.5 6.5'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M12.5 5.5 19 12l-6.5 6.5'/%3E%3C/svg%3E") center/contain no-repeat}
@@ -894,11 +895,12 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* ── the message line: the move's words + points, or why it can't be played ── */
 
 /* ── the rack ── */
-/* A permanent gap keeps validation from moving the rack or board (owner, 2026-11-20). */
-.tl-rack-area{grid-area:rack;position:relative;min-width:0;padding-top:28px}
-.tl-move-error{position:absolute;bottom:calc(100% - 28px);inset-inline:0;z-index:4;margin:0;padding:0 4px;color:var(--error);background:var(--bg);font:500 12px/14px var(--font-body);text-align:center;overflow-wrap:anywhere;pointer-events:none;opacity:0;transition:opacity 160ms var(--ease)}
-.tl-move-error.visible{opacity:1}
-.tl-rack{grid-area:rack;container-type:inline-size;display:flex;justify-content:center;gap:6px;padding-top:6px}
+/* A reserved message row never moves or covers the rack, including lifted tiles.
+   Long dictionary explanations scroll within the same space. */
+.tl-rack-area{grid-area:rack;min-width:0;display:grid;grid-template-rows:42px auto;row-gap:18px}
+.tl-move-error{height:42px;min-width:0;overflow:auto;margin:0;padding:0 4px;color:var(--error);font:500 12px/14px var(--font-body);text-align:center;overflow-wrap:anywhere;visibility:hidden;opacity:0;transition:opacity 160ms var(--ease)}
+.tl-move-error.visible{visibility:visible;opacity:1}
+.tl-rack{container-type:inline-size;display:flex;justify-content:center;gap:6px;padding-top:6px}
 .rt{--rs:min(50px,calc((100cqi - 36px) / 7));flex:none;position:relative;width:var(--rs);height:var(--rs);display:grid;place-items:center;border-radius:calc(var(--rs) * .16);background:var(--tl-tile);color:var(--tl-ink);box-shadow:inset 0 calc(var(--rs) * -.07) 0 rgba(0,0,0,.2);font:700 calc(var(--rs) * .56)/1 var(--font-body);text-transform:uppercase;touch-action:none;cursor:grab;transition:transform 120ms var(--ease),opacity 120ms var(--ease)}
 .rt .p{position:absolute;right:8%;bottom:10%;font:700 calc(var(--rs) * .26)/1 var(--font-body);font-style:normal}
 .rt.sel{transform:translateY(-6px);outline:3px solid var(--accent);outline-offset:2px}
@@ -1988,6 +1990,22 @@ html{scrollbar-gutter:stable}
   [data-screen=tiles] .tl-messages{height:116px}
 }
 
+/* Column layout: the note owns one fixed line plus clearance for lifted rack
+   tiles. It never borrows space from the cards or changes height when shown. */
+@container (max-width:899px){
+  [data-screen=tiles] .tl-rack-area{grid-template-rows:14px auto;row-gap:18px}
+  [data-screen=tiles] .tl-move-error{height:14px}
+}
+/* On phones keep the width-sized board, and give all remaining height to the
+   cards. Replace the old 116px box / 60px padding combination; only the moves
+   scroll when the available height really is too small. */
+@container (max-width:480px){
+  [data-screen=tiles] .tl-play{grid-template-rows:auto auto minmax(0,1fr) auto auto}
+  [data-screen=tiles] .tl-bwrap{width:100%;aspect-ratio:1;align-self:start}
+  [data-screen=tiles] .tl-messages{height:auto;min-height:0;overflow:hidden;grid-template-rows:minmax(0,1fr)}
+  [data-screen=tiles] .tl-messages .tl-moves{min-height:0;overflow:auto}
+}
+
 .practice-badge{display:inline-block;font-size:.7rem;line-height:1.4;padding:.1rem .4rem;margin-inline-start:.4rem;border:1px solid var(--text-muted);border-radius:.4rem;color:var(--text-muted);white-space:nowrap}
 .earlier-ach{margin-block:1rem;font-size:.85rem;color:var(--text-muted)}
 
@@ -2052,13 +2070,13 @@ html{scrollbar-gutter:stable}
 .op-tabs{display:flex;gap:3px;padding:4px;background:var(--bg);border-radius:12px;flex:none}
 .op-tabs button{flex:1;min-width:0;min-height:44px;border-radius:8px;font:600 12px/1.3 var(--font-body);color:var(--text-muted)}
 .op-tabs [aria-selected=true]{background:var(--accent);color:var(--on-accent);box-shadow:0 2px 7px #0002}
-.tl-options .op-how{align-self:flex-start;flex:none;min-height:34px;padding:4px 0;border:0;background:none;box-shadow:none;font:400 12px/1.4 var(--font-body);letter-spacing:0;text-transform:none;color:var(--text-muted);margin:6px 0}
 .op-content{flex:1;min-height:0;overflow:auto;scrollbar-width:none;overscroll-behavior:contain;padding:8px 3px}
 .op-content::-webkit-scrollbar{display:none}
 .op-content [hidden]{display:none}
 .op-content h2{font:700 24px/1.3 var(--font-display);text-transform:uppercase;margin:0 0 16px}
-.op-foot{flex:none;padding-top:12px}
-.op-foot .op-quit{width:auto;margin:0;min-height:42px;border-color:var(--error)}
+.op-foot{flex:none;display:flex;justify-content:space-between;align-items:stretch;gap:12px;padding-top:12px}
+.op-foot .btn{width:auto;min-width:0;flex:0 1 auto;margin:0;min-height:42px;padding:8px 12px;white-space:normal;overflow-wrap:anywhere}
+.op-foot .op-quit{border-color:var(--error)}
 .tl-options .gs-row{border:0;padding:10px 0;gap:12px}
 .tl-options .gs-row strong{font-size:12px}
 .tl-options .gs-row .row-text span{font-size:11px}
@@ -2193,15 +2211,20 @@ svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.al
 :is(.tl-hand,.tl-pick,.tl-toast){min-height:0;max-height:100%;overflow:auto}
 .cn-pop{max-height:calc(100dvh - var(--safe-t) - var(--safe-b) - 32px);overflow:auto}
 /* Larger top tools need real tap area and wrapping, not a visual transform (owner, 2026-11-20). */
-:root{--button-scale:1}
+:root{--button-scale:1.3}
 #root :is([data-screen=game],[data-screen=letters]) .status-actions{--tool-height:44px}
 #root :is([data-screen=connect],[data-screen=tiles]) .status-actions{--tool-height:40px}
 #root [data-screen=letters].kbon .status-actions{--tool-height:36px}
 @container (max-width:480px){#root [data-screen=tiles] .status-actions{--tool-height:36px}}
 #root :is([data-screen=game],[data-screen=letters],[data-screen=connect],[data-screen=tiles]) .status-actions{display:flex;flex-wrap:wrap;align-items:center;gap:4px;min-width:0;max-width:100%}
 #root :is([data-screen=game],[data-screen=letters],[data-screen=connect],[data-screen=tiles]) .status-actions .btn{min-height:calc(var(--tool-height) * var(--button-scale));min-width:calc(40px * var(--button-scale));max-width:100%;padding:0 calc(8px * var(--button-scale));font-size:calc(13px * var(--button-scale));white-space:normal;overflow-wrap:anywhere}
-#root [data-screen=tiles] .status-actions .tl-exit{font-size:calc(12px * var(--button-scale));padding:0 calc(5px * var(--button-scale))}
-#root [data-screen=tiles] .status-actions :is(.tl-find,.tl-opts){width:calc(30px * var(--button-scale));min-width:calc(30px * var(--button-scale));padding:0}
+/* Four fixed icon targets leave the exit label a bounded box for fit.js to
+   shrink. At 130% the basis plus targets/gaps fits even a 360px phone; only
+   the larger preferences need to wrap the tools. */
+#root [data-screen=tiles] .status-actions .btn{padding:0 3px;min-height:max(40px,calc(var(--tool-height) * var(--button-scale)))}
+#root [data-screen=tiles] .status-actions .tl-exit{flex:1 1 calc(90px * var(--button-scale));min-width:40px;font-size:calc(12px * var(--button-scale));padding:0 3px;gap:3px;white-space:nowrap;overflow-wrap:normal}
+#root [data-screen=tiles] .status-actions .tl-exit span{min-width:0}
+#root [data-screen=tiles] .status-actions :is(.tl-find,.tl-opts){width:max(40px,calc(30px * var(--button-scale)));min-width:max(40px,calc(30px * var(--button-scale)));padding:0}
 #root .status-actions :is(.gs-open,.tl-find) svg{width:calc(20px * var(--button-scale));height:calc(20px * var(--button-scale));flex:none}
 #root .status-actions :is(.tl-exit,.tl-opts) svg{width:calc(18px * var(--button-scale));height:calc(18px * var(--button-scale));flex:none}
 

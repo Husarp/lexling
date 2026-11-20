@@ -158,10 +158,24 @@ check('Options opens History by default', dialog.innerHTML.includes('id="op-tab-
 check('Options pins Give up after the scrolling content', dialog.innerHTML.includes('</div><footer class="op-foot"><button'), true);
 check('Options uses real tiles for all colour choices', (dialog.innerHTML.match(/style="--tl-tile:/g) || []).length, TILE_LOOKS.length);
 check('Options has no Settings or Resume action', /tiles.opt.settings|data-go="hist"|op-sec|Resume/.test(dialog.innerHTML), false);
-check('Options offers How to play as a plain button', dialog.innerHTML.includes('type="button" data-guide>'), true);
+check('Options places matching outline buttons on both sides of its footer',
+  /<footer class="op-foot"><button class="btn btn-outline op-how"[^>]*data-guide>[\s\S]*?<\/button><button class="btn btn-outline btn-danger op-quit"/.test(dialog.innerHTML), true);
+const guideActions = [];
+context.openDialog = (title, html) => { dialog = new Element(); dialog.innerHTML = html; return { dlg: dialog, close() { guideActions.push('close'); } }; };
+context.topics = rules => rules;
+context.openRules = (mode, rules) => guideActions.push([mode, rules === context.S.rules]);
+for (const lang of ['en', 'pl']) {
+  setLang(lang);
+  runInNewContext(options + '\nopenOptions();', context);
+  check(`${lang}: footer uses existing translated labels`,
+    dialog.innerHTML.includes(`data-guide>${t('tiles.guide')}</button>`) && dialog.innerHTML.includes(`${t('game.giveUp')}</button></footer>`), true);
+  guideActions.length = 0;
+  dialog.fire({ closest: selector => selector === '[data-guide]' ? {} : null });
+  check(`${lang}: How to play closes Options before opening the existing rules`, guideActions, ['close', ['tiles', true]]);
+}
 check('Options puts board style and shapes directly after Bonus squares', dialog.innerHTML.indexOf('data-key="tilesBonus"') < dialog.innerHTML.indexOf('data-key="tilesBoardStyle"') && dialog.innerHTML.indexOf('data-key="tilesBoardStyle"') < dialog.innerHTML.indexOf('data-key="tilesCb"'), true);
 check('Options puts move details immediately after Rate my moves', dialog.innerHTML.indexOf('data-key="tilesRate"') >= 0 && dialog.innerHTML.indexOf('data-key="tilesRate"') < dialog.innerHTML.indexOf('data-key="tilesUnder"'), true);
-for (const [key, v] of [['buttonSize', '100'], ['buttonSize', '115'], ['buttonSize', '130'], ['buttonSize', '150'], ['tilesBoardStyle', 'muted'], ['tilesCb', undefined], ['tilesFrame', 'frameless'], ['tilesFrame', 'orange'], ['tilesFrame', 'graphite'], ['tilesLast', undefined], ['tilesUnder', 'rarity'], ['tilesUnder', 'both'], ['tilesUnder', 'rating']]) {
+for (const [key, v] of [['buttonSize', '100'], ['buttonSize', '115'], ['buttonSize', '130'], ['buttonSize', '150'], ['buttonSize', '175'], ['tilesBoardStyle', 'muted'], ['tilesCb', undefined], ['tilesFrame', 'frameless'], ['tilesFrame', 'orange'], ['tilesFrame', 'graphite'], ['tilesLast', undefined], ['tilesUnder', 'rarity'], ['tilesUnder', 'both'], ['tilesUnder', 'rating']]) {
   const before = repaints;
   dialog.fire(new Element({ key, ...(v === undefined ? {} : { v }) }));
   check(`${key}: Options saves the choice`, JSON.parse(stored.get('wg.settings'))[key], key === 'tilesCb' ? true : key === 'tilesLast' ? false : v);

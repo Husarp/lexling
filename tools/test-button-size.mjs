@@ -42,26 +42,26 @@ const { settings } = await import('../app/js/store.js');
 const { applyButtonSize, settingRows, wireSettingRows } = await import('../app/js/ui.js');
 const { t, setLang } = await import('../app/js/i18n.js');
 const { settingsScreen } = await import('../app/js/screens.js');
-check('old saves default to 100%', settings.buttonSize, '100');
+check('old saves without a size default to 130%', settings.buttonSize, '130');
 applyButtonSize();
-check('default CSS scale', html.style['--button-scale'], 1);
+check('default CSS scale', html.style['--button-scale'], 1.3);
 for (const lang of ['en', 'pl']) {
   setLang(lang);
   check('translated label', t('set.buttonSize'), lang === 'en' ? 'Button size' : 'Rozmiar przycisków');
   const root = new Element();
   await settingsScreen(root, null, () => {});
   const display = root.innerHTML.split('data-section="display"')[1].split('</details>')[0];
-  check('Appearance offers the label and four steps', display.includes(t('set.buttonSize')) && root.querySelectorAll('[data-k="buttonSize"]').length === 4, true);
-  for (const size of ['100', '115', '130', '150']) {
+  check('Appearance offers the label and five steps', display.includes(t('set.buttonSize')) && root.querySelectorAll('[data-k="buttonSize"]').length === 5, true);
+  for (const size of ['100', '115', '130', '150', '175']) {
     root.querySelectorAll('[data-k="buttonSize"]').find(b => b.dataset.v === size).fire();
     check(`${lang}/${size}: Settings persists`, JSON.parse(stored.get('wg.settings')).buttonSize, size);
     check(`${lang}/${size}: Settings applies immediately`, html.style['--button-scale'], +size / 100);
     // The same row renderer and click wiring used by Tiles Options.
     const options = new Element();
-    options.innerHTML = settingRows([['buttonSize', t('set.buttonSize'), '', ['100', '115', '130', '150'].map(v => [v, t('set.buttonSizePercent', { n: v })])]]);
+    options.innerHTML = settingRows([['buttonSize', t('set.buttonSize'), '', ['100', '115', '130', '150', '175'].map(v => [v, t('set.buttonSizePercent', { n: v })])]]);
     wireSettingRows(options);
     check(`${lang}/${size}: Options reflects Settings`, options.querySelectorAll('.on').map(b => b.dataset.v), [size]);
-    const next = size === '150' ? '100' : '150';
+    const next = size === '175' ? '100' : '175';
     options.fire(options.querySelectorAll('[data-key="buttonSize"]').find(b => b.dataset.v === next));
     check(`${lang}/${size}: Options persists and applies`, [JSON.parse(stored.get('wg.settings')).buttonSize, html.style['--button-scale']], [next, +next / 100]);
     await settingsScreen(root, null, () => {});
@@ -73,6 +73,16 @@ for (const lang of ['en', 'pl']) {
 for (const invalid of [undefined, 'bad', '200', 0]) {
   settings.buttonSize = invalid;
   applyButtonSize();
-  check('invalid stored size falls back safely', html.style['--button-scale'], 1);
+  check('invalid stored size falls back safely', html.style['--button-scale'], 1.3);
 }
+for (const size of [undefined, '100', 100, '115', '130', '150', '175']) {
+  stored.set('wg.settings', JSON.stringify({ buttonSize: size }));
+  const migrated = await import(`../app/js/store.js?migration-${size}-${typeof size}`);
+  check(`legacy ${size}: migrate only the old default`, migrated.settings.buttonSize,
+    size == null || String(size) === '100' ? '130' : size);
+  check(`legacy ${size}: migration is persisted`, JSON.parse(stored.get('wg.settings')).buttonSize130On, true);
+}
+stored.set('wg.settings', JSON.stringify({ buttonSize: '100', buttonSize130On: true }));
+const chosen100 = await import('../app/js/store.js?chosen-100');
+check('100% chosen after migration survives restart', chosen100.settings.buttonSize, '100');
 console.log(`all ${passed} button size tests passed`);

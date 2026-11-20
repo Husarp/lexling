@@ -177,7 +177,7 @@ export function boardInner(S, { draft = [], bad = false, badWords = [], cursor =
   // each row above the one before it, so a raised tile's face goes over the tile above (css .tb.raised)
   const tile = (i, ch, blank, cls) => `<b class="t ${cls}${blank ? ' bl' : ''}" data-i="${i}" style="${at(i)};z-index:${2 + Math.floor(i / n)}">${esc(ch)}<i class="p">${blank || !ch ? '' : valueOf(S.lang, ch)}</i></b>`;
   S.cells.forEach((x, i) => { if (x) html += tile(i, x.ch, x.blank, (hinted.has(i) ? 'hint' : 'p' + x.by + (x.hint ? ' hinted' : '')) + (last.has(i) ? ' last' : '') + (i === peek ? ' peek' : '') + (rejected.has(i) ? ' bad' : '')); });
-  for (const [i, d] of fresh) html += tile(i, d.ch, d.blank, (S.vote ? 'voting' : d.hint ? 'new hint' : 'new') + (bad || rejected.has(i) ? ' bad' : ''));
+  for (const [i, d] of fresh) html += tile(i, d.ch, d.blank, (S.vote ? 'voting' : d.hint ? 'new hint' : 'new') + (bad || rejected.has(i) ? ' bad' : '') + (i === drop ? ' drop' : ''));
   return html;
 }
 
@@ -1151,7 +1151,7 @@ export async function tilesGameScreen(root, id) {
       }
     }
     const sq = myTurn() ? squareAt(x, y) : null;
-    const drop = sq && free(sq.r, sq.c, press.kind === 'tile' ? press.di : -1) ? sq.r * n + sq.c : -1;
+    const drop = sq && (free(sq.r, sq.c, press.kind === 'tile' ? press.di : -1) || swapTarget(press, sq) >= 0) ? sq.r * n + sq.c : -1;
     if (drop !== dropAt) { dropAt = drop; paintBoard(); }
     const gap = press.kind === 'rack' && overRack(x, y) ? gapAt(x) : -1;
     if (gap !== rackGap) { rackGap = gap; paintRack(); }
@@ -1183,14 +1183,28 @@ export async function tilesGameScreen(root, id) {
     if (peekAt >= 0) peekTimer = setTimeout(() => { peekAt = -1; if (app.isConnected && !S.over) paintBoard(); }, 5000);
     paintBoard();
   }
+  // Only the player's own draft can trade squares; hints and settled tiles stay put.
+  function swapTarget(p, sq) {
+    if (!sq || !myTurn() || mode !== 'play' || S.cells[sq.r * n + sq.c]) return -1;
+    if (p.kind !== 'rack' && (p.kind !== 'tile' || !draft[p.di] || draft[p.di].hint)) return -1;
+    return draft.findIndex((d, i) => i !== (p.kind === 'tile' ? p.di : -1) && !d.hint && d.r === sq.r && d.c === sq.c);
+  }
   function drop(p, x, y) {
     const sq = squareAt(x, y);
+    const target = swapTarget(p, sq);
     if (p.kind === 'rack') {
+      if (target >= 0) { draft.splice(target, 1); return placeAt(p.slot, sq.r, sq.c); }
       if (sq && myTurn() && mode === 'play' && free(sq.r, sq.c)) return placeAt(p.slot, sq.r, sq.c);
       if (rackGap >= 0) reorder(p.slot, rackGap);
       return;
     }
-    if (sq && free(sq.r, sq.c, p.di)) { draft[p.di] = { ...draft[p.di], r: sq.r, c: sq.c }; follow(); }
+    if (target >= 0) {
+      const { r, c } = draft[p.di];
+      draft[p.di] = { ...draft[p.di], r: sq.r, c: sq.c };
+      draft[target] = { ...draft[target], r, c };
+      follow();
+    }
+    else if (sq && free(sq.r, sq.c, p.di)) { draft[p.di] = { ...draft[p.di], r: sq.r, c: sq.c }; follow(); }
     else if (overRack(x, y)) draft.splice(p.di, 1);
   }
 
@@ -1469,7 +1483,7 @@ export async function tilesGameScreen(root, id) {
       ...(S.rules.rating === false ? [] : [['tilesRate', t('tiles.rate.setting'), t('tiles.rate.settingHelp') + (S.rules.rating === 'score' ? ' ' + t('tiles.rate.fixed') : ' ' + t('help.bestNote')), RATE_LOOKS.map(([v, k]) => [v, t('tiles.rate.look.' + k)])]]),
       ['tilesUnder', t('tiles.under'), t('tiles.underHelp'), ['rating', 'rarity', 'both'].map(v => [v, t('tiles.under.' + v)])]];
     const tile = (ch, colour = '') => `<span class="rt" aria-hidden="true"${colour ? ` style="--tl-tile:${colour}"` : ''}>${ch}<i class="p">1</i></span>`;
-    const lookItems = [['buttonSize', t('set.buttonSize'), '', ['100', '115', '130', '150'].map(v => [v, t('set.buttonSizePercent', { n: v })])],
+    const lookItems = [['buttonSize', t('set.buttonSize'), '', ['100', '115', '130', '150', '175'].map(v => [v, t('set.buttonSizePercent', { n: v })])],
       ['theme', t('set.theme'), '', ['dark', 'light', 'system'].map(v => [v, t('theme.' + v)])],
       ['tilesLast', t('tiles.last'), t('tiles.lastHelp')],
       ['tilesFrame', t('tiles.frame'), '', ['graphite', 'frameless', 'orange'].map(v => [v, t('tiles.frame.' + v)])],
@@ -1479,12 +1493,11 @@ export async function tilesGameScreen(root, id) {
       ['tilesCb', t('tiles.cb'), t('tiles.cbHelp')]];
     const tabs = [['history', t('tiles.history')], ['look', t('tiles.visual')], ['players', t('net.players')]];
     const { dlg, close } = openDialog(t('tiles.options'), `<div class="op-tabs" role="tablist" aria-label="${t('tiles.options')}">${tabs.map(([id, label], i) => `<button type="button" role="tab" id="op-tab-${id}" data-tab="${id}" aria-controls="op-${id}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${label}</button>`).join('')}</div>
-      <button class="btn btn-ghost op-how" type="button" data-guide>${t('tiles.guide')}</button>
       <div class="op-content">
         <section id="op-history" role="tabpanel" aria-labelledby="op-tab-history"><h2>${t('tiles.history')}</h2><div class="seg op-filter">${[[null, t('tiles.hist.all')], ...S.players.map((_, p) => [p, esc(nameOf(S, p))])].map(([p, label]) => `<button type="button" data-filter="${p ?? ''}" aria-pressed="${p === null}" class="${p === null ? 'on' : ''}">${label}</button>`).join('')}</div><div class="op-history-list">${histHtml(null)}</div></section>
         <section id="op-look" role="tabpanel" aria-labelledby="op-tab-look" hidden><div class="op-look-head"><h2>${t('tiles.visual')}</h2><div class="op-preview">${[...'TILES'].map(ch => tile(ch)).join('')}</div></div>${settingRows(lookItems)}</section>
         <section id="op-players" role="tabpanel" aria-labelledby="op-tab-players" hidden><h2>${t('net.players')}</h2>${host ? hostSection() : `<ul class="op-players">${S.players.map((_, p) => `<li><div class="op-who pc${p}"><i class="tl-player-icon" aria-hidden="true">${playerIcon(S, p)}</i><span>${esc(nameOf(S, p))}</span></div></li>`).join('')}</ul>`}${settingRows(playerItems)}${host ? `<button class="btn btn-ghost btn-danger op-end" type="button">${t('net.endGame')}</button>` : ''}</section>
-      </div><footer class="op-foot"><button class="btn btn-outline btn-danger op-quit" type="button">${t('game.giveUp')}</button></footer>`);
+      </div><footer class="op-foot"><button class="btn btn-outline op-how" type="button" data-guide>${t('tiles.guide')}</button><button class="btn btn-outline btn-danger op-quit" type="button">${t('game.giveUp')}</button></footer>`);
     dlg.classList.add('tl-options');
     const selectTab = id => {
       dlg.querySelectorAll('[data-tab]').forEach(b => { const on = b.dataset.tab === id; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; });

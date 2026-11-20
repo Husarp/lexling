@@ -15,7 +15,7 @@ const write = (key, value) => { try { localStorage.setItem(key, JSON.stringify(v
 
 export const settings = read('wg.settings', {
   lang: (navigator.language || 'en').toLowerCase().startsWith('pl') ? 'pl' : 'en',
-  buttonSize: '100',
+  buttonSize: '130',
   theme: 'dark', palette: 'classic', accent: 'orange', sound: true, fuzzy: true, langChosen: false, lastCheck: 0, latest: '',
   // Letters: tapping the tiles also opens the phone's own keyboard (the keys on screen stay) - owner, 2026-09-25
   phoneKb: false,
@@ -53,6 +53,13 @@ export const settings = read('wg.settings', {
   showClock: false, playRemind: false, remindMin: 90,
 });
 export const saveSettings = () => write('wg.settings', settings);
+// Old saves include the former 100% default without recording whether it was chosen.
+// Migrate it once; choosing 100% after this must survive every later launch.
+if (!settings.buttonSize130On) {
+  if (String(settings.buttonSize) === '100') settings.buttonSize = '130';
+  settings.buttonSize130On = true;
+  saveSettings();
+}
 // Remembering New game choices became the default in 0.51.1 (owner) - switched on once for those whose settings still
 // carry the old default (off); off again after that stays off.
 if (!settings.rememberSetupOn) { settings.rememberSetup = true; settings.rememberSetupOn = true; saveSettings(); }

@@ -163,7 +163,7 @@ export function remindBt() {
 // Larger game tools share one preference in both Look controls (owner, 2026-11-20).
 export function applyButtonSize() {
   const size = String(settings.buttonSize);
-  document.documentElement.style.setProperty('--button-scale', ['100', '115', '130', '150'].includes(size) ? Number(size) / 100 : 1);
+  document.documentElement.style.setProperty('--button-scale', ['100', '115', '130', '150', '175'].includes(size) ? Number(size) / 100 : 1.3);
 }
 
 // Settings as rows: [key, label, help] a switch; [key, label, help, choices] a choice - each [value, label, name], the

@@ -1487,7 +1487,7 @@ export async function settingsScreen(root, _, refresh) {
 
     </div></details>
     <details class="settings-section" data-section="display"${settingsSections.has('display') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">${UI_ICONS.display}</span><span>${t('set.section.display')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
-<div class="row"><div class="row-text"><strong>${t('set.buttonSize')}</strong></div>${seg('buttonSize', ['100', '115', '130', '150'], v => t('set.buttonSizePercent', { n: v }))}</div>
+<div class="row"><div class="row-text"><strong>${t('set.buttonSize')}</strong></div>${seg('buttonSize', ['100', '115', '130', '150', '175'], v => t('set.buttonSizePercent', { n: v }))}</div>
 <div class="row"><div class="row-text"><strong>${t('set.theme')}</strong></div>${seg('theme', ['dark', 'light', 'system'], v => t('theme.' + v))}</div><div class="row"><div class="row-text"><strong>${t('set.palette')}</strong><span>${t('set.paletteDesc')}</span></div>
         <div class="palette-swatches">${Object.keys(PALETTES).map(id => `<button type="button" data-palette-choice="${id}" class="${on((settings.palette ?? 'classic') === id)}" aria-label="${t('palette.' + id)}" aria-pressed="${(settings.palette ?? 'classic') === id}"><span class="palette-preview" data-preview="${id}" aria-hidden="true"><i>Aa</i></span><span>${t('palette.' + id)}</span></button>`).join('')}</div></div><div class="row"><div class="row-text"><strong>${t('set.accent')}</strong><span>${t('set.accentDesc')}</span></div>
         <div class="swatches">${Object.entries(ACCENTS).map(([name, hex]) =>

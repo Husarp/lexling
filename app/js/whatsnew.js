@@ -1,5 +1,14 @@
 // Recent releases in player language (owner, 2026-11-14). Keep the last three at release.
 export const whatsnew = [
+  { version: '0.72.1', date: '2026-11-21', en: [
+    'Tiles: drag a tile onto another of your unplayed tiles to swap them - or drop a rack tile on one to replace it.',
+    'Bigger game buttons by default (130 %), now from 100 to 175 % in Settings.',
+    'Tiles: the board is bigger on phones, the move note never covers your tiles, and How to play is a proper button next to Give up.',
+  ], pl: [
+    'Kafelki: przeciągnij płytkę na inną swoją niezagraną płytkę, by je zamienić - albo upuść płytkę z ławki, by ją podmienić.',
+    'Większe przyciski gry domyślnie (130 %), teraz od 100 do 175 % w Ustawieniach.',
+    'Kafelki: większa plansza na telefonach, komunikat o ruchu nie zasłania płytek, a Jak grać to zwykły przycisk obok Poddaj się.',
+  ] },
   { version: '0.72.0', date: '2026-11-20', en: [
     'Statistics: time per game in every mode, letters typed (green and yellow) in Letters, bonus words per game in Connect, and best word, longest word, points per word and bonus squares in Tiles. Games with help count for time and games, not for word records.',
     'Tiles: person, computer and dice icons instead of dots, your unplayed tiles keep their colour, and a wrong word shows a short note above your tiles instead of a red bar.',
@@ -21,17 +30,6 @@ export const whatsnew = [
     'Kafelki: czystszy ekran gry - podświetlony ostatni ruch, wybór ramki planszy, nowe okno Opcji i limit czasu na kartach graczy (komputer nigdy nie ma limitu).',
     'Uczciwe statystyki: tylko sumy, a gra, w której użyto pomocy, staje się Treningiem i od tej chwili nic nie dodaje.',
     'Jak grać pokazuje jeden rozdział naraz, a gry online jasno mówią, kto stracił połączenie.',
-  ] },
-  { version: '0.70.0', date: '2026-11-16', en: [
-    'Achievements look closer to a game: Common, Rare, Epic, Legendary and Mythical levels, rounded cards and tabs per game.',
-    'New achievements for Guess, Letters and Connect - ones every player can reach, no win streaks.',
-    'Guess: with a category chosen, its words come first in the suggestions.',
-    'Word boxes show a single green border while typing.',
-  ], pl: [
-    'Osiągnięcia wyglądają bardziej jak w grze: poziomy Zwykły, Rzadki, Epicki, Legendarny i Mityczny, zaokrąglone karty i zakładki dla każdej gry.',
-    'Nowe osiągnięcia w Znaczeniu, Literach i Połącz - takie, które każdy może zdobyć, bez serii zwycięstw.',
-    'Znaczenie: przy wybranej kategorii jej słowa są pierwsze w podpowiedziach.',
-    'Pola na słowa mają podczas pisania jedno zielone obramowanie.',
   ] },
 ];
 
