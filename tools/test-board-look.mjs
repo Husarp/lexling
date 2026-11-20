@@ -13,13 +13,23 @@ globalThis.matchMedia = () => ({ matches: false, addEventListener() {} });
 globalThis.window = { addEventListener() {} };
 globalThis.document = { documentElement: {}, addEventListener() {}, createRange: () => ({}) };
 const { settings } = await import('../app/js/store.js');
-const { t, setLang } = await import('../app/js/i18n.js');
+const { t, setLang, plural } = await import('../app/js/i18n.js');
 const { newGame, sizeOf, premiums, apply } = await import('../app/js/tiles.js');
-const { boardInner, boardStyleSeg, topics, LABEL, BONUS_LOOKS, COLOUR_LOOKS, TILE_LOOKS, RATE_LOOKS, tileSwatch } = await import('../app/js/tiles-game.js');
+const { boardInner, boardStyleSeg, topics, LABEL, BONUS_LOOKS, TILE_LOOKS, RATE_LOOKS, tileSwatch, finalOrder, removedPlayer } = await import('../app/js/tiles-game.js');
 const { tilesNewScreen } = await import('../app/js/screens.js');
 const { settingRows, wireSettingRows } = await import('../app/js/ui.js');
 const source = read('app/js/tiles-game.js');
+// Exercise the live zoom-tool updater across overview, intermediate and maximum scales.
+for (const z of [1, 1.5, 2, 2.5]) {
+  const buttons = { zoomIn: {}, wholeBoard: {} };
+  const context = { zoom: { z }, ZOOM_MAX: 2.5, status: { querySelector: selector => buttons[selector.match(/data-act="([^"]+)"/)[1]] } };
+  runInNewContext(source.match(/function paintZoomTools\(\) \{[\s\S]*?\n  \}/)[0] + ';paintZoomTools()', context);
+  check(`zoom ${z}: only useful zoom actions enabled`, [buttons.zoomIn.disabled, buttons.wholeBoard.disabled], [z >= 2.5, z <= 1]);
+}
+
 check('old preferences receive the classic board and shapes off', [settings.tilesBoardStyle, settings.tilesCb], ['classic', false]);
+
+check('new look defaults', [settings.tilesFrame, settings.tilesLast, settings.tilesTile, settings.tilesColours], ['graphite', true, 'cream', false]);
 
 const tiles = html => [...html.matchAll(/<b class="t ([^"]*)" data-i="(\d+)"/g)].map(m => ({ classes: m[1].split(' '), i: +m[2] }));
 const lastAt = (s, opts) => tiles(boardInner(s, opts)).filter(x => x.classes.includes('last')).map(x => x.i);
@@ -29,6 +39,9 @@ for (const board of ['classic', 'bonus', 'quick']) {
   const placed = [{ r: mid, c: mid, ch: 'a' }, { r: mid, c: mid + 1, ch: 't' }];
   const s = apply({ ...initial, racks: [['a', 't'], ['s']] }, { type: 'place', placed }, () => true);
   const snapshot = JSON.stringify(s);
+  settings.tilesLast = false;
+  check(`${board}: last-move highlight can be disabled`, lastAt(s), []);
+  settings.tilesLast = true;
   check(`${board}: first play is outlined`, lastAt(s), [a, a + 1]);
   check(`${board}: a pass keeps the outline`, lastAt(apply(s, { type: 'pass' }, () => true)), [a, a + 1]);
   const swap = apply({ ...s, racks: [s.racks[0], ['e']] }, { type: 'exchange', tiles: ['e'] }, () => true);
@@ -43,7 +56,9 @@ for (const board of ['classic', 'bonus', 'quick']) {
   check(`${board}: old move without placement renders safely`, lastAt({ ...s, moves: [{ kind: 'play' }] }), []);
   const preview = tiles(boardInner(s, { hinted: new Set([a]), draft: [{ r: mid, c: mid + 2, ch: 's', hint: true }], peek: a + 1 }));
   check(`${board}: a hint crossing the last word retains its hint look`, preview.find(x => x.i === a).classes.includes('hint'), true);
-  check(`${board}: a hint draft gets no last-move ring`, preview.find(x => x.i === a + 2).classes, ['hint']);
+  check(`${board}: a hint draft shares the pending highlight without a last-move ring`, preview.find(x => x.i === a + 2).classes, ['new', 'hint']);
+  check(`${board}: a committed tile crossed by a hint is not marked as new`, preview.find(x => x.i === a).classes.includes('new'), false);
+  check(`${board}: a bad hint draft retains the error class`, tiles(boardInner(s, { bad: true, draft: [{ r: mid, c: mid + 2, ch: 's', hint: true }] })).find(x => x.i === a + 2).classes, ['new', 'hint', 'bad']);
   check(`${board}: peek fades the same element as the last ring`, preview.find(x => x.i === a + 1).classes.includes('peek') && preview.find(x => x.i === a + 1).classes.includes('last'), true);
   for (const bad of [false, true]) {
     const draft = tiles(boardInner(s, { bad, draft: [{ r: mid, c: mid + 2, ch: 's' }] })).find(x => x.i === a + 2);
@@ -82,7 +97,7 @@ class Element {
   constructor(dataset = {}) {
     this.dataset = dataset; this.attrs = {}; this.listeners = {}; this.children = new Map();
     const classes = new Set();
-    this.classList = { contains: k => classes.has(k), toggle: (k, on) => on ? classes.add(k) : classes.delete(k) };
+    this.classList = { contains: k => classes.has(k), add: k => classes.add(k), toggle: (k, on) => on ? classes.add(k) : classes.delete(k) };
   }
   querySelector(selector) {
     if (selector === '.guess-input .submit' || selector === '[data-skipturn]') return null;
@@ -110,23 +125,29 @@ for (const lang of ['en', 'pl']) {
     root.querySelector('#tiles-cb').fire();
     check(`${lang}: shape switch persists`, JSON.parse(stored.get('wg.settings')).tilesCb, cb);
     check(`${lang}: shape switch updates its accessible state`, root.querySelector('#tiles-cb').attrs['aria-checked'], String(cb));
-    check(`${lang}: shape switch refreshes the How to play legend`, root.querySelector('.howto .tl-topics').outerHTML.includes('tl-legend cb'), cb);
+    check(`${lang}: How to play uses the current shape preference`, topics().includes('tl-legend cb'), cb);
   }
 }
 
 // Execute the real closed-over Options function, with a repaint counter and the real shared row wiring.
 let dialog, repaints = 0;
 const options = source.slice(source.indexOf('  function openOptions() {'), source.indexOf('  // ── several phones', source.indexOf('  function openOptions() {')));
-const context = { S: { rules: {} }, host: false, settings, t, BONUS_LOOKS, COLOUR_LOOKS, TILE_LOOKS, RATE_LOOKS, tileSwatch,
-  LIST: '', settingRows, wireSettingRows, applyTileLook() {}, repaint() { repaints++; }, confirmClick() {},
+const context = { S: { rules: {}, players: [{}, { cpu: true }] }, nameOf: (_, p) => p ? 'Computer' : 'You', esc: s => s, histHtml: () => '<p>History rows</p>', host: false, settings, t, BONUS_LOOKS, TILE_LOOKS, RATE_LOOKS, tileSwatch,
+  window: { addEventListener() {}, removeEventListener() {} }, LIST: '', settingRows, wireSettingRows, applyTileLook() {}, repaint() { repaints++; }, confirmClick() {},
   openDialog(title, html) { dialog = new Element(); dialog.innerHTML = html; return { dlg: dialog, close() {} }; } };
 runInNewContext(options + '\nopenOptions();', context);
+check('Options has exactly three tabs with History selected', (dialog.innerHTML.match(/role="tab" /g) || []).length, 3);
+check('Options opens History by default', dialog.innerHTML.includes('id="op-tab-history" data-tab="history" aria-controls="op-history" aria-selected="true"'), true);
+check('Options pins Give up after the scrolling content', dialog.innerHTML.includes('</div><footer class="op-foot"><button'), true);
+check('Options uses real tiles for all colour choices', (dialog.innerHTML.match(/style="--tl-tile:/g) || []).length, TILE_LOOKS.length);
+check('Options has no Settings or Resume action', /tiles.opt.settings|data-go="hist"|op-sec|Resume/.test(dialog.innerHTML), false);
+check('Options offers How to play as a plain button', dialog.innerHTML.includes('type="button" data-guide>'), true);
 check('Options puts board style and shapes directly after Bonus squares', dialog.innerHTML.indexOf('data-key="tilesBonus"') < dialog.innerHTML.indexOf('data-key="tilesBoardStyle"') && dialog.innerHTML.indexOf('data-key="tilesBoardStyle"') < dialog.innerHTML.indexOf('data-key="tilesCb"'), true);
 check('Options puts move details immediately after Rate my moves', dialog.innerHTML.indexOf('data-key="tilesRate"') >= 0 && dialog.innerHTML.indexOf('data-key="tilesRate"') < dialog.innerHTML.indexOf('data-key="tilesUnder"'), true);
-for (const [key, v] of [['tilesBoardStyle', 'muted'], ['tilesCb', undefined], ['tilesUnder', 'rarity'], ['tilesUnder', 'both'], ['tilesUnder', 'rating']]) {
+for (const [key, v] of [['tilesBoardStyle', 'muted'], ['tilesCb', undefined], ['tilesFrame', 'frameless'], ['tilesFrame', 'orange'], ['tilesFrame', 'graphite'], ['tilesLast', undefined], ['tilesUnder', 'rarity'], ['tilesUnder', 'both'], ['tilesUnder', 'rating']]) {
   const before = repaints;
   dialog.fire(new Element({ key, ...(v === undefined ? {} : { v }) }));
-  check(`${key}: Options saves the choice`, JSON.parse(stored.get('wg.settings'))[key], key === 'tilesCb' ? true : v);
+  check(`${key}: Options saves the choice`, JSON.parse(stored.get('wg.settings'))[key], key === 'tilesCb' ? true : key === 'tilesLast' ? false : v);
   check(`${key}: Options repaints immediately`, repaints, before + 1);
 }
 
@@ -134,14 +155,43 @@ context.S.rules.rating = false;
 runInNewContext(options + '\nopenOptions();', context);
 check('Options still offers all move-detail choices when the game disables rating', ['rating', 'rarity', 'both'].every(v => dialog.innerHTML.includes(`data-key="tilesUnder" data-v="${v}"`)), true);
 
+context.host = true;
+context.hostSection = () => '<button data-skipturn></button><button data-remove="1"></button>';
+const confirmations = [];
+context.confirmClick = (button, action) => confirmations.push(action);
+runInNewContext(options + '\nopenOptions();', context);
+check('Host end game lives inside Players', /id="op-players"[\s\S]*class="btn btn-ghost btn-danger op-end"[\s\S]*<\/section>/.test(dialog.innerHTML), true);
+check('Host end and own Give up retain confirmation wiring', confirmations.length, 2);
+check('Host management is not collapsed inside the Players tab', !source.match(/function hostSection\(\)[\s\S]*?\n  \}/)[0].includes('<details'), true);
+context.host = false;
+
+settings.tilesLast = true;
+check('Options offers all frame choices', ['graphite', 'frameless', 'orange'].every(v => dialog.innerHTML.includes(`data-key="tilesFrame" data-v="${v}"`)), true);
+
 // Both screen paths use the same look classes and renderer; exercise the class expression for all combinations.
 const looks = source.slice(source.indexOf('  const looks = () =>'), source.indexOf('  const myTurn ='));
 for (const style of [undefined, 'classic', 'muted']) for (const cb of [undefined, false, true]) for (const colours of [true, 'letters', false]) for (const raised of [false, true]) {
   Object.assign(settings, { tilesBoardStyle: style, tilesCb: cb, tilesColours: colours, tiles3d: raised });
   const classes = runInNewContext(looks + '\nlooks();', { settings }).split(' ');
-  check('board classes reflect all current preferences, including older saves', [classes.includes('muted'), classes.includes('cb'), classes.includes('own'), classes.includes('inks'), classes.includes('raised')], [style === 'muted', !!cb, colours === true, colours === 'letters', raised]);
+  check('board classes reflect all current preferences, including older saves', [classes.includes('muted'), classes.includes('cb'), classes.includes('own'), classes.includes('inks'), classes.includes('raised')], [style === 'muted', !!cb, false, false, raised]);
 }
 check('final board shares live-board looks and rendering', source.includes('class="tb n${n}${looks()}" style="--n:${n}">${boardInner(S)}'), true);
 settings.tilesBoardStyle = undefined;
 check('missing style selects Classic', boardStyleSeg().includes('data-board-style="classic" class="on"'), true);
+// Result eligibility agrees with the winner, even when an out player has more points.
+{
+  let state = newGame({ lang: 'en', players: [{}, {}, {}], first: 0, seed: 1 });
+  state = apply(state, { type: 'resign', p: 2, removed: true }, () => true);
+  state = { ...state, scores: [-10, -6, 3] };
+  check('resigned high scorer ranks below eligible players', finalOrder(state), [1, 0, 2]);
+  check('host removal is distinguished from giving up', [removedPlayer(state, 2), removedPlayer(state, 1)], [true, false]);
+  for (const lang of ['en', 'pl']) {
+    setLang(lang);
+    check(`${lang}: host removal message exists`, t('net.removed').includes('net.removed'), false);
+    for (const [n, bonus, hints] of lang === 'en' ? [[1, 'bonus word', 'hint'], [2, 'bonus words', 'hints']] : [[1, 'słowo bonusowe', 'podpowiedź'], [2, 'słowa bonusowe', 'podpowiedzi'], [5, 'słów bonusowych', 'podpowiedzi']]) {
+      check(`${lang}: result plurals for ${n}`, [plural(n, 'cn.bonusLow'), plural(n, 'cn.hintsLow')], [bonus, hints]);
+    }
+    check(`${lang}: singular exchange`, plural(1, 'tiles.hist.exchanged').replace('{n}', 1), lang === 'en' ? 'Exchanged 1 tile' : 'Wymiana 1 płytki');
+  }
+}
 console.log(`all ${passed} board look tests passed`);

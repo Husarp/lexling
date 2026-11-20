@@ -32,6 +32,8 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NearbyLinkPlugin.class);   // the same over Google's Nearby Connections
         registerPlugin(AppUpdatePlugin.class);   // a new version, downloaded and handed to Android's installer
         super.onCreate(savedInstanceState);
+        // Local text notices have no response charset in Capacitor.
+        getBridge().getWebView().getSettings().setDefaultTextEncodingName("UTF-8");
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             WindowManager.LayoutParams layout = getWindow().getAttributes();

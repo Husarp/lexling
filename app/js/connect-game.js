@@ -1,7 +1,7 @@
 // The Connect game screen (design v4, "Lexling Connect"): the crossword, the circle of letters and
 // the end. The rules - what a word is, the hints, when the board is done - are in connect.js.
-import { t, esc } from './i18n.js';
-import { getSave, putSave, recordMove, noteMove, recordConnectEnd, playClock, gameName, collect } from './store.js';
+import { t, esc, plural } from './i18n.js';
+import { counts, markPractice, getSave, putSave, recordMove, noteMove, recordConnectEnd, playClock, gameName, collect } from './store.js';
 import { loadWords } from './engine.js';
 import { WORD_MIN, cellsOf, visible, isDone, nextHint, judge } from './connect.js';
 import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear, wordLink, gameTitle, flashTap } from './ui.js';
@@ -183,8 +183,8 @@ export async function connectGameScreen(root, id) {
       game.found.push(word);
       recordMove(game, connectRecord());
       if (!cellsOf(x).some(k => game.shown.includes(k))) {
-        collect('connect', game.lang, word);
-        bump('connect.words');
+        collect('connect', game.lang, word, game);
+        bump('connect.words', 1, game);
       }
       unpick();
       putSave(game);
@@ -203,9 +203,9 @@ export async function connectGameScreen(root, id) {
       // a real word that is not on the board: its chips fly into the counter, which then bumps
       game.bonus.push(word);
       recordConnectBonus(game);
-      bump('connect.words');
+      bump('connect.words', 1, game);
       recordMove(game, connectRecord());
-      collect('connect', game.lang, word);
+      collect('connect', game.lang, word, game);
       putSave(game);
       click();
       sayWord(word, '');
@@ -244,6 +244,9 @@ export async function connectGameScreen(root, id) {
     const h = nextHint(board, game.found, game.shown, pick);
     if (!h) return;
     if (!h.cell) return sayText(pick ? t('cn.msg.wordCapped', { w: loud(pick) }) : t('cn.msg.noHints'));
+    markPractice(game);
+    $('.topbar .side.end').innerHTML = gameTitle(game);
+    $('.practice-hint')?.remove();
     game.shown.push(h.cell);
     game.hints++;
     noteMove(game, connectRecord());
@@ -257,7 +260,7 @@ export async function connectGameScreen(root, id) {
     else if (chosen) sayText(t('cn.msg.hint', { k: cellsOf(chosen).filter(k => vis.has(k)).length, n: [...chosen.w].length }));
     else sayText(t('cn.msg.hinted'));
     // the first one says what it costs (owner, 2026-09-28)
-    if (game.hints === 1) $('.say p')?.insertAdjacentText('beforeend', ' ' + t('help.firstHintCn'));
+
     paintCells();
     animate([h.cell], 'new-hint', 150);
     paintStatus();
@@ -306,6 +309,7 @@ export async function connectGameScreen(root, id) {
         <button class="btn btn-ghost cn-tool hint-btn" type="button" aria-label="${t('cn.hint')}">${BULB}<span class="lbl">${t('cn.hint')}</span></button>
         <button class="cn-bonus" type="button" aria-label="${t('cn.bonusList')}"><span class="num">${game.bonus.length}</span><small>${t('cn.bonus')}</small></button>
       </div>
+      ${counts(game) ? `<p class="help practice-hint">${t('help.firstHintCn')}</p>` : ''}
       ${desk ? `<p class="cn-keys">${t('cn.keys')}</p>` : ''}
     </div>`;
     ring = $('.cn-ring');
@@ -408,7 +412,7 @@ export async function connectGameScreen(root, id) {
     const card = `<div class="card result ${won ? 'won' : 'lost'}">
       <span class="eyebrow">${t(won ? 'cn.allLetters' : 'cn.left')}</span>
       ${won ? `<p class="display">${esc(game.key)}</p>` : `<p class="left-words">${left.map(x => `<span>${esc(x.w)}</span>`).join('')}</p>`}
-      <div class="result-stats"><span><b>${count}</b> ${t('cn.wordsLow')}</span>${DOT}<span><b>${game.bonus.length}</b> ${t('cn.bonusLow')}</span>${DOT}<span><b>${game.hints}</b> ${t('cn.hintsLow')}</span>${DOT}<span>${t('end.level')} <b>${t('diff.' + (game.diff ?? 'normal'))}</b></span></div>
+      <div class="result-stats"><span><b>${count}</b> ${t('cn.wordsLow')}</span>${DOT}<span><b>${game.bonus.length}</b> ${plural(game.bonus.length, 'cn.bonusLow')}</span>${DOT}<span><b>${game.hints}</b> ${plural(game.hints, 'cn.hintsLow')}</span>${DOT}<span>${t('end.level')} <b>${t('diff.' + (game.diff ?? 'normal'))}</b></span></div>
       <p class="mean-words"><span class="eyebrow">${t('meaning.words')}</span>${board.words.map(x => wordLink(x.w, game.lang)).join('')}</p>
       <div class="result-actions"><a class="btn btn-ghost" href="#/">${t('menu')}</a><a class="btn btn-primary" href="#/new/connect">${t('lt.again')} <span class="arrow">→</span></a></div>
     </div>`;

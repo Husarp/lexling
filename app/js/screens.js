@@ -2,19 +2,19 @@ import { achievementIcon, achievementLock, tierShape } from './achievement-icons
 import { achievementInk, achievementState, achievementPips, achievementBar, achievementDetail } from './achievement-view.js';
 // Menu, game picker, new game, statistics, settings. Markup is the design handoff's
 // (design/handoff/*.html), with the dummy text replaced by t(...) and live data.
-import { t, plural, esc, num, decimal, clock, ago, dateTime, setLang, getLang, LANG_NAMES } from './i18n.js';
-import { settings, saveSettings, stats, listSaves, getSave, putSave, deleteSave, newGame, gameName, HARD_WIN, collected } from './store.js';
+import { t, plural, esc, num, clock, ago, dateTime, setLang, getLang, LANG_NAMES } from './i18n.js';
+import { settings, saveSettings, stats, listSaves, getSave, putSave, deleteSave, newGame, gameName, collected, totals, setupPractice } from './store.js';
 import { net, netKinds, netReady, nearbyHere, openLocation } from './net.js';
 import { createGuest } from './session.js';
 import { has } from './dawg.js';
 import { cleanTiers, RARE_TIERS } from './rarity.js';
-import { TIERS, TIERED, CHALLENGES, progress, gotAt } from './achievements.js';
+import { TIERS, TIERED, CHALLENGES, gotAt, earlierAchievements } from './achievements.js';
 import { load, loadWords, preload, resolve, pickSecret, secretPool, secretWords, lengthStats } from './engine.js';
 import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js';
 import { makePuzzle, RANGE, RING_MIN, RING_MAX, WORD_MIN, visible, isDone } from './connect.js';
 import { BOARDS, STANDARD, LEVEL_ORDER, levelKey, PLAYERS_MAX, newGame as tilesGame, apply as tilesApply, loadTileWords, valueOf, fullBag } from './tiles.js';
-import { nameOf, topics, LABEL, bonusSeg, bonusOf, boardStyleSeg, coloursSeg, tileSeg, applyTileLook } from './tiles-game.js';
-import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, PALETTES, GLYPH, modeTag, TILE, squares, remindBt } from './ui.js';
+import { nameOf, topics, LABEL, bonusSeg, bonusOf, boardStyleSeg, tileSeg, applyTileLook } from './tiles-game.js';
+import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, PALETTES, GLYPH, modeTag, TILE, squares, remindBt, practiceBadge, openRules } from './ui.js';
 import { fitAll } from './fit.js';
 import { click } from './sound.js';
 import { VERSION, REPO } from './version.js';
@@ -43,19 +43,6 @@ function freshPick(m, list, mode, lang) {
   return left.length ? left[Math.floor(Math.random() * left.length)] : -2;
 }
 
-// Each game's icon in its menu row (design v4, "Lexling Menu Four Games"): Guess two ranked strips,
-// Letters two rows of tiles, Connect a ring of real letters with a found word joined in green (SOWA /
-// WORD), Tiles its glyph enlarged.
-const RING5 = [[50, 14], [84.2, 38.9], [71.2, 79.1], [28.8, 79.1], [15.8, 38.9]];
-const RING_WORD = { pl: 'sował', en: 'words' };   // the path joins the first four letters
-const CUE = {
-  guess: () => '<span class="strips"><i></i><i></i></span>',
-  letters: () => `<span class="sq">${'<i></i>'.repeat(6)}</span>`,
-  // the ring is grey only where the letters are not joined: from the last green letter round to the first
-  connect: () => `<span class="cue-ring"><svg viewBox="0 0 100 100"><path d="M${RING5[3]} A36 36 0 0 1 ${RING5[4]} A36 36 0 0 1 ${RING5[0]}"></path><polyline points="${RING5.slice(0, 4).map(p => p.join(',')).join(' ')}"></polyline></svg>${
-    [...RING_WORD[getLang()]].map((ch, i) => `<b class="${i < 4 ? 'on' : ''}" style="--x:${RING5[i][0]}%;--y:${RING5[i][1]}%">${ch}</b>`).join('')}</span>`,
-  tiles: () => GLYPH.tiles,
-};
 // A game that is not built yet has its row, saying "soon", but does not open.
 const GAMES = ['guess', 'letters', 'connect', 'tiles'];
 const READY = new Set(['guess', 'letters', 'connect', 'tiles']);
@@ -72,8 +59,7 @@ export function menu(root, _, refresh) {
   // (owner, 2026-09-25) - only "soon" for a game not built yet.
   const row = key => {
     const live = READY.has(key) ? '' : `<span class="g-live">${t('menu.soon')}</span>`;
-    const inner = `<span class="cue4" aria-hidden="true">${CUE[key]()}</span>
-          <span class="g-text"><span class="g-head"><span class="g-name">${t('mode.' + key)}</span>${live}</span><span class="g-desc">${t(`mode.${key}.d`)}</span></span>`;
+    const inner = `<img class="menu-art" src="img/menu/${key}.webp" alt=""><span class="g-name">${t('mode.' + key)}</span>${live}`;
     return READY.has(key) ? `<a class="game" href="${LIST_OF[key]}">${inner}<span class="arrow" aria-hidden="true">→</span></a>`
       : `<div class="game soon" aria-disabled="true">${inner}</div>`;
   };
@@ -85,7 +71,6 @@ export function menu(root, _, refresh) {
     <div class="hero-inner">
       <p class="eyebrow">${t('menu.eyebrow')} ${DOT} ${t('menu.offline')}</p>
       <h1 class="display">${t('menu.h1')}</h1>
-      <p class="tagline">${t('menu.tagline')}</p>
       <nav class="games tight" aria-label="${t('menu.modesAria')}">${GAMES.map(row).join('')}</nav>
       <nav class="menu cards" aria-label="${t('menu.nav')}">
         <a href="#/stats"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="13" width="3" height="7" rx=".5"/><rect x="10.5" y="4" width="3" height="16" rx=".5"/><rect x="17" y="9" width="3" height="11" rx=".5"/></svg></span><span>${t('menu.stats')}</span></a>
@@ -172,8 +157,7 @@ function connectMeta(g) {
     g.marks && t('lt.marksShort'), ago(g.updated)].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
 }
 
-// A Tiles card (design v5): language, board, the computers' levels; the scores with each player's colour, the bag,
-// and whose turn it is.
+// A Tiles card: language, board, the computers' levels and scores with each player's colour.
 function tilesMeta(g) {
   const s = g.state, levels = s.players.filter(x => x.cpu).map(x => t(levelKey(x.cpu)));
   return [LANG_NAMES[g.lang], t('tiles.board.' + s.board), g.link ? t('net.tag.' + (g.link.kind ?? 'bt')) : levels.length ? [...new Set(levels)].join(', ') : t('stats.tiles.people'), ago(g.updated)]
@@ -187,14 +171,16 @@ export function games(root, mode, refresh) {
   if (saves.length) (mode === 'guess' ? preload(saves[0].lang) : loadWords(saves[0].lang).catch(() => {}));
   const actions = g => `<div class="save-actions">
     <a class="btn btn-primary" href="#/game/${g.id}">${t('games.resume')}</a>
-    <button class="btn btn-ghost" type="button" data-act="rename">${t('games.rename')}</button>
-    <button class="btn btn-ghost btn-danger" type="button" data-act="delete">${t('games.delete')}</button>
+    <div class="save-tools">
+      <button class="btn btn-ghost btn-danger save-icon" type="button" data-act="delete" aria-label="${t('games.delete')}" title="${t('games.delete')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg></button>
+      <button class="btn btn-ghost save-icon" type="button" data-act="rename" aria-label="${t('games.rename')}" title="${t('games.rename')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-5-5L4 14Z"/></svg></button>
+    </div>
   </div>`;
   const guessCard = g => {
     const best = g.guesses.reduce((b, x) => !b || x.rank < b.rank ? x : b, null);
     return `<article class="card save" data-id="${g.id}">
   <div>
-    <h2 class="save-name">${nameHtml(g)}</h2>
+    <h2 class="save-name">${nameHtml(g)}${practiceBadge(g)}</h2>
     <div class="save-meta">${saveMeta(g)}</div>
   </div>
   ${actions(g)}
@@ -207,7 +193,7 @@ export function games(root, mode, refresh) {
     const used = g.guesses.length, last = g.guesses.at(-1);
     return `<article class="card save" data-id="${g.id}">
   <div>
-    <h2 class="save-name">${nameHtml(g)}</h2>
+    <h2 class="save-name">${nameHtml(g)}${practiceBadge(g)}</h2>
     <div class="save-meta">${lettersMeta(g)}</div>
   </div>
   ${actions(g)}
@@ -223,31 +209,30 @@ export function games(root, mode, refresh) {
     const done = marks.filter(Boolean).length;
     return `<article class="card save" data-id="${g.id}">
   <div>
-    <h2 class="save-name">${nameHtml(g)}</h2>
+    <h2 class="save-name">${nameHtml(g)}${practiceBadge(g)}</h2>
     <div class="save-meta">${connectMeta(g)}</div>
   </div>
   ${actions(g)}
   <div class="save-last">${done || g.bonus.length
-    ? `<span><b class="num">${done}</b> / ${g.board.words.length} ${t('cn.wordsLow')}${DOT}<b class="num">${g.bonus.length}</b> ${t('cn.bonusLow')}</span>`
+    ? `<span><b class="num">${done}</b> / ${g.board.words.length} ${t('cn.wordsLow')}${DOT}<b class="num">${g.bonus.length}</b> ${plural(g.bonus.length, 'cn.bonusLow')}</span>`
     : `<span>${t('cn.noWords')}</span>`}${squares(marks, 14)}</div>
 </article>`;
   };
   const tilesCard = g => {
-    const s = g.state, np = s.players.length, alone = s.players.filter(x => !x.cpu).length === 1;
+    const s = g.state, np = s.players.length;
     const playerIcon = p => `<svg class="player-icon pc${p}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${s.players[p].cpu
       ? '<rect x="3" y="3" width="18" height="13" rx="2"/><path d="M12 16v5m-5 0h10"/>'
       : '<circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>'}</svg>`;
     const vs = np === 2
       ? `<span class="vs">${playerIcon(0)}${esc(nameOf(s, 0))} <b class="num">${s.scores[0]}</b> : <b class="num">${s.scores[1]}</b> ${esc(nameOf(s, 1))}${playerIcon(1)}</span>`
       : `<span class="vs">${s.players.map((_, p) => `${playerIcon(p)}${esc(nameOf(s, p))} <b class="num">${s.scores[p]}</b>`).join(' ')}</span>`;
-    const turn = (g.link ? s.turn === g.link.me : alone && !s.players[s.turn].cpu) ? t('tiles.save.yourTurn') : t('tiles.save.turn', { name: esc(nameOf(s, s.turn)) });
     return `<article class="card save" data-id="${g.id}">
   <div>
-    <h2 class="save-name">${nameHtml(g)}</h2>
+    <h2 class="save-name">${nameHtml(g)}${practiceBadge(g)}</h2>
     <div class="save-meta">${tilesMeta(g)}</div>
   </div>
   ${actions(g)}
-  <div class="save-last">${vs}<span><b class="num">${s.bag.length}</b> ${t('tiles.inBag')}<span class="dot"> · </span>${turn}</span></div>
+  <div class="save-last">${vs}</div>
 </article>`;
   };
   const card = { guess: guessCard, letters: lettersCard, connect: connectCard, tiles: tilesCard }[mode];
@@ -259,7 +244,7 @@ export function games(root, mode, refresh) {
   <main class="main">
     <div class="head"><h1 class="title">${t('games.title')}</h1>${saves.length ? `<div class="head-acts">${join}${start()}</div>` : ''}</div>
     ${saves.length ? `<div class="saves">${saves.map(card).join('')}</div>` : `<div class="card empty">
-      <p class="display">${t('games.emptyTitle')}</p>
+      <img class="empty-art" src="img/empty.webp" alt=""><p class="display">${t('games.emptyTitle')}</p>
       <p class="help" style="max-width:36ch">${t('games.emptyText')}</p>
       ${start(true)}${join}
     </div>`}
@@ -267,7 +252,7 @@ export function games(root, mode, refresh) {
 </div>`;
   root.querySelectorAll('.save').forEach(el => {
     const id = el.dataset.id;
-    confirmClick(el.querySelector('[data-act=delete]'), () => { deleteSave(id); refresh(); }, () => fitAll(el));
+    confirmClick(el.querySelector('[data-act=delete]'), () => { deleteSave(id); refresh(); }, () => fitAll(el), true);
     el.querySelector('[data-act=rename]').addEventListener('click', () => rename(el, getSave(id), refresh));
   });
 }
@@ -278,7 +263,6 @@ const nameHtml = g => g.name ? `${esc(g.name)} <span class="save-no">(${t('games
 const nameField = () => `<div class="field">
         <span class="eyebrow">${t('games.nameLabel')}</span>
         <input class="input" type="text" id="game-name" maxlength="30" autocomplete="off" placeholder="${esc(t('games.defaultName', { n: stats.gameNo + 1 }))}" aria-label="${t('games.nameLabel')}">
-        <p class="help">${t('new.nameHelp')}</p>
       </div>`;
 const typedName = () => document.querySelector('#game-name')?.value.trim() ?? '';
 
@@ -306,14 +290,12 @@ function rename(el, game, refresh) {
   input.addEventListener('blur', () => finish(true));
 }
 
-// ── How to play (owner, 2026-09-25) ── a card under the New game title that opens and closes - closed every time the
-// screen opens (owner, 2026-09-25: "collapsed every time"; until 0.36.0 it was open until the first finished game).
-const HOWTO = { guess: () => t('howto.guess'), letters: () => t('howto.letters'), connect: () => t('howto.connect'), tiles: () => t('howto.tiles') };
-const howTo = mode => `<details class="card howto" data-mode="${mode}">
-      <summary><span class="eyebrow">${t('howto.title')}</span><span class="arrow" aria-hidden="true">›</span></summary>
-      ${HOWTO[mode]().split('\n').map(line => `<p class="help"><span class="arrow">→</span> ${line}</p>`).join('')}
-      ${mode === 'tiles' ? topics() : ''}
-    </details>`;
+// Every game's help opens the same chapter reader; Tiles keeps its illustrated topics.
+const howTo = mode => `<button type="button" class="card howto" data-howto="${mode}"><span class="eyebrow">${t('howto.title')}</span><span class="arrow" aria-hidden="true">›</span></button>`;
+document.addEventListener('click', e => {
+  const mode = e.target.closest?.('[data-howto]')?.dataset.howto;
+  if (mode) openRules(mode, mode === 'tiles' ? topics() : null);
+});
 
 // Every game starts from the same footing - the settings of the last one are rarely what you want for
 // the next. The language is the exception: that is a preference, not a per-game choice.
@@ -339,7 +321,7 @@ export function newGameScreen(root, _, refresh) {
         <div class="seg" role="radiogroup">${['pl', 'en'].map(l => `<button type="button" data-k="lang" data-v="${l}">${LANG_NAMES[l]}</button>`).join('')}</div>
       </div>
       <div class="field">
-        <div class="field-head"><span class="eyebrow">${t('new.cat')}</span><span class="help">${t('new.catHint')}</span></div>
+        <div class="field-head"><span class="eyebrow">${t('new.cat')}</span></div>
         <div class="chips">${CATS.map(c => `<button type="button" class="chip" data-k="cat" data-v="${c}">${t('cat.' + c)}</button>`).join('')}</div>
         <p class="help cat-about" id="cat-about"></p>
       </div>
@@ -348,7 +330,6 @@ export function newGameScreen(root, _, refresh) {
         <div class="seg" role="radiogroup" aria-label="${t('new.lenAria')}">${BANDS.map(b => `<button type="button" data-k="band" data-v="${b}">${t('band.' + b)}</button>`).join('')}</div>
         <div class="hist" aria-hidden="true" id="hist"></div>
         <div class="readout" id="readout"></div>
-        <p class="help">${t('new.lenHelp', { any: t('band.any') })}</p>
       </div>
       <div class="field">
         <span class="eyebrow">${t('new.diff')}</span>
@@ -360,6 +341,7 @@ export function newGameScreen(root, _, refresh) {
           <div class="row-text"><strong>${t('new.friend')}</strong><span>${t('new.friendDesc')}</span></div>
           <button type="button" class="toggle" role="switch" aria-label="${t('new.friend')}"></button>
         </div>
+        <p class="help" id="practice-setup" hidden>${t('help.setupPractice')}</p>
         <div class="field" id="secret-field">
           <div class="field-head"><span class="eyebrow">${t('new.secret')}</span><span class="help">${t('new.secretHint')}</span></div>
           <input class="input" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="${t('new.secretAria')}">
@@ -383,6 +365,7 @@ export function newGameScreen(root, _, refresh) {
     lengths();
     toggle.classList.toggle('on', o.friend);
     toggle.setAttribute('aria-checked', o.friend);
+    $('#practice-setup').hidden = !o.friend;
     $('#secret-field').hidden = !o.friend;
     $('#only-new').hidden = o.friend;
     paintOnlyNew(root, o);
@@ -468,7 +451,7 @@ export function lettersNewScreen(root, _, refresh) {
         <div class="seg" role="radiogroup">${['pl', 'en'].map(l => `<button type="button" data-k="lang" data-v="${l}">${LANG_NAMES[l]}</button>`).join('')}</div>
       </div>
       <div class="field">
-        <div class="field-head"><span class="eyebrow">${t('new.cat')}</span><span class="help">${t('new.catHint')}</span></div>
+        <div class="field-head"><span class="eyebrow">${t('new.cat')}</span></div>
         <div class="chips">${CATS.map(c => `<button type="button" class="chip" data-k="cat" data-v="${c}">${t('cat.' + c)}</button>`).join('')}</div>
         <p class="help cat-about" id="cat-about"></p>
       </div>
@@ -483,7 +466,7 @@ export function lettersNewScreen(root, _, refresh) {
         <div class="readout" id="readout"></div>
       </div>
       <div class="field">
-        <div class="field-head"><span class="eyebrow">${t('lt.tries')}</span><span class="help">${t('lt.triesHint')}</span></div>
+        <p class="help" id="practice-setup" hidden>${t('help.setupPractice')}</p><div class="field-head"><span class="eyebrow">${t('lt.tries')}</span><span class="help">${t('lt.triesHint')}</span></div>
         <div class="tries">
           ${stepper('tries', t('lt.fewer'), t('lt.more'))}
           <button type="button" class="chip" role="switch" id="unlimited"><span class="num">∞</span>${t('lt.unlimited')}</button>
@@ -533,6 +516,7 @@ export function lettersNewScreen(root, _, refresh) {
     longer.disabled = o.anyLen || o.len >= LEN_MAX;
     anyLen.classList.toggle('on', o.anyLen);
     anyLen.setAttribute('aria-checked', o.anyLen);
+    $('#practice-setup').hidden = !o.unlimited;
     const [fewer, more] = $('#tries').querySelectorAll('button');
     $('#tries output').innerHTML = o.unlimited ? '<span class="num">∞</span><span class="help"></span>'
       : `<span class="num">${o.tries}</span><span class="help">${plural(o.tries, 'lt.triesUnit')}</span>`;
@@ -772,10 +756,11 @@ const boardCard = b => {
 
 // Hosting an online game (owner, 2026-09-27: "an info for the host ... how all the settings apply to all people"): what
 // the host decides and can do
-const hostInfo = () => `<div class="card tl-hostinfo"><span class="eyebrow">${t('net.hostInfo.title')}</span><ul>${
-  ['rules', 'letIn', 'players', 'keep'].map(k => `<li>${t('net.hostInfo.' + k)}</li>`).join('')}</ul></div>`;
+const hostInfo = () => `<div class="card tl-hostinfo"><p>${t('net.hostInfo.short')}</p><details><summary>${t('net.hostInfo.title')}</summary><ul>${
+  ['rules', 'letIn', 'players', 'keep'].map(k => `<li>${t('net.hostInfo.' + k)}</li>`).join('')}</ul></details></div>`;
 
 export function tilesNewScreen(root, _, refresh, hostKind = null) {
+  if (hostKind && !netKinds().includes(hostKind)) return tilesOnlineScreen(root);
   const o = tlPending ?? (() => {
     const r = remembered('tiles'), fresh = { ...TL_NEW(), lang: settings.newGame.lang || settings.lang };
     if (!r.board) return fresh;
@@ -809,13 +794,10 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
         <div class="tl-boards" role="radiogroup">${Object.keys(BOARDS).map(boardCard).join('')}</div>
       </div>
       <div class="field">
-        <div class="field-head"><span class="eyebrow">${t('tiles.new.players')}</span><span class="help">${t('tiles.new.playersWhat')}</span></div>
+        <div class="field-head"><span class="eyebrow">${t('tiles.new.players')}</span><span class="help">${t(hostKind ? 'net.playersOnline' : 'tiles.new.playersWhat')}</span></div>
         <div class="tl-players"></div>
       </div>
-      <div class="card polish" id="colours">
-        <div class="row"><div class="row-text"><strong>${t('tiles.colours')}</strong></div></div>
-        <div id="colour-looks">${coloursSeg()}</div>
-        <p class="help"><span class="arrow">→</span> ${t('tiles.coloursHelp')}</p>
+      <details class="card polish" id="colours"><summary>${t('howto.tiles.looks')}</summary>
         <div class="row"><div class="row-text"><strong>${t('tiles.tile')}</strong></div></div>
         <div id="tile-looks">${tileSeg()}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.tileHelp')}</p>
@@ -827,7 +809,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
         <p class="help"><span class="arrow">→</span> ${t('tiles.boardStyleHelp')}</p>
         <div class="row"><div class="row-text"><strong>${t('tiles.cb')}</strong><span>${t('tiles.cbHelp')}</span></div>
           <button type="button" id="tiles-cb" class="toggle" role="switch" aria-label="${t('tiles.cb')}"></button></div>
-      </div>
+      </details>
       <details class="card tl-assists"${o.assistsOpen ? ' open' : ''}>
         <summary><span class="eyebrow">${t('tiles.assists')} <span class="state"></span></span><span class="arrow" aria-hidden="true">›</span></summary>
         <p class="help">${t('tiles.assists.help')}</p>
@@ -854,7 +836,8 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
   // one person against the computer: only then undo (owner, 2026-09-25)
   const alone = () => o.players.filter(x => !x.cpu).length === 1 && o.players.some(x => x.cpu);
   const canVeto = () => !!o.net || o.players.filter(x => !x.cpu).length > 1;
-  const helps = () => [o.rules.hints !== false && t('help.hints'), alone() && o.rules.undo === true && t('help.undo'), o.rules.rating === true && t('help.best')].filter(Boolean);
+  const helps = () => setupPractice({ mode: 'tiles', rules: { ...o.rules, undo: alone() && o.rules.undo,
+    open: !o.net && o.players.filter(x => !x.cpu).length > 1 && o.rules.open } }) ? [t('practice')] : [];
 
   function paintPlayers() {
     const last = o.players.length - 1, first = o.players.indexOf(o.first);
@@ -915,7 +898,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     // help on: those games leave the statistics' records and averages (owner, 2026-09-28: "show the alert")
     const used = helps();
     $('.help-warn').hidden = !used.length;
-    $('.help-warn span').textContent = used.length ? t('help.warnTiles', { what: used.join(', ') }) : '';
+    $('.help-warn span').textContent = used.length ? t('help.setupPractice') : '';
     const who = o.players.map((x, p) => esc(nameAt(p)) + (x.cpu ? ` (${t(levelKey(x.cpu))})` : '')).join(', ');
     const first = o.players.indexOf(o.first);
     $('.summary').innerHTML = [LANG_NAMES[o.lang], t('tiles.board.' + o.board), o.net && t('net.tag.' + o.net), who, first >= 0 && `${t('tiles.first')}: ${esc(nameAt(first))}`,
@@ -932,7 +915,6 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
       b.querySelector('.meta').innerHTML = `${n} × ${n} ${DOT} ${tiles} ${plural(tiles, 'tiles.tilesN')}`;
     });
     // the same choices as in Settings and in the game (owner, 2026-09-25: "also on the setup")
-    $('#colour-looks').innerHTML = coloursSeg();
     $('#bonus').innerHTML = bonusSeg();
     $('#board-style').innerHTML = boardStyleSeg();
     $('#tiles-cb').classList.toggle('on', !!settings.tilesCb);
@@ -959,11 +941,10 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     sync();
   }));
   root.querySelectorAll('[data-board]').forEach(b => b.addEventListener('click', () => { o.board = b.dataset.board; sync(); }));
-  $('#colour-looks').addEventListener('click', e => { const b = e.target.closest('[data-colours]'); if (b) { settings.tilesColours = bonusOf(b.dataset.colours); saveSettings(); sync(); } });
   $('#tile-looks').addEventListener('click', e => { const b = e.target.closest('[data-tc]'); if (b) { settings.tilesTile = b.dataset.tc; saveSettings(); applyTileLook(); $('#tile-looks').innerHTML = tileSeg(); } });
   $('#bonus').addEventListener('click', e => { const b = e.target.closest('[data-bonus]'); if (b) { settings.tilesBonus = bonusOf(b.dataset.bonus); saveSettings(); sync(); } });
   $('#board-style').addEventListener('click', e => { const b = e.target.closest('[data-board-style]'); if (b) { settings.tilesBoardStyle = b.dataset.boardStyle; saveSettings(); sync(); } });
-  $('#tiles-cb').addEventListener('click', () => { settings.tilesCb = !settings.tilesCb; saveSettings(); sync(); $('.howto .tl-topics').outerHTML = topics(); });
+  $('#tiles-cb').addEventListener('click', () => { settings.tilesCb = !settings.tilesCb; saveSettings(); sync(); });
   $('.tl-rules').addEventListener('toggle', e => { o.rulesOpen = e.target.open; });
   $('.tl-assists').addEventListener('toggle', e => { o.assistsOpen = e.target.open; });
   // "Change" by the warning: open the assists and bring them into view
@@ -1049,6 +1030,10 @@ const devicesInfo = kinds => `<div class="card tl-hostinfo"><span class="eyebrow
     `<li>${t(k === 'android' && kinds.includes('web') ? 'net.devices.androidWeb' : 'net.devices.' + k, { v: VERSION })}</li>`).join('')}</ul></div>`;
 export function tilesOnlineScreen(root) {
   const kinds = netKinds();
+  if (!kinds.length) {
+    root.innerHTML = `<div class="app">${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.tiles}">${t('back.games')}</a>` })}<main class="main"><p role="status">${t('net.unavailable')}</p></main></div>`;
+    return;
+  }
   let kind = kinds.includes(settings.netKind) ? settings.netKind : kinds[0] ?? 'bt';
   root.innerHTML = `<div class="app" data-screen="new">
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.tiles}">${t('back.games')}</a>`, right: modeTag('tiles') })}
@@ -1100,6 +1085,7 @@ export function tilesOnlineScreen(root) {
 // phone in, the game comes over and is played here - kept only while it is played (the host's phone keeps it).
 export function tilesJoinScreen(root, chosen) {
   const kinds = netKinds();
+  if (!kinds.length) return tilesOnlineScreen(root);
   const kind = kinds.includes(chosen) ? chosen : kinds.includes(settings.netKind) ? settings.netKind : kinds[0] ?? 'bt';
   // address → { name, rssi, seen }: phones found near by, dropped once not seen for a while
   const found = new Map();
@@ -1261,11 +1247,14 @@ export function tilesJoinScreen(root, chosen) {
 let statsTab = 'general';   // which tab the stats screen shows, kept while the app is open
 // General, then one tab per game (Statistics v2 design, 2026-09-28)
 const STAT_TABS = ['general', 'guess', 'letters', 'connect', 'tiles'];
-const statFilter = {};      // per game: { lang, lv } - the language and the level shown, kept while the app is open
+const statFilter = {};      // language shown per game, kept while the app is open
 const MODES = ['guess', 'letters', 'connect', 'tiles'];
 
 // Approved square achievement grid; progress and dates come from the live ledger.
-const gameTabs = (tabs, selected, attr, generalLabel) => `<div class="seg st-tabs" role="tablist">${tabs.map(m => `<button type="button" role="tab" data-${attr}="${m}" class="${on(selected === m)}" ${attr === 'ach-tab' ? `tabindex="${selected === m ? 0 : -1}"` : ''} aria-selected="${selected === m}"><span class="tg">${GLYPH[m === 'general' ? 'all' : m] ?? ''}</span>${t(m === 'general' || m === 'all' ? generalLabel : 'mode.' + m)}</button>`).join('')}</div>`;
+const gameTabs = (tabs, selected, attr, generalLabel) => `<div class="seg st-tabs" role="tablist">${tabs.map(m => {
+  const label = t(m === 'general' || m === 'all' ? generalLabel : 'mode.' + m), iconsOnly = attr === 'ach-tab';
+  return `<button type="button" role="tab" data-${attr}="${m}" class="${on(selected === m)}" ${iconsOnly ? `tabindex="${selected === m ? 0 : -1}" aria-label="${label}" title="${label}"` : ''} aria-selected="${selected === m}"><span class="tg" aria-hidden="true">${GLYPH[m === 'general' ? 'all' : m] ?? ''}</span>${iconsOnly ? '' : label}</button>`;
+}).join('')}</div>`;
 let achievementTab = 'all';
 export function achievementsScreen(root) {
   const reached = TIERED.reduce((n, d) => n + TIERS.filter((_, i) => gotAt(`${d.id}#${i}`) !== null).length, 0);
@@ -1279,8 +1268,13 @@ export function achievementsScreen(root) {
     <main class="main"><h1 class="title">${t('ach.title')}</h1>
       <div class="ach-summary"><div><b class="num">${num(reached)}</b><small>${t('ach.tiers', { a: num(reached), b: num(TIERED.length * TIERS.length) })}</small></div>${TIERS.map((tier, i) => `<span class="ach-count" title="${t('tier.' + tier)}" aria-label="${t('tier.' + tier)}: ${TIERED.filter(d => gotAt(`${d.id}#${i}`) !== null).length}">${tierShape(i)}${num(TIERED.filter(d => gotAt(`${d.id}#${i}`) !== null).length)}</span>`).join('')}</div>
       ${gameTabs(['all', ...GAMES], achievementTab, 'ach-tab', 'col.all')}
+      <h2 class="ach-section-title">${t(achievementTab === 'all' ? 'col.all' : 'mode.' + achievementTab)}</h2>
       ${filtered(TIERED).length ? `<h2 class="ach-heading">${t('ach.milestones')}</h2><div class="ach-grid">${filtered(TIERED).map(tile).join('')}</div>` : ''}
-      ${filtered(CHALLENGES).length ? `<h2 class="ach-heading">${t('ach.challenges')} · ${num(filtered(CHALLENGES).filter(d => gotAt(d.id) !== null).length)} / ${num(filtered(CHALLENGES).length)}</h2><div class="ach-grid">${filtered(CHALLENGES).map(tile).join('')}</div><p class="help">${t('ach.fair')}</p>` : ''}
+      ${filtered(CHALLENGES).length ? `<h2 class="ach-heading">${t('ach.challenges')} · ${num(filtered(CHALLENGES).filter(d => gotAt(d.id) !== null).length)} / ${num(filtered(CHALLENGES).length)}</h2><div class="ach-grid">${filtered(CHALLENGES).map(tile).join('')}</div>` : ''}
+      ${earlierAchievements().length ? `<details class="earlier-ach"><summary>${t('ach.earlier')}</summary>${earlierAchievements().filter(([key]) => achievementTab === 'all' || key.startsWith(achievementTab + '.')).map(([key, at]) => {
+        const [id, tier] = key.split('#'), title = t('ach.' + id);
+        return `<p>${esc(title === 'ach.' + id ? id : title)}${tier != null ? ' · ' + t('tier.' + TIERS[+tier]) : ''} <small>${t('ach.got', { d: dateTime(at) })}</small></p>`;
+      }).join('')}</details>` : ''}
     </main></div>`;
   root.querySelectorAll('[data-ach-tab]').forEach(b => {
     b.addEventListener('click', () => { achievementTab = b.dataset.achTab; achievementsScreen(root); root.querySelector('[aria-selected=true]')?.focus(); });
@@ -1294,163 +1288,31 @@ export function achievementsScreen(root) {
   root.querySelectorAll('[data-ach]').forEach(b => b.addEventListener('click', () => achievementDetail(b.dataset.ach)));
 }
 
-// The statistics (owner, 2026-09-28; the look: design "Lexling Statistics", design/stats-v6), worked out from each
-// game's record (store.js): every game from its first move, by language and level. Records and averages leave out
-// help - Guess: hints (and a category, and a word a friend chose); Connect: words found with a hinted letter; Tiles:
-// games with undo or best-move ratings on, and moves made with a hint.
+// Only cumulative totals: every setting contributes on the same terms until help is used.
 export function statsScreen(root, _, refresh) {
   if (!STAT_TABS.includes(statsTab)) statsTab = 'general';
-  const all = Object.values(stats.rec ?? {});
-  const f = statFilter[statsTab] ??= { lang: 'all', lv: 'all' };
-  const mine = all.filter(r => r.m === statsTab), recs = mine.filter(r => (f.lang === 'all' || r.lang === f.lang) && (f.lv === 'all' || r.lv === f.lv));
-  const none = statsTab !== 'general' && !mine.length, nothing = !none && statsTab !== 'general' && !recs.length;
-  const sum = (rs, k) => rs.reduce((a, r) => a + (+r[k] || 0), 0);
-  const closed = rs => rs.filter(r => r.end);
-  // numbers as the design writes them: a narrow no-break space in thousands and before "%", a decimal comma in Polish
-  const nn = n => num(n).replace(/ /g, ' ');
-  const per = (a, b) => b ? decimal((a / b).toFixed(1)) : '—';
-  const share = (a, b) => b ? Math.round(a / b * 100) : 0;
-  const pc = p => `${p} %`;
-  // A cell: label, big number (+ unit), a line (its percentage in bold), a 3px bar (grey for given up)
-  const cell = (k, v, o = {}) => `<div class="scell${o.cls ? ' ' + o.cls : ''}${v === '—' ? ' dash' : ''}"><span class="lbl">${k}</span><span class="num">${v}${
-    o.unit ? `<span class="unit">${o.unit}</span>` : ''}</span>${o.pre || o.b || o.post ? `<span class="sub">${o.pre ?? ''}${o.b ? `<b>${o.b}</b>` : ''}${o.post ?? ''}</span>` : ''}${
-    o.bar != null ? `<span class="bar${o.quiet ? ' quiet' : ''}"><i style="--p:${o.bar}%"></i></span>` : ''}</div>`;
-  const group = (title, cells, note = '') => `<section class="card sgroup${none ? ' dim' : ''}"><h2 class="eyebrow">${title}</h2><div class="scells">${cells.join('')}</div>${
-    note && !none ? `<p class="snote">${note}</p>` : ''}</section>`;
-  // "53 % won" under a count of games: done = the games that ended
-  const rate = (n, done, word, quiet = false) => done ? { b: pc(share(n, done)), post: word, bar: share(n, done), quiet } : {};
-  // hints used; in how many of the games, and how many in such a game (owner: not spread over the games without any)
-  const hintCell = (rs, k = 'h') => { const n = sum(rs, k), with_ = rs.filter(r => r[k] > 0).length;
-    return cell(t('stats.hints'), nn(n), with_ ? { pre: t('stats.sub.hintsPre'), b: pc(share(with_, rs.length)), post: t('stats.sub.hintsPost', { n: per(n, with_) }) } : {}); };
-  // one chart style: columns standing up, the count on top, the tallest in the game's colour
-  const chart = (title, help, rows, { tone = '', modes = false } = {}) => {
-    const max = Math.max(1, ...rows.map(r => r[1]));
-    return `<div class="card chart${modes ? ' modes' : ''}${none ? ' dim' : ''}"${tone ? ` style="--tone:${tone}"` : ''}>
-      <div class="chart-head"><span class="eyebrow">${title}</span><span class="help">${help}</span></div>
-      <ol style="--n:${rows.length}">${rows.map(([label, v, mode]) => `<li class="${v && v === max ? 'top' : ''}${v ? '' : ' zero'}${mode ? ' m-' + mode : ''}"><span class="plot"><b>${nn(v)}</b><i style="--k:${(v / max).toFixed(3)}"></i></span><span class="cl">${
-        mode ? GLYPH[mode] : ''}${label}</span></li>`).join('')}</ol>
-    </div>`;
+  const f = statFilter[statsTab] ??= { lang: 'all' };
+  const values = Object.fromEntries(MODES.map(m => [m, totals(m, statsTab === 'general' ? 'all' : f.lang)]));
+  const cell = (key, value) => `<div class="scell"><span class="lbl">${t(key)}</span><span class="num">${typeof value === 'number' ? num(value) : value}</span></div>`;
+  const rows = {
+    guess: [['stats.solved', 'finished'], ['game.guesses', 'guesses'], ['stats.unique', 'distinct'], ['stats.letters', 'letters']],
+    letters: [['stats.finished', 'finished'], ['stats.wordsSolved', 'solved']],
+    connect: [['stats.boardsCompleted', 'finished'], ['stats.wordsFound', 'words'], ['stats.bonusWords', 'bonus']],
+    tiles: [['stats.finished', 'finished'], ['stats.tiles.moves', 'words'], ['stats.tilesPlaced', 'tiles']],
   };
-  const levelName = (m, l) => l === 'people' ? t('stats.tiles.people') : t(m === 'tiles' ? levelKey(l) : 'diff.' + l);
-  const filters = m => `<div class="st-filters${none ? ' off' : ''}">
-      <div class="seg" role="radiogroup">${['all', 'pl', 'en'].map(l => `<button type="button" data-f-lang="${l}" class="${on(f.lang === l)}">${l === 'all' ? t('stats.tiles.bothLangs') : LANG_NAMES[l]}</button>`).join('')}</div>
-      <div class="st-levels"><div class="chips">${['all', ...(m === 'tiles' ? [...LEVEL_ORDER, 'people'] : DIFFS)].map(l => `<button type="button" class="chip ${on(f.lv === l)}" data-f-lv="${l}">${
-    l === 'all' ? t('stats.tiles.allLevels') : levelName(m, l)}</button>`).join('')}</div></div>
-    </div>`;
-
-  // ── General: every game, the time, the games by mode ──
-  const hours = stats.timeMs >= 360000000 ? nn(Math.floor(stats.timeMs / 3600000)) : clock(stats.timeMs, true);   // h:mm under 100 h
-  const generalPanel = () => group(t('stats.g.games'), [
-    cell(t('stats.allGames'), nn(all.length), { cls: 'hero' }),
-    cell(t('stats.time'), hours, { unit: 'h', post: t('stats.timeSub') })],
-  stats.before?.games ? t('stats.before', { n: nn(stats.before.games) }) : '')
-    + (all.length ? chart(t('stats.byMode'), `${nn(all.length)} ${plural(all.length, 'n.games')}`, MODES.map(m => [t('mode.' + m), all.filter(r => r.m === m).length, m]), { modes: true }) : '');
-
-  // ── Guess ──
-  const guessPanel = () => {
-    const done = closed(recs), gave = done.filter(r => r.end !== 'won').length, wins = recs.filter(r => r.end === 'won');
-    const rated = wins.filter(r => !r.h && !r.fr && r.cat === 'all'), hardest = rated.filter(r => r.dif >= 0).reduce((a, r) => !a || r.dif > a.dif ? r : a, null);
-    const fewest = rated.reduce((a, r) => !a || r.g < a ? r.g : a, 0), words = sum(recs, 'g');
-    const uniq = stats.unique.filter(x => f.lang === 'all' || x.startsWith(f.lang + ':')).length;
-    const band = g => g <= 10 ? 0 : g <= 25 ? 1 : g <= 50 ? 2 : 3, shape = [0, 0, 0, 0], plain = wins.filter(r => !r.h && !r.fr);
-    plain.forEach(r => shape[band(r.g)]++);
-    return group(t('stats.g.games'), [cell(t('stats.played'), nn(recs.length), done.length ? { pre: t('stats.sub.givenUp', { n: nn(gave) }), ...rate(gave, done.length, '', true) } : {})])
-      + group(t('stats.g.words'), [
-        cell(t('stats.words'), nn(words)),
-        cell(t('stats.wordsPerGame'), per(words, recs.length)),
-        cell(t('stats.unique'), nn(uniq)),
-        cell(t('stats.letters'), nn(sum(recs, 'ch')))])
-      + group(t('stats.g.records'), [
-        cell(t('stats.bestWin'), fewest ? nn(fewest) : '—', fewest ? { post: plural(fewest, 'n.guesses') } : {}),
-        cell(t('stats.avgWin'), rated.length ? per(sum(rated, 'g'), rated.length) : '—', { post: t('stats.perWon') }),
-        cell(t('stats.hardWins'), nn(rated.filter(r => r.dif >= HARD_WIN).length), { post: t('stats.hardWinsSub', { n: HARD_WIN }) }),
-        cell(t('stats.hardest'), hardest ? esc(hardest.w) : '—', { cls: 'wide word', post: hardest ? t('stats.hardestSub', { n: hardest.dif }) : '' })], t('stats.noCat'))
-      + group(t('stats.g.more'), [
-        cell(t('stats.pools'), nn(new Set(plain.map(r => r.cat)).size), { post: t('stats.poolsSub', { n: CATS.length }) }),
-        cell(t('stats.byLang'), `${nn(wins.filter(r => !r.fr && r.lang === 'pl').length)} / ${nn(wins.filter(r => !r.fr && r.lang === 'en').length)}`),
-        hintCell(recs)])
-      + (plain.length ? chart(t('stats.perWinGuess'), `${nn(plain.length)} ${t('stats.winsNoHelp')}`, [['1–10', shape[0]], ['11–25', shape[1]], ['26–50', shape[2]], ['51+', shape[3]]], { tone: 'var(--fill-hot)' }) : '');
-  };
-
-  // ── Letters (no hints in this game) ──
-  const lettersPanel = () => {
-    const done = closed(recs).sort((a, b) => a.ea - b.ea), wins = done.filter(r => r.end === 'won');
-    let streak = 0, best = 0;
-    for (const r of done) { streak = r.end === 'won' ? streak + 1 : 0; best = Math.max(best, streak); }
-    const byLen = Array.from({ length: LEN_MAX - LEN_MIN + 1 }, (_, i) => [String(i + LEN_MIN), wins.filter(r => r.len === i + LEN_MIN).length]);
-    const fav = byLen.reduce((a, x) => x[1] > (a?.[1] ?? 0) ? x : a, null);
-    return group(t('stats.g.games'), [cell(t('stats.played'), nn(recs.length), rate(wins.length, done.length, t('stats.sub.won')))])
-      + group(t('stats.g.streaks'), [
-        cell(t('stats.streakNow'), nn(streak)),
-        cell(t('stats.streakTop'), nn(best)),
-        cell(t('stats.favLen'), fav ? nn(+fav[0]) : '—', fav ? { post: `${nn(fav[1])} ${plural(fav[1], 'n.wins')}` } : {})])
-      + (wins.length ? chart(t('stats.byLen'), `${nn(wins.length)} ${plural(wins.length, 'n.wins')}`, byLen, { tone: 'var(--lt-hit)' }) : '');
-  };
-
-  // ── Connect: its numbers, then the longest word found drawn in green tiles ──
-  const connectPanel = () => {
-    const done = closed(recs), solved = done.filter(r => r.end === 'won').length, found = sum(recs, 'f'), bonus = sum(recs, 'b');
-    const longest = recs.filter(r => r.long).reduce((a, r) => !a || [...r.long].length > [...a.long].length ? r : a, null);
-    return group(t('stats.g.games'), [cell(t('stats.played'), nn(recs.length), rate(solved, done.length, t('stats.sub.solved')))])
-      + group(t('stats.g.words'), [
-        cell(t('stats.wordsFound'), nn(found)),
-        cell(t('stats.wordsPerGame'), per(found, recs.length)),
-        cell(t('stats.bonusWords'), nn(bonus)),
-        cell(t('stats.bonusPerGame'), per(bonus, recs.length)),
-        hintCell(recs)], t('stats.cnNote'))
-      + (longest ? `<div class="card best"><span class="eyebrow">${t('stats.longest')}</span>${squares(Array([...longest.long].length).fill('hit'), 32, [...longest.long])}
-        <p class="help">${t('stats.longestSub', { n: [...longest.long].length, letters: plural([...longest.long].length, 'lt.letters'), g: esc(longest.gn ?? ''), ago: ago(longest.ea ?? longest.at) })}</p></div>` : '');
-  };
-
-  // ── Tiles: every game on this device, several people included (owner, 2026-09-25) ──
-  const tilesPanel = () => {
-    const vs = recs.filter(r => r.vsCpu), vsDone = closed(vs), ppl = recs.filter(r => r.lv === 'people'), pplDone = closed(ppl).filter(r => r.alone);
-    // points and records: no undo, no best moves shown (owner: "the points section won't be touched by you"); the best and
-    // the average game score not with a single hint either
-    const clean = recs.filter(r => !r.u && !r.bs), plain = closed(clean).filter(r => !r.hints && r.games);
-    const best = plain.reduce((a, r) => r.bestGame > a ? r.bestGame : a, -1);
-    const bm = clean.reduce((a, r) => r.ownBest && (!a || r.ownBest.score > a.score) ? { ...r.ownBest, lang: r.lang } : a, null);
-    const rb = sum(clean, 'rb');
-    return group(t('stats.g.games'), [
-      cell(t('stats.played'), nn(recs.length)),
-      cell(t('stats.vsCpu'), nn(vs.length), rate(sum(vsDone, 'won'), vsDone.length, t('stats.sub.won'))),
-      cell(t('stats.vsPeople'), nn(ppl.length), rate(sum(pplDone, 'beat'), pplDone.length, t('stats.sub.won')))])
-      + group(t('stats.g.points'), [
-        cell(t('stats.tiles.best'), best >= 0 ? nn(best) : '—'),
-        cell(t('stats.tiles.avg'), sum(plain, 'games') ? nn(Math.round(sum(plain, 'points') / sum(plain, 'games'))) : '—'),
-        cell(t('stats.tiles.points'), nn(sum(clean, 'ownPoints'))),
-        cell(t('stats.tiles.perMove'), sum(clean, 'ownMoves') ? per(sum(clean, 'ownPoints'), sum(clean, 'ownMoves')) : '—')], t('stats.tiles.pointsNote'))
-      + group(t('stats.g.moves'), [
-        cell(t('stats.tiles.moves'), nn(sum(recs, 'moves'))),
-        cell(t('stats.tiles.bingos'), nn(sum(clean, 'ownBingos'))),
-        cell(t('stats.tiles.passes'), nn(sum(recs, 'passes'))),
-        cell(t('stats.tiles.rating'), rb ? pc(share(sum(clean, 'rp'), rb)) : '—', { post: t(rb ? 'stats.tiles.ratingSub' : 'stats.tiles.ratingNone') })])
-      + group(t('stats.g.help'), [hintCell(recs, 'hints')])
-      + (bm ? `<div class="card best"><span class="eyebrow">${t('stats.tiles.bestMove')}</span><div class="tl-best"><span class="mt-row">${[...bm.w].map(ch =>
-        `<i class="mtl" style="--s:36px">${esc(ch)}<i class="p">${valueOf(bm.lang, ch) ?? ''}</i></i>`).join('')}</span><span class="num">${bm.score}</span></div></div>` : '');
-  };
-
-  const panel = { general: generalPanel, guess: guessPanel, letters: lettersPanel, connect: connectPanel, tiles: tilesPanel }[statsTab];
+  const panel = statsTab === 'general'
+    ? cell('stats.finished', MODES.reduce((n, m) => n + values[m].finished, 0)) + cell('stats.time', clock(stats.timeMs, true))
+      + MODES.map(m => cell('mode.' + m, values[m].finished)).join('')
+    : rows[statsTab].map(([key, field]) => cell(key, values[statsTab][field])).join('');
   root.innerHTML = `<div class="app" data-screen="stats">
-  ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
-  <main class="main">
-    <h1 class="title">${t('stats.title')}</h1>
-    <a class="btn btn-outline" href="#/achievements">${t('menu.ach')} <span class="arrow">→</span></a>
-    ${gameTabs(STAT_TABS, statsTab, 'tab', 'stats.general')}
-    ${statsTab === 'general' ? '' : filters(statsTab)}
-    <section class="section" role="tabpanel">
-      ${none ? `<div class="none"><strong>${t('stats.none', { g: t('mode.' + statsTab) })}</strong><p class="help">${t('stats.noneHelp')}</p></div>` : ''}
-      ${nothing ? `<div class="none nothing"><strong>${t('stats.filterNone')}</strong><button type="button" class="btn btn-ghost" data-f-reset>${t('stats.showAll')} <span class="arrow">→</span></button></div>` : panel()}
-    </section>
-  </main>
-</div>`;
-  // the level chosen in view (the chips scroll sideways on a phone)
-  const lv = root.querySelector('.st-levels'), chosen = lv?.querySelector('.chip.on');
-  if (lv && chosen) lv.scrollLeft = Math.max(0, chosen.offsetLeft - lv.clientWidth / 2 + chosen.offsetWidth / 2);
+    ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
+    <main class="main"><h1 class="title">${t('stats.title')}</h1>
+      ${gameTabs(STAT_TABS, statsTab, 'tab', 'stats.general')}
+      ${statsTab === 'general' ? '' : `<div class="st-filters"><div class="seg" role="radiogroup">${['all', 'pl', 'en'].map(l => `<button type="button" data-f-lang="${l}" class="${on(f.lang === l)}">${l === 'all' ? t('stats.tiles.bothLangs') : LANG_NAMES[l]}</button>`).join('')}</div></div>`}
+      <section class="card sgroup" role="tabpanel"><div class="scells">${panel}</div></section>
+    </main></div>`;
   root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { statsTab = b.dataset.tab; refresh(); }));
   root.querySelectorAll('[data-f-lang]').forEach(b => b.addEventListener('click', () => { f.lang = b.dataset.fLang; refresh(); }));
-  root.querySelectorAll('[data-f-lv]').forEach(b => b.addEventListener('click', () => { f.lv = b.dataset.fLv; refresh(); }));
-  root.querySelector('[data-f-reset]')?.addEventListener('click', () => { f.lang = 'all'; f.lv = 'all'; refresh(); });
 }
 
 
@@ -1574,6 +1436,7 @@ function dotMap(canvas, flags) {
 
 let dataIndex;
 
+const settingsSections = new Set(['general']);
 export async function settingsScreen(root, _, refresh) {
   dataIndex ??= await fetch('data/index.json').then(r => r.json());
   const seg = (key, values, label) => `<div class="seg">${values.map(v => `<button type="button" data-k="${key}" data-v="${v}" class="${on(settings[key] === v)}">${label(v)}</button>`).join('')}</div>`;
@@ -1586,36 +1449,40 @@ export async function settingsScreen(root, _, refresh) {
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
   <main class="main">
     <h1 class="title">${t('set.title')}</h1>
-    <section class="group">
-      <div class="row"><div class="row-text"><label for="my-name"><strong>${t('set.myName')}</strong></label><span>${t('set.myNameDesc')}</span></div>${myNameInput()}</div>
-      <div class="row"><div class="row-text"><strong>${t('set.lang')}</strong><span>${t('set.langDesc')}</span></div>${seg('lang', ['pl', 'en'], l => LANG_NAMES[l])}</div>
-      <div class="row"><div class="row-text"><strong>${t('set.theme')}</strong><span>${t('set.themeDesc')}</span></div>${seg('theme', ['dark', 'light', 'system'], v => t('theme.' + v))}</div>
-      <div class="row"><div class="row-text"><strong>${t('set.palette')}</strong><span>${t('set.paletteDesc')}</span></div>
-        <div class="palette-swatches">${Object.keys(PALETTES).map(id => `<button type="button" data-palette-choice="${id}" class="${on((settings.palette ?? 'classic') === id)}" aria-label="${t('palette.' + id)}" aria-pressed="${(settings.palette ?? 'classic') === id}"><span class="palette-preview" data-preview="${id}" aria-hidden="true"><i>Aa</i></span><span>${t('palette.' + id)}</span></button>`).join('')}</div></div>
-      <div class="row"><div class="row-text"><strong>${t('set.accent')}</strong><span>${t('set.accentDesc')}</span></div>
+    <details class="settings-section" data-section="general"${settingsSections.has('general') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">Aa</span><span>${t('set.section.general')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
+<div class="row"><div class="row-text"><strong>${t('set.lang')}</strong><span>${t('set.langDesc')}</span></div>${seg('lang', ['pl', 'en'], l => LANG_NAMES[l])}</div><div class="row"><div class="row-text"><strong>${t('set.fuzzy')}</strong><span>${t('set.fuzzyDesc')}</span></div><button type="button" class="toggle ${on(settings.fuzzy)}" data-toggle="fuzzy" role="switch" aria-checked="${settings.fuzzy}" aria-label="${t('set.fuzzy')}"></button></div>
+    </div></details>
+    <details class="settings-section" data-section="games"${settingsSections.has('games') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">${GLYPH.tiles}</span><span>${t('set.section.games')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
+<div class="row"><div class="row-text"><strong>${t('set.remember')}</strong><span>${t('set.rememberDesc')}</span></div><button type="button" class="toggle ${on(settings.rememberSetup)}" data-toggle="rememberSetup" role="switch" aria-checked="${!!settings.rememberSetup}" aria-label="${t('set.remember')}"></button></div>
+
+      <h2 class="title">${t('set.tiles')}</h2>
+      <div class="row"><div class="row-text"><strong>${t('tiles.under')}</strong><span>${t('tiles.underHelp')}</span></div>${seg('tilesUnder', ['rating', 'rarity', 'both'], v => t('tiles.under.' + v))}</div>
+      <div class="row"><div class="row-text"><strong>${t('set.rareTiers')}</strong><span id="rare-help">${t('set.rareTiersHelp', { pl: num(dataIndex.counts.pl), en: num(dataIndex.counts.en) })}</span></div>
+        <div class="rare-tiers">${['purple', 'gold', 'blue'].map((tier, i) => `<label class="rare-${tier}"><i aria-hidden="true"></i><input class="input" type="number" inputmode="numeric" min="1" max="100" step="1" data-rare-tier="${i}" value="${rareTiers[i]}" aria-label="${t('tiles.rare.tier.' + tier)}" aria-describedby="rare-help"><span>%</span></label>`).join('')}
+        <button type="button" class="btn btn-ghost" id="rare-reset">${t('set.rareReset')}</button></div></div>
+
+    </div></details>
+    <details class="settings-section" data-section="display"${settingsSections.has('display') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">◐</span><span>${t('set.section.display')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
+<div class="row"><div class="row-text"><strong>${t('set.theme')}</strong></div>${seg('theme', ['dark', 'light', 'system'], v => t('theme.' + v))}</div><div class="row"><div class="row-text"><strong>${t('set.palette')}</strong><span>${t('set.paletteDesc')}</span></div>
+        <div class="palette-swatches">${Object.keys(PALETTES).map(id => `<button type="button" data-palette-choice="${id}" class="${on((settings.palette ?? 'classic') === id)}" aria-label="${t('palette.' + id)}" aria-pressed="${(settings.palette ?? 'classic') === id}"><span class="palette-preview" data-preview="${id}" aria-hidden="true"><i>Aa</i></span><span>${t('palette.' + id)}</span></button>`).join('')}</div></div><div class="row"><div class="row-text"><strong>${t('set.accent')}</strong><span>${t('set.accentDesc')}</span></div>
         <div class="swatches">${Object.entries(ACCENTS).map(([name, hex]) =>
-    `<button type="button" data-accent="${name}" class="${on(settings.accent === name)}" style="--swatch:${hex}" aria-label="${name}"></button>`).join('')}</div></div>
-      <div class="row"><div class="row-text"><strong>${t('set.fuzzy')}</strong><span>${t('set.fuzzyDesc')}</span></div><button type="button" class="toggle ${on(settings.fuzzy)}" data-toggle="fuzzy" role="switch" aria-checked="${settings.fuzzy}" aria-label="${t('set.fuzzy')}"></button></div>
-      <div class="row"><div class="row-text"><strong>${t('set.sound')}</strong><span>${t('set.soundDesc')}</span></div><button type="button" class="toggle ${on(settings.sound)}" data-toggle="sound" role="switch" aria-checked="${settings.sound}" aria-label="${t('set.sound')}"></button></div>
-      ${netKinds().includes('bt') ? `<div class="row"><div class="row-text"><strong>${t('set.btRemind')}</strong><span>${t('set.btRemindDesc')}</span></div><button type="button" class="toggle ${on(settings.btRemind)}" data-toggle="btRemind" role="switch" aria-checked="${!!settings.btRemind}" aria-label="${t('set.btRemind')}"></button></div>` : ''}
-      <div class="row"><div class="row-text"><strong>${t('set.remember')}</strong><span>${t('set.rememberDesc')}</span></div><button type="button" class="toggle ${on(settings.rememberSetup)}" data-toggle="rememberSetup" role="switch" aria-checked="${!!settings.rememberSetup}" aria-label="${t('set.remember')}"></button></div>
-    </section>
-    <section class="group">
+    `<button type="button" data-accent="${name}" class="${on(settings.accent === name)}" style="--swatch:${hex}" aria-label="${name}"></button>`).join('')}</div></div><div class="row"><div class="row-text"><strong>${t('set.sound')}</strong><span>${t('set.soundDesc')}</span></div><button type="button" class="toggle ${on(settings.sound)}" data-toggle="sound" role="switch" aria-checked="${settings.sound}" aria-label="${t('set.sound')}"></button></div>
+    </div></details>
+    <details class="settings-section" data-section="time"${settingsSections.has('time') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">◷</span><span>${t('set.section.time')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
+
       <h2 class="title">${t('set.time')}</h2>
       <div class="row"><div class="row-text"><strong>${t('set.clock')}</strong><span>${t('set.clockDesc')}</span></div><button type="button" class="toggle ${on(settings.showClock)}" data-toggle="showClock" role="switch" aria-checked="${!!settings.showClock}" aria-label="${t('set.clock')}"></button></div>
       <div class="row"><div class="row-text"><strong>${t('set.remind')}</strong><span>${t('set.remindDesc')}</span></div><button type="button" class="toggle ${on(settings.playRemind)}" data-toggle="playRemind" role="switch" aria-checked="${!!settings.playRemind}" aria-label="${t('set.remind')}"></button></div>
       <div class="row" id="rm-row"${settings.playRemind ? '' : ' hidden'}><div class="rm-every"><span>${t('set.every')}</span>
         <input class="input" type="number" inputmode="numeric" id="rm-h" min="0" max="12" value="${Math.floor((settings.remindMin || 90) / 60)}" aria-label="${t('set.hours')}"><span>${t('set.hours')}</span>
         <input class="input" type="number" inputmode="numeric" id="rm-m" min="0" max="59" step="5" value="${(settings.remindMin || 90) % 60}" aria-label="${t('set.minutes')}"><span>${t('set.minutes')}</span></div></div>
-    </section>
-    <section class="group">
-      <h2 class="title">${t('set.tiles')}</h2>
-      <div class="row"><div class="row-text"><strong>${t('tiles.under')}</strong><span>${t('tiles.underHelp')}</span></div>${seg('tilesUnder', ['rating', 'rarity', 'both'], v => t('tiles.under.' + v))}</div>
-      <div class="row"><div class="row-text"><strong>${t('set.rareTiers')}</strong><span id="rare-help">${t('set.rareTiersHelp', { pl: num(dataIndex.counts.pl), en: num(dataIndex.counts.en) })}</span></div>
-        <div class="rare-tiers">${['purple', 'gold', 'blue'].map((tier, i) => `<label class="rare-${tier}"><i aria-hidden="true"></i><input class="input" type="number" inputmode="numeric" min="1" max="100" step="1" data-rare-tier="${i}" value="${rareTiers[i]}" aria-label="${t('tiles.rare.tier.' + tier)}" aria-describedby="rare-help"><span>%</span></label>`).join('')}
-        <button type="button" class="btn btn-ghost" id="rare-reset">${t('set.rareReset')}</button></div></div>
-    </section>
-    <section class="group">
+
+    </div></details>
+    <details class="settings-section" data-section="online"${settingsSections.has('online') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">↗</span><span>${t('set.section.online')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
+<div class="row"><div class="row-text"><label for="my-name"><strong>${t('set.myName')}</strong></label><span>${t('set.myNameDesc')}</span></div>${myNameInput()}</div>${netKinds().includes('bt') ? `<div class="row"><div class="row-text"><strong>${t('set.btRemind')}</strong><span>${t('set.btRemindDesc')}</span></div><button type="button" class="toggle ${on(settings.btRemind)}" data-toggle="btRemind" role="switch" aria-checked="${!!settings.btRemind}" aria-label="${t('set.btRemind')}"></button></div>` : ''}
+    </div></details>
+    <details class="settings-section" data-section="about"${settingsSections.has('about') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">i</span><span>${t('set.section.about')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
+
       <h2 class="title">${t('set.updates')}</h2>
       <div class="row"><div class="row-text"><strong>${t('set.autoCheck')}</strong><span>${t('set.autoCheckDesc')}</span></div><button type="button" class="toggle ${on(settings.updateCheck)}" data-toggle="updateCheck" role="switch" aria-checked="${!!settings.updateCheck}" aria-label="${t('set.autoCheck')}"></button></div>
       <div class="row"><div class="row-text"><strong>${t('set.version', { v: VERSION })}</strong><span id="update-line">${updateLine}</span></div>
@@ -1623,22 +1490,25 @@ export async function settingsScreen(root, _, refresh) {
         <button type="button" class="btn btn-outline" id="check" ${REPO ? '' : 'disabled'}>${t('set.check')}</button>
         <button type="button" class="btn btn-ghost" id="manual" ${REPO ? '' : 'disabled'}>${t('set.manual')}</button></div></div>
       <div class="row"><a class="btn btn-outline" href="#/whatsnew">${t('wn.title')} <span class="arrow">→</span></a></div>
-    </section>
-    <section class="group">
+
       <h2 class="title">${t('set.about')}</h2>
       <div class="card about">
         <p>${t('set.aboutText')}</p>
         <dl class="kv">
           <dt>${t('set.vocab')}</dt><dd>${t('set.vocabText', { pl: num(dataIndex.counts.pl), en: num(dataIndex.counts.en) })}</dd>
-          <dt>${t('set.vectors')}</dt><dd>${t('set.vectorsReal', { d: dataIndex.dims })}</dd>
           <dt>${t('set.saves')}</dt><dd>${t('set.savesText')}</dd>
           <dt>${t('set.tiles')}</dt><dd>${t('set.credits')} <a href="data/familiar-sources.txt" target="_blank" rel="noopener">${t('set.wordNotices')}</a> · <a href="data/SCOWL-Copyright.txt" target="_blank" rel="noopener">${t('set.scowlNotice')}</a></dd>
         </dl>
+        <details><summary>${t('set.technical')}</summary><dl class="kv"><dt>${t('set.vectors')}</dt><dd>${t('set.vectorsReal', { d: dataIndex.dims })}</dd></dl></details>
       </div>
-    </section>
+
+    </div></details>
   </main>
   <footer class="footer"><span>Lexling v${VERSION}</span>${DOT}<span>© 2026 Husarp</span>${DOT}<span>${t('foot.rights')}</span></footer>
 </div>`;
+  root.querySelectorAll('[data-section]').forEach(el => el.addEventListener('toggle', () => {
+    if (el.open) settingsSections.add(el.dataset.section); else settingsSections.delete(el.dataset.section);
+  }));
   wireMyName(root);
   // Save and show the same cleaned limits; invalid edits reset all three (owner, 2026-11-14).
   const tierInputs = [...root.querySelectorAll('[data-rare-tier]')];
@@ -1698,11 +1568,14 @@ export async function settingsScreen(root, _, refresh) {
   const every = () => {
     const h = Math.min(12, Math.max(0, parseInt(root.querySelector('#rm-h').value, 10) || 0)), m = Math.min(59, Math.max(0, parseInt(root.querySelector('#rm-m').value, 10) || 0));
     settings.remindMin = Math.max(5, h * 60 + m);
+    root.querySelector('#rm-h').value = Math.floor(settings.remindMin / 60);
+    root.querySelector('#rm-m').value = settings.remindMin % 60;
     saveSettings();
   };
   root.querySelectorAll('#rm-h, #rm-m').forEach(i => i.addEventListener('change', every));
   const check = root.querySelector('#check');
   check?.addEventListener('click', async () => {
+    check.style.width = check.getBoundingClientRect().width + 'px';
     check.disabled = true;
     check.textContent = t('set.checking');
     if (await checkUpdate(true)) return refresh();

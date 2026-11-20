@@ -12,6 +12,7 @@ globalThis.fetch = async url => { const b = readFileSync(new URL(url, ROOT));
 const { loadWords, resolve } = await import('../app/js/engine.js');
 const { buildDawg, has, toBytes, fromBytes } = await import('../app/js/dawg.js');
 const T = await import('../app/js/tiles.js');
+const { setupPractice } = await import('../app/js/store.js');
 const { findMoves, computerMove, hint, lookBack, leaveValue, LEVELS, COMMON, loadSpoken } = await import('../app/js/tiles-moves.js');
 const { BOARDS, sizeOf, premiums, letterSet, fullBag, loadTileWords, newGame, placementError, wordsMade, checkMove,
   play, exchange, pass, resign, canExchange, apply, replay, hinted, unseen, checkWord, results, STANDARD, RACK, BINGO, BLANK } = T;
@@ -138,8 +139,8 @@ const seeded = seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul
   const gates = source.slice(source.indexOf('  const rateOn ='), source.indexOf('  // Whose turn now:'));
   const meaningWord = source.slice(source.indexOf('  const meaningWord ='), source.indexOf('  let meaningBusy ='));
   const cards = source.slice(source.indexOf('  const cardWords ='), source.indexOf('  function paintSay()'));
-  const history = source.slice(source.indexOf('  function histHtml()'), source.indexOf('  function unseenHtml()'));
-  const context = { t, esc, cleanTiers, moveRarity, ICON: { hint: '' }, nameOf: (_, p) => ['You', 'Computer'][p],
+  const history = source.slice(source.indexOf('  function histHtml('), source.indexOf('  function unseenHtml()'));
+  const context = { playerIcon: () => '<svg></svg>', t, esc, cleanTiers, moveRarity, ICON: { hint: '' }, nameOf: (_, p) => ['You', 'Computer'][p],
     lang: 'en', histOf: null, wordLink: w => esc(w), settings: {}, lex: { count: 100 },
     rankOf: w => ({ common: 0, half: 50, blue: 80, gold: 95, purple: 99 })[w] ?? Infinity,
     S: { rules: {}, moves: [{ kind: 'play', p: 0, score: 10, words: [{ w: 'gold', score: 10 }] }] },
@@ -195,7 +196,7 @@ const seeded = seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul
   setLang('en');
 
   // Run the actual startup prefix with frequencies pending, including a computer that uses them.
-  const startup = source.slice(source.indexOf('  const game = getSave(id);'), source.indexOf('  let S = game.state;'));
+  const startup = source.slice(source.indexOf('  let game = getSave(id);'), source.indexOf('  let S = game.state;'));
   const arrival = source.slice(source.indexOf('  lexReady.then(m => {'), source.indexOf("  document.addEventListener('keydown', onKey, true);"));
   for (const cpu of [undefined, 'relaxed', 'normal', 'hard', 'expert', 'legacy']) {
     let resolveLex, completed = false, wordLoads = 0;
@@ -480,6 +481,16 @@ const col = (r, c, word, blanks = []) => [...word].map((ch, i) => ({ r: r + i, c
   for (let i = 0; i < 3; i++) g = apply(g, { type: 'pass', ms: 1000 });
   const left = en().racks.map(r => r.reduce((a, ch) => a + T.valueOf('en', ch), 0));
   check('time per game: 10 points for every started minute over, at the end', [g.over.late, g.scores], [[30, 0], [-left[0] - 30, -left[1]]]);
+  const cpu = { ...perMove, players: [{ cpu: 'easy' }, {}] };
+  assert.throws(() => apply(cpu, { type: 'timeout', ms: 60000 }), /computers are not timed/); passed++;
+  const cpuPass = apply(cpu, { type: 'pass', ms: 200000 });
+  check('computer moves never accumulate clock time', cpuPass.clock, [0, 0]);
+  check('computer clock immunity survives replay', replay(cpuPass, () => true).at(-1).clock, [0, 0]);
+  // Old saves may already contain a computer clock: it must not cost overtime points.
+  const old = { ...cpu, clock: [200000, 200000], rules: { ...STANDARD, time: { per: 'game', seconds: 60 } } };
+  const ended = apply(old, { type: 'end' });
+  check('only people pay overtime, including old saves', ended.over.late, [0, 30]);
+
 }
 
 // ── checking a word, any time ──
@@ -958,6 +969,7 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
 {
   const source = readFileSync(new URL('../app/js/tiles-game.js', import.meta.url), 'utf8');
   const { t, esc, clock, setLang } = await import('../app/js/i18n.js');
+  const playerIcon = () => '<svg></svg>';
   const part = (a, b) => source.slice(source.indexOf(a), source.indexOf(b, source.indexOf(a)));
   const code = part('  function seeVote()', '  // The move as it stands:')
     + part('  const myTurn =', '  // several phones: every seat')
@@ -967,7 +979,7 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     + part('  function resetTurn(', '  // the game\'s statistics record:');
   const nextCode = part('  function next()', '  // The computer\'s turn:');
   const cards = part('  const meaningWord =', '  let meaningBusy =') + part('  const cardWords =', '  function paintSay()');
-  const history = part('  function histHtml()', '  function unseenHtml()');
+  const history = part('  function histHtml(', '  function unseenHtml()');
   const board = part('export function boardInner(', 'export async function tilesGameScreen(').replace('export ', '');
   const topics = part('export function topics(', '// Check a word').replace('export ', '');
   const tickCode = part('  const tick = setInterval', '  // just joined (the Join screen)');
@@ -976,17 +988,19 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     let now = 100000;
     const S = { ...newGame({ lang: 'en', players: Array.from({ length: players }, (_, p) => ({ name: `P${p + 1}` })), first: 0, seed: 12, rules: { veto: true, ...rules } }),
       racks: Array.from({ length: players }, () => [...'caters?']), bag: [...'aeiourstn'] };
-    const number = { textContent: '', parentElement: { classList: { toggle() {} } } }, chip = { textContent: '' };
+    const chip = { textContent: '', classList: { toggle(k, on) { chip[k] = on; } } }, number = chip;
+    const otherChip = { textContent: '', classList: { toggle() {} } };
     const ctx = { S, game: { state: S, turnMs: 120, evals: [] }, t, esc, clock, apply, isWord: () => true, voteFits: T.voteFits, voteCertain: T.voteCertain, voteStatus: T.voteStatus,
-      Date: { now: () => now }, VOTE_MS: 20000, voteAt: null, seenAt: 0, sentVote: null, lastVote: null, voteMoveAt: 0, voteResult: null, linked: false, host: false, linkMe: 0, solo: -1, open: false,
+      Date: { now: () => now }, VOTE_MS: 20000, voteAt: null, seenAt: 0, sentVote: null, lastVote: null, voteMoveAt: 0, voteResult: null, frozenLive: null, linked: false, host: false, linkMe: 0, solo: -1, open: false,
+      gone: () => ctx.missing ?? [], missing: [],
       shown: 0, thinking: false, toast: false, handOver: false, linkUp: true, ended: '', party: null,
       draft: [], sel: -1, mode: 'play', picks: new Set(), levels: null, cursor: null, blankFor: -1, turnHints: ['remember hint'], redoStack: [],
       press: null, rackGap: -1, fresh: null, msg: null, landing: null, n: 15, lang: 'en', settings: {}, dict: {}, histOf: null,
       BLANK, wordsMade, LABEL: { d: 'l2', t: 'l3', D: 'w2', T: 'w3' }, sizeOf, premiums, centre: T.centre, valueOf: T.valueOf,
-      nameOf: (s, p) => s.players[p].name, cpu: p => !!ctx.S.players[p].cpu, remote: p => ctx.linked && p !== ctx.linkMe, netOk: () => true,
+      playerIcon, nameOf: (s, p) => s.players[p].name, cpu: p => !!ctx.S.players[p].cpu, remote: p => ctx.linked && p !== ctx.linkMe, netOk: () => true,
       rackOf: p => [...ctx.S.racks[p]], inDraft: i => ctx.draft.some(d => d.slot === i),
       rackEl: { innerHTML: '' }, dock: { innerHTML: '' }, voteEl: { hidden: true, innerHTML: '', querySelectorAll: () => [], addEventListener: (_, fn) => { ctx.voteClick = fn; } },
-      status: { querySelector: s => s === '.tl-clock .num' ? number : chip }, play: { classList: { toggle() {} } }, app: { isConnected: true },
+      status: { querySelector: s => s === '.ps.pc0 .tm' ? chip : otherChip }, play: { classList: { toggle() {} } }, app: { isConnected: true },
       timers: [], setTimeout: fn => { ctx.timers.push(fn); ctx.clearNotice = fn; }, document: { visibilityState: 'visible' }, setInterval: fn => { ctx.tickNow = fn; return 1; }, clearInterval() {},
       refit() {}, zoomOut() {}, paintSay() {}, paintAll: () => ctx.paintVote(), think() {}, putSave() {}, finish() {}, countAchievements() {}, quiet() {},
       statsNow: () => ({}), recorded: 0, drawn: [], evaluated: [], recordMove: () => ctx.recorded++, noteMove() {},
@@ -998,6 +1012,41 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     ctx.number = number; ctx.chip = chip;
     return ctx;
   }
+  for (const lang of ['en','pl']) {
+    setLang(lang);
+    const frozen = screen();
+    frozen.linked = true;
+    frozen.linkUp = false;
+    frozen.frozenLive = 3200;
+    frozen.S = { ...frozen.S, vote: { at: 0 } };
+    frozen.advance(9000);
+    frozen.tickNow();
+    check(`${lang}: host gone freezes vote time on score card`, frozen.turnTime(), 3200);
+    check(`${lang}: host gone freezes total elapsed time`, frozen.totalTime(0), 3200);
+    frozen.S = { ...frozen.S, vote: null };
+    frozen.tickNow();
+    check(`${lang}: host gone freezes ordinary turn time`, frozen.game.turnMs, 120);
+    for (const kind of ['bt', 'lan', 'near', 'web']) {
+      check(`${lang}: ${kind} local disconnection translated`, t('net.disconnected.' + kind).includes('net.disconnected.'), false);
+    }
+    check(`${lang}: host disconnected translated`, t('net.hostDisconnected').includes('net.hostDisconnected'), false);
+    const disconnected = screen(2, { veto: false, wordsVote: true });
+    disconnected.linked = true; disconnected.host = true;
+    disconnected.party = { flush() {} };
+    disconnected.missing = [1];
+    disconnected.S = { ...disconnected.S, racks: [['h','p'], disconnected.S.racks[1]] };
+    disconnected.isWord = () => false;
+    disconnected.act({ type: 'place', placed: row(7,7,'hp') });
+    check(`${lang}: approval voter shows lost connection`, disconnected.voteEl.innerHTML.includes(t('net.noConnectionShort')), true);
+    check(`${lang}: disconnected voter has no choosing spinner`, disconnected.voteEl.innerHTML.includes('tl-vote-state choosing'), false);
+    check(`${lang}: approval silence reminder`, disconnected.voteEl.innerHTML.includes(t('tiles.approval.disconnected')), true);
+    disconnected.advance(20000); disconnected.act({ type: 'voteEnd' }, true);
+    disconnected.msg = null;
+    check(`${lang}: rejected approval card says not approved`, disconnected.card().includes(t('tiles.hist.notApproved')), true);
+    check(`${lang}: rejected approval card does not say vetoed`, disconnected.card().includes(t('tiles.hist.vetoed')), false);
+    check(`${lang}: rejected approval history says not approved`, disconnected.histHtml().includes(t('tiles.hist.notApproved')), true);
+  }
+  setLang('en');
   const placed = row(7, 7, 'cat');
   {
     const c = screen(2, { veto: false });
@@ -1096,6 +1145,13 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   const gameClock = screen(2, { time: { per: 'game', seconds: 10 } });
   gameClock.act({ type: 'place', placed }); gameClock.advance(1000); gameClock.paintClock();
   check('screen clock: per-game time includes vote time without counting used twice', [gameClock.number.textContent, gameClock.totalTime(0)], ['0:09', 1120]);
+  gameClock.advance(12000); gameClock.paintClock();
+  check('score-card countdown shows negative game overtime and red low time', [gameClock.chip.textContent, gameClock.chip.low], ['−0:04', true]);
+  const cpuClock = screen(2, { time: { per: 'move', seconds: 0.01 } });
+  cpuClock.S.players[0].cpu = 'easy';
+  cpuClock.tickNow();
+  check('computer turn ignores even a tiny move limit', [cpuClock.S.log.length, cpuClock.game.turnMs, cpuClock.chip.textContent], [0, 120, '']);
+
 }
 
 // New game's actual rendering, rule clicks, player changes and Start normalisation.
@@ -1115,13 +1171,13 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   for (const lang of ['en', 'pl']) {
     setLang(lang);
     for (const [kind, cpus, expected] of [['alone', [null, 'medium'], false], ['friends', [null, null], true], ['computers', ['easy', 'hard'], false], ['online', [null, 'medium'], true]]) {
-      const root = new Element(), ctx = { root, STANDARD, BOARDS, LABEL: { d: 'l2', t: 'l3', D: 'w2', T: 'w3' }, LEVEL_ORDER: T.LEVEL_ORDER, PLAYERS_MAX: T.PLAYERS_MAX,
+      const root = new Element(), ctx = { root, setupPractice, STANDARD, BOARDS, LABEL: { d: 'l2', t: 'l3', D: 'w2', T: 'w3' }, LEVEL_ORDER: T.LEVEL_ORDER, PLAYERS_MAX: T.PLAYERS_MAX,
         t, esc, LANG_NAMES, levelKey: T.levelKey, fullBag, settings: { lang, newGame: {}, tilesRate: false }, on: b => b ? 'on' : '', DOT: ' · ', LIST_OF: { tiles: '' },
         remembered: () => ({ board: 'classic', players: cpus.map(cpu => ({ name: '', cpu })), first: 0, rules: { rating: false, veto: true } }),
         nameOf: (_, p) => `P${p + 1}`, topbar: () => '', modeTag: () => '', howTo: () => '', nameField: () => '',
-        coloursSeg: () => '', tileSeg: () => '', bonusSeg: () => '', boardStyleSeg: () => '', fitAll() {}, saveSettings() {}, remember() {},
+        tileSeg: () => '', bonusSeg: () => '', boardStyleSeg: () => '', fitAll() {}, saveSettings() {}, remember() {},
         loadTileWords: async () => ({ tag: 1 }), tilesGame: o => { ctx.created = o; return newGame(o); }, newGame: o => ({ ...o, id: 'new' }),
-        typedName: () => '', location: { replace() {} }, hostKind: kind === 'online' ? 'web' : null };
+        typedName: () => '', netKinds: () => ['web'], location: { replace() {} }, hostKind: kind === 'online' ? 'web' : null };
       runInNewContext(code + '\ntilesNewScreen(root, null, () => {}, hostKind);', ctx);
       const assists = root.querySelector('.assists-body');
       check(`${lang}/${kind}: Veto is offered only with other people`, assists.innerHTML.includes('data-rule="veto"'), expected);

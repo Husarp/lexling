@@ -18,13 +18,13 @@ export const settings = read('wg.settings', {
   // "Allow Polish letters" on the new-game screens: on at first, then whatever the player chose last - each
   // game its own choice (owner, 2026-09-25)
   polish: { letters: true, connect: true },
-  // Tiles: each player's letters in their own colour (design v5) - also switched in a game's History panel
-  tilesColours: 'letters',   // letters in the players' colours - the default since 0.51.3 (owner)
+  // Legacy preference retained in old settings; board tiles now share one colour.
+  tilesColours: false,
   // Tiles: the bonus squares in their colours - off: one quiet grey with the labels only (owner, 2026-09-25: "too many
   // colours on the board")
   tilesBonus: 'text',        // labels only - the default since 0.51.3 (owner)
   // Classic / muted board and bonus shapes as well as colour (owner, 2026-11-14).
-  tilesBoardStyle: 'classic', tilesCb: false,
+  tilesBoardStyle: 'classic', tilesCb: false, tilesLast: true, tilesFrame: 'graphite',
   // Tiles: after each of your moves, how good it was - its points against the best move there was (owner, 2026-09-26)
   tilesRate: true,
   // Under a move: rating, base-word rarity or both; adjustable rarity colour limits (owner, 2026-11-14).
@@ -32,7 +32,7 @@ export const settings = read('wg.settings', {
   // Tiles: the tiles on the board raised, like real ones - easier to see (owner, 2026-09-26)
   tiles3d: false,
   // Tiles: the tiles' own colour - yellow, white, cream, wood or mint (owner, 2026-09-26)
-  tilesTile: 'white',        // the default since 0.51.3 (owner)
+  tilesTile: 'cream',        // shared warm tile family (owner, 2026-11-19)
   // The language always carries over between games; the rest only with rememberSetup (owner, 2026-09-26: "remember my
   // setup choices") - setup then holds each mode's last choices, else a New game starts from its defaults.
   newGame: { lang: null },
@@ -90,7 +90,7 @@ export const saveStats = () => { stats.unique = [...unique]; write('wg.stats', s
 //          difficulty) and w (the word, when won)
 //   Letters: g (tries), len
 //   Connect: f (words found without a hinted letter), fh (with one), b (bonus words), h (hints), long, gn (the game's name)
-//   Tiles: tiles.js results() for this device's people, u (undo on), bs (the best move shown), rp / rb (move rating)
+//   Tiles: device-owned settled placements and tiles, natural completion, plus historical result fields.
 stats.rec ??= {};
 if (!stats.before) {
   const tl = Object.values(stats.tl ?? {}).reduce((a, x) => a + (x.played || 0), 0);
@@ -107,7 +107,8 @@ if (!stats.colFrom) {
 }
 const colSets = new Map();
 export const collected = (mode, lang) => colSets.get(mode + '|' + lang) ?? colSets.set(mode + '|' + lang, new Set(stats.col[mode + '|' + lang] ?? [])).get(mode + '|' + lang);
-export function collect(mode, lang, word) {
+export function collect(mode, lang, word, game) {
+  if (!counts(game)) return;
   const s = collected(mode, lang);
   if (!word || s.has(word)) return;
   s.add(word);
@@ -115,8 +116,32 @@ export function collect(mode, lang, word) {
   saveStats();
 }
 
+// One irreversible eligibility flag. Setup rules are also available on every linked phone.
+export function setupPractice(game) {
+  const mode = game.mode ?? 'guess', r = game.state?.rules ?? game.rules ?? {};
+  if (mode === 'guess') return !!game.friend;
+  if (mode === 'letters') return game.tries === 0;
+  if (mode !== 'tiles') return false;
+  return !!(r.undo || r.open || r.wordsVote || r.rating === true ||
+    (r.hints && ['small', 'big', 'master'].some(k => r.hintMax?.[k] == null || r.hintMax[k] > 0)));
+}
+export function counts(game) {
+  if (!game) return false;
+  if (!game.practice && (setupPractice(game) || (game.mode === 'connect' && (game.hints || game.shown?.length)) ||
+    ((game.mode ?? 'guess') === 'guess' && game.guesses?.some(g => g.hint)))) {
+    game.practice = true;
+    game.practiceAt = Date.now();
+  }
+  return !game.practice;
+}
+export function markPractice(game) {
+  if (!game.practice) { game.practice = true; game.practiceAt = Date.now(); }
+  putSave(game);
+}
+
 // a counted move: the game's record, made at the first one
 export function recordMove(game, fields) {
+  if (!counts(game)) return;
   const r = stats.rec[game.id] ??= { m: game.mode ?? 'guess', lang: game.lang, lv: game.diff ?? 'normal', at: Date.now(), end: null };
   Object.assign(r, fields);
   saveStats();
@@ -127,6 +152,7 @@ export const bestGuessWin = () => Object.values(stats.rec).filter(r => r.m === '
 // anything else that changes a record (a hint, the computer's move): only once the game counts
 export function noteMove(game, fields) { if (stats.rec[game.id]) recordMove(game, fields); }
 function closeRecord(game, end, fields = {}) {
+  if (!counts(game)) return;
   const r = stats.rec[game.id];
   if (!r) return;
   Object.assign(r, fields, { end, ea: Date.now() });
@@ -140,6 +166,7 @@ try { saves = JSON.parse(localStorage.getItem('wg.saves')) || []; } catch { save
 for (const g of saves) {
   const auto = g.name && /^(Game|Gra)\s+(\d+)$/.exec(g.name);
   if (auto) { g.auto = +auto[2]; g.name = ''; }
+  counts(g);
   g.mode ||= 'guess';   // every save from before Letters existed is a Guess game
 }
 // Tiles on several phones: since 0.53.0 only the phone that started a game keeps it (owner, 2026-09-27) - the copies
@@ -153,6 +180,7 @@ export const listSaves = () => [...saves].sort((a, b) => b.updated - a.updated);
 const live = new Map();
 export const getSave = id => saves.find(s => s.id === id) ?? live.get(id);
 export function putSave(game) {
+  counts(game);
   game.updated = Date.now();
   if (game.live) { live.set(game.id, game); return; }
   if (!saves.includes(game)) saves.push(game);
@@ -187,8 +215,9 @@ export function newGame(fields) {
 }
 
 export function recordGuess(game, word, typed) {
+  if (!counts(game)) return;
   unique.add(game.lang + ':' + word);
-  collect('guess', game.lang, word);
+  collect('guess', game.lang, word, game);
   recordMove(game, { g: game.guesses.filter(x => !x.hint).length, ch: (stats.rec[game.id]?.ch || 0) + [...typed].length,
     h: game.guesses.filter(x => x.hint).length, cat: game.cat, fr: !!game.friend });
 }
@@ -213,13 +242,24 @@ export function recordLettersEnd(game) {
 // the longest word found - on the board or a bonus - is kept with the game's name and when.
 // A finished Tiles game into the statistics - every game on this device, several people included; the
 // computer's own moves never count (tiles.js results). `id` = its save, which goes.
-// `game` = its save; `help` = { u: undo on, bs: the best move shown } - those games keep out of points and records
+// `game` = its save. Help fields remain for old readers; practice blocks every new statistic.
 export function recordTilesEnd(game, only, help) {
-  closeRecord(game, 'done', { ...tilesRecord(game.state, only), ...help });
+  closeRecord(game, 'done', { finished: tilesRecord(game.state, only).finished, ...help });
   deleteSave(game.id);
 }
 // a Tiles game's record: its numbers for this device's people (tiles.js results)
 export const tilesRecord = (state, only) => { const r = results(state, only); return { ...r, lv: r.level, lang: r.lang }; };
+
+// Only actions owned here since joining/rebuilding this seat can enter its live totals.
+export function tilesProgress(game, only = -1) {
+  const state = game.state, r = stats.rec[game.id];
+  const end = state.pending?.before?.moves?.length ?? state.moves.length;
+  const mine = state.moves.slice(game.statsDone ?? end, end).filter(m => m.kind === 'play' &&
+    !state.players[m.p]?.cpu && (only < 0 || m.p === only));
+  game.statsDone = end;
+  return { ...tilesRecord(state, only), moves: (r?.moves || 0) + mine.length,
+    tiles: (r?.tiles || 0) + mine.reduce((n, m) => n + (m.placed?.length ?? 0), 0) };
+}
 
 // How good the people's moves were in a finished Tiles game - their points and the best there was, summed - for the
 // statistics' move rating (owner, 2026-09-26). From the end review, so only games that have ratings; its entry was made
@@ -263,4 +303,24 @@ export function playClock(root, game, onScreen) {
     root.removeEventListener('pointerdown', touch);
     persist();
   };
+}
+
+// Historical totals with the same meaning remain included. Untagged old totals can only be
+// shown for all languages; records and vocabulary retain their language attribution.
+export function totals(mode, lang = 'all', saved = stats) {
+  const legacy = lang === 'all', rs = Object.values(saved.rec ?? {}).filter(r => r.m === mode && (legacy || r.lang === lang));
+  const sum = key => rs.reduce((n, r) => n + (+r[key] || 0), 0);
+  const ended = ends => rs.filter(r => ends.includes(r.end)).length;
+  if (mode === 'guess') return { finished: ended(['won']) + (legacy ? saved.won || 0 : 0),
+    guesses: sum('g') + (legacy ? saved.words || 0 : 0),
+    distinct: (saved.unique ?? []).filter(w => legacy || w.startsWith(lang + ':')).length,
+    letters: sum('ch') + (legacy ? saved.letters || 0 : 0) };
+  if (mode === 'letters') return { finished: ended(['won', 'lost']) + (legacy ? (saved.lt?.won || 0) + (saved.lt?.lost || 0) : 0),
+    solved: ended(['won']) + (legacy ? saved.lt?.won || 0 : 0) };
+  if (mode === 'connect') return { finished: ended(['won']) + (legacy ? saved.cn?.solved || 0 : 0),
+    words: sum('f') + (legacy ? saved.cn?.words || 0 : 0), bonus: sum('b') + (legacy ? saved.cn?.bonus || 0 : 0) };
+  const old = Object.entries(saved.tl ?? {}).filter(([k]) => legacy || k.startsWith(lang + '|')).map(([, r]) => r);
+  // Old Tiles 'played'/'done' included surrender, so they cannot establish a natural finish.
+  return { finished: sum('finished'),
+    words: sum('moves') + old.reduce((n, r) => n + (r.moves || 0), 0), tiles: sum('tiles') };
 }

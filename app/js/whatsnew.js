@@ -1,5 +1,16 @@
 // Recent releases in player language (owner, 2026-11-14). Keep the last three at release.
 export const whatsnew = [
+  { version: '0.71.0', date: '2026-11-20', en: [
+    'A fresh look: new menu cards with artwork, a wallpaper, new game icons, and Settings in sections that fold open.',
+    'Tiles: a cleaner game screen - the last move highlighted, a choice of board frames, a new Options window, and the time limit on the player cards (computers are never timed).',
+    'Fair statistics: totals only, and a game where you used help becomes Practice and adds nothing from then on.',
+    'How to play opens one chapter at a time, and online games say clearly who lost the connection.',
+  ], pl: [
+    'Nowy wygląd: karty gier z grafikami, tapeta, nowe ikony gier i Ustawienia w rozwijanych sekcjach.',
+    'Kafelki: czystszy ekran gry - podświetlony ostatni ruch, wybór ramki planszy, nowe okno Opcji i limit czasu na kartach graczy (komputer nigdy nie ma limitu).',
+    'Uczciwe statystyki: tylko sumy, a gra, w której użyto pomocy, staje się Treningiem i od tej chwili nic nie dodaje.',
+    'Jak grać pokazuje jeden rozdział naraz, a gry online jasno mówią, kto stracił połączenie.',
+  ] },
   { version: '0.70.0', date: '2026-11-16', en: [
     'Achievements look closer to a game: Common, Rare, Epic, Legendary and Mythical levels, rounded cards and tabs per game.',
     'New achievements for Guess, Letters and Connect - ones every player can reach, no win streaks.',
@@ -21,17 +32,6 @@ export const whatsnew = [
     'Kafelki: wyraźniejsze podświetlenie ostatniego ruchu w trybie ciemnym, cieńsze obramowania, a karty ruchów wyśrodkowane tuż pod planszą.',
     'Zwijane sekcje w Ustawieniach i Nowej grze otwierają się i zamykają płynnie.',
     'Twoje gry pokazują ikonę osoby lub komputera przy każdym wyniku.',
-  ] },
-  { version: '0.68.0', date: '2026-11-16', en: [
-    'Tiles: a new "Familiar words" dictionary (New game, Rules) - everyday words in all their forms, without the strange ones.',
-    'With friends: words outside the dictionary can be allowed by a vote, and a card shows who agreed, who refused and who is still choosing.',
-    'A move with several wrong words marks them all at once.',
-    'A bigger board on phones, zoom buttons, a points breakdown when you tap a move, and clearer hints and warnings.',
-  ], pl: [
-    'Kafelki: nowy słownik "Znane słowa" (Nowa gra, Zasady) - codzienne słowa we wszystkich odmianach, bez tych dziwnych.',
-    'Ze znajomymi: słowa spoza słownika mogą przejść głosowaniem, a karta pokazuje, kto się zgodził, kto nie, a kto jeszcze wybiera.',
-    'Ruch z kilkoma błędnymi słowami zaznacza je wszystkie naraz.',
-    'Większa plansza na telefonach, przyciski powiększenia, rozpisanie punktów po dotknięciu ruchu oraz jaśniejsze wskazówki i ostrzeżenia.',
   ] },
 ];
 

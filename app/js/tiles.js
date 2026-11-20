@@ -172,7 +172,7 @@ export function checkWord(dict, lang, text) {
 // veto: off by default; other people vote before a person's move scores, a host-set count (default half rounded up) can veto it
 //   (owner, 2026-11-14). Computers never vote, and their moves go down without a vote (manager, 2026-11-14).
 export const STANDARD = { dictionary: 'full', premiums: 'once', check: 'auto', exchange: 'bag7', bingo: BINGO, time: null, hints: false,   // hints off by default since 0.51.3 (owner)
-  hintMax: { small: null, big: null, master: null }, hintCost: null, undo: false, open: false, rating: true, veto: false, vetoNeed: null, wordsVote: false, approvalNeed: null };
+  hintMax: { small: null, big: null, master: null }, hintCost: null, undo: false, open: false, rating: 'score', veto: false, vetoNeed: null, wordsVote: false, approvalNeed: null };
 // rating: false - a game without move ratings for anyone (owner, 2026-09-26): nothing under the board, no rating in
 // History, none at the end; each player's own setting ("Rate my moves") applies only when it is true.
 // hintCost: null, or 'low' / 'high' - a hint takes a share of the points of the move it shows off its player's score, a
@@ -340,6 +340,7 @@ export function checkMove(state, placed, isWord) {
 // An action that is not allowed throws, and the state stays as it was. Each returns a new state.
 export function apply(state, action, isWord) {
   if (state.over) throw new Error('the game is over');
+  if (action.type === 'timeout' && state.players[state.turn].cpu) throw new Error('computers are not timed');
   if (state.vote && ['place', 'exchange', 'pass', 'hint', 'challenge', 'shuffle'].includes(action.type)) throw new Error('a vote is open');
   if (action.type === 'challenge' && !state.pending) throw new Error('nothing to challenge');
   let s = state;
@@ -357,7 +358,7 @@ export function apply(state, action, isWord) {
   // time is only ever added, and a vote (sent by another player, charged to the mover) at most the vote's 20 s and a little
   const raw = Number.isFinite(action.ms) && action.ms > 0 ? action.ms : 0;
   // giving up out of turn is not the mover's time: it charges nothing (security review, 2026-11-14)
-  const ms = action.type === 'vote' && !closes ? 0 : ['vote', 'voteEnd'].includes(action.type) ? Math.min(raw, VOTE_CAP)
+  const ms = s.players[s.turn].cpu ? 0 : action.type === 'vote' && !closes ? 0 : ['vote', 'voteEnd'].includes(action.type) ? Math.min(raw, VOTE_CAP)
     : action.type === 'resign' && (action.p ?? s.turn) !== s.turn ? 0 : raw;
   // any other action accepts the move waiting for a challenge (shuffling the bag is no move)
   if (s.pending && !['challenge', 'shuffle', 'hint'].includes(action.type)) s = { ...s, pending: null };
@@ -533,7 +534,7 @@ function finish(state, reason, out = -1, resigned = -1) {
   const gone = outOf(state).map((o, p) => o || p === resigned);
   const left = state.racks.map(r => rackPoints(state.lang, r));
   const t = state.rules?.time, limit = t?.per === 'game' ? t.seconds * 1000 : Infinity;
-  const late = state.clock.map(ms => ms > limit ? OVERTIME * Math.ceil((ms - limit) / 60000) : 0);
+  const late = state.clock.map((ms, p) => !state.players[p].cpu && ms > limit ? OVERTIME * Math.ceil((ms - limit) / 60000) : 0);
   const adjust = reason === 'resign' ? left.map(() => 0)
     : left.map((v, p) => (p === out ? left.reduce((s, x) => s + x, 0) - v : -v) - late[p]);
   const scores = state.scores.map((s, p) => s + adjust[p]);
@@ -612,10 +613,11 @@ export const LEVEL_ORDER = ['relaxed', 'easy', 'medium', 'normal', 'hard', 'expe
 export const levelKey = l => l === 'normal' ? 'diff.intermediate' : 'diff.' + l;
 // `only`: one player's side alone - a game on two phones, where each phone counts its own player
 export function results(state, only = -1) {
-  const people = only >= 0 ? [only] : state.players.map((x, p) => x.cpu ? -1 : p).filter(p => p >= 0);
+  const people = state.players.map((x, p) => !x.cpu && (only < 0 || only === p) ? p : -1).filter(p => p >= 0);
   const cpus = state.players.filter(x => x.cpu).map(x => LEVEL_ORDER.indexOf(x.cpu));
   const mine = state.moves.filter(m => people.includes(m.p));
-  const plays = mine.filter(m => m.kind === 'play');
+  const settled = state.pending?.before?.moves?.length ?? state.moves.length;
+  const plays = state.moves.slice(0, settled).filter(m => people.includes(m.p) && m.kind === 'play');
   const top = plays.reduce((a, m) => !a || m.score > a.score ? m : a, null);
   // the same without the moves made with a hint (owner, 2026-09-28: they count for nothing but the words played)
   const own = plays.filter(m => !m.hinted), ownTop = own.reduce((a, m) => !a || m.score > a.score ? m : a, null);
@@ -628,6 +630,8 @@ export function results(state, only = -1) {
     games: people.length, points: people.reduce((s, p) => s + state.scores[p], 0),
     bestGame: people.length ? Math.max(...people.map(p => state.scores[p])) : 0,
     bestMove: top && { w: top.words[0]?.w ?? '', score: top.score },
+    finished: ['out', 'passes'].includes(state.over?.reason) && people.some(p => !outOf(state)[p]) && mine.length ? 1 : 0,
+    tiles: plays.reduce((n, m) => n + (m.placed?.length ?? 0), 0),
     moves: plays.length, movePoints: plays.reduce((s, m) => s + m.score, 0), bingos: plays.filter(m => m.bingo).length,
     passes: mine.filter(m => m.kind === 'pass' || m.kind === 'timeout').length,
     hints: people.reduce((s, p) => s + state.hints[p], 0),

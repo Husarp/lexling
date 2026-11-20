@@ -33,7 +33,7 @@ export function net(kind) {
     host: (name, room) => p().host({ name, room }),   // room: the internet's code to host under again → { code }
     stopHosting: () => p().stopHosting(),
     search: () => p().search(),
-    stopSearch: () => p().stopSearch(),
+    stopSearch: () => p()?.stopSearch() ?? Promise.resolve(),
     paired: () => kind === 'bt' ? p().paired() : Promise.resolve({ devices: [] }),
     beVisible: seconds => kind === 'bt' ? p().beVisible({ seconds }) : Promise.resolve({ visible: true }),
     join: (address, pair) => p().join({ address, pair }),     // → { id }; pair: Bluetooth may ask both phones to pair

@@ -22,7 +22,7 @@ export function achievementDetail(id) {
   dialog.innerHTML = `<form method="dialog"><button class="btn btn-ghost ach-close" aria-label="${t('ach.nice')}">×</button></form><div class="ach-hero ${level < 0 ? 'locked' : 'earned'}">${achievementIcon(id)}${level < 0 ? achievementLock : ''}${d.th ? achievementPips(level) : ''}<h2 id="ach-detail-title">${t('ach.' + id)}</h2><p class="help">${t('ach.' + id + '.d')}</p>${d.th ? `<b class="num">${num(progress(d).value)}</b>` : ''}</div>${d.th ? d.th.map((threshold, i) => {
     const at = gotAt(`${id}#${i}`), next = i === progress(d).tiers;
     return `<div class="ach-step" style="--ink:${achievementInk(i)}">${tierShape(i)}<div><strong>${t('tier.' + TIERS[i])} · ${num(threshold)}</strong>${at !== null ? `<small>${t('ach.got', { d: dateTime(at) })}</small>` : next ? `${achievementBar(d)}<small>${num(progress(d).value)} / ${num(threshold)} · ${t('ach.toGo', { n: num(threshold - progress(d).value), tier: t('tier.' + TIERS[i]) })}</small>` : `<small>${t('ach.locked')}</small>`}</div>${at === null ? achievementLock : '✓'}</div>`;
-  }).join('') : `<p class="ach-step">${level < 0 ? achievementLock + t('ach.locked') : t('ach.got', { d: dateTime(gotAt(id)) })}</p>`}<p class="help">${d.game === 'tiles' ? t('ach.fair') : ''}</p>`;
+  }).join('') : `<p class="ach-step">${level < 0 ? achievementLock + t('ach.locked') : t('ach.got', { d: dateTime(gotAt(id)) })}</p>`}`;
   dialog.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); dialog.close(); } });
   dialog.addEventListener('close', () => dialog.remove());
   dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });

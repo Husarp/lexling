@@ -1,9 +1,14 @@
+// AnkiGo AchStyle.shapePath: dot, diamond, hexagon, sparkle, straight eight-point star.
+const mythical = Array.from({ length: 16 }, (_, i) => {
+  const a = (-90 + i * 22.5) * Math.PI / 180, r = i % 2 ? 2.9 : i % 4 ? 5.9 : 7.4;
+  return `${i ? 'L' : 'M'}${8 + Math.cos(a) * r} ${8 + Math.sin(a) * r}`;
+}).join(' ') + 'Z';
 const paths=[
 '<circle cx="8" cy="8" r="5.2"/>',
 '<path d="M8 1.6 14.4 8 8 14.4 1.6 8Z"/>',
 '<path d="M8 1.4 13.7 4.7v6.6L8 14.6l-5.7-3.3V4.7Z"/>',
 '<path d="M8 .8C8.6 5.4 10.6 7.4 15.2 8 10.6 8.6 8.6 10.6 8 15.2 7.4 10.6 5.4 8.6 .8 8 5.4 7.4 7.4 5.4 8 .8Z"/>',
-'<path d="m8 .8 2.2 4.5 5 .7-3.6 3.5.9 5L8 12.1l-4.5 2.4.9-5L.8 6l5-.7Z"/>'
+`<path d="${mythical}"/>`
 ];
 export const achievementLock='<svg class="lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="1.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>';
 const rect=(x,y,w=6,h=6)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1"/>`;
@@ -32,6 +37,7 @@ drawings['letters.everyLength'] = '<path d="M4 5h4M4 10h7M4 15h10M4 20h13m-3-13 
 drawings['connect.unaided'] = '<path d="m4 12 5 5 11-11"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="19" r="2"/>'; icons['connect.unaided'] = 'connect.unaided';
 drawings['connect.bonusHunter'] = '<path d="m12 2 3 6 6 1-4 5 1 7-6-3-6 3 1-7-4-5 6-1ZM9 12h6M12 9v6"/>'; icons['connect.bonusHunter'] = 'connect.bonusHunter';
 drawings['connect.hardBoard'] = '<path d="m12 2 8 4v6c0 4-4 8-8 10-4-2-8-6-8-10V6ZM8 8h8v8H8ZM12 8v8M8 12h8"/>'; icons['connect.hardBoard'] = 'connect.hardBoard';
+Object.assign(icons, { 'guess.finished': 'detective', 'letters.finished': 'letters', 'connect.bonus': 'connect.bonusHunter', 'tiles.letters': 'points' });
 export const achievementIcon = id => `<svg class="ach-icon" viewBox="0 0 24 24" aria-hidden="true">${drawings[icons[id]]}</svg>`;
 export const tierShape = (i, earned = true) => `<svg class="ach-shape" viewBox="0 0 16 16" aria-hidden="true" style="color:var(--${earned ? 'tier-' + ['common', 'rare', 'epic', 'legendary', 'mythical'][i] : 'line'})">${paths[i]}</svg>`;
 

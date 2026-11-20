@@ -1,6 +1,6 @@
 // The game screen - markup from design/handoff/game.html (states: 0 guesses / mid-game / won).
 import { t, plural, esc, num, clock } from './i18n.js';
-import { settings, getSave, putSave, recordGuess, recordEnd, noteMove, bestGuessWin, playClock } from './store.js';
+import { counts, markPractice, settings, getSave, putSave, recordGuess, recordEnd, noteMove, bestGuessWin, playClock } from './store.js';
 import { load, resolve, suggest, rankAll, pct, hint, HINT_FLOOR } from './engine.js';
 import { topbar, fillColor, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink, gameTitle, flashTap } from './ui.js';
 import { fitAll } from './fit.js';
@@ -123,7 +123,7 @@ export async function gameScreen(root, id) {
   function paintHintNote() {
     const used = game.guesses.filter(g => g.hint).length;
     const note = $('#hint-note');
-    if (note) note.textContent = used ? t('game.hintsUsed', { n: used }) : '';
+    if (note) note.textContent = used ? t('game.hintsUsed', { n: used }) : counts(game) ? t('help.firstHint') : '';
     const button = $('#hint');
     if (button) button.disabled = bestRank() > 0 && bestRank() <= HINT_FLOOR;
   }
@@ -134,13 +134,14 @@ export async function gameScreen(root, id) {
     const found = hint(m, rank, secretIdx, { best: bestRank(), taken: game.guesses.map(g => g.w) });
     if (!found) return say(t(bestRank() && bestRank() <= HINT_FLOOR ? 'game.hintNone' : 'game.hintFail'));
     const word = m.words[found.idx];
+    markPractice(game);
+    $('.topbar .side.end').innerHTML = gameTitle(game);
     game.guesses.push({ w: word, typed: '', rank: found.rank, pct: pct(found.rank, m.count), hint: true });
     noteMove(game, { h: game.guesses.filter(x => x.hint).length });
     putSave(game);
     flashTap($('#hint'));
     click();
-    // the first one says what it costs (owner, 2026-09-28: an alert when hints come in)
-    say(game.guesses.filter(x => x.hint).length === 1 ? t('help.firstHint') : '');
+    say('');
     paintStatus();
     paintHintNote();
     paintBoard(word);
@@ -189,7 +190,7 @@ export async function gameScreen(root, id) {
   function finish(won) {
     game.status = won ? 'won' : 'gaveup';
     recordEnd(game, won, m.hardOf.get(secretIdx) ?? -1);
-    if (won) bump('guess.won');
+    if (won) bump('guess.finished', 1, game);
     recordAchievementEnd(game, 'guess', m.hardOf.get(secretIdx) ?? -1);
     if (won) chime();
     say('');

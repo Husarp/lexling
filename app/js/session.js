@@ -119,6 +119,11 @@ export function createHost({ players, me = 0, known = [], game, take, send, drop
       for (let n = sent; n < log.length; n++) everyone({ t: 'act', n, a: log[n] });
       sent = log.length;
     },
+    // A fresh round uses the same welcome as reconnecting: old apps already understand it.
+    restart() {
+      sent = game().log.length;
+      others().forEach(i => { if (seats[i].conn) welcome(seats[i].conn, i); });
+    },
     names: names => everyone({ t: 'names', names }),
     end: why => everyone({ t: 'end', why }),
     // every few seconds: a ping keeps the line alive; a phone quiet for too long is let go

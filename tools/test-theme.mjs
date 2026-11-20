@@ -112,8 +112,11 @@ for (const lang of ['en', 'pl']) {
   const root = new Element();
   let refreshes = 0;
   await settingsScreen(root, null, () => { refreshes++; });
-  check(`${lang}: Tiles section immediately follows Time`, /<section class="group">\s*<h2 class="title">/.test(root.innerHTML.split(t('set.time'))[1].split(t('set.tiles'))[0]) && root.innerHTML.indexOf(t('set.tiles')) < root.innerHTML.indexOf(t('set.updates')), true);
+  check(`${lang}: Tiles controls are grouped in Games`, root.innerHTML.split('data-section="games"')[1].split('</details>')[0].includes('data-k="tilesUnder"'), true);
   for (const key of ['tiles.under', 'tiles.underHelp', 'tiles.under.rating', 'tiles.under.rarity', 'tiles.under.both', 'set.rareTiers', 'set.rareTiersHelp', 'set.rareReset', 'tiles.rare.tier.purple', 'tiles.rare.tier.gold', 'tiles.rare.tier.blue']) check(`${lang}: ${key} is translated`, t(key) !== key, true);
+  for (const key of ['general', 'games', 'display', 'time', 'online', 'about']) {
+    check(`${lang}: ${key} category has a translated heading`, t('set.section.' + key) !== 'set.section.' + key && root.innerHTML.includes(t('set.section.' + key)), true);
+  }
   const theme = settings.theme;
   for (const value of ['rarity', 'both', 'rating']) {
     const before = refreshes;
@@ -137,7 +140,7 @@ for (const lang of ['en', 'pl']) {
   check(`${lang}: corrupt saved limits are cleaned before rendering`, old.querySelectorAll('[data-rare-tier]').map(i => +i.value), [1, 5, 20]);
   const buttons = root.querySelectorAll('[data-palette-choice]');
   check(`${lang}: every palette has its translated accessible name`, buttons.map(b => b.attrs['aria-label']), Object.keys(PALETTES).map(id => t('palette.' + id)));
-  check(`${lang}: Colours follows Theme and precedes Accent`, root.innerHTML.indexOf(t('set.themeDesc')) < root.innerHTML.indexOf(t('set.paletteDesc')) && root.innerHTML.indexOf(t('set.paletteDesc')) < root.innerHTML.indexOf(t('set.accentDesc')), true);
+  check(`${lang}: Colours follows Theme and precedes Accent`, root.innerHTML.indexOf(t('set.theme')) < root.innerHTML.indexOf(t('set.paletteDesc')) && root.innerHTML.indexOf(t('set.paletteDesc')) < root.innerHTML.indexOf(t('set.accentDesc')), true);
   for (const button of buttons) {
     button.fire();
     const id = button.dataset.paletteChoice;

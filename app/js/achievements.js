@@ -1,51 +1,57 @@
-import { stats, saveStats } from './store.js';
+import { stats, saveStats, counts, setupPractice } from './store.js';
 
 export const TIERS = ['common', 'rare', 'epic', 'legendary', 'mythical'];
 export const TIERED = [
-  { id: 'guess.won', game: 'guess', th: [5, 20, 50, 100, 200] },
-  { id: 'letters.won', game: 'letters', th: [5, 25, 100, 300, 1000] },
+  { id: 'guess.finished', game: 'guess', th: [5, 20, 50, 100, 200] },
+  { id: 'letters.finished', game: 'letters', th: [5, 25, 100, 300, 1000] },
   { id: 'connect.words', game: 'connect', th: [50, 250, 1000, 3000, 10000] },
   { id: 'tiles.words', game: 'tiles', th: [25, 100, 500, 2000, 5000] },
-  { id: 'tiles.points', game: 'tiles', th: [500, 2500, 10000, 50000, 150000] },
+  { id: 'tiles.letters', game: 'tiles', th: [100, 500, 2000, 10000, 30000] },
 ];
 TIERED.push(
   { id: 'connect.boards', game: 'connect', th: [10, 30, 75, 200, 500] },
-  { id: 'connect.bonusHunter', game: 'connect', th: [5, 10, 15, 20, 30] },
+  { id: 'connect.bonus', game: 'connect', th: [10, 50, 150, 500, 1500] },
 );
 export const CHALLENGES = [
-  'tiles.bingo', 'tiles.len8', 'tiles.len10', 'tiles.triple', 'tiles.move100', 'tiles.rare1', 'tiles.multi3', 'tiles.beatHard', 'tiles.beatExpert',
+  'tiles.bingo', 'tiles.len8', 'tiles.len10', 'tiles.triple', 'tiles.rare1', 'tiles.multi3', 'tiles.beatHard', 'tiles.beatExpert',
 ].map(id => ({ id, game: 'tiles' }));
 
 for (const game of ['guess', 'letters', 'connect']) {
-  const ids = { guess: ['sharpshooter'], letters: ['lucky', 'longHaul', 'everyLength'], connect: ['unaided', 'hardBoard'] }[game];
+  const ids = { guess: [], letters: ['longHaul', 'everyLength'], connect: ['hardBoard'] }[game];
   CHALLENGES.push(...ids.map(id => ({ id: `${game}.${id}`, game })));
 }
 
-// Achievements return, counted from now on without back-filling old statistics (owner, 2026-11-14).
+// Live ledger: keep earned tiers; migrate renamed ladders without startup notifications.
 stats.ach ??= { since: Date.now(), n: {}, got: {} };
 const ach = stats.ach;
 export const gotAt = key => ach.got[key] ?? null;
 
-// Remove retired awards and reconcile every ladder without startup notifications.
-const removed = ['guess.streak', 'letters.streak', 'guess.mindReader', 'guess.deepCut', 'guess.noHelp'];
-let migrated = false;
-for (const bag of [ach.n, ach.got]) {
-  for (const key of Object.keys(bag)) {
-    if (removed.some(id => key === id || key.startsWith(id + '#')) || (bag === ach.got && key === 'connect.bonusHunter')) {
-      delete bag[key]; migrated = true;
-    }
+// Keep original keys and dates, including unknown/retired awards. Migration only adds data.
+export function migrateAchievements(saved) {
+  const a = saved.ach ??= { since: Date.now(), n: {}, got: {} };
+  a.n ??= {}; a.got ??= {};
+  if (a.fair === 1) return;
+  for (const [old, id] of [['guess.won', 'guess.finished'], ['letters.won', 'letters.finished']]) {
+    a.n[id] = Math.max(a.n[id] ?? 0, a.n[old] ?? 0);
+    TIERS.forEach((_, i) => {
+      if (a.got[`${old}#${i}`] != null && a.got[`${id}#${i}`] == null) a.got[`${id}#${i}`] = a.got[`${old}#${i}`];
+    });
   }
+  a.n['connect.bonus'] ??= (saved.cn?.bonus ?? 0) + Object.values(saved.rec ?? {}).filter(r => r.m === 'connect').reduce((n, r) => n + (r.b || 0), 0);
+  a.n['tiles.letters'] ??= 0;
+  a.fair = 1;
 }
-if ('streak' in ach) { delete ach.streak; migrated = true; }
+migrateAchievements(stats);
 for (const def of TIERED) {
   def.th.forEach((th, i) => {
     const key = `${def.id}#${i}`;
-    if ((ach.n[def.id] ?? 0) >= th && gotAt(key) === null) {
-      ach.got[key] = Date.now(); migrated = true;
-    }
+    if ((ach.n[def.id] ?? 0) >= th && gotAt(key) === null) ach.got[key] = Date.now();
   });
 }
-if (migrated) saveStats();
+saveStats();
+const retired = ['guess.sharpshooter', 'letters.lucky', 'connect.unaided', 'tiles.move100', 'tiles.points',
+  'guess.streak', 'letters.streak', 'guess.mindReader', 'guess.deepCut', 'guess.noHelp', 'connect.bonusHunter'];
+export const earlierAchievements = () => Object.entries(ach.got).filter(([key]) => retired.includes(key.split('#')[0]));
 
 export function playChallenges(move, { rarePct = null } = {}) {
   if (move.kind !== 'play' || move.hinted || move.approved) return [];
@@ -58,7 +64,6 @@ export function playChallenges(move, { rarePct = null } = {}) {
     const counts = new Map();
     return w.some(ch => { const n = (counts.get(ch) ?? 0) + 1; counts.set(ch, n); return n >= 3; });
   })) keys.push('tiles.triple');
-  if (move.score >= 100) keys.push('tiles.move100');
   // Outside the frequency list does not count as a rare-word challenge (owner, 2026-11-14).
   if (Number.isFinite(rarePct) && rarePct >= 0 && rarePct <= 1) keys.push('tiles.rare1');
   if (words.length >= 3) keys.push('tiles.multi3');
@@ -66,6 +71,8 @@ export function playChallenges(move, { rarePct = null } = {}) {
 }
 
 export function gameChallenges(state, mine) {
+  if (setupPractice({ mode: 'tiles', state }) || !['out', 'passes'].includes(state.over?.reason) || state.players.length !== 2 ||
+    state.players.filter(p => !p.cpu).length !== 1 || state.log?.some(a => a.type === 'resign')) return [];
   const winner = state.over?.winner ?? -1;
   if (winner < 0 || !mine.includes(winner) || !state.players[winner] || state.players[winner].cpu) return [];
   const keys = [];
@@ -83,43 +90,43 @@ function unlock(keys) {
   return keys;
 }
 
-export function bump(id, by = 1) {
+export function bump(id, by = 1, game) {
+  if (!counts(game)) return [];
   const def = TIERED.find(d => d.id === id);
   if (!def || !Number.isFinite(by) || by <= 0) return [];
   const value = ach.n[id] = (ach.n[id] ?? 0) + by;
   return unlock(def.th.flatMap((th, i) => value >= th ? [`${id}#${i}`] : []));
 }
 
-export function grant(id) {
+export function grant(id, game) {
+  if (!counts(game)) return [];
   return CHALLENGES.some(d => d.id === id) ? unlock([id]) : [];
 }
 
 export function progress(def) {
-  const value = ach.n[def.id] ?? 0, tiers = def.th.filter(th => value >= th).length;
+  const value = ach.n[def.id] ?? 0, tiers = Math.max(def.th.filter(th => value >= th).length,
+    ...def.th.map((_, i) => gotAt(`${def.id}#${i}`) === null ? 0 : i + 1));
   const next = def.th[tiers] ?? null;
   return { value, tiers, next, pct: next === null ? 100 : Math.round(Math.min(100, value / next * 100)) };
 }
 
 // Called only on a new terminal transition; reopening a finished save never counts it again.
 export function recordAchievementEnd(game, mode, difficulty = -1) {
+  if (!counts(game)) return;
   const won = game.status === 'won';
-  if (won && mode === 'guess' && game.guesses.length <= 10) grant('guess.sharpshooter');
   if (won && mode === 'letters') {
-    if (game.guesses.length <= 2) grant('letters.lucky');
     const length = [...game.secret].length;
-    if (length >= 8) grant('letters.longHaul');
+    if (length >= 8) grant('letters.longHaul', game);
     ach.lengths ??= [];
     if (length >= 3 && length <= 13 && !ach.lengths.includes(length)) ach.lengths.push(length);
-    if (Array.from({ length: 11 }, (_, i) => i + 3).every(n => ach.lengths.includes(n))) grant('letters.everyLength');
+    if (Array.from({ length: 11 }, (_, i) => i + 3).every(n => ach.lengths.includes(n))) grant('letters.everyLength', game);
   }
   if (won && mode === 'connect') {
-    bump('connect.boards');
-    if (!game.hints && !game.shown.length) grant('connect.unaided');
-    if (game.diff === 'hard') grant('connect.hardBoard');
+    bump('connect.boards', 1, game);
+    if (game.diff === 'hard') grant('connect.hardBoard', game);
   }
   saveStats();
 }
 export function recordConnectBonus(game) {
-  const best = ach.n['connect.bonusHunter'] ?? 0;
-  if (game.bonus.length > best) bump('connect.bonusHunter', game.bonus.length - best);
+  bump('connect.bonus', 1, game);
 }

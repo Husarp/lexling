@@ -1,6 +1,6 @@
 import { achievementIcon } from './achievement-icons.js';
 import { achievementDetail, achievementInk } from './achievement-view.js';
-import { settings, saveSettings, gameName } from './store.js';
+import { settings, saveSettings, gameName, counts } from './store.js';
 import { t, esc } from './i18n.js';
 import { TIERS } from './achievements.js';
 import { click } from './sound.js';
@@ -20,7 +20,7 @@ function showAchievement() {
   notice.className = 'achievement-notice';
   notice.setAttribute('role', 'status');
   notice.style?.setProperty('--ink', achievementInk(tier === undefined ? 5 : +tier));
-  notice.innerHTML = `<span class="ach-notice-icon">${achievementIcon(id)}</span><span><strong>${t('ach.unlocked')}</strong><b>${tier === undefined ? t('ach.earned') : t('tier.' + TIERS[+tier])}</b><span>${esc(name)}</span></span><span class="ach-notice-actions"><button data-see>${t('ach.see')}</button><button data-close>${t('ach.nice')}</button></span>`;
+  notice.innerHTML = `<span class="ach-notice-icon"><img src="img/achievement.webp" alt="">${achievementIcon(id)}</span><span><strong>${t('ach.unlocked')}</strong><b>${tier === undefined ? t('ach.earned') : t('tier.' + TIERS[+tier])}</b><span>${esc(name)}</span></span><span class="ach-notice-actions"><button data-see>${t('ach.see')}</button><button data-close>${t('ach.nice')}</button></span>`;
   let closed = false;
   const close = () => { if (closed) return; closed = true; notice.remove(); achievementNotice = null; showAchievement(); };
   notice.querySelector?.('[data-close]')?.addEventListener('click', close);
@@ -34,9 +34,10 @@ document.addEventListener('lexling:achievement', e => {
 });
 
 // A game's name in its top bar (owner, 2026-09-26: "Name (Game 12)"): a long name gives way, its number always shows.
-export const gameTitle = g => g.name
+export const practiceBadge = g => counts(g) ? '' : `<span class="practice-badge">${t('practice')}</span>`;
+export const gameTitle = g => (g.name
   ? `<span class="eyebrow gname"><span class="nm">${esc(g.name)}</span><span class="no">(${t('games.defaultName', { n: g.auto ?? 1 })})</span></span>`
-  : `<span class="eyebrow">${esc(gameName(g))}</span>`;
+  : `<span class="eyebrow">${esc(gameName(g))}</span>`) + practiceBadge(g);
 
 // A word's meaning (owner, 2026-09-26: no dictionary inside the app - too big - "open the browser with the word"): sjp.pl
 // for Polish (it knows every form, and says which word it comes from), Wiktionary for English. In the phone's own
@@ -79,7 +80,7 @@ export function flashTap(el) {
 export const wireGear = (root, extra = [], onChange = () => {}) =>
   wireDialog(root, '.gs-open', t('set.title'), [['sound', t('set.sound'), t('set.soundDesc')],
     // the same theme choice inside every game (owner, 2026-11-14)
-    ['theme', t('set.theme'), t('set.themeQuick'), ['dark', 'light', 'system'].map(v => [v, t('theme.' + v)])], ...extra], onChange);
+    ['theme', t('set.theme'), '', ['dark', 'light', 'system'].map(v => [v, t('theme.' + v)])], ...extra], onChange);
 // A small settings window opened by `trigger` (the gear): its rows, changed as they are tapped.
 export function wireDialog(root, trigger, title, items, onChange = () => {}) {
   root.firstElementChild.addEventListener('click', e => {        // the screen, which goes when it is replaced
@@ -148,12 +149,15 @@ export const topbar = ({ left = '', right = '' } = {}) =>
   `<header class="topbar"><span class="side">${left}</span><a class="brand" href="#/">Lex<b>/</b>ling<small class="tb-clock" aria-live="off"></small></a><span class="side end">${right}</span></header>`;
 
 // Which game a screen or a save belongs to: the mode's small glyph and its name.
-export const GLYPH = { guess: '<span class="glyph guess" aria-hidden="true"></span>',
-  letters: '<span class="glyph letters" aria-hidden="true"><i></i><i></i><i></i></span>',
-  connect: `<span class="glyph connect" aria-hidden="true">${'<i></i>'.repeat(5)}</span>`,
-  tiles: `<span class="glyph tiles" aria-hidden="true">${'<i></i>'.repeat(9)}</span>`,
-  // General (Statistics) and All (Collection): a square per game, in the colours of Statistics' "games by mode"
-  all: '<span class="glyph all" aria-hidden="true"><i></i><i></i><i></i><i></i></span>' };
+// Chunky line icons from icon proposal C, shared by every mode label and tab.
+const gameSvg = (mode, body) => `<svg class="glyph ${mode}" viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+export const GLYPH = {
+  guess: gameSvg('guess', '<circle cx="28" cy="36" r="24" stroke="#8E6CF0" stroke-width="7"/><circle cx="28" cy="36" r="11" stroke="#B999F5" stroke-width="6"/><path d="m8 22a24 24 0 0 1 27-9" stroke="#BEA2FF" stroke-width="2"/><path d="m28 36 23-23m-3 3 1-8 5-5 1 9 6 1-6 5-7-2Z" stroke="#8E6CF0" stroke-width="5"/><path d="m28 36 23-23m-3 3 1-8 5-5 1 9 6 1-6 5-7-2Z" stroke="#F3E5C8" stroke-width="2.8"/>'),
+  letters: gameSvg('letters', '<path d="M10 41 23 9Q25 4 30 4h5q5 0 7 5l12 32q2 5-4 5h-4q-3 0-4-4l-2-5H24l-2 5q-1 4-4 4h-4q-6 0-4-5Z M28 28h9l-5-13Z" fill="#9DDD8D" fill-rule="evenodd" stroke="#4AA33D" stroke-width="3"/><path d="m24 13q2-6 8-6h3" stroke="#C9F1C1" stroke-width="3"/><circle cx="17" cy="56" r="5.5" fill="#58B747"/><circle cx="32" cy="56" r="5.5" fill="#FFCD19"/><circle cx="47" cy="56" r="5.5" fill="#999"/>'),
+  connect: gameSvg('connect', '<path d="M32 12 11 52h42Z" stroke="#009E99" stroke-width="6"/><path d="m25 27-6 11m21-12 5 10M23 52h16" stroke="#58C9C1" stroke-width="2"/><g fill="#F3E3C2" stroke="#00A49E" stroke-width="4"><circle cx="32" cy="12" r="9"/><circle cx="11" cy="52" r="9"/><circle cx="53" cy="52" r="9"/></g><path d="M26 7q3-4 8-3M5 48q3-4 7-4m35 4q3-4 7-4" stroke="#75D6CD" stroke-width="2"/>'),
+  tiles: gameSvg('tiles', '<g transform="rotate(-11 32 32)"><rect x="7" y="7" width="50" height="50" rx="11" fill="#28231B" stroke="#E9AF25" stroke-width="7"/><rect x="7" y="7" width="50" height="50" rx="11" stroke="#FFD65D" stroke-width="3"/><path d="M18 46 29 20q2-5 5 0l10 26m-22-8h17" stroke="#F3E3C2" stroke-width="7"/><path d="m45 17 3-2v8m-2 0h5" stroke="#F3E3C2" stroke-width="2.5"/><path d="M11 13q2-4 8-4h26" stroke="#FFE8A0" stroke-width="2"/></g>'),
+  all: gameSvg('all', '<g stroke="#DC4F1C" stroke-width="4"><rect x="5" y="5" width="24" height="24" rx="7"/><rect x="35" y="5" width="24" height="24" rx="7"/><rect x="5" y="35" width="24" height="24" rx="7"/><rect x="35" y="35" width="24" height="24" rx="7"/></g><path d="M7 9q1-3 5-3h10m15 3q1-3 5-3h10M7 39q1-3 5-3h10m15 3q1-3 5-3h10" stroke="#F99966" stroke-width="2"/>'),
+};
 export const modeTag = mode => `<span class="mode-tag">${GLYPH[mode]}${t('mode.' + mode)}</span>`;
 
 // How a game ended, first thing on its end screen and the same in every mode (design v2:
@@ -205,14 +209,23 @@ export function fillColor(pct) {
 }
 
 // Destructive buttons ask once: first click turns the label into "Sure?", a second one within 3 s acts.
-export function confirmClick(btn, action, refit) {
+export function confirmClick(btn, action, refit, iconOnly = false) {
   btn.addEventListener('click', () => {
     if (btn.dataset.armed) return action();
     const label = btn.innerHTML;
     btn.dataset.armed = '1';
-    btn.textContent = t('sure');
+    const aria = btn.getAttribute('aria-label'), title = btn.getAttribute('title');
+    if (iconOnly) {
+      btn.setAttribute('aria-label', t('sure'));
+      btn.setAttribute('title', t('sure'));
+    } else btn.textContent = t('sure');
     refit();
-    setTimeout(() => { if (btn.isConnected) { delete btn.dataset.armed; btn.innerHTML = label; refit(); } }, 3000);
+    setTimeout(() => { if (btn.isConnected) {
+      delete btn.dataset.armed;
+      btn.innerHTML = label;
+      if (iconOnly) { btn.setAttribute('aria-label', aria); btn.setAttribute('title', title); }
+      refit();
+    } }, 3000);
   });
 }
 
@@ -229,3 +242,46 @@ export function applyTheme() {
   document.querySelector('meta[name=theme-color]').content = PALETTES[palette][theme];
 }
 systemLight.addEventListener('change', applyTheme);
+
+// One floating chapter reader for setup help and the in-game Tiles guide.
+export function openRules(mode, topicsHtml = null) {
+  let chapters;
+  if (topicsHtml) {
+    const source = document.createElement('div');
+    source.innerHTML = topicsHtml;
+    chapters = [...source.querySelectorAll('details')].map(d => ({
+      title: d.querySelector('summary').textContent.replace('›', '').trim(),
+      body: [...d.children].slice(1).map(el => el.outerHTML).join(''),
+    }));
+  } else chapters = t('howto.' + mode).split('\n').map((body, i) => ({
+    title: t(`howto.${mode}.${i}`), body: `<p class="help">${body}</p>`,
+  }));
+  const { dlg, close } = openDialog(`${GLYPH[mode]} ${t('mode.' + mode)} · ${t('howto.title')}`,
+    '<div class="chapter-title"><span class="chapter-count"></span><h2 id="rules-chapter"></h2></div><div class="chapter-body"></div><nav class="rules-nav"></nav>');
+  dlg.classList.add('rules-window', 'rules-a');
+  dlg.setAttribute('aria-label', `${t('mode.' + mode)} · ${t('howto.title')}`);
+  let at = 0, start = null;
+  const paint = () => {
+    dlg.querySelector('.chapter-count').textContent = `${at + 1} / ${chapters.length}`;
+    dlg.querySelector('h2').textContent = chapters[at].title;
+    const body = dlg.querySelector('.chapter-body');
+    body.innerHTML = chapters[at].body;
+    body.scrollTop = 0;
+    dlg.querySelector('.rules-nav').innerHTML = `<button type="button" data-step="-1" aria-label="${t('howto.prev')}"${at === 0 ? ' disabled' : ''}>←</button><div class="chapter-dots" aria-hidden="true">${chapters.map((_, i) => `<i class="${i === at ? 'active' : ''}"></i>`).join('')}</div><button type="button" data-step="1" aria-label="${t('howto.next')}"${at === chapters.length - 1 ? ' disabled' : ''}>→</button>`;
+  };
+  const step = n => { at = Math.max(0, Math.min(chapters.length - 1, at + n)); paint(); };
+  dlg.addEventListener('click', e => { const b = e.target.closest('[data-step]'); if (b) step(+b.dataset.step); });
+  // openDialog isolates all keys from the game; this listener handles chapter arrows in capture too.
+  const keys = e => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); step(e.key === 'ArrowRight' ? 1 : -1); } };
+  window.addEventListener('keydown', keys, true);
+  dlg.addEventListener('close', () => window.removeEventListener('keydown', keys, true), { once: true });
+  dlg.addEventListener('touchstart', e => { start = [e.changedTouches[0].clientX, e.changedTouches[0].clientY]; }, { passive: true });
+  dlg.addEventListener('touchend', e => {
+    if (!start) return;
+    const dx = e.changedTouches[0].clientX - start[0], dy = e.changedTouches[0].clientY - start[1];
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) step(dx < 0 ? 1 : -1);
+    start = null;
+  }, { passive: true });
+  paint();
+  return { dlg, close };
+}

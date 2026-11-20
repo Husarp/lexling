@@ -2,6 +2,8 @@
 // engine (tiles.js) over pretend connections: joining, being asked about, turned away, moving, a phone dropping out and
 // coming back to its own seat, going quiet, the end.
 // Run: node tools/test-session.mjs
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 import { newGame, apply, voteFits } from '../app/js/tiles.js';
 import { createHost, createGuest, seatName, PROTOCOL, QUIET, QUIET_AWAY } from '../app/js/session.js';
 
@@ -278,6 +280,74 @@ for (const outcome of ['veto', 'accept', 'silence', 'timeout']) {
     h.play(outcome === 'silence' ? { type: 'voteEnd', ms: 20000 } : { type: 'timeout', ms: 900 }); h.run();
     check(`${outcome}: the authority closes the unvoted word everywhere`, [h.S.vote, h.S.moves.at(-1).kind, h.S.turn, same(a.S, h.S), same(b.S, h.S)], [null, outcome === 'silence' ? 'play' : 'timeout', 2, true, true]);
     check(`${outcome}: the mover's clock includes proposal and voting time`, h.S.clock[1], outcome === 'silence' ? 20100 : 1000);
+  }
+}
+
+// Rematch uses welcome again, with the same connections and fresh action counters.
+{
+  const h = table(), a = h.phone('a', 'addr-a', 'Alice'), b = h.phone('b', 'addr-b', 'Bob');
+  a.connect(); h.run(); h.session.letIn('a'); h.run();
+  b.connect(); h.run(); h.session.letIn('b'); h.run();
+  h.play({ type: 'pass' }); h.run();
+  h.play({ type: 'resign', p: 2 }); h.run();
+  h.play({ type: 'resign', p: 1 }); h.run();
+  check('rematch fixture has ended', !!h.S.over, true);
+  const old = h.S, known = h.session.known();
+  h.S = newGame({ ...setupOf(old), seed: old.start.seed + 1 });
+  h.session.restart(); h.run();
+  check('rematch preserves connected seats', [h.session.here(), a.seat, b.seat, h.session.known()], [[true, true, true], 1, 2, known]);
+  check('rematch preserves names and rules, changes seed and clears log', [h.S.players, h.S.rules, h.S.start.seed !== old.start.seed, a.S.log, b.S.log], [old.players, old.rules, true, [], []]);
+  check('both guests automatically rebuild the new round', [same(a.S, h.S), same(b.S, h.S)], [true, true]);
+  h.play({ type: 'pass' }); h.run();
+  a.move({ type: 'pass' }); h.run();
+  check('host and guest counters restart at zero', [h.S.log.length, same(a.S, h.S), same(b.S, h.S)], [2, true, true]);
+  b.cut(); h.run(); b.connect(); h.run();
+  check('reconnecting after a rematch restores the new game', [b.seat, same(b.S, h.S)], [2, true]);
+}
+
+// Exercise the screen's reconnect path with each local transport, without a browser.
+{
+  const source = readFileSync(new URL('../app/js/tiles-game.js', import.meta.url), 'utf8');
+  const part = (a, b) => source.slice(source.indexOf(a), source.indexOf(b, source.indexOf(a)));
+  for (const kind of ['bt', 'lan', 'near', 'web']) {
+    let on = true, joins = 0, retries = 0, now = 100000;
+    const ctx = { kind, linked: true, host: false, linkUp: true, linkNote: '', frozenLive: null,
+      ended: '', seenAt: 98000, retry: 0, S: { vote: {}, over: false }, game: { turnMs: 120, link: { conn: 'old', hostAddress: 'host' } },
+      Date: { now: () => now }, app: { isConnected: true }, navigator: { onLine: true },
+      document: { visibilityState: 'visible' }, paintAll() {}, t: key => key,
+      gone: () => [1], isOut: () => false, remote: () => false, linkMe: 0,
+      party: { connected() {}, disconnected() {} },
+      wire: { state: async () => ({ on }), join: async () => { joins++; } },
+      setTimeout: () => ++retries, clearTimeout() {} };
+    runInNewContext(part('  const voteMs =', '  // The move as it stands:')
+      + part('  function linkLine()', '  function paintRack()')
+      + part('  function up()', '  function stopLink()') + '\nthis.liveTime = liveMs;', ctx);
+    ctx.down();
+    await ctx.checkConnection();
+    now += 90000;
+    check(kind + ': lost host freezes live vote clock', ctx.liveTime(), 2000);
+    check(kind + ': healthy local network shows host disconnected', ctx.linkLine().includes('net.hostDisconnected'), true);
+    await ctx.connect();
+    check(kind + ': host loss retries automatically after a minute', [joins, ctx.ended, ctx.linkNote], [1, '', '']);
+    on = false;
+    await ctx.connect();
+    check(kind + ': own network down uses transport message and waits', [joins, ctx.linkNote, retries > 1], [1, 'net.disconnected.' + kind, true]);
+    check(kind + ': own disconnection takes priority over host message', ctx.linkLine().includes('net.disconnected.' + kind), true);
+    on = true;
+    if (kind === 'web') {
+      ctx.navigator.onLine = false;
+      await ctx.connect();
+      check('web: navigator offline overrides available link', [joins, ctx.linkNote], [1, 'net.disconnected.web']);
+      ctx.navigator.onLine = true;
+    }
+    await ctx.connect();
+    check(kind + ': own network recovery resumes joining and clears message', [joins, ctx.linkNote], [2, '']);
+    ctx.wire.join = async () => { throw new Error('retry'); };
+    await ctx.connect();
+    await Promise.resolve();
+    check(kind + ': failed retry never reports unsupported', ctx.linkNote, '');
+    ctx.up();
+    check(kind + ': restored host resumes frozen vote clock', [ctx.linkUp, ctx.liveTime()], [true, 2000]);
   }
 }
 

@@ -110,7 +110,7 @@ for (const lang of ['en', 'pl']) {
   settings.myName = 'Łucja';
   root = new Element();
   await settingsScreen(root, null, () => {});
-  check(`${lang}: Your name is before Language`, root.querySelector('.group').querySelector('.row').querySelector('label').textContent, t('set.myName'));
+  check(`${lang}: Your name is in Online`, root.querySelector('[data-section="online"]').querySelector('.row').querySelector('label').textContent, t('set.myName'));
   const input = root.querySelector('#my-name');
   check(`${lang}: migrated name displayed with safe input attributes`, [input.value, input.attrs.maxlength, input.attrs.autocomplete, input.attrs['aria-label']], ['Łucja', '16', 'off', t('set.myName')]);
   input.value = '  Anna Maria  '; await input.fire('input');

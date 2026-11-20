@@ -103,6 +103,13 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
    design files reuse a few class names (.empty, .bar, .form) with different rules ═══ */
 
 /* main-menu.html */
+/* Fixed wallpaper belongs only to the dark main menu; light keeps its plain background. */
+[data-theme=dark] [data-screen=menu]{position:relative;isolation:isolate}
+[data-theme=dark] [data-screen=menu]::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:url('../img/wallpaper-phone.webp') center/cover no-repeat}
+[data-theme=dark] [data-screen=menu] .topbar{background:transparent}
+@media (min-aspect-ratio:1/1){
+  [data-theme=dark] [data-screen=menu]::before{background-image:url('../img/wallpaper-pc.webp')}
+}
 [data-screen=menu] .hero{flex:1;position:relative;overflow:hidden;display:grid;align-content:center;gap:var(--space-8);padding:clamp(32px,8vh,96px) var(--gutter)}
 [data-screen=menu] .hero-inner{width:100%;max-width:var(--col);margin:0 auto;display:grid;gap:var(--space-6);position:relative}
 [data-screen=menu] .wm{position:absolute;right:-.06em;top:-.18em;font:800 clamp(260px,55vw,640px)/1 var(--font-display);letter-spacing:-.05em;color:var(--text);opacity:.05;pointer-events:none;user-select:none}
@@ -124,9 +131,12 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=games] .save-best{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--space-3);font-size:13px;color:var(--text-muted)}
 [data-screen=games] .bar{height:4px;background:var(--surface-2);border-radius:var(--radius-sm);overflow:hidden}
 [data-screen=games] .bar i{display:block;height:100%;width:var(--pct);background:var(--fill)}
-[data-screen=games] .save-actions{display:flex;gap:var(--space-1);align-self:start;flex-wrap:wrap;justify-content:flex-end}
+[data-screen=games] .save-actions{display:grid;gap:var(--space-2);align-self:start}
 [data-screen=games] .save-actions .btn{padding:0 var(--space-3)}
-@media (max-width:480px){[data-screen=games] .save-actions{justify-content:flex-start}}
+[data-screen=games] .save-tools{display:flex;justify-content:center;gap:var(--space-2)}
+[data-screen=games] .save-actions .save-icon{width:36px;min-height:36px;padding:0;border-radius:8px}
+.save-icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+[data-screen=games] .save-icon[data-armed]{background:var(--error);color:#fff;box-shadow:0 0 0 2px var(--error)}
 [data-screen=games] .empty{padding:clamp(32px,8vw,64px) var(--space-6);display:grid;justify-items:center;text-align:center;gap:var(--space-4)}
 [data-screen=games] .empty .display{font-size:clamp(32px,8vw,56px);color:var(--text-dim)}
 
@@ -1578,7 +1588,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
    From a 600px column the glyph moves beside the name. */
 :is([data-screen=stats],[data-screen=achievements]) .seg.st-tabs{position:sticky;top:0;z-index:4;display:flex;gap:2px;padding:3px}
 :is([data-screen=stats],[data-screen=achievements]) .seg.st-tabs button{flex:1 1 auto;min-width:0;min-height:52px;padding:7px 4px 6px;display:grid;justify-items:center;align-content:center;gap:7px;border-radius:11px;font:700 14px/1 var(--font-display);letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
-:is([data-screen=stats],[data-screen=achievements]) .st-tabs .tg{height:14px;display:grid;place-items:center}
+:is([data-screen=stats],[data-screen=achievements]) .st-tabs .tg{height:22px;display:grid;place-items:center}
 @container (min-width:600px){:is([data-screen=stats],[data-screen=achievements]) .seg.st-tabs button{grid-auto-flow:column;gap:9px;min-height:46px;padding:0 10px;font-size:16px}}
 /* General's glyph: one square per game, in the colours the "games by mode" chart uses */
 .glyph.all{display:grid;grid-template-columns:repeat(2,6px);grid-auto-rows:6px;gap:2px}
@@ -1659,7 +1669,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* the Collection's tabs in the Statistics style (0.61.0) */
 [data-screen=collection] .seg.st-tabs{display:flex;gap:2px;padding:3px}
 [data-screen=collection] .seg.st-tabs button{flex:1 1 auto;min-width:0;min-height:52px;padding:7px 4px 6px;display:grid;justify-items:center;align-content:center;gap:7px;border-radius:11px;font:700 14px/1 var(--font-display);letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
-[data-screen=collection] .st-tabs .tg{height:14px;display:grid;place-items:center}
+[data-screen=collection] .st-tabs .tg{height:22px;display:grid;place-items:center}
 @container (min-width:600px){[data-screen=collection] .seg.st-tabs button{grid-auto-flow:column;gap:9px;min-height:46px;padding:0 10px;font-size:16px}}
 
 /* ═══ LEXLING · THE MENU AND TIME (design v7, 2026-09-28) — goes below app.css ═══ */
@@ -1736,8 +1746,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .co-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px var(--space-2);width:100%;padding:var(--space-3) var(--space-3) var(--space-3) var(--space-4);background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-md);text-align:left;transition:border-color var(--dur) var(--ease),transform var(--dur) var(--ease)}
 .co-row:hover{border-color:var(--line);transform:translateY(-2px)}
 .co-row .co-top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px var(--space-3);min-width:0}
-.co-row .co-name{display:inline-flex;align-items:center;gap:10px;min-width:0;font:600 16px/1.25 var(--font-body);color:var(--text)}
-.co-row .co-name .glyph{transform:scale(1.15)}
+.co-row .co-name{display:inline-flex;align-items:center;gap:6px;min-width:0;font:600 16px/1.25 var(--font-body);color:var(--text)}
+.co-row .co-name .glyph{transform:none}
 .co-row .co-count{margin-left:auto;font-size:13px;color:var(--text-muted);white-space:nowrap;font-variant-numeric:tabular-nums}
 .co-row .co-count b{font-weight:700;color:var(--text)}
 .co-row .co-count .pc{color:var(--text)}
@@ -1933,8 +1943,7 @@ canvas.co-dots{display:block;width:100%}
 .tl-check .input{border:1px solid #60656d;outline:none;box-shadow:none}
 .tl-check .input:focus{border-color:var(--success);outline:none;box-shadow:none}
 [data-screen=games] .save-last .vs .player-icon{width:12px;height:12px;flex:none;color:var(--pc)}
-/* Keep unused board space above the board, with centred cards immediately below. */
-[data-screen=tiles] .tl-bwrap{justify-content:flex-end}
+/* Keep the board under the tools; spare height separates it from the reserved move cards. */
 [data-screen=tiles] .tl-messages{width:100%;max-width:560px;justify-self:center;min-width:0}
 @container (min-width:900px){
   [data-screen=tiles] .tl-play{grid-template-rows:auto auto auto minmax(0,1fr) auto auto;grid-template-areas:"board status" "board rack" "board dock" "board panel" "say panel" ". keys"}
@@ -1951,3 +1960,199 @@ canvas.co-dots{display:block;width:100%}
 
 [data-screen=tiles] .tl-messages .tl-moves{grid-area:auto}
 .tb .t.bad.hint{outline:none;box-shadow:inset 0 0 0 1px var(--error)}
+
+/* Reserve changing messages and controls so the squares stay where they were. */
+html{scrollbar-gutter:stable}
+[data-screen=game] #msg{display:block;height:5.6em;overflow:auto;margin:0 0 var(--space-2)}
+[data-screen=game] #msg[hidden]{display:block!important;visibility:hidden}
+[data-screen=letters] .status{display:grid;grid-template-columns:1.15fr .85fr 1.35fr .8fr;gap:8px}
+[data-screen=letters] .stat{min-width:0}
+[data-screen=letters] .stat .num{font-variant-numeric:tabular-nums;font-size:clamp(20px,5vw,28px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+[data-screen=letters] .status-actions{grid-column:1/-1;min-height:40px}
+[data-screen=letters] .msg{height:3.2em;min-height:3.2em;overflow:auto}
+.cat-about{height:8em;overflow:auto}
+#level-help{height:3.2em;overflow:auto}
+#check{min-width:150px}
+[data-screen=tiles] .tl-messages{height:152px;overflow:auto;position:relative;align-content:start}
+[data-screen=tiles] .tl-vote{position:absolute;inset:0;overflow:auto;z-index:5}
+[data-screen=tiles] .tl-dock{height:106px;min-height:106px;align-content:stretch;overflow:auto}
+[data-screen=tiles] .tl-dock .lvl~.btn-ghost.wide{min-height:48px}
+.ps .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}
+.ps-row.many .ps{flex-basis:calc((100% - 24px) / 2.2)}
+@media(max-height:780px) and (max-width:480px){
+  [data-screen=menu] .hero.four{padding-top:12px;padding-bottom:12px}
+  [data-screen=menu] .hero-inner{gap:12px}
+  [data-screen=menu] .menu.cards a{min-height:48px;padding:8px;flex-direction:row;gap:8px}
+  [data-screen=menu] .menu-badge{width:24px;height:24px}
+  [data-screen=tiles] .tl-messages{height:116px}
+}
+
+.practice-badge{display:inline-block;font-size:.7rem;line-height:1.4;padding:.1rem .4rem;margin-inline-start:.4rem;border:1px solid var(--text-muted);border-radius:.4rem;color:var(--text-muted);white-space:nowrap}
+.earlier-ach{margin-block:1rem;font-size:.85rem;color:var(--text-muted)}
+
+/* Tiles decisions: one tile family, selectable frame, quiet tools and player rails. */
+.tl-board{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line)}
+:root[data-tileframe=frameless] .tl-board{background:var(--tb-sq);box-shadow:none;border-radius:2px}
+:root[data-tileframe=frameless] .tb{--fr:1px;box-shadow:none}
+:root[data-tileframe=orange] .tl-board{background:var(--surface);box-shadow:inset 0 0 0 2px var(--accent)}
+.t.new{--ring:#3d9829;--rw:2px;background:color-mix(in srgb,var(--tl-tile) 45%,#91bf6a)}
+.t.new.hint{color:var(--tl-ink);outline-color:var(--ring);box-shadow:inset 0 0 0 var(--rw) var(--ring),inset 0 calc(var(--cs) * -.07) 0 rgba(0,0,0,.2)}
+.t.new.hint .p{color:inherit}
+.t.last{--ring:#9461c9;--rw:2px;background:color-mix(in srgb,var(--tl-tile) 78%,#b99ae4)}
+.pb{background:none;box-shadow:none;color:var(--text-muted);border-radius:0}
+.pb svg,.tl-moves .who svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ps.on{background:var(--surface);border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.ps .tm.low{color:var(--error)}
+[data-screen=tiles] .status-actions{align-items:center;gap:4px;flex-wrap:nowrap}
+[data-screen=tiles] .status-actions .btn{background:transparent;border-color:transparent;box-shadow:none;padding:0 5px}
+[data-screen=tiles] .status-actions .btn.tl-find{margin-left:0;min-width:30px;width:30px;flex:none;padding:0}
+.tl-find svg{flex:none}
+[data-screen=tiles] .status-actions .tl-exit{font-size:12px;white-space:nowrap;gap:4px;min-width:0}
+[data-screen=tiles] .status-actions .tl-opts{width:30px;min-width:30px;flex:none;justify-content:center}
+[data-screen=tiles] .status-actions .tl-opts span{position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden;white-space:nowrap}
+.status-actions .practice-badge{margin:0;font-size:9px;padding:1px 3px}
+.tl-dock .play:not(:disabled):not(.off){background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.tl-dock .play:is(:disabled,.off){background:var(--surface-2);color:var(--text-muted);border-color:var(--line);opacity:1}
+.tl-tool:nth-child(1){--tool:#8cc8ea}.tl-tool:nth-child(2){--tool:#b99ae4}.tl-tool:nth-child(3){--tool:#f29b55}.tl-tool:nth-child(4){--tool:#91bf6a}
+.tl-tool svg{color:var(--tool,var(--text-muted))}
+[data-theme=light] .tl-tool svg{color:color-mix(in srgb,var(--tool) 55%,#000)}
+.tl-dock .tl-tool{background:var(--surface);border-color:var(--line-soft)}
+.tl-dock .tl-tool.ur{background:transparent;border-color:transparent;box-shadow:none}
+.tl-moves .mcards{grid-template-columns:20px minmax(0,1fr) auto auto;gap:4px 7px}
+.tl-moves .mc{min-height:60px;padding:6px 9px;align-content:center;row-gap:3px;border-color:var(--line-soft);border-radius:6px;box-shadow:inset 3px 0 var(--pc);background:var(--surface)}
+.tl-moves .who{grid-column:auto;display:flex;align-items:center;color:var(--pt)}
+[data-theme=light] .tl-moves .who{color:var(--pc)}
+.tl-moves .w{font-size:19px;line-height:1.2}
+.tl-moves .msg,.tl-moves .bw{grid-column:2 / -1}
+.tl-moves .bw{font-size:11px;line-height:1.3;background:none;padding:0;border:0;border-radius:0}
+.tl-moves .bw b{font-size:13px;line-height:1.2}
+.tl-moves .rr .rate{border-radius:4px;padding:3px 5px;font-size:10px;line-height:1.3}
+.tl-moves .rate .bn{display:inline}
+.tl-moves button.pt{min-height:28px;padding:2px;line-height:1.2}
+@media(max-height:780px){
+  .tl-moves .mc{min-height:44px;padding:3px 8px;row-gap:2px}
+  .tl-moves .w{font-size:17px}
+  .tl-moves .rr .rate{font-size:9px;padding:2px 4px}
+  .tl-moves .rate .bn{display:none}
+  .tl-moves .rr .rare{font-size:9px;padding:1px 3px}
+  .tl-moves .bw{font-size:10px}
+}
+.tl-bcard{background:var(--surface);border-radius:8px}
+.tl-bcard.on{background:var(--surface);box-shadow:inset 0 0 0 2px var(--accent)}
+.tl-mini .l2{background:#8cc8ea}.tl-mini .l3{background:#2f6fbf}.tl-mini .w2{background:#f29b55}.tl-mini .w3{background:#d23b35}
+.tl-bcard .meta{color:var(--accent)}
+/* Options V1: text tabs, a scrolling body, and Give up outside the scroll area. */
+.tl-options{display:flex;flex-direction:column;height:min(720px,calc(100dvh - 40px));max-height:calc(100dvh - 40px);overflow:hidden}
+.tl-options .gs-head{flex:none}
+.op-tabs{display:flex;gap:3px;padding:4px;background:var(--bg);border-radius:12px;flex:none}
+.op-tabs button{flex:1;min-width:0;min-height:44px;border-radius:8px;font:600 12px/1.3 var(--font-body);color:var(--text-muted)}
+.op-tabs [aria-selected=true]{background:var(--accent);color:var(--on-accent);box-shadow:0 2px 7px #0002}
+.tl-options .op-how{align-self:flex-start;flex:none;min-height:34px;padding:4px 0;border:0;background:none;box-shadow:none;font:400 12px/1.4 var(--font-body);letter-spacing:0;text-transform:none;color:var(--text-muted);margin:6px 0}
+.op-content{flex:1;min-height:0;overflow:auto;scrollbar-width:none;overscroll-behavior:contain;padding:8px 3px}
+.op-content::-webkit-scrollbar{display:none}
+.op-content [hidden]{display:none}
+.op-content h2{font:700 24px/1.3 var(--font-display);text-transform:uppercase;margin:0 0 16px}
+.op-foot{flex:none;padding-top:12px}
+.op-foot .op-quit{width:auto;margin:0;min-height:42px}
+.tl-options .gs-row{border:0;padding:10px 0;gap:12px}
+.tl-options .gs-row strong{font-size:12px}
+.tl-options .gs-row .row-text span{font-size:11px}
+.tl-options #op-look .row-text span{display:none}
+.tl-options .seg{border:0;padding:0;background:transparent;gap:4px;flex-wrap:wrap}
+.tl-options .seg button{min-height:34px;padding:7px 6px;border-radius:7px;background:var(--surface-2);font-size:11px;letter-spacing:0;text-transform:none;line-height:1.3}
+.tl-options .seg button.on{background:var(--accent-soft);color:var(--text);box-shadow:inset 0 0 0 1px var(--accent)}
+.op-look-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.op-look-head h2{margin:0}
+.op-preview{display:flex;gap:4px;padding:4px}
+.tl-options .rt{--rs:32px;cursor:default;touch-action:auto}
+.tl-options .seg:has([data-key=tilesTile]){justify-content:space-between;gap:4px}
+.tl-options .seg [data-key=tilesTile]{display:flex;flex-direction:column;align-items:center;gap:8px;flex:0 1 auto;background:none;padding:6px 3px;box-shadow:none!important}
+.tl-options .seg [data-key=tilesTile].on{background:none}
+.tl-options .seg [data-key=tilesTile] .rt{--rs:40px}
+.tl-options .seg [data-key=tilesTile].on .rt{outline:2px solid var(--accent);outline-offset:3px}
+.tl-options .seg [data-key=tilesTile] small{font-size:9px}
+.tl-options .op-players li{border:0;background:var(--surface-2)}
+.op-filter{margin-bottom:24px}
+.tl-options .tl-hist{margin:0}
+.tl-options .tl-hist li{padding:16px 0;border:0}
+.tl-options .tl-hist li.head{padding:8px 0;border-bottom:1px solid var(--line-soft)}
+.tl-options .tl-hist .w{font-size:17px;color:var(--text)}
+.tl-options .tl-hist .quiet .w{font-size:12px;color:var(--text-muted)}
+.tl-panel{border-radius:4px;box-shadow:0 8px 32px #0005}
+.tl-panel .seg{border-radius:4px}
+.tl-panel .seg button.on{background:var(--text);color:var(--bg);border-radius:3px}
+.tl-panel-head{box-shadow:0 2px var(--line)}
+.tl-hist .w{color:var(--accent);font-size:15px}
+.tl-hist .who{font-size:10px;letter-spacing:0}
+.tl-hist .rate{border-radius:3px}
+.tl-hist .hi{display:inline-flex;vertical-align:-2px;color:var(--text-muted)}
+.tl-hist .hi svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* Selected Settings A: compact sections on a single page. */
+[data-screen=settings] .main{gap:12px}
+.settings-section{border:1px solid var(--line-soft);border-radius:14px;background:var(--surface);overflow:hidden;scroll-margin-top:70px}
+.settings-section>summary{display:flex;align-items:center;gap:12px;list-style:none;padding:12px 16px;font-weight:600;font-size:16px;cursor:pointer}
+.settings-section>summary::-webkit-details-marker{display:none}
+.settings-section[open]>summary{border-bottom:1px solid var(--line-soft)}
+.category-icon{display:grid;place-items:center;flex:none;width:30px;height:30px;font-size:13px;background:var(--accent-soft);border-radius:10px;color:var(--accent)}
+/* One centred chevron for every expandable section, independent of font metrics. */
+details>summary{display:flex;align-items:center;gap:8px;list-style:none;cursor:pointer}
+details>summary::-webkit-details-marker{display:none}
+details>summary::after{content:"";display:block;flex:none;width:20px;height:20px;margin-left:auto;color:var(--accent);background:currentColor;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m9 5 7 7-7 7' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;transform-origin:50% 50%;transition:transform var(--dur) var(--ease)}
+details[open]>summary::after{transform:rotate(90deg)}
+details>summary :is(.arrow,.category-arrow){display:none}
+.section-content{padding:0 16px 12px}
+.section-content>.title{font-size:20px;margin:18px 0 6px}
+.settings-section .row{padding:12px 0;gap:10px;flex-wrap:wrap}
+.settings-section .row:last-child{border-bottom:0}
+.settings-section .row-text{flex:1 1 160px;min-width:0}
+.settings-section .row-text strong{font-size:14px}
+.settings-section .row-text span{font-size:11px;line-height:1.5}
+.settings-section .row>.seg,.settings-section .palette-swatches{width:100%;flex:none}
+.settings-section .input{max-width:100%}
+/* Shared, transparent SVG mode icons retain the proposal's colours in both themes. */
+svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.all{display:inline-block;position:static;flex:none;width:22px;height:22px;background:none;border-radius:0;vertical-align:middle;overflow:visible}
+/* Menu art stays dark in light theme: its edges are part of the selected artwork. */
+[data-screen=menu] .games.tight .game{position:relative;display:flex;justify-content:space-between;height:104px;min-height:104px;padding:0 18px;background:#110d0c;border-color:#352b27;isolation:isolate;overflow:hidden}
+[data-screen=menu] .menu-art{position:absolute;inset:0;margin:auto;width:auto;max-width:100%;height:100%;object-fit:contain;z-index:-1;mask-image:linear-gradient(90deg,transparent,#000 25%,#000 75%,transparent)}
+[data-screen=menu] .games.tight .g-name{font:600 22px/1 var(--font-body);letter-spacing:0;text-transform:none;color:#fff3e9;text-shadow:0 2px 8px #000}
+[data-screen=menu] .game>.arrow{color:#ED754C;text-shadow:0 2px 8px #000;font-size:22px}
+.empty-art{display:block;width:120px;max-width:65%;height:auto;max-height:140px;object-fit:contain;margin:0 auto 16px}
+.ach-notice-icon{position:relative;width:58px;height:60px;background:none}
+.ach-notice-icon img{width:58px;height:58px;object-fit:contain;border-radius:10px}
+.ach-notice-icon .ach-icon{position:absolute;right:-1px;bottom:0;width:23px;height:23px;padding:3px;background:var(--surface);border-radius:50%}
+/* Selected Rules A: a centred card, one stable chapter area, dots and arrows. */
+[data-screen=new] button.howto{display:flex;align-items:center;justify-content:space-between;min-height:48px;width:100%;color:var(--text);text-align:left;cursor:pointer}
+.rules-window.game-settings{display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:0;padding:20px;margin:auto;width:min(380px,calc(100% - 32px));height:min(650px,calc(100dvh - 40px));max-height:calc(100dvh - 40px);background:var(--surface);color:var(--text);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:20px;overflow:hidden;box-shadow:0 18px 90px #0006}
+.rules-window::backdrop{background:#0009}
+.rules-window .gs-head{border-bottom:1px solid var(--line-soft);padding-bottom:14px;margin:0;gap:8px}
+.rules-window .gs-head>.eyebrow{display:flex;align-items:center;gap:7px;font-size:11px}
+.rules-window .gs-close{width:44px;height:44px;flex:none}
+.chapter-title{margin:24px 0 22px;max-width:270px;min-height:84px}
+.chapter-count{font-size:12px;letter-spacing:.12em;color:var(--accent);font-weight:600}
+.chapter-title h2{font:700 30px/1.08 var(--font-display);text-transform:uppercase;margin-top:8px}
+.chapter-body{overflow:auto;overscroll-behavior:contain}
+.chapter-body .help{font-size:16px;line-height:1.7;color:var(--text)}
+.chapter-body .tl-legend{margin:24px 0;justify-content:space-around}
+.rules-nav{display:flex;align-items:center;justify-content:space-between;margin-top:24px;gap:10px}
+.rules-nav button{border:1px solid var(--line);border-radius:10px;width:48px;height:48px;font-size:24px;flex:none;color:var(--text);cursor:pointer}
+.rules-nav button:disabled{opacity:.25;cursor:default}
+.chapter-dots{display:flex;justify-content:center;gap:6px}
+.chapter-dots i{width:6px;height:6px;background:var(--line);border-radius:50%}
+.chapter-dots i.active{background:var(--accent);width:18px;border-radius:5px}
+.rules-window .tl-looks{display:grid;gap:12px}
+.rules-window .tl-looks .t{width:32px;height:32px}
+.achievement-notice{position:fixed;z-index:1000;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-md);font-size:12px}
+.achievement-notice strong{font-size:13px}
+.achievement-notice>span:nth-child(2)>span{line-height:1.4}
+
+/* Keep icon and label together and vertically centred on the text tabs. */
+:is([data-screen=stats],[data-screen=collection]) .seg.st-tabs button{display:flex;align-items:center;justify-content:center;gap:5px;white-space:normal;line-height:1.15}
+:is([data-screen=stats],[data-screen=collection]) .st-tabs .tg{flex:none}
+[data-screen=achievements] .seg.st-tabs button{display:flex;align-items:center;justify-content:center;padding:8px;gap:0}
+.ach-section-title{font:700 24px/1.1 var(--font-display);margin:4px 0 0}
+.tl-find:disabled{opacity:.3;cursor:default}
+
+/* Keep the original game colours readable on a neutral selected marker in either theme. */
+[data-screen=achievements] .st-tabs button.on{background:var(--surface-2);color:var(--text);box-shadow:inset 0 0 0 2px var(--accent)}
+.st-tabs button.on svg.glyph.all [stroke]{stroke:currentColor}

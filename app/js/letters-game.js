@@ -303,7 +303,7 @@ export async function lettersGameScreen(root, id) {
     }
     game.guesses.push(word);
     recordMove(game, { g: game.guesses.length, len: game.len, cat: game.cat });
-    collect('letters', game.lang, word);
+    collect('letters', game.lang, word, game);
     cur = blank();
     sink.value = '';
     say('');
@@ -327,7 +327,7 @@ export async function lettersGameScreen(root, id) {
   function finish(status, afterReveal = false) {
     game.status = status;
     recordLettersEnd(game);
-    if (status === 'won') bump('letters.won');
+    if (status === 'won' || status === 'lost') bump('letters.finished', 1, game);
     recordAchievementEnd(game, 'letters');
     if (status === 'won') chime();
     if (!afterReveal) return paintEnd();
