@@ -11,13 +11,13 @@ const stored = new Map([['wg.settings', JSON.stringify({ lang: 'en', rememberSet
 globalThis.localStorage = { getItem: k => stored.get(k) ?? null, setItem: (k, v) => stored.set(k, v) };
 globalThis.matchMedia = () => ({ matches: false, addEventListener() {} });
 globalThis.window = { addEventListener() {} };
-globalThis.document = { documentElement: {}, addEventListener() {}, createRange: () => ({}) };
+globalThis.document = { documentElement: { style: { setProperty(k, v) { this[k] = v; } } }, addEventListener() {}, createRange: () => ({}) };
 const { settings } = await import('../app/js/store.js');
 const { t, setLang, plural } = await import('../app/js/i18n.js');
 const { newGame, sizeOf, premiums, apply } = await import('../app/js/tiles.js');
 const { boardInner, boardStyleSeg, topics, LABEL, BONUS_LOOKS, TILE_LOOKS, RATE_LOOKS, tileSwatch, finalOrder, removedPlayer } = await import('../app/js/tiles-game.js');
 const { tilesNewScreen } = await import('../app/js/screens.js');
-const { settingRows, wireSettingRows } = await import('../app/js/ui.js');
+const { playerIcon, TILE_SETUP_ICONS, settingRows, wireSettingRows } = await import('../app/js/ui.js');
 const source = read('app/js/tiles-game.js');
 // Exercise the live zoom-tool updater across overview, intermediate and maximum scales.
 for (const z of [1, 1.5, 2, 2.5]) {
@@ -115,6 +115,21 @@ for (const lang of ['en', 'pl']) {
   Object.assign(settings, { tilesBoardStyle: 'classic', tilesCb: false });
   const root = new Element();
   tilesNewScreen(root, null, () => {});
+  const players = root.querySelector('.tl-players');
+  const person = playerIcon({ players: [{}] }, 0), computer = playerIcon({ players: [{ cpu: 'medium' }] }, 0);
+  const seatIcons = () => [...players.innerHTML.matchAll(/<i class="tl-player-icon" aria-hidden="true">(.*?)<\/i>/g)].map(m => m[1]);
+  check(`${lang}: setup rows and starting chips share person/computer symbols`, seatIcons(), [person, computer, person, computer]);
+  check(`${lang}: random start has a die and no question badge`, players.innerHTML.includes(TILE_SETUP_ICONS.dice) && !players.innerHTML.includes('?</span>'), true);
+  const add = players.innerHTML.match(/<button[^>]*data-add>(.*?)<\/button>/)[1];
+  check(`${lang}: Add player has one combined symbol and translated text`, [add.match(/<svg/g).length, add.replace(/<[^>]*>/g, '')], [1, t('tiles.addPlayer')]);
+  for (const section of ['tl-assists', 'tl-rules']) {
+    const summary = root.innerHTML.match(new RegExp(`<details class="card ${section}"[^>]*>\\s*<summary>(.*?)</summary>`))[1];
+    check(`${lang}: ${section} leaves the chevron to shared CSS`, summary.includes('class="arrow"'), false);
+  }
+  for (const kind of ['person', 'cpu']) {
+    players.fire({ closest: () => ({ dataset: { kind, p: '1' } }) });
+    check(`${lang}: changing seat type updates row and starting chip to ${kind}`, seatIcons(), [person, kind === 'cpu' ? computer : person, person, kind === 'cpu' ? computer : person]);
+  }
   check(`${lang}: New game offers translated board and shapes controls`, ['tiles.boardStyle', 'tiles.boardStyleHelp', 'tiles.cb', 'tiles.cbHelp'].every(k => root.innerHTML.includes(t(k))), true);
   for (const style of ['muted', 'classic']) {
     root.querySelector('#board-style').fire(new Element({ boardStyle: style }));
@@ -132,10 +147,12 @@ for (const lang of ['en', 'pl']) {
 // Execute the real closed-over Options function, with a repaint counter and the real shared row wiring.
 let dialog, repaints = 0;
 const options = source.slice(source.indexOf('  function openOptions() {'), source.indexOf('  // ── several phones', source.indexOf('  function openOptions() {')));
-const context = { S: { rules: {}, players: [{}, { cpu: true }] }, nameOf: (_, p) => p ? 'Computer' : 'You', esc: s => s, histHtml: () => '<p>History rows</p>', host: false, settings, t, BONUS_LOOKS, TILE_LOOKS, RATE_LOOKS, tileSwatch,
+const context = { playerIcon, S: { rules: {}, players: [{}, { cpu: true }] }, nameOf: (_, p) => p ? 'Computer' : 'You', esc: s => s, histHtml: () => '<p>History rows</p>', host: false, settings, t, BONUS_LOOKS, TILE_LOOKS, RATE_LOOKS, tileSwatch,
   window: { addEventListener() {}, removeEventListener() {} }, LIST: '', settingRows, wireSettingRows, applyTileLook() {}, repaint() { repaints++; }, confirmClick() {},
   openDialog(title, html) { dialog = new Element(); dialog.innerHTML = html; return { dlg: dialog, close() {} }; } };
 runInNewContext(options + '\nopenOptions();', context);
+check('Options Players uses the shared symbols for both seat types',
+  [...dialog.innerHTML.matchAll(/<i class="tl-player-icon" aria-hidden="true">(.*?)<\/i>/g)].map(m => m[1]), context.S.players.map((_, p) => playerIcon(context.S, p)));
 check('Options has exactly three tabs with History selected', (dialog.innerHTML.match(/role="tab" /g) || []).length, 3);
 check('Options opens History by default', dialog.innerHTML.includes('id="op-tab-history" data-tab="history" aria-controls="op-history" aria-selected="true"'), true);
 check('Options pins Give up after the scrolling content', dialog.innerHTML.includes('</div><footer class="op-foot"><button'), true);
@@ -144,11 +161,12 @@ check('Options has no Settings or Resume action', /tiles.opt.settings|data-go="h
 check('Options offers How to play as a plain button', dialog.innerHTML.includes('type="button" data-guide>'), true);
 check('Options puts board style and shapes directly after Bonus squares', dialog.innerHTML.indexOf('data-key="tilesBonus"') < dialog.innerHTML.indexOf('data-key="tilesBoardStyle"') && dialog.innerHTML.indexOf('data-key="tilesBoardStyle"') < dialog.innerHTML.indexOf('data-key="tilesCb"'), true);
 check('Options puts move details immediately after Rate my moves', dialog.innerHTML.indexOf('data-key="tilesRate"') >= 0 && dialog.innerHTML.indexOf('data-key="tilesRate"') < dialog.innerHTML.indexOf('data-key="tilesUnder"'), true);
-for (const [key, v] of [['tilesBoardStyle', 'muted'], ['tilesCb', undefined], ['tilesFrame', 'frameless'], ['tilesFrame', 'orange'], ['tilesFrame', 'graphite'], ['tilesLast', undefined], ['tilesUnder', 'rarity'], ['tilesUnder', 'both'], ['tilesUnder', 'rating']]) {
+for (const [key, v] of [['buttonSize', '100'], ['buttonSize', '115'], ['buttonSize', '130'], ['buttonSize', '150'], ['tilesBoardStyle', 'muted'], ['tilesCb', undefined], ['tilesFrame', 'frameless'], ['tilesFrame', 'orange'], ['tilesFrame', 'graphite'], ['tilesLast', undefined], ['tilesUnder', 'rarity'], ['tilesUnder', 'both'], ['tilesUnder', 'rating']]) {
   const before = repaints;
   dialog.fire(new Element({ key, ...(v === undefined ? {} : { v }) }));
   check(`${key}: Options saves the choice`, JSON.parse(stored.get('wg.settings'))[key], key === 'tilesCb' ? true : key === 'tilesLast' ? false : v);
   check(`${key}: Options repaints immediately`, repaints, before + 1);
+  if (key === 'buttonSize') check(`Options applies ${v}% immediately`, document.documentElement.style['--button-scale'], +v / 100);
 }
 
 context.S.rules.rating = false;

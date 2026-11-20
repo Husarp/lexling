@@ -29,6 +29,7 @@ const drawings={
  multi:'<g fill="currentColor" stroke="none"><rect x="2" y="3" width="5" height="5" rx="1"/><rect x="9.5" y="3" width="5" height="5" rx="1"/><rect x="17" y="3" width="5" height="5" rx="1"/></g><path d="M4.5 11v3h15v-3M12 11v10m-3-3 3 3 3-3"/>'
 };
 
+drawings.finish = '<path d="M5 22V3h15v12H5M5 3l-2-1"/><path fill="currentColor" stroke="none" d="M5 3h5v4H5Zm10 0h5v4h-5ZM10 7h5v4h-5ZM5 11h5v4H5Zm10 0h5v4h-5Z"/>';
 const icons = {"guess.won": "detective", "letters.won": "letters", "connect.words": "connect", "tiles.words": "builder", "tiles.points": "points", "tiles.bingo": "seven", "tiles.len8": "long", "tiles.len10": "longer", "tiles.triple": "triple", "tiles.move100": "century", "tiles.rare1": "rare", "tiles.beatHard": "hard", "tiles.beatExpert": "expert", "tiles.multi3": "multi"};
 drawings['connect.boards'] = '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18M15 9v12M9 15h12"/>'; icons['connect.boards'] = 'connect.boards';
 drawings['letters.lucky'] = '<path d="M12 12C1 13 2 3 8 5c4-6 10 0 4 7 11-1 10 9 4 7-4 6-10 0-4-7ZM12 12l-8 9"/>'; icons['letters.lucky'] = 'letters.lucky';
@@ -37,7 +38,7 @@ drawings['letters.everyLength'] = '<path d="M4 5h4M4 10h7M4 15h10M4 20h13m-3-13 
 drawings['connect.unaided'] = '<path d="m4 12 5 5 11-11"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="19" r="2"/>'; icons['connect.unaided'] = 'connect.unaided';
 drawings['connect.bonusHunter'] = '<path d="m12 2 3 6 6 1-4 5 1 7-6-3-6 3 1-7-4-5 6-1ZM9 12h6M12 9v6"/>'; icons['connect.bonusHunter'] = 'connect.bonusHunter';
 drawings['connect.hardBoard'] = '<path d="m12 2 8 4v6c0 4-4 8-8 10-4-2-8-6-8-10V6ZM8 8h8v8H8ZM12 8v8M8 12h8"/>'; icons['connect.hardBoard'] = 'connect.hardBoard';
-Object.assign(icons, { 'guess.finished': 'detective', 'letters.finished': 'letters', 'connect.bonus': 'connect.bonusHunter', 'tiles.letters': 'points' });
+Object.assign(icons, { 'tiles.photoFinish': 'finish', 'guess.finished': 'detective', 'letters.finished': 'letters', 'connect.bonus': 'connect.bonusHunter', 'tiles.letters': 'points' });
 export const achievementIcon = id => `<svg class="ach-icon" viewBox="0 0 24 24" aria-hidden="true">${drawings[icons[id]]}</svg>`;
 export const tierShape = (i, earned = true) => `<svg class="ach-shape" viewBox="0 0 16 16" aria-hidden="true" style="color:var(--${earned ? 'tier-' + ['common', 'rare', 'epic', 'legendary', 'mythical'][i] : 'line'})">${paths[i]}</svg>`;
 

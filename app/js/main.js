@@ -1,7 +1,8 @@
 import { settings, getSave } from './store.js';
 import { setLang } from './i18n.js';
-import { applyTheme, applyAccent } from './ui.js';
+import { applyTheme, applyAccent, applyButtonSize } from './ui.js';
 import { fitAll, watchResize } from './fit.js';
+import { watchScrollFades } from './scroll-fades.js';
 import { menu, games, newGameScreen, lettersNewScreen, connectNewScreen, tilesNewScreen, tilesJoinScreen, tilesOnlineScreen, statsScreen, achievementsScreen, whatsnewScreen, settingsScreen, collectionScreen } from './screens.js';
 import { gameScreen } from './game.js';
 import { lettersGameScreen } from './letters-game.js';
@@ -44,6 +45,7 @@ async function render(navigated = true) {
 setLang(settings.lang);
 applyTheme();
 applyTileLook();
+applyButtonSize();
 applyAccent();
 
 // A phone keyboard eats about half the screen, and that is the state the game is played in. When the
@@ -106,6 +108,7 @@ await render();
 // build's self-test compares it with the version it packaged.
 document.documentElement.dataset.ready = VERSION;
 watchResize(root);
+watchScrollFades();
 window.addEventListener('hashchange', () => render());
 // a newer version: looked for on opening, and on coming back to the app (update.js - not more than every few minutes)
 cleanUpdate();

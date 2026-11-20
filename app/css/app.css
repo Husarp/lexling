@@ -894,6 +894,10 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* ── the message line: the move's words + points, or why it can't be played ── */
 
 /* ── the rack ── */
+/* A permanent gap keeps validation from moving the rack or board (owner, 2026-11-20). */
+.tl-rack-area{grid-area:rack;position:relative;min-width:0;padding-top:28px}
+.tl-move-error{position:absolute;bottom:calc(100% - 28px);inset-inline:0;z-index:4;margin:0;padding:0 4px;color:var(--error);background:var(--bg);font:500 12px/14px var(--font-body);text-align:center;overflow-wrap:anywhere;pointer-events:none;opacity:0;transition:opacity 160ms var(--ease)}
+.tl-move-error.visible{opacity:1}
 .tl-rack{grid-area:rack;container-type:inline-size;display:flex;justify-content:center;gap:6px;padding-top:6px}
 .rt{--rs:min(50px,calc((100cqi - 36px) / 7));flex:none;position:relative;width:var(--rs);height:var(--rs);display:grid;place-items:center;border-radius:calc(var(--rs) * .16);background:var(--tl-tile);color:var(--tl-ink);box-shadow:inset 0 calc(var(--rs) * -.07) 0 rgba(0,0,0,.2);font:700 calc(var(--rs) * .56)/1 var(--font-body);text-transform:uppercase;touch-action:none;cursor:grab;transition:transform 120ms var(--ease),opacity 120ms var(--ease)}
 .rt .p{position:absolute;right:8%;bottom:10%;font:700 calc(var(--rs) * .26)/1 var(--font-body);font-style:normal}
@@ -1053,8 +1057,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* the hand-over between people: the rack stays hidden until its player taps */
 .tl-hand{grid-area:1/1/-1/-1;z-index:6;align-self:center;justify-self:center;width:min(360px,92%);display:grid;justify-items:center;gap:var(--space-3);padding:var(--space-6) var(--space-5);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);text-align:center}
 .tl-hand strong{font:800 clamp(26px,7cqi,34px)/1.05 var(--font-display);text-transform:uppercase;letter-spacing:-.02em}
-.tl-hand .dot-big{width:14px;height:14px;border-radius:50%;background:var(--pc)}
-.tl-hidden .tl-rack{visibility:hidden}
+.tl-hidden .tl-rack-area{visibility:hidden}
 /* Voting occupies its own flow in the status area, outside board and rack (owner, 2026-11-14). */
 .tl-messages{grid-area:say;min-width:0;display:grid;align-content:start;gap:6px}
 .tl-messages .tl-moves{grid-area:auto}
@@ -1101,11 +1104,15 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-topics details .help{margin:0 0 var(--space-2)}
 .tl-legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--text-muted)}
 .tl-legend i{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:3px;font:700 9px/1 var(--font-body);font-style:normal;vertical-align:middle;margin-right:4px}
-/* new game: the players, 2-5 rows - a colour dot, the name, Person / Computer, and a computer's level */
+/* new game: the players, 2-5 rows - a coloured seat icon, the name, Person / Computer, and a computer's level */
 .tl-players{display:grid;gap:var(--space-2)}
 .tl-prow{display:grid;gap:var(--space-2);padding:var(--space-3);border:1.5px solid var(--line);border-radius:var(--radius-md)}
 .tl-prow .top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--space-2)}
-.tl-prow .dot-p{width:12px;height:12px;border-radius:50%;background:var(--pc)}
+/* Seat icons inherit player colours; fixed sizes also fit narrow setup rows (owner, 2026-11-20). */
+.tl-player-icon,.tl-setup-icon{display:inline-flex;align-items:center;justify-content:center;flex:none;width:22px;height:22px}
+.tl-player-icon{color:var(--pc)}
+.tl-player-icon svg,.tl-setup-icon svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tl-players [data-add]{display:inline-flex;align-items:center;justify-content:center;gap:8px}
 .tl-prow .input{min-height:40px;padding:0 var(--space-3)}
 .tl-prow .seg button{min-height:36px;padding:0 var(--space-2);font-size:11px}
 .tl-prow .lv{display:flex;flex-wrap:wrap;gap:6px}
@@ -1115,8 +1122,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* the rules, folded away */
 :is(.tl-rules,.tl-assists) summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);min-height:48px;cursor:pointer}
 :is(.tl-rules,.tl-assists) summary::-webkit-details-marker{display:none}
-:is(.tl-rules,.tl-assists) summary .arrow{display:inline-grid;place-items:center;width:24px;height:24px;font-size:20px;line-height:1;color:var(--text-muted);transition:transform var(--dur) var(--ease)}
-:is(.tl-rules,.tl-assists)[open] summary .arrow{transform:rotate(90deg)}
 :is(.tl-rules,.tl-assists){padding:0 var(--space-4)}
 :is(.tl-rules,.tl-assists) .rule{display:grid;gap:6px;padding:var(--space-2) 0 var(--space-3)}
 :is(.tl-rules,.tl-assists) .rule .seg button{font-size:11px}
@@ -1131,8 +1136,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .help-warn .btn-link{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--accent);text-decoration:underline;cursor:pointer}
 /* the end: several people - one line per player, in place order */
 .tl-places{list-style:none;padding:0;margin:0;display:grid;gap:6px}
-.tl-places li{display:grid;grid-template-columns:2ch 12px minmax(0,1fr) auto;align-items:center;gap:var(--space-2);font-size:15px}
-.tl-places li i{width:10px;height:10px;border-radius:50%;background:var(--pc)}
+.tl-places li{display:grid;grid-template-columns:2ch 22px minmax(0,1fr) auto;align-items:center;gap:var(--space-2);font-size:15px}
 .tl-places li b{font:800 22px/1 var(--font-display);font-variant-numeric:tabular-nums}
 .tl-places li.first b{color:var(--accent)}
 /* the look-back after the game */
@@ -1165,7 +1169,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-first{display:grid;gap:6px;margin-top:var(--space-2)}
 .tl-first .chips{display:flex;flex-wrap:wrap;gap:6px}
 .tl-first .chip{display:inline-flex;align-items:center;gap:6px}
-.tl-first .dot-p{flex:none;display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--pc)}
 /* four boards on New game (0.37.0): two to a row from 600 px, not three */
 @container (min-width:600px){.tl-boards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* 0.37.0: beside each score what that player's last turn brought (+23, +0) */
@@ -1174,7 +1177,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* everyone's tiles (a rule): the other people's racks under the scores, one row each, always in view */
 .tl-others{flex-basis:100%;display:grid;gap:4px}
 .tl-other{display:flex;align-items:center;gap:6px;min-width:0;font-size:12px;color:var(--text-muted)}
-.tl-other>i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--pc)}
 .tl-other>span:first-of-type{flex:0 1 auto;min-width:0;max-width:30%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tl-other .mt-row{display:flex;gap:3px}
 .tl-other .mtl{--s:22px}
@@ -1182,7 +1184,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-endstep{gap:var(--space-3)}
 .tl-left{list-style:none;margin:0;padding:0;display:grid;gap:8px;width:100%}
 .tl-left li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;text-align:left}
-.tl-left li .dot-p{grid-column:1;grid-row:1}
+.tl-left li .tl-player-icon{grid-column:1;grid-row:1}
 .tl-left li .nm{grid-column:2;grid-row:1;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tl-left li .mt-row{grid-column:2;grid-row:2;flex-wrap:wrap;min-height:4px}
 .tl-left li>b{grid-column:3;grid-row:1 / span 2;font:800 22px/1 var(--font-display)}
@@ -1258,8 +1260,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-hist .pct{text-align:center}
 .tl-hist .pct :is(.rate,.rare){padding:1px 5px;font-size:10px}
 .tl-evals{list-style:none;padding:0;margin:0;display:grid;gap:6px}
-.tl-evals li{display:grid;grid-template-columns:12px minmax(0,1fr) auto;align-items:center;gap:var(--space-2);font-size:15px}
-.tl-evals li i{width:10px;height:10px;border-radius:50%;background:var(--pc)}
+.tl-evals li{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:var(--space-2);font-size:15px}
 /* the bonus squares, "labels only" (owner, 2026-09-26): a plain square, the label in the bonus colour (brighter on dark,
    deeper on light, so it reads) */
 :root{--tb-2l-txt:#8CC8EA;--tb-3l-txt:#6FA5EE;--tb-2w-txt:#F29B55;--tb-3w-txt:#F2665F}
@@ -1443,7 +1444,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-moves .mc{grid-column:1 / -1;display:grid;grid-template-columns:subgrid;align-items:center;row-gap:2px;min-height:42px;padding:5px 10px;border:1px solid var(--line-soft);border-radius:10px;background:var(--surface)}
 .tl-moves .mc.me{border-color:var(--line)}
 .tl-moves .mc.live{border-color:var(--accent)}
-.tl-moves .mc.err{border-color:var(--error)}
 .tl-moves .who{max-width:12ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 11px/1.2 var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--pt)}
 [data-theme=light] .tl-moves .who{color:var(--pc)}
 .tl-moves .w{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 19px/1.1 var(--font-display);text-transform:uppercase;color:var(--text)}
@@ -1461,7 +1461,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-moves .msg{grid-column:2 / -1;min-width:0;font-size:14px;line-height:1.3;color:var(--text-muted)}
 .tl-moves .msg b{color:var(--text);font-weight:600;text-transform:uppercase}
 .tl-moves .msg .pts{font:800 18px/1 var(--font-display);color:var(--accent)}
-.tl-moves .mc.err .msg,.tl-moves .mc.err .msg b{color:var(--error)}
 .tl-moves .hi{display:inline-flex;vertical-align:-2px;margin-right:4px;color:var(--text-muted)}
 .tl-moves .hi svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tl-moves .mc-bag{margin:0;min-height:16px;font-size:12px;line-height:16px;text-align:center;color:var(--text-muted)}
@@ -1526,7 +1525,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-seats li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
 .tl-seats li small{color:var(--text-muted)}
 .tl-seats li.in small{color:var(--lt-hit);font-weight:600}
-.tl-seats .dot-p{flex:none;width:10px;height:10px;border-radius:50%;background:var(--pc)}
 .gs-acts{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-3)}
 #net-kind{margin:0 0 var(--space-3)}
 [data-screen=new] #bt .seg{margin-top:var(--space-2)}
@@ -1552,7 +1550,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .op-who{display:flex;align-items:center;gap:8px;min-width:0}
 .op-who span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--text)}
 .op-who small{flex:none;font-size:12px;color:var(--text-muted)}
-.op-who .dot-p{flex:none;width:10px;height:10px;border-radius:50%;background:var(--pc)}
 .op-act{width:100%;min-height:40px}
 /* hosting an online game (0.55.0): what the host decides and can do */
 .tl-hostinfo{display:grid;gap:8px;padding:var(--space-4) var(--space-5);border-left:3px solid var(--accent);margin:0 0 var(--space-4)}
@@ -1580,7 +1577,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
    Replaces menu.css's "Statistics" block (.tabs4, .dist, .stat-card.dim) and the app's own .tabs5 / .sgroup /
    .scell / .vdist / .tl-filters additions. Reuses .seg, .chip, .card, .none, .best, .mt, .mtl, .tl-best.
    Everything sizes off .main as a container (cqi / @container), so it is the same in the app and on the design page. ═══ */
-[data-screen=stats] .main{container-type:inline-size;gap:var(--space-4)}
+/* End the card at its content; only the device safe area follows it (owner, 2026-11-20). */
+[data-screen=stats] .main{container-type:inline-size;gap:var(--space-4);padding-bottom:var(--safe-b)}
 
 /* ── Tabs: five across at every width ──
    The glyph sits above the name, names are Barlow Condensed, and each tab is only as wide as its name (flex auto),
@@ -1613,11 +1611,14 @@ input,textarea{-webkit-user-select:text;user-select:text}
    A cell = label · big number · optional line · optional 3px ratio bar (for the "53 % won" lines).
    Rows are a subgrid, so numbers line up across a row even when one label takes two lines. */
 [data-screen=stats] .section{display:grid;gap:var(--space-3)}
-[data-screen=stats] .sgroup{display:grid;gap:var(--space-4);padding:var(--space-4) var(--space-5) var(--space-5)}
+[data-screen=stats] .sgroup{display:grid;align-content:start;flex:none;gap:var(--space-4);padding:var(--space-4) var(--space-5) var(--space-5)}
 @container (max-width:340px){[data-screen=stats] .sgroup,[data-screen=stats] .chart{padding:var(--space-4)}}
 [data-screen=stats] .sgroup>.eyebrow{margin:0}
 [data-screen=stats] .scells{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:var(--space-5) var(--space-4)}
-[data-screen=stats] .scell{display:grid;grid-row:span 4;grid-template-rows:subgrid;row-gap:5px;min-width:0}
+[data-screen=stats] .scell{display:grid;grid-row:span 2;grid-template-rows:subgrid;row-gap:5px;min-width:0}
+[data-screen=stats] .st-mode-heading{grid-column:1 / -1;margin:0}
+[data-screen=stats] .scell .lbl .glyph{width:20px;height:20px;vertical-align:middle;margin-right:6px}
+[data-screen=stats] .scell .num>.sub{display:block;margin-top:6px;font-family:var(--font-body);font-weight:400;text-transform:none;letter-spacing:0}
 [data-screen=stats] .scell .lbl{align-self:end;font:600 11px/1.3 var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);text-wrap:balance}
 [data-screen=stats] .scell .num{font:800 34px/1 var(--font-display);color:var(--text);overflow-wrap:anywhere}
 [data-screen=stats] .scell .unit{margin-left:3px;font:600 15px/1 var(--font-body);color:var(--text-muted)}
@@ -1965,7 +1966,7 @@ canvas.co-dots{display:block;width:100%}
 html{scrollbar-gutter:stable}
 [data-screen=game] #msg{display:block;height:5.6em;overflow:auto;margin:0 0 var(--space-2)}
 [data-screen=game] #msg[hidden]{display:block!important;visibility:hidden}
-[data-screen=letters] .status{display:grid;grid-template-columns:1.15fr .85fr 1.35fr .8fr;gap:8px}
+[data-screen=letters] .status{display:grid;grid-template-columns:1fr 1fr 1.2fr minmax(82px,1fr);gap:8px}
 [data-screen=letters] .stat{min-width:0}
 [data-screen=letters] .stat .num{font-variant-numeric:tabular-nums;font-size:clamp(20px,5vw,28px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 [data-screen=letters] .status-actions{grid-column:1/-1;min-height:40px}
@@ -1995,7 +1996,8 @@ html{scrollbar-gutter:stable}
 :root[data-tileframe=frameless] .tl-board{background:var(--tb-sq);box-shadow:none;border-radius:2px}
 :root[data-tileframe=frameless] .tb{--fr:1px;box-shadow:none}
 :root[data-tileframe=orange] .tl-board{background:var(--surface);box-shadow:inset 0 0 0 2px var(--accent)}
-.t.new{--ring:#3d9829;--rw:2px;background:color-mix(in srgb,var(--tl-tile) 45%,#91bf6a)}
+/* Keep pending faces in the selected tile colour (owner, 2026-11-20). */
+.t.new{--ring:#3d9829;--rw:2px;background:var(--tl-tile)}
 .t.new.hint{color:var(--tl-ink);outline-color:var(--ring);box-shadow:inset 0 0 0 var(--rw) var(--ring),inset 0 calc(var(--cs) * -.07) 0 rgba(0,0,0,.2)}
 .t.new.hint .p{color:inherit}
 .t.last{--ring:#9461c9;--rw:2px;background:color-mix(in srgb,var(--tl-tile) 78%,#b99ae4)}
@@ -2018,9 +2020,12 @@ html{scrollbar-gutter:stable}
 [data-theme=light] .tl-tool svg{color:color-mix(in srgb,var(--tool) 55%,#000)}
 .tl-dock .tl-tool{background:var(--surface);border-color:var(--line-soft)}
 .tl-dock .tl-tool.ur{background:transparent;border-color:transparent;box-shadow:none}
-.tl-moves .mcards{grid-template-columns:20px minmax(0,1fr) auto auto;gap:4px 7px}
+/* Subgrid includes the card's 10px left inset: leave 24px for the icon (owner, 2026-11-20). */
+.tl-moves .mcards{grid-template-columns:34px minmax(0,1fr) auto auto;gap:4px 7px}
 .tl-moves .mc{min-height:60px;padding:6px 9px;align-content:center;row-gap:3px;border-color:var(--line-soft);border-radius:6px;box-shadow:inset 3px 0 var(--pc);background:var(--surface)}
-.tl-moves .who{grid-column:auto;display:flex;align-items:center;color:var(--pt)}
+.tl-moves .who{grid-column:auto;display:flex;align-items:center;justify-content:center;align-self:center;color:var(--pt)}
+/* Readable beside the 14px turn prompt, including on short screens (owner, 2026-11-20). */
+.tl-moves .who svg{width:24px;height:24px;flex:none}
 [data-theme=light] .tl-moves .who{color:var(--pc)}
 .tl-moves .w{font-size:19px;line-height:1.2}
 .tl-moves .msg,.tl-moves .bw{grid-column:2 / -1}
@@ -2053,7 +2058,7 @@ html{scrollbar-gutter:stable}
 .op-content [hidden]{display:none}
 .op-content h2{font:700 24px/1.3 var(--font-display);text-transform:uppercase;margin:0 0 16px}
 .op-foot{flex:none;padding-top:12px}
-.op-foot .op-quit{width:auto;margin:0;min-height:42px}
+.op-foot .op-quit{width:auto;margin:0;min-height:42px;border-color:var(--error)}
 .tl-options .gs-row{border:0;padding:10px 0;gap:12px}
 .tl-options .gs-row strong{font-size:12px}
 .tl-options .gs-row .row-text span{font-size:11px}
@@ -2098,8 +2103,9 @@ html{scrollbar-gutter:stable}
 /* One centred chevron for every expandable section, independent of font metrics. */
 details>summary{display:flex;align-items:center;gap:8px;list-style:none;cursor:pointer}
 details>summary::-webkit-details-marker{display:none}
-details>summary::after{content:"";display:block;flex:none;width:20px;height:20px;margin-left:auto;color:var(--accent);background:currentColor;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m9 5 7 7-7 7' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;transform-origin:50% 50%;transition:transform var(--dur) var(--ease)}
-details[open]>summary::after{transform:rotate(90deg)}
+details>summary::after{content:"";display:block;flex:none;width:20px;height:20px;margin-left:auto;color:var(--accent);background:currentColor;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6' fill='none' stroke='black' stroke-width='2.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;transform-origin:50% 50%;transition:transform var(--dur) var(--ease)}
+/* Bold down chevron, flips up when open (owner's pick, notes/chevron-options 1A, 2026-11-20). */
+details[open]>summary::after{transform:rotate(180deg)}
 details>summary :is(.arrow,.category-arrow){display:none}
 .section-content{padding:0 16px 12px}
 .section-content>.title{font-size:20px;margin:18px 0 6px}
@@ -2156,3 +2162,54 @@ svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.al
 /* Keep the original game colours readable on a neutral selected marker in either theme. */
 [data-screen=achievements] .st-tabs button.on{background:var(--surface-2);color:var(--text);box-shadow:inset 0 0 0 2px var(--accent)}
 .st-tabs button.on svg.glyph.all [stroke]{stroke:currentColor}
+
+/* Owner, 2026-11-20: keep actions still while only the saved games scroll. */
+[data-screen=games].app{height:100dvh;min-height:0;overflow:hidden}
+[data-screen=games] .topbar{flex:none}
+[data-screen=games] .main{min-height:0;gap:16px;padding-top:20px;padding-bottom:calc(12px + var(--safe-b))}
+[data-screen=games] .head{flex:none}
+[data-screen=games] .games-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:4px 0 8px}
+[data-screen=games] .games-actions{flex:none;display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap}
+[data-screen=games] .games-actions .btn{flex:1}
+[data-screen=games] .empty{padding:20px 16px;gap:12px}
+[data-screen=games] .empty-art{width:150px;max-height:175px;margin-bottom:4px}
+.scroll-fade{position:fixed;z-index:6;height:28px;pointer-events:none;background:linear-gradient(transparent,var(--fade-surface,var(--surface)))}
+
+/* Owner, 2026-11-20: headerless screens and top-layer windows need their own insets. */
+[data-screen=tiles] .main{padding-top:calc(var(--space-6) + var(--safe-t))}
+[data-screen=tiles].fit .main{padding-top:calc(var(--space-3) + var(--safe-t));padding-bottom:calc(var(--space-3) + var(--safe-b))}
+[data-kb] [data-screen=game] #entry{top:var(--safe-t)}
+[data-kb] [data-screen=letters] .main{padding-top:calc(var(--space-2) + var(--safe-t));padding-bottom:calc(var(--space-2) + var(--safe-b))}
+:is(.game-settings,.achievement-detail){inset:var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);max-width:calc(100vw - var(--safe-l) - var(--safe-r) - 24px);max-height:calc(100dvh - var(--safe-t) - var(--safe-b) - 24px);overflow:auto}
+.game-settings.tl-options,.rules-window.game-settings{max-height:calc(100dvh - var(--safe-t) - var(--safe-b) - 24px);overflow:hidden}
+:is([data-screen=stats],[data-screen=achievements],[data-screen=collection]) .seg.st-tabs{top:var(--topbar-h,calc(57px + var(--safe-t)))}
+:is(.meaning-notice,.achievement-notice){left:calc(var(--safe-l) + (100% - var(--safe-l) - var(--safe-r))/2);bottom:calc(16px + var(--safe-b));max-width:calc(100vw - var(--safe-l) - var(--safe-r) - 24px);max-height:calc(100dvh - var(--safe-t) - var(--safe-b) - 32px);overflow:auto}
+@media (max-height:680px){
+  [data-screen=games] .main{padding-top:12px;gap:12px}
+  [data-screen=games] .empty{padding:12px;gap:8px}
+  [data-screen=games] .empty .display{font-size:32px}
+}
+/* Board-contained overlays inherit the play area's safe bounds; long content scrolls inside. */
+:is(.tl-hand,.tl-pick,.tl-toast){min-height:0;max-height:100%;overflow:auto}
+.cn-pop{max-height:calc(100dvh - var(--safe-t) - var(--safe-b) - 32px);overflow:auto}
+/* Larger top tools need real tap area and wrapping, not a visual transform (owner, 2026-11-20). */
+:root{--button-scale:1}
+#root :is([data-screen=game],[data-screen=letters]) .status-actions{--tool-height:44px}
+#root :is([data-screen=connect],[data-screen=tiles]) .status-actions{--tool-height:40px}
+#root [data-screen=letters].kbon .status-actions{--tool-height:36px}
+@container (max-width:480px){#root [data-screen=tiles] .status-actions{--tool-height:36px}}
+#root :is([data-screen=game],[data-screen=letters],[data-screen=connect],[data-screen=tiles]) .status-actions{display:flex;flex-wrap:wrap;align-items:center;gap:4px;min-width:0;max-width:100%}
+#root :is([data-screen=game],[data-screen=letters],[data-screen=connect],[data-screen=tiles]) .status-actions .btn{min-height:calc(var(--tool-height) * var(--button-scale));min-width:calc(40px * var(--button-scale));max-width:100%;padding:0 calc(8px * var(--button-scale));font-size:calc(13px * var(--button-scale));white-space:normal;overflow-wrap:anywhere}
+#root [data-screen=tiles] .status-actions .tl-exit{font-size:calc(12px * var(--button-scale));padding:0 calc(5px * var(--button-scale))}
+#root [data-screen=tiles] .status-actions :is(.tl-find,.tl-opts){width:calc(30px * var(--button-scale));min-width:calc(30px * var(--button-scale));padding:0}
+#root .status-actions :is(.gs-open,.tl-find) svg{width:calc(20px * var(--button-scale));height:calc(20px * var(--button-scale));flex:none}
+#root .status-actions :is(.tl-exit,.tl-opts) svg{width:calc(18px * var(--button-scale));height:calc(18px * var(--button-scale));flex:none}
+
+/* Owner-picked place icons: inherit text colour and keep their proposal strokes. */
+svg.app-icon{display:inline-block;flex:none;width:20px;height:20px;vertical-align:middle}
+.category-icon .app-icon{width:18px;height:18px}
+#root .status-actions .app-icon{width:calc(18px * var(--button-scale));height:calc(18px * var(--button-scale))}
+[data-screen=new] :is(.howto .eyebrow,.tl-assists summary .eyebrow,.tl-rules summary .eyebrow,#colours summary,.friend strong,#only-new strong){display:flex;align-items:center;gap:8px}
+[data-screen=new] .app-icon{color:var(--accent)}
+[data-screen=stats] .scell .lbl .app-icon{width:18px;height:18px;margin-right:6px}
+[data-screen=letters] .stat .eyebrow{letter-spacing:.06em}

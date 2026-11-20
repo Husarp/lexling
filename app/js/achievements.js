@@ -13,7 +13,7 @@ TIERED.push(
   { id: 'connect.bonus', game: 'connect', th: [10, 50, 150, 500, 1500] },
 );
 export const CHALLENGES = [
-  'tiles.bingo', 'tiles.len8', 'tiles.len10', 'tiles.triple', 'tiles.rare1', 'tiles.multi3', 'tiles.beatHard', 'tiles.beatExpert',
+  'tiles.bingo', 'tiles.len8', 'tiles.len10', 'tiles.triple', 'tiles.rare1', 'tiles.multi3', 'tiles.beatHard', 'tiles.beatExpert', 'tiles.photoFinish',
 ].map(id => ({ id, game: 'tiles' }));
 
 for (const game of ['guess', 'letters', 'connect']) {
@@ -37,7 +37,7 @@ export function migrateAchievements(saved) {
       if (a.got[`${old}#${i}`] != null && a.got[`${id}#${i}`] == null) a.got[`${id}#${i}`] = a.got[`${old}#${i}`];
     });
   }
-  a.n['connect.bonus'] ??= (saved.cn?.bonus ?? 0) + Object.values(saved.rec ?? {}).filter(r => r.m === 'connect').reduce((n, r) => n + (r.b || 0), 0);
+  a.n['connect.bonus'] ??= (saved.cn?.bonus ?? 0) + Object.values(saved.rec ?? {}).filter(r => !r.pr && r.m === 'connect').reduce((n, r) => n + (r.b || 0), 0);
   a.n['tiles.letters'] ??= 0;
   a.fair = 1;
 }
@@ -71,11 +71,23 @@ export function playChallenges(move, { rarePct = null } = {}) {
 }
 
 export function gameChallenges(state, mine) {
-  if (setupPractice({ mode: 'tiles', state }) || !['out', 'passes'].includes(state.over?.reason) || state.players.length !== 2 ||
-    state.players.filter(p => !p.cpu).length !== 1 || state.log?.some(a => a.type === 'resign')) return [];
+  if (setupPractice({ mode: 'tiles', state }) || !['out', 'passes'].includes(state.over?.reason)) return [];
   const winner = state.over?.winner ?? -1;
   if (winner < 0 || !mine.includes(winner) || !state.players[winner] || state.players[winner].cpu) return [];
   const keys = [];
+  // Compare before the winner's final turn, before rack/time adjustments (owner, 2026-11-20).
+  const moves = state.moves ?? [];
+  const last = moves.findLastIndex(m => m.p === winner && !['hint', 'resign'].includes(m.kind));
+  if (last >= 0 && state.scores?.[winner] > Math.max(...state.scores.filter((_, p) => p !== winner && !state.out?.[p]))) {
+    const before = state.players.map(() => 0);
+    for (const m of moves.slice(0, last)) {
+      if (m.kind === 'play') before[m.p] += m.score;
+      if (m.kind === 'hint') before[m.p] -= m.cost;
+    }
+    if (before.some((score, p) => p !== winner && !state.out?.[p] && score >= before[winner])) keys.push('tiles.photoFinish');
+  }
+  if (state.players.length !== 2 || state.players.filter(p => !p.cpu).length !== 1 ||
+    state.log?.some(a => a.type === 'resign')) return keys;
   if (state.players.some(p => p.cpu === 'hard' || p.cpu === 'expert')) keys.push('tiles.beatHard');
   if (state.players.some(p => p.cpu === 'expert')) keys.push('tiles.beatExpert');
   return keys;

@@ -6,6 +6,38 @@ import { TIERS } from './achievements.js';
 import { click } from './sound.js';
 import { btStillOn, btLetBe, btSettings } from './net.js';
 
+// Owner-picked icons from notes/icon-places/index.html; geometry stays with its proposal.
+export const UI_ICONS = {
+  general: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>',
+  display: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/></svg>',
+  playTime: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+  online: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg>',
+  about: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+  saveExit: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" ><path d="M6 3h10l4 4v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8 3v5h7V3M7 21v-7h10v7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  giveUp: '<svg class="app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 5c3-2 6 2 9 0s4-1 5 0v8c-1-1-2-2-5 0s-6 2-9 0"/></svg>',
+  hint: '<svg class="app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>',
+  enter: '<svg class="app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4v7a4 4 0 0 1-4 4H4"/><path d="m9 10-5 5 5 5"/></svg>',
+  howTo: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v16"/><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"/></svg>',
+  assists: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>',
+  rules: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v14m0-14C9 4 5 4 3 5v14c2-1 6-1 9 1 3-2 7-2 9-1V5c-2-1-6-1-9 1Z"/></svg>',
+  friend: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>',
+  onlyNew: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/></svg>',
+  resume: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 4 13 8-13 8z"/></svg>',
+  menu: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-7 9 7M5 10v10h14V10M10 20v-6h4v6"/></svg>',
+  finished: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></svg>',
+  time: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>',
+};
+
+// Shared seat symbols keep setup and play consistent (owner, 2026-11-20).
+const playerSvg = paths => `<svg viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
+export const playerIcon = (S, p) => S.players[p].cpu
+  ? playerSvg('<rect x="3" y="4" width="18" height="13" rx="2"></rect><path d="M8 21h8M12 17v4M7 9h.01M17 9h.01M8 13h8"></path>')
+  : playerSvg('<circle cx="12" cy="7" r="4"></circle><path d="M4 22v-3a8 8 0 0 1 16 0v3"></path>');
+export const TILE_SETUP_ICONS = {
+  dice: playerSvg('<rect x="3" y="3" width="18" height="18" rx="3"></rect><path d="M7 7h.01M17 7h.01M12 12h.01M7 17h.01M17 17h.01"></path>'),
+  addPlayer: playerSvg('<circle cx="9" cy="7" r="4"></circle><path d="M2 22v-3a7 7 0 0 1 12-4.9M18 13v8M14 17h8"></path>'),
+};
+
 // The same SVG medal on Android and Windows, outlined while locked (owner, 2026-11-14).
 export const achievementMedal = (earned = true) => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m8 10-4-7h5l3 5 3-5h5l-4 7"></path><circle cx="12" cy="15" r="6"${earned ? ' fill="currentColor" fill-opacity=".18"' : ''}></circle>${earned ? '<path d="m12 11 1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4z"></path>' : ''}</svg>`;
 
@@ -31,6 +63,17 @@ function showAchievement() {
 document.addEventListener('lexling:achievement', e => {
   achievementQueue.push(...e.detail.keys);
   showAchievement();
+});
+
+// Owner, 2026-11-20: explain the automatic removal without interrupting play.
+document.addEventListener('lexling:save-evicted', () => {
+  document.querySelector('.save-notice')?.remove();
+  const notice = document.createElement('div');
+  notice.className = 'meaning-notice save-notice';
+  notice.setAttribute('role', 'status');
+  notice.textContent = t('games.limitRemoved');
+  document.body.append(notice);
+  setTimeout(() => notice.remove(), 4000);
 });
 
 // A game's name in its top bar (owner, 2026-09-26: "Name (Game 12)"): a long name gives way, its number always shows.
@@ -117,6 +160,12 @@ export function remindBt() {
     dlg.querySelector('[data-off]').addEventListener('click', () => { btLetBe(); btSettings(); close(); });
   }, 400);
 }
+// Larger game tools share one preference in both Look controls (owner, 2026-11-20).
+export function applyButtonSize() {
+  const size = String(settings.buttonSize);
+  document.documentElement.style.setProperty('--button-scale', ['100', '115', '130', '150'].includes(size) ? Number(size) / 100 : 1);
+}
+
 // Settings as rows: [key, label, help] a switch; [key, label, help, choices] a choice - each [value, label, name], the
 // label may be a picture (a colour swatch), `name` then says it.
 export const settingRows = items => items.map(([key, label, help, choices]) => choices
@@ -139,6 +188,7 @@ export function wireSettingRows(el, onChange = () => {}) {
     }
     saveSettings();
     if (key === 'theme') applyTheme();
+    if (key === 'buttonSize') applyButtonSize();
     if (key === 'sound') click(); else onChange(key);
   });
 }

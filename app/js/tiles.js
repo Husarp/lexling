@@ -440,7 +440,8 @@ function place(state, placed, isWord, hint, voters = []) {
   const approval = made.error === 'word' && canApprove(state) && !hint;
   if (approval) { voters = vetoVoters(state); Object.assign(made, wordsMade(state, placed)); }
   if (made.error && !approval) throw new Error('not a legal move: ' + made.error);
-  const words = made.words.map(x => ({ w: x.w, score: x.score })), bingo = placed.length === RACK;
+  // Keep word positions for counting reused bonus squares in 'always' games (owner, 2026-11-20).
+  const words = made.words.map(x => ({ ...x })), bingo = placed.length === RACK;
   if (voters.length) return { ...state, vote: { at: state.log.length - 1, p, placed, ...(hint ? { hint } : {}),
     words, score: made.score, bingo, voters, votes: {}, ...(approval ? { approval: made.bad } : {}) } };
   const cells = [...state.cells], rack = [...state.racks[p]];

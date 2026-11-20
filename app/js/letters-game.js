@@ -2,10 +2,10 @@
 // game-letters-end.html (won / lost / gave up), with the dummy text replaced by t(...) and live data.
 // The on-screen keyboard and editing a tile are design v4 ("Lexling Letters Keyboard").
 import { t, plural, esc } from './i18n.js';
-import { settings, getSave, putSave, recordMove, recordLettersEnd, playClock, collect } from './store.js';
+import { settings, getSave, putSave, recordLettersMove, recordLettersEnd, playClock, collect } from './store.js';
 import { loadWords, resolve } from './engine.js';
 import { feedback, typeLetter, eraseLetter, skipTile, keyStates, MARKED } from './letters.js';
-import { topbar, modeTag, confirmClick, TILE, outcome, gearButton, wireGear, meaningButton, gameTitle } from './ui.js';
+import { UI_ICONS, topbar, modeTag, confirmClick, TILE, outcome, gearButton, wireGear, meaningButton, gameTitle } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 import { offensive } from './offensive.js';
@@ -120,7 +120,7 @@ export async function lettersGameScreen(root, id) {
       + stat(t('lt.length'), n, false)
       + stat(t('game.category'), t('cat.' + game.cat))
       + stat(t('game.language'), game.lang.toUpperCase())
-      + `<div class="status-actions"><a class="btn btn-ghost" href="#/games/letters">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button>${gearButton('gs-inrow')}</div>`;
+      + `<div class="status-actions"><a class="btn btn-ghost" href="#/games/letters">${UI_ICONS.saveExit}${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${UI_ICONS.giveUp}${t('game.giveUp')}</button>${gearButton('gs-inrow')}</div>`;
     confirmClick($('#give-up'), () => playing() && finish('gaveup'), refit);
     $('#give-up').addEventListener('pointerdown', e => e.preventDefault());
   }
@@ -178,7 +178,7 @@ export async function lettersGameScreen(root, id) {
       <div class="lt-board" role="grid" aria-label="${t('game.guesses')}"></div>
       <div class="kb" role="group" aria-label="${t('kb.label')}">
         ${marksOn ? row(PL_ROW, true) : ''}${row(ROWS[0])}${row(ROWS[1], true)}
-        <div class="kb-row"><button type="button" class="key wide enter" data-act="enter">${t('kb.enter')}</button>${
+        <div class="kb-row"><button type="button" class="key wide enter" data-act="enter" aria-label="${t('kb.enter')}" title="${t('kb.enter')}">${UI_ICONS.enter}</button>${
           [...ROWS[2]].map(key).join('')}<button type="button" class="key wide" data-act="back" aria-label="${t('kb.backspace')}">${BACKSPACE}</button></div>
         <div class="kb-row"><button type="button" class="key wide space" data-act="space">${t('kb.space')}</button><button type="button" class="key wide" data-act="left" aria-label="${t('kb.left')}">${LEFT}</button><button type="button" class="key wide" data-act="right" aria-label="${t('kb.right')}">${RIGHT}</button></div>
       </div>
@@ -302,7 +302,7 @@ export async function lettersGameScreen(root, id) {
       return say(t('lt.already', { w: word }), true);
     }
     game.guesses.push(word);
-    recordMove(game, { g: game.guesses.length, len: game.len, cat: game.cat });
+    recordLettersMove(game, word);
     collect('letters', game.lang, word, game);
     cur = blank();
     sink.value = '';
@@ -347,7 +347,7 @@ export async function lettersGameScreen(root, id) {
       <span class="eyebrow">${t(won ? 'end.wordWon' : 'end.wordLost')}</span>
       <p class="display">${esc(game.secret)}</p>
       <div class="result-stats">${facts.join(dot)}</div>
-      <div class="result-actions"><a class="btn btn-ghost" href="#/">${t('menu')}</a><a class="btn btn-primary" href="#/new/letters">${t('lt.again')} <span class="arrow">→</span></a>${meaningButton(game.secret, game.lang)}</div>
+      <div class="result-actions"><a class="btn btn-ghost" href="#/">${UI_ICONS.menu}${t('menu')}</a><a class="btn btn-primary" href="#/new/letters">${t('lt.again')} <span class="arrow">→</span></a>${meaningButton(game.secret, game.lang)}</div>
     </div>`;
     app.classList.remove('fit', 'kbon');
     main.innerHTML = `${head}${card}<div class="lt-board" role="grid" aria-label="${t('game.guesses')}"></div>`;

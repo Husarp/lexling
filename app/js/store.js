@@ -1,10 +1,13 @@
 // Settings, saved games and lifetime stats. Everything lives in localStorage; the desktop/Android
 // wrappers pin the WebView's storage folder outside the install dir so updates never touch it.
 import { t } from './i18n.js';
-import { results } from './tiles.js';
+import { results, premiums, sizeOf } from './tiles.js';
+import { feedback } from './letters.js';
 
 // "A hard word": the top ~10 % of the uncategorised pool, for the hard-words statistic.
 export const HARD_WIN = 70;
+// Owner, 2026-11-20: one allowance per mode; lifetime records survive eviction.
+export const SAVE_LIMIT = 20;
 const read = (key, fallback) => {
   try { return { ...fallback, ...JSON.parse(localStorage.getItem(key)) }; } catch { return { ...fallback }; }
 };
@@ -12,6 +15,7 @@ const write = (key, value) => { try { localStorage.setItem(key, JSON.stringify(v
 
 export const settings = read('wg.settings', {
   lang: (navigator.language || 'en').toLowerCase().startsWith('pl') ? 'pl' : 'en',
+  buttonSize: '100',
   theme: 'dark', palette: 'classic', accent: 'orange', sound: true, fuzzy: true, langChosen: false, lastCheck: 0, latest: '',
   // Letters: tapping the tiles also opens the phone's own keyboard (the keys on screen stay) - owner, 2026-09-25
   phoneKb: false,
@@ -78,19 +82,21 @@ const unique = new Set(stats.unique);
 export const saveStats = () => { stats.unique = [...unique]; write('wg.stats', stats); };
 
 // ── A record per game (owner, 2026-09-28: "stats saved live", every mode by language and level, help left out of
-// records and averages) ── made at the game's first move (a game nobody moved in does not count - not even when the
+// quality records and averages) ── made at the game's first move (a game nobody moved in does not count - not even when the
 // computer did), brought up to date as it is played, and kept whatever happens to the game: finished, given up, left,
 // deleted. The statistics screen works its numbers out of these. The totals above are from before 0.60.0: they cannot
 // be split by level or cleaned of hints, so they are kept as they were and no longer added to; `before` says how many
 // games they cover.
 //   every record: m (mode), lang, lv (the difficulty; Tiles: the strongest computer, or 'people'), at (the first move),
 //                 end (null while it is played; 'won' | 'lost' | 'gave' | 'left' (deleted unfinished) | 'done' (Tiles)),
-//                 ea (when it ended)
+//                 ea (when it ended), ms (active time), pr (practice; excluded from quality stats)
 //   Guess: g (guesses), ch (letters typed), h (hints), cat, fr (a friend chose the word); at the end dif (the word's
 //          difficulty) and w (the word, when won)
-//   Letters: g (tries), len
+//   Letters: g (tries), len, ch (typed letters), gr (green), yl (yellow)
 //   Connect: f (words found without a hinted letter), fh (with one), b (bonus words), h (hints), long, gn (the game's name)
-//   Tiles: device-owned settled placements and tiles, natural completion, plus historical result fields.
+//   Tiles: device-owned settled placements and tiles, natural completion, plus historical result fields;
+//          wc (words formed), wp (word points, without rack bonus), bw / long ({ w, score, at }), seven,
+//          bx (bonus-square uses, d / t = 2× / 3× letter, D / T = 2× / 3× word).
 stats.rec ??= {};
 if (!stats.before) {
   const tl = Object.values(stats.tl ?? {}).reduce((a, x) => a + (x.played || 0), 0);
@@ -132,6 +138,9 @@ export function counts(game) {
     game.practice = true;
     game.practiceAt = Date.now();
   }
+  // Keep earlier fields, but help disqualifies the whole record (owner, 2026-11-20).
+  const r = stats.rec[game.id];
+  if (game.practice && r && !r.pr) { r.pr = 1; saveStats(); }
   return !game.practice;
 }
 export function markPractice(game) {
@@ -141,21 +150,26 @@ export function markPractice(game) {
 
 // a counted move: the game's record, made at the first one
 export function recordMove(game, fields) {
-  if (!counts(game)) return;
+  const fair = counts(game);
   const r = stats.rec[game.id] ??= { m: game.mode ?? 'guess', lang: game.lang, lv: game.diff ?? 'normal', at: Date.now(), end: null };
-  Object.assign(r, fields);
+  if (fair) Object.assign(r, fields);
+  else r.pr = 1;
+  r.ms = game.timeMs || 0;
   saveStats();
 }
 // Guess: the fewest guesses a win took - a record, so without hints, a category, or a word a friend chose
-export const bestGuessWin = () => Object.values(stats.rec).filter(r => r.m === 'guess' && r.end === 'won' && !r.h && !r.fr && r.cat === 'all')
+export const bestGuessWin = () => Object.values(stats.rec).filter(r => !r.pr && r.m === 'guess' && r.end === 'won' && !r.h && !r.fr && r.cat === 'all')
   .reduce((a, r) => !a || r.g < a ? r.g : a, 0);
 // anything else that changes a record (a hint, the computer's move): only once the game counts
 export function noteMove(game, fields) { if (stats.rec[game.id]) recordMove(game, fields); }
 function closeRecord(game, end, fields = {}) {
-  if (!counts(game)) return;
+  const fair = counts(game);
   const r = stats.rec[game.id];
   if (!r) return;
-  Object.assign(r, fields, { end, ea: Date.now() });
+  if (fair) Object.assign(r, fields);
+  // Natural finishes count even in practice; scores and vocabulary do not (owner, 2026-11-20).
+  if (fields.finished != null) r.finished = fields.finished;
+  Object.assign(r, { end, ea: Date.now(), ms: game.timeMs || 0 });
   saveStats();
 }
 
@@ -183,8 +197,16 @@ export function putSave(game) {
   counts(game);
   game.updated = Date.now();
   if (game.live) { live.set(game.id, game); return; }
-  if (!saves.includes(game)) saves.push(game);
+  const index = saves.findIndex(s => s.id === game.id);
+  if (index >= 0) saves[index] = game;
+  else saves.push(game);
+  const mode = game.mode ?? 'guess';
+  const unfinished = saves.filter(s => (s.mode ?? 'guess') === mode && (!s.status || s.status === 'playing'))
+    .sort((a, b) => (a.updated || a.created || 0) - (b.updated || b.created || 0));
+  const evicted = unfinished.slice(0, Math.max(0, unfinished.length - SAVE_LIMIT));
+  for (const old of evicted) deleteSave(old.id);
   persistSaves();
+  if (evicted.length) globalThis.document?.dispatchEvent?.(new CustomEvent('lexling:save-evicted'));
 }
 export function deleteSave(id) {
   // a game deleted before it ended: its record stays, as left
@@ -215,11 +237,20 @@ export function newGame(fields) {
 }
 
 export function recordGuess(game, word, typed) {
-  if (!counts(game)) return;
-  unique.add(game.lang + ':' + word);
-  collect('guess', game.lang, word, game);
+  if (counts(game)) {
+    unique.add(game.lang + ':' + word);
+    collect('guess', game.lang, word, game);
+  }
   recordMove(game, { g: game.guesses.filter(x => !x.hint).length, ch: (stats.rec[game.id]?.ch || 0) + [...typed].length,
     h: game.guesses.filter(x => x.hint).length, cat: game.cat, fr: !!game.friend });
+}
+
+// Count submitted rows, including repeated letters, using the board's own colours (owner, 2026-11-20).
+export function recordLettersMove(game, word) {
+  const r = stats.rec[game.id], marks = feedback(word, game.secret);
+  recordMove(game, { g: game.guesses.length, len: game.len, cat: game.cat,
+    ch: (r?.ch || 0) + marks.length, gr: (r?.gr || 0) + marks.filter(x => x === 'green').length,
+    yl: (r?.yl || 0) + marks.filter(x => x === 'yellow').length });
 }
 
 // What a win counts toward depends on how much help the player had:
@@ -242,7 +273,7 @@ export function recordLettersEnd(game) {
 // the longest word found - on the board or a bonus - is kept with the game's name and when.
 // A finished Tiles game into the statistics - every game on this device, several people included; the
 // computer's own moves never count (tiles.js results). `id` = its save, which goes.
-// `game` = its save. Help fields remain for old readers; practice blocks every new statistic.
+// `game` = its save. Practice retains only participation and time.
 export function recordTilesEnd(game, only, help) {
   closeRecord(game, 'done', { finished: tilesRecord(game.state, only).finished, ...help });
   deleteSave(game.id);
@@ -257,8 +288,28 @@ export function tilesProgress(game, only = -1) {
   const mine = state.moves.slice(game.statsDone ?? end, end).filter(m => m.kind === 'play' &&
     !state.players[m.p]?.cpu && (only < 0 || m.p === only));
   game.statsDone = end;
+  // New fields start with locally owned, settled moves; never backfill a remote seat (owner, 2026-11-20).
+  const quality = { wc: r?.wc || 0, wp: r?.wp || 0, seven: r?.seven || 0,
+    bw: r?.bw ?? null, long: r?.long ?? null, bx: { d: 0, t: 0, D: 0, T: 0, ...r?.bx } };
+  if (counts(game)) for (const m of mine.filter(m => !m.hinted && !m.approved)) {
+    for (const w of m.words ?? []) {
+      const word = { w: w.w, score: w.score, at: Date.now() };
+      quality.wc++;
+      quality.wp += w.score;
+      if ([...w.w].length === 7) quality.seven++;
+      if (!quality.bw || word.score > quality.bw.score) quality.bw = word;
+      if (!quality.long || [...word.w].length > [...quality.long.w].length) quality.long = word;
+    }
+    const n = sizeOf(state.board), prem = premiums(state.board);
+    const used = new Set((m.placed ?? []).map(t => t.r * n + t.c));
+    if (state.rules?.premiums === 'always') for (const w of m.words ?? []) {
+      if (w.r == null || w.c == null) continue;
+      [...w.w].forEach((_, k) => used.add((w.r + (w.across ? 0 : k)) * n + w.c + (w.across ? k : 0)));
+    }
+    for (const k of used) if (prem[k] in quality.bx) quality.bx[prem[k]]++;
+  }
   return { ...tilesRecord(state, only), moves: (r?.moves || 0) + mine.length,
-    tiles: (r?.tiles || 0) + mine.reduce((n, m) => n + (m.placed?.length ?? 0), 0) };
+    tiles: (r?.tiles || 0) + mine.reduce((n, m) => n + (m.placed?.length ?? 0), 0), ...quality };
 }
 
 // How good the people's moves were in a finished Tiles game - their points and the best there was, summed - for the
@@ -293,6 +344,8 @@ export function playClock(root, game, onScreen) {
     if (!playing() || document.visibilityState !== 'visible' || Date.now() - lastActive > IDLE_MS) return;
     game.timeMs += 1000;
     stats.timeMs += 1000;
+    const r = stats.rec[game.id];
+    if (r) r.ms = game.timeMs;
     if (++ticks % 10 === 0) persist();
   }, 1000);
   window.addEventListener('pagehide', persist);
@@ -309,18 +362,41 @@ export function playClock(root, game, onScreen) {
 // shown for all languages; records and vocabulary retain their language attribution.
 export function totals(mode, lang = 'all', saved = stats) {
   const legacy = lang === 'all', rs = Object.values(saved.rec ?? {}).filter(r => r.m === mode && (legacy || r.lang === lang));
-  const sum = key => rs.reduce((n, r) => n + (+r[key] || 0), 0);
+  const fair = rs.filter(r => !r.pr);
+  const sum = key => fair.reduce((n, r) => n + (+r[key] || 0), 0);
   const ended = ends => rs.filter(r => ends.includes(r.end)).length;
-  if (mode === 'guess') return { finished: ended(['won']) + (legacy ? saved.won || 0 : 0),
+  // Missing fields stay unknown: an old game must never dilute a new average (owner, 2026-11-20).
+  const timed = rs.filter(r => Number.isFinite(r.ms));
+  const timeMs = timed.reduce((n, r) => n + r.ms, 0);
+  const old = Object.entries(saved.tl ?? {}).filter(([k]) => legacy || k.startsWith(lang + '|')).map(([, r]) => r);
+  const earlierPlayed = mode === 'tiles' ? old.reduce((n, r) => n + (r.played || 0), 0)
+    : legacy ? (mode === 'guess' ? saved.played : mode === 'letters' ? saved.lt?.played : saved.cn?.played) || 0 : 0;
+  const common = { played: rs.length + earlierPlayed, timeMs, timedGames: timed.length,
+    avgTime: timed.length ? timeMs / timed.length : null };
+  if (mode === 'guess') return { ...common, finished: ended(['won']) + (legacy ? saved.won || 0 : 0),
     guesses: sum('g') + (legacy ? saved.words || 0 : 0),
     distinct: (saved.unique ?? []).filter(w => legacy || w.startsWith(lang + ':')).length,
     letters: sum('ch') + (legacy ? saved.letters || 0 : 0) };
-  if (mode === 'letters') return { finished: ended(['won', 'lost']) + (legacy ? (saved.lt?.won || 0) + (saved.lt?.lost || 0) : 0),
-    solved: ended(['won']) + (legacy ? saved.lt?.won || 0 : 0) };
-  if (mode === 'connect') return { finished: ended(['won']) + (legacy ? saved.cn?.solved || 0 : 0),
-    words: sum('f') + (legacy ? saved.cn?.words || 0 : 0), bonus: sum('b') + (legacy ? saved.cn?.bonus || 0 : 0) };
-  const old = Object.entries(saved.tl ?? {}).filter(([k]) => legacy || k.startsWith(lang + '|')).map(([, r]) => r);
+  if (mode === 'letters') {
+    const solved = fair.filter(r => r.end === 'won').length + (legacy ? saved.lt?.won || 0 : 0);
+    const rated = fair.filter(r => ['won', 'lost'].includes(r.end)).length + (legacy ? (saved.lt?.won || 0) + (saved.lt?.lost || 0) : 0);
+    return { ...common, finished: ended(['won', 'lost']) + (legacy ? (saved.lt?.won || 0) + (saved.lt?.lost || 0) : 0),
+      solved, wonPct: rated ? solved / rated * 100 : null, letters: sum('ch'), green: sum('gr'), yellow: sum('yl') };
+  }
+  if (mode === 'connect') {
+    const bonusGames = fair.filter(r => Number.isFinite(r.b));
+    return { ...common, finished: ended(['won']) + (legacy ? saved.cn?.solved || 0 : 0),
+      words: sum('f') + (legacy ? saved.cn?.words || 0 : 0), bonus: sum('b') + (legacy ? saved.cn?.bonus || 0 : 0),
+      bonusPerGame: bonusGames.length ? bonusGames.reduce((n, r) => n + r.b, 0) / bonusGames.length : null };
+  }
+  const wordGames = fair.filter(r => Number.isFinite(r.wc) && Number.isFinite(r.wp));
+  const wordsFormed = wordGames.reduce((n, r) => n + r.wc, 0), wordPoints = wordGames.reduce((n, r) => n + r.wp, 0);
+  const bestWord = fair.reduce((a, r) => r.bw && (!a || r.bw.score > a.score) ? r.bw : a, null);
+  const longest = fair.reduce((a, r) => r.long && (!a || [...r.long.w].length > [...a.w].length) ? r.long : a, null);
   // Old Tiles 'played'/'done' included surrender, so they cannot establish a natural finish.
-  return { finished: sum('finished'),
-    words: sum('moves') + old.reduce((n, r) => n + (r.moves || 0), 0), tiles: sum('tiles') };
+  return { ...common, finished: rs.reduce((n, r) => n + (r.finished || 0), 0),
+    words: sum('moves') + old.reduce((n, r) => n + (r.moves || 0), 0), tiles: sum('tiles'),
+    wordsFormed, wordPoints, avgWordPoints: wordsFormed ? wordPoints / wordsFormed : null,
+    bestWord, longest, seven: sum('seven'),
+    bonuses: Object.fromEntries(['d', 't', 'D', 'T'].map(k => [k, fair.reduce((n, r) => n + (r.bx?.[k] || 0), 0)])) };
 }

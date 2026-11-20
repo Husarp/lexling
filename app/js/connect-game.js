@@ -4,7 +4,7 @@ import { t, esc, plural } from './i18n.js';
 import { counts, markPractice, getSave, putSave, recordMove, noteMove, recordConnectEnd, playClock, gameName, collect } from './store.js';
 import { loadWords } from './engine.js';
 import { WORD_MIN, cellsOf, visible, isDone, nextHint, judge } from './connect.js';
-import { topbar, modeTag, confirmClick, outcome, gearButton, wireGear, wordLink, gameTitle, flashTap } from './ui.js';
+import { UI_ICONS, topbar, modeTag, confirmClick, outcome, gearButton, wireGear, wordLink, gameTitle, flashTap } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 import { bump, recordAchievementEnd, recordConnectBonus } from './achievements.js';
@@ -104,7 +104,7 @@ export async function connectGameScreen(root, id) {
       + stat(t('cn.letters'), n, false)
       + stat(t('cn.level'), t('diff.' + (game.diffRandom ? 'random' : game.diff)))
       + stat(t('game.language'), game.lang.toUpperCase())
-      + `<div class="status-actions"><a class="btn btn-ghost" href="#/games/connect">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button>${gearButton('gs-inrow')}</div>`;
+      + `<div class="status-actions"><a class="btn btn-ghost" href="#/games/connect">${UI_ICONS.saveExit}${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${UI_ICONS.giveUp}${t('game.giveUp')}</button>${gearButton('gs-inrow')}</div>`;
     confirmClick($('#give-up'), () => playing() && finish('gaveup'), refit);
     noFocus($('#give-up'));
   }
@@ -414,7 +414,7 @@ export async function connectGameScreen(root, id) {
       ${won ? `<p class="display">${esc(game.key)}</p>` : `<p class="left-words">${left.map(x => `<span>${esc(x.w)}</span>`).join('')}</p>`}
       <div class="result-stats"><span><b>${count}</b> ${t('cn.wordsLow')}</span>${DOT}<span><b>${game.bonus.length}</b> ${plural(game.bonus.length, 'cn.bonusLow')}</span>${DOT}<span><b>${game.hints}</b> ${plural(game.hints, 'cn.hintsLow')}</span>${DOT}<span>${t('end.level')} <b>${t('diff.' + (game.diff ?? 'normal'))}</b></span></div>
       <p class="mean-words"><span class="eyebrow">${t('meaning.words')}</span>${board.words.map(x => wordLink(x.w, game.lang)).join('')}</p>
-      <div class="result-actions"><a class="btn btn-ghost" href="#/">${t('menu')}</a><a class="btn btn-primary" href="#/new/connect">${t('lt.again')} <span class="arrow">→</span></a></div>
+      <div class="result-actions"><a class="btn btn-ghost" href="#/">${UI_ICONS.menu}${t('menu')}</a><a class="btn btn-primary" href="#/new/connect">${t('lt.again')} <span class="arrow">→</span></a></div>
     </div>`;
     app.classList.remove('fit');
     main.innerHTML = `${head}${card}<div class="cw-flow">${boardHtml(40)}</div>

@@ -21,7 +21,7 @@ const def = id => TIERED.find(d => d.id === id);
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 const clean = { mode: 'guess', guesses: [] };
 check('seven ladders', TIERED.length, 7);
-check('eleven challenges', CHALLENGES.length, 11);
+check('twelve challenges', CHALLENGES.length, 12);
 check('renamed and replacement ladders', TIERED.map(d => d.id), ['guess.finished','letters.finished','connect.words','tiles.words','tiles.letters','connect.boards','connect.bonus']);
 check('new tile thresholds', def('tiles.letters').th, [100,500,2000,10000,30000]);
 check('cumulative bonus thresholds', def('connect.bonus').th, [10,50,150,500,1500]);
@@ -135,6 +135,28 @@ check('two CPUs excluded',gameChallenges({...duel(),players:[{cpu:'hard'},{cpu:'
 check('practice duel excluded',gameChallenges({...duel(),rules:{rating:true}},[0]),[]);
 check('resigned match excluded',gameChallenges({...duel(),log:[{type:'resign',p:1}]},[0]),[]);
 check('draw excluded',gameChallenges({...duel(),over:{winner:-1,reason:'out'}},[0]),[]);
+// Final-turn scores come from settled plays, not the rack/time-adjusted final totals.
+const comeback = {
+ players: [{}, {cpu: 'easy'}], rules: {}, log: [], out: [false, false],
+ moves: [{p:0,kind:'play',score:10},{p:1,kind:'play',score:20},{p:0,kind:'play',score:15}],
+ scores: [30,15], over: {winner:0,reason:'out',adjust:[5,-5]},
+};
+const photo = (s=comeback, mine=[0]) => gameChallenges(s,mine).includes('tiles.photoFinish');
+check('last-turn comeback qualifies',photo(),true);
+check('already leading before final turn excluded',photo({...comeback,moves:[{p:0,kind:'play',score:25},{p:1,kind:'play',score:20},{p:0,kind:'play',score:5}]}),false);
+check('tied before final turn qualifies',photo({...comeback,moves:[{p:0,kind:'play',score:20},{p:1,kind:'play',score:20},{p:0,kind:'play',score:5}]}),true);
+check('practice comeback excluded',photo({...comeback,rules:{undo:true}}),false);
+check('remote comeback excluded',photo(comeback,[1]),false);
+check('computer comeback excluded',photo({...comeback,players:[{cpu:'easy'},{}]}),false);
+check('draw comeback excluded',photo({...comeback,over:{winner:-1,reason:'out'}}),false);
+check('resignation comeback excluded',photo({...comeback,over:{winner:0,reason:'resign'}}),false);
+check('missing history cannot earn comeback',photo({...comeback,moves:[]}),false);
+check('multiplayer human comeback qualifies',photo({...comeback,players:[{},{},{}],scores:[30,15,12],out:[false,false,false]}),true);
+check('final pass compares before that pass',photo({...comeback,moves:[...comeback.moves,{p:1,kind:'pass'},{p:0,kind:'pass'}],over:{winner:0,reason:'passes'}}),false);
+check('settlement can break tie on final pass',photo({...comeback,moves:[{p:0,kind:'play',score:20},{p:1,kind:'play',score:20},{p:0,kind:'pass'}],over:{winner:0,reason:'passes'}}),true);
+check('withdrawn plays do not inflate prior score',photo({...comeback,moves:[{p:0,kind:'withdrawn',score:100},...comeback.moves]}),true);
+check('grant comeback records earned date',grant('tiles.photoFinish',{mode:'tiles',state:comeback}),['tiles.photoFinish']);
+check('comeback earned date',gotAt('tiles.photoFinish'),now);
 // Exercise the production settled-move cursor, including remote/CPU/replayed/pending actions.
 const source=read('app/js/tiles-game.js');
 const hook=source.slice(source.indexOf('  function countAchievements('),source.indexOf('  function pickLetter('));
@@ -155,6 +177,12 @@ for(const options of [{},{linked:true},{linked:true,seat:2},{practice:true}]) {
 const pending=counter();pending.ctx.S.moves=[{...move(),p:0}];pending.ctx.S.pending={before:{moves:[]}};
 pending.count();check('unsettled move waits',pending.calls,[]);
 pending.ctx.S.pending=null;pending.count();check('settled move counts once',pending.calls.filter(x=>x[0]==='tiles.words').length,1);
+const finalCounter=counter();
+finalCounter.ctx.S={...comeback,players:comeback.players,moves:comeback.moves.map(m=>({...move(),...m}))};
+finalCounter.count(true);
+check('production end hook grants comeback',finalCounter.calls.some(c=>c[0]==='tiles.photoFinish'),true);
+const practiceFinal=counter({practice:true});practiceFinal.ctx.S=finalCounter.ctx.S;practiceFinal.count(true);
+check('production practice end excludes comeback',practiceFinal.calls,[]);
 check('production end hook includes Letters losses',read('app/js/letters-game.js').includes("status === 'won' || status === 'lost'"),true);
 for(const [file,mode] of [['game.js','guess'],['letters-game.js','letters'],['connect-game.js','connect']])
  check('production end hook '+mode,read('app/js/'+file).includes(`recordAchievementEnd(game, '${mode}'`),true);
@@ -193,7 +221,7 @@ for (const lang of ['en', 'pl']) {
   const tabs = [...html.matchAll(/<button[^>]*role="tab"[^>]*>[\s\S]*?<\/button>/g)].map(m => m[0]);
   check(`${lang}: icon-only tabs retain translated names and tooltips`, tabs.every(tab => /aria-label="[^"]+" title="[^"]+"/.test(tab) && /<\/svg><\/span><\/button>$/.test(tab)), true);
   check(`${lang}: selected section has a visible name`, html.includes(`<h2 class="ach-section-title">${t('col.all')}</h2>`), true);
-  check(`${lang}: eighteen achievement squares`, (html.match(/data-ach="/g) ?? []).length, 18);
+  check(`${lang}: nineteen achievement squares`, (html.match(/data-ach="/g) ?? []).length, 19);
   check(`${lang}: earlier awards are collapsed`, html.includes('<details class="earlier-ach"><summary>' + t('ach.earlier')), true);
   check(`${lang}: earlier award keeps its date`, html.includes(t('ach.got', { d: dateTime(now - 1) })), true);
   check(`${lang}: retired award has no active tile`, html.includes('data-ach="tiles.points"'), false);

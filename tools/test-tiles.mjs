@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
 const ROOT = new URL('../app/', import.meta.url);
+const UI_ICONS = runInNewContext('(' + readFileSync(new URL('js/ui.js', ROOT), 'utf8').match(/export const UI_ICONS = (\{[\s\S]*?\n\});/)[1] + ')');
 globalThis.fetch = async url => { const b = readFileSync(new URL(url, ROOT));
   return { json: async () => JSON.parse(b.toString('utf8')), text: async () => b.toString('utf8'),
     arrayBuffer: async () => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) }; };
@@ -342,7 +343,7 @@ const col = (r, c, word, blanks = []) => [...word].map((ch, i) => ({ r: r + i, c
   check('play: tiles on the board, each with who put it there', [s2.cells[112], s2.cells[113], s2.cells[114]], [{ ch: 'c', by: 0 }, { ch: 'a', by: 0 }, { ch: 't', by: 0 }]);
   check('play: a blank keeps who put it there too', play(s, row(7, 7, 'cat', [2]), isEn).cells[114], { ch: 't', blank: true, by: 0 });
   check('the second player\'s tiles are theirs', play({ ...s2, racks: [s2.racks[0], ['s', 'x', 'x', 'x', 'x', 'x', 'x']] }, [{ r: 7, c: 10, ch: 's' }], isEn).cells[115], { ch: 's', by: 1 });
-  check('play: history', s2.moves[0], { p: 0, kind: 'play', placed: row(7, 7, 'cat'), words: [{ w: 'cat', score: 10 }], score: 10, bingo: false });
+  check('play: history retains word position for bonus statistics', s2.moves[0], { p: 0, kind: 'play', placed: row(7, 7, 'cat'), words: [{ w: 'cat', r: 7, c: 7, across: true, score: 10 }], score: 10, bingo: false });
 
   const s3 = { ...s2, racks: [s2.racks[0], ['d', 'o', 'g', 's', 'x', 'i', 'n']] };
   check('error: touches nothing', placementError(s3, row(2, 2, 'dog')), 'alone');
@@ -822,7 +823,7 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
 
   const s = game(), snapshot = structuredClone(s), a = { type: 'place', placed, hint: 'big', ms: 120 }, v = apply(s, a, isWord);
   check('veto: place opens a vote, changing only the log, clock and used time', v, { ...s, log: [a], clock: [120, 0, 0], used: 120,
-    vote: { at: 0, p: 0, placed, hint: 'big', words: [{ w: 'cat', score: 10 }], score: 10, bingo: false, voters: [1, 2], votes: {} } });
+    vote: { at: 0, p: 0, placed, hint: 'big', words: [{ w: 'cat', r: 7, c: 7, across: true, score: 10 }], score: 10, bingo: false, voters: [1, 2], votes: {} } });
   check('veto: opening leaves its input unchanged', s, snapshot);
   refuses('veto: the mover cannot vote', v, { type: 'vote', p: 0, veto: true }, /not a voter/);
   refuses('veto: an unknown player cannot vote', v, { type: 'vote', p: 8, veto: true }, /not a voter/);
@@ -865,7 +866,7 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   const vetoed = apply(against, { type: 'vote', p: 2, veto: true, ms: 30 }, isWord);
   check('vetoed: same player and rack, no board, bag, scores or zeros changed', [vetoed.turn, vetoed.racks, vetoed.cells, vetoed.bag, vetoed.scores, vetoed.zeros, vetoed.vote], [s.turn, s.racks, s.cells, s.bag, s.scores, s.zeros, null]);
   check('vetoed: a separate history entry, and the mover keeps the used time', [vetoed.moves, vetoed.used, vetoed.clock], [[{ p: 0, kind: 'vetoed', placed,
-    words: [{ w: 'cat', score: 10 }], score: 10, vetoes: 1, voters: 2 }], 150, [150, 0, 0]]);
+    words: [{ w: 'cat', r: 7, c: 7, across: true, score: 10 }], score: 10, vetoes: 1, voters: 2 }], 150, [150, 0, 0]]);
   const again = open(vetoed, { ms: 20 });
   check('vetoed: the same word can be proposed and vetoed again', [again.vote.at, again.used, apply(apply(again, { type: 'vote', p: 1, veto: false }, isWord), { type: 'vote', p: 2, veto: true }, isWord).moves.map(m => m.kind)], [3, 170, ['vetoed', 'vetoed']]);
   for (let n = 1; n <= 4; n++) {
@@ -1171,8 +1172,8 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
   for (const lang of ['en', 'pl']) {
     setLang(lang);
     for (const [kind, cpus, expected] of [['alone', [null, 'medium'], false], ['friends', [null, null], true], ['computers', ['easy', 'hard'], false], ['online', [null, 'medium'], true]]) {
-      const root = new Element(), ctx = { root, setupPractice, STANDARD, BOARDS, LABEL: { d: 'l2', t: 'l3', D: 'w2', T: 'w3' }, LEVEL_ORDER: T.LEVEL_ORDER, PLAYERS_MAX: T.PLAYERS_MAX,
-        t, esc, LANG_NAMES, levelKey: T.levelKey, fullBag, settings: { lang, newGame: {}, tilesRate: false }, on: b => b ? 'on' : '', DOT: ' · ', LIST_OF: { tiles: '' },
+      const root = new Element(), ctx = { root, UI_ICONS, setupPractice, STANDARD, BOARDS, LABEL: { d: 'l2', t: 'l3', D: 'w2', T: 'w3' }, LEVEL_ORDER: T.LEVEL_ORDER, PLAYERS_MAX: T.PLAYERS_MAX,
+        t, esc, LANG_NAMES, playerIcon: () => '<svg></svg>', TILE_SETUP_ICONS: { dice: '<svg></svg>', addPlayer: '<svg></svg>' }, levelKey: T.levelKey, fullBag, settings: { lang, newGame: {}, tilesRate: false }, on: b => b ? 'on' : '', DOT: ' · ', LIST_OF: { tiles: '' },
         remembered: () => ({ board: 'classic', players: cpus.map(cpu => ({ name: '', cpu })), first: 0, rules: { rating: false, veto: true } }),
         nameOf: (_, p) => `P${p + 1}`, topbar: () => '', modeTag: () => '', howTo: () => '', nameField: () => '',
         tileSeg: () => '', bonusSeg: () => '', boardStyleSeg: () => '', fitAll() {}, saveSettings() {}, remember() {},

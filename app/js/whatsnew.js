@@ -1,5 +1,16 @@
 // Recent releases in player language (owner, 2026-11-14). Keep the last three at release.
 export const whatsnew = [
+  { version: '0.72.0', date: '2026-11-20', en: [
+    'Statistics: time per game in every mode, letters typed (green and yellow) in Letters, bonus words per game in Connect, and best word, longest word, points per word and bonus squares in Tiles. Games with help count for time and games, not for word records.',
+    'Tiles: person, computer and dice icons instead of dots, your unplayed tiles keep their colour, and a wrong word shows a short note above your tiles instead of a red bar.',
+    'A Button size setting for the game tools, new icons across the app, bolder fold-out arrows, and room kept for the camera cutout on every screen.',
+    'Game lists keep New game at the bottom and hold up to 20 saved games per game; new Tiles achievement: Photo finish.',
+  ], pl: [
+    'Statystyki: czas gry w każdym trybie, wpisane litery (zielone i żółte) w Literach, słowa bonusowe na grę w Połącz oraz najlepsze i najdłuższe słowo, punkty na słowo i pola premiowe w Kafelkach. Gry z pomocą liczą się do czasu i liczby gier, ale nie do rekordów słów.',
+    'Kafelki: ikony osoby, komputera i kostki zamiast kropek, niezagrane płytki zachowują kolor, a złe słowo pokazuje krótki napis nad płytkami zamiast czerwonej ramki.',
+    'Ustawienie Rozmiar przycisków dla narzędzi gry, nowe ikony w całej aplikacji, wyraźniejsze strzałki rozwijania i miejsce na wycięcie aparatu na każdym ekranie.',
+    'Listy gier trzymają Nową grę na dole i mieszczą do 20 zapisanych gier na tryb; nowe osiągnięcie w Kafelkach: Rzutem na taśmę.',
+  ] },
   { version: '0.71.0', date: '2026-11-20', en: [
     'A fresh look: new menu cards with artwork, a wallpaper, new game icons, and Settings in sections that fold open.',
     'Tiles: a cleaner game screen - the last move highlighted, a choice of board frames, a new Options window, and the time limit on the player cards (computers are never timed).',
@@ -21,17 +32,6 @@ export const whatsnew = [
     'Nowe osiągnięcia w Znaczeniu, Literach i Połącz - takie, które każdy może zdobyć, bez serii zwycięstw.',
     'Znaczenie: przy wybranej kategorii jej słowa są pierwsze w podpowiedziach.',
     'Pola na słowa mają podczas pisania jedno zielone obramowanie.',
-  ] },
-  { version: '0.69.0', date: '2026-11-16', en: [
-    'A new look for the main menu: four equal buttons with coloured icons.',
-    'Tiles: a clearer last-move highlight in dark mode, thinner outlines, and the move cards centred right under the board.',
-    'Folding sections in Settings and New game open and close smoothly.',
-    'Your games shows a person or a computer icon by each score.',
-  ], pl: [
-    'Nowy wygląd menu głównego: cztery równe przyciski z kolorowymi ikonami.',
-    'Kafelki: wyraźniejsze podświetlenie ostatniego ruchu w trybie ciemnym, cieńsze obramowania, a karty ruchów wyśrodkowane tuż pod planszą.',
-    'Zwijane sekcje w Ustawieniach i Nowej grze otwierają się i zamykają płynnie.',
-    'Twoje gry pokazują ikonę osoby lub komputera przy każdym wyniku.',
   ] },
 ];
 

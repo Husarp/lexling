@@ -14,7 +14,7 @@ import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js'
 import { makePuzzle, RANGE, RING_MIN, RING_MAX, WORD_MIN, visible, isDone } from './connect.js';
 import { BOARDS, STANDARD, LEVEL_ORDER, levelKey, PLAYERS_MAX, newGame as tilesGame, apply as tilesApply, loadTileWords, valueOf, fullBag } from './tiles.js';
 import { nameOf, topics, LABEL, bonusSeg, bonusOf, boardStyleSeg, tileSeg, applyTileLook } from './tiles-game.js';
-import { topbar, fillColor, confirmClick, applyTheme, applyAccent, ACCENTS, PALETTES, GLYPH, modeTag, TILE, squares, remindBt, practiceBadge, openRules } from './ui.js';
+import { UI_ICONS, playerIcon, TILE_SETUP_ICONS, topbar, fillColor, confirmClick, applyTheme, applyAccent, applyButtonSize, ACCENTS, PALETTES, GLYPH, modeTag, TILE, squares, remindBt, practiceBadge, openRules } from './ui.js';
 import { fitAll } from './fit.js';
 import { click } from './sound.js';
 import { VERSION, REPO } from './version.js';
@@ -35,7 +35,7 @@ const myNameInput = () => `<input class="input" type="text" id="my-name" maxleng
 const wireMyName = root => root.querySelectorAll('#my-name').forEach(i => i.addEventListener('input', () => { settings.myName = i.value.trim().slice(0, 16); saveSettings(); }));
 // "Only new words" (owner, 2026-09-28, with the Collection): a switch on New game - the secret is one not yet in this
 // mode's Collection; -2 when every word the choice could hide is there already
-const onlyNewCard = () => `<div class="card polish" id="only-new"><div class="row"><div class="row-text"><strong>${t('new.onlyNew')}</strong><span>${t('new.onlyNewDesc')}</span></div>
+const onlyNewCard = () => `<div class="card polish" id="only-new"><div class="row"><div class="row-text"><strong>${UI_ICONS.onlyNew}${t('new.onlyNew')}</strong><span>${t('new.onlyNewDesc')}</span></div>
   <button type="button" class="toggle" role="switch" aria-label="${t('new.onlyNew')}"></button></div></div>`;
 const paintOnlyNew = (root, o) => { const b = root.querySelector('#only-new .toggle'); b.classList.toggle('on', !!o.onlyNew); b.setAttribute('aria-checked', !!o.onlyNew); };
 function freshPick(m, list, mode, lang) {
@@ -170,7 +170,7 @@ export function games(root, mode, refresh) {
   // most likely the game about to be resumed
   if (saves.length) (mode === 'guess' ? preload(saves[0].lang) : loadWords(saves[0].lang).catch(() => {}));
   const actions = g => `<div class="save-actions">
-    <a class="btn btn-primary" href="#/game/${g.id}">${t('games.resume')}</a>
+    <a class="btn btn-primary" href="#/game/${g.id}">${UI_ICONS.resume}${t('games.resume')}</a>
     <div class="save-tools">
       <button class="btn btn-ghost btn-danger save-icon" type="button" data-act="delete" aria-label="${t('games.delete')}" title="${t('games.delete')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg></button>
       <button class="btn btn-ghost save-icon" type="button" data-act="rename" aria-label="${t('games.rename')}" title="${t('games.rename')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-5-5L4 14Z"/></svg></button>
@@ -238,16 +238,16 @@ export function games(root, mode, refresh) {
   const card = { guess: guessCard, letters: lettersCard, connect: connectCard, tiles: tilesCard }[mode];
   // Tiles online (several phones): hosting and joining both start here - only where there is Bluetooth or Wi-Fi to do it
   const join = mode === 'tiles' && netKinds().length ? `<a class="btn btn-outline" href="#/online">${t('net.online')}</a>` : '';
-  const start = big => `<a class="btn btn-primary${big ? ' btn-lg' : ''}" href="${NEW_OF[mode]}">${t('games.new')} <span class="arrow">→</span></a>`;
+  const start = () => `<a class="btn btn-primary" href="${NEW_OF[mode]}">${t('games.new')} <span class="arrow">→</span></a>`;
   root.innerHTML = `<div class="app" data-screen="games">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>`, right: modeTag(mode) })}
   <main class="main">
-    <div class="head"><h1 class="title">${t('games.title')}</h1>${saves.length ? `<div class="head-acts">${join}${start()}</div>` : ''}</div>
-    ${saves.length ? `<div class="saves">${saves.map(card).join('')}</div>` : `<div class="card empty">
+    <div class="head"><h1 class="title">${t('games.title')}</h1></div>
+    <div class="games-scroll">${saves.length ? `<div class="saves">${saves.map(card).join('')}</div>` : `<div class="card empty">
       <img class="empty-art" src="img/empty.webp" alt=""><p class="display">${t('games.emptyTitle')}</p>
       <p class="help" style="max-width:36ch">${t('games.emptyText')}</p>
-      ${start(true)}${join}
-    </div>`}
+    </div>`}</div>
+    <div class="games-actions">${join}${start()}</div>
   </main>
 </div>`;
   root.querySelectorAll('.save').forEach(el => {
@@ -291,7 +291,7 @@ function rename(el, game, refresh) {
 }
 
 // Every game's help opens the same chapter reader; Tiles keeps its illustrated topics.
-const howTo = mode => `<button type="button" class="card howto" data-howto="${mode}"><span class="eyebrow">${t('howto.title')}</span><span class="arrow" aria-hidden="true">›</span></button>`;
+const howTo = mode => `<button type="button" class="card howto" data-howto="${mode}"><span class="eyebrow">${UI_ICONS.howTo}${t('howto.title')}</span><span class="arrow" aria-hidden="true">›</span></button>`;
 document.addEventListener('click', e => {
   const mode = e.target.closest?.('[data-howto]')?.dataset.howto;
   if (mode) openRules(mode, mode === 'tiles' ? topics() : null);
@@ -338,7 +338,7 @@ export function newGameScreen(root, _, refresh) {
       </div>
       <div class="card friend">
         <div class="row">
-          <div class="row-text"><strong>${t('new.friend')}</strong><span>${t('new.friendDesc')}</span></div>
+          <div class="row-text"><strong>${UI_ICONS.friend}${t('new.friend')}</strong><span>${t('new.friendDesc')}</span></div>
           <button type="button" class="toggle" role="switch" aria-label="${t('new.friend')}"></button>
         </div>
         <p class="help" id="practice-setup" hidden>${t('help.setupPractice')}</p>
@@ -797,7 +797,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
         <div class="field-head"><span class="eyebrow">${t('tiles.new.players')}</span><span class="help">${t(hostKind ? 'net.playersOnline' : 'tiles.new.playersWhat')}</span></div>
         <div class="tl-players"></div>
       </div>
-      <details class="card polish" id="colours"><summary>${t('howto.tiles.looks')}</summary>
+      <details class="card polish" id="colours"><summary>${UI_ICONS.display}${t('howto.tiles.looks')}</summary>
         <div class="row"><div class="row-text"><strong>${t('tiles.tile')}</strong></div></div>
         <div id="tile-looks">${tileSeg()}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.tileHelp')}</p>
@@ -811,13 +811,13 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
           <button type="button" id="tiles-cb" class="toggle" role="switch" aria-label="${t('tiles.cb')}"></button></div>
       </details>
       <details class="card tl-assists"${o.assistsOpen ? ' open' : ''}>
-        <summary><span class="eyebrow">${t('tiles.assists')} <span class="state"></span></span><span class="arrow" aria-hidden="true">›</span></summary>
+        <summary><span class="eyebrow">${UI_ICONS.assists}${t('tiles.assists')} <span class="state"></span></span></summary>
         <p class="help">${t('tiles.assists.help')}</p>
         <div class="tl-hints" id="hints"></div>
         <div class="assists-body"></div>
       </details>
       <details class="card tl-rules"${o.rulesOpen ? ' open' : ''}>
-        <summary><span class="eyebrow">${t('tiles.rules')} <span class="muted"></span></span><span class="arrow" aria-hidden="true">›</span></summary>
+        <summary><span class="eyebrow">${UI_ICONS.rules}${t('tiles.rules')} <span class="muted"></span></span></summary>
         <div class="rules-body"></div>
       </details>
       ${nameField()}
@@ -842,16 +842,16 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
   function paintPlayers() {
     const last = o.players.length - 1, first = o.players.indexOf(o.first);
     $('.tl-players').innerHTML = o.players.map((x, p) => `<div class="tl-prow pc${p}">
-        <div class="top"><i class="dot-p" aria-hidden="true"></i>${o.net && !x.here ? `<strong>${esc(nameOf(list(), p))}</strong>` : `<input class="input" type="text" maxlength="16" data-name="${p}" value="${esc(x.name)}" placeholder="${esc(nameOf(list(), p))}" aria-label="${t('tiles.nameAria', { n: p + 1 })}">`}<span class="acts">
+        <div class="top"><i class="tl-player-icon" aria-hidden="true">${playerIcon(o, p)}</i>${o.net && !x.here ? `<strong>${esc(nameOf(list(), p))}</strong>` : `<input class="input" type="text" maxlength="16" data-name="${p}" value="${esc(x.name)}" placeholder="${esc(nameOf(list(), p))}" aria-label="${t('tiles.nameAria', { n: p + 1 })}">`}<span class="acts">
           <button type="button" class="btn btn-ghost mv" data-up="${p}" aria-label="${esc(t('tiles.up', { name: nameAt(p) }))}"${p === 0 ? ' disabled' : ''}>↑</button><button type="button" class="btn btn-ghost mv" data-down="${p}" aria-label="${esc(t('tiles.down', { name: nameAt(p) }))}"${p === last ? ' disabled' : ''}>↓</button>${
       o.players.length > 2 && !(o.net && x.here) ? `<button type="button" class="btn btn-ghost rm" data-rm="${p}" aria-label="${esc(t('tiles.remove', { name: nameAt(p) }))}">✕</button>` : ''}</span></div>
         ${o.net ? `<p class="help"><span class="arrow">→</span> ${t(x.here ? 'tiles.bt.you' : 'net.namedOnJoin')}</p>` : `<div class="kind"><div class="seg">${['person', 'cpu'].map(k => `<button type="button" data-kind="${k}" data-p="${p}" class="${on((k === 'cpu') === !!x.cpu)}">${t(k === 'cpu' ? 'tiles.cpu' : 'tiles.person')}</button>`).join('')}</div></div>`}
         ${x.cpu ? `<div class="lv">${LEVEL_ORDER.map(l => `<button type="button" class="chip ${on(x.cpu === l)}" data-lv="${l}" data-p="${p}">${t(levelKey(l))}</button>`).join('')}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.lvHelp.' + x.cpu)}</p>` : ''}
-      </div>`).join('') + (o.players.length < PLAYERS_MAX ? `<button type="button" class="btn btn-outline" data-add>${t('tiles.addPlayer')} +</button>` : '')
+      </div>`).join('') + (o.players.length < PLAYERS_MAX ? `<button type="button" class="btn btn-outline" data-add><i class="tl-setup-icon" aria-hidden="true">${TILE_SETUP_ICONS.addPlayer}</i>${t('tiles.addPlayer')}</button>` : '')
       + `<div class="tl-first"><span class="eyebrow">${t('tiles.first')}</span><div class="chips" role="radiogroup">
-        <button type="button" class="chip ${on(first < 0)}" data-first="-1"><span class="num">?</span>${t('tiles.first.random')}</button>${
-      o.players.map((_, p) => `<button type="button" class="chip pc${p} ${on(first === p)}" data-first="${p}"><i class="dot-p" aria-hidden="true"></i>${esc(nameAt(p))}</button>`).join('')}</div>
+        <button type="button" class="chip ${on(first < 0)}" data-first="-1"><i class="tl-setup-icon" aria-hidden="true">${TILE_SETUP_ICONS.dice}</i>${t('tiles.first.random')}</button>${
+      o.players.map((_, p) => `<button type="button" class="chip pc${p} ${on(first === p)}" data-first="${p}"><i class="tl-player-icon" aria-hidden="true">${playerIcon(o, p)}</i>${esc(nameAt(p))}</button>`).join('')}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.first.help')}</p></div>`;
   }
   // Hints, a section of its own (owner, 2026-09-26): on or off, and how many of each level every player may take
@@ -1288,22 +1288,46 @@ export function achievementsScreen(root) {
   root.querySelectorAll('[data-ach]').forEach(b => b.addEventListener('click', () => achievementDetail(b.dataset.ach)));
 }
 
-// Only cumulative totals: every setting contributes on the same terms until help is used.
+// Participation includes practice; quality figures use only unassisted records (owner, 2026-11-20).
 export function statsScreen(root, _, refresh) {
   if (!STAT_TABS.includes(statsTab)) statsTab = 'general';
   const f = statFilter[statsTab] ??= { lang: 'all' };
   const values = Object.fromEntries(MODES.map(m => [m, totals(m, statsTab === 'general' ? 'all' : f.lang)]));
-  const cell = (key, value) => `<div class="scell"><span class="lbl">${t(key)}</span><span class="num">${typeof value === 'number' ? num(value) : value}</span></div>`;
+  const cell = (key, value, sub = '', cls = '', glyph = ({ 'stats.finished': UI_ICONS.finished, 'stats.solved': UI_ICONS.finished, 'stats.boardsCompleted': UI_ICONS.finished, 'stats.time': UI_ICONS.time }[key] ?? '')) => `<div class="scell ${cls}"><span class="lbl">${glyph}${t(key)}</span><span class="num">${value == null ? '—' : typeof value === 'number' ? num(value) : value}${sub ? `<small class="sub">${sub}</small>` : ''}</span></div>`;
+  const decimal = value => value == null ? null : value.toLocaleString(getLang(), { maximumFractionDigits: 1 });
+  const time = value => value == null ? null : clock(value, true);
+  const times = value => cell('stats.time', time(value.timeMs)) + cell('stats.avgTime', value.avgTime == null ? null : clock(value.avgTime));
   const rows = {
     guess: [['stats.solved', 'finished'], ['game.guesses', 'guesses'], ['stats.unique', 'distinct'], ['stats.letters', 'letters']],
-    letters: [['stats.finished', 'finished'], ['stats.wordsSolved', 'solved']],
+    letters: [['stats.finished', 'finished'], ['stats.won', 'solved'], ['stats.letters', 'letters'], ['stats.green', 'green'], ['stats.yellow', 'yellow']],
     connect: [['stats.boardsCompleted', 'finished'], ['stats.wordsFound', 'words'], ['stats.bonusWords', 'bonus']],
     tiles: [['stats.finished', 'finished'], ['stats.tiles.moves', 'words'], ['stats.tilesPlaced', 'tiles']],
   };
-  const panel = statsTab === 'general'
-    ? cell('stats.finished', MODES.reduce((n, m) => n + values[m].finished, 0)) + cell('stats.time', clock(stats.timeMs, true))
-      + MODES.map(m => cell('mode.' + m, values[m].finished)).join('')
-    : rows[statsTab].map(([key, field]) => cell(key, values[statsTab][field])).join('');
+  const value = values[statsTab];
+  const timedGames = MODES.reduce((n, m) => n + values[m].timedGames, 0);
+  const timedMs = MODES.reduce((n, m) => n + values[m].timeMs, 0);
+  let panel;
+  if (statsTab === 'general') {
+    panel = cell('stats.finished', MODES.reduce((n, m) => n + values[m].finished, 0))
+      + cell('stats.played', MODES.reduce((n, m) => n + values[m].played, 0))
+      + times({ timeMs: stats.timeMs, avgTime: timedGames ? timedMs / timedGames : null })
+      + `<h2 class="eyebrow st-mode-heading">${t('stats.byMode')}</h2>`
+      + MODES.map(m => cell('mode.' + m, values[m].finished, '', '', GLYPH[m])).join('');
+  } else {
+    panel = cell('stats.played', value.played) + rows[statsTab].map(([key, field]) => cell(key, value[field],
+      statsTab === 'letters' && field === 'solved' && value.wonPct != null ? `${decimal(value.wonPct)} %` : '')).join('');
+    if (statsTab === 'connect') panel += cell('stats.bonusPerGame', decimal(value.bonusPerGame));
+    if (statsTab === 'tiles') {
+      const word = (key, w, points = false) => cell(key, w ? esc(w.w) : null,
+        w ? `${points ? t('stats.wordPoints', { n: num(w.score) }) + ' · ' : ''}${dateTime(w.at)}` : '', 'word');
+      panel += cell('stats.tiles.wordsFormed', value.wordsFormed) + cell('stats.tiles.avgWordPoints', decimal(value.avgWordPoints))
+        + word('stats.tiles.bestWord', value.bestWord, true) + word('stats.longest', value.longest)
+        + cell('stats.tiles.seven', value.seven)
+        + `<h2 class="eyebrow st-mode-heading">${t('stats.tiles.bonuses')}</h2>`
+        + ['d', 't', 'D', 'T'].map(k => cell('stats.tiles.bonus.' + k, value.bonuses[k])).join('');
+    }
+    panel += times(value);
+  }
   root.innerHTML = `<div class="app" data-screen="stats">
     ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
     <main class="main"><h1 class="title">${t('stats.title')}</h1>
@@ -1449,7 +1473,7 @@ export async function settingsScreen(root, _, refresh) {
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
   <main class="main">
     <h1 class="title">${t('set.title')}</h1>
-    <details class="settings-section" data-section="general"${settingsSections.has('general') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">Aa</span><span>${t('set.section.general')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
+    <details class="settings-section" data-section="general"${settingsSections.has('general') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">${UI_ICONS.general}</span><span>${t('set.section.general')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
 <div class="row"><div class="row-text"><strong>${t('set.lang')}</strong><span>${t('set.langDesc')}</span></div>${seg('lang', ['pl', 'en'], l => LANG_NAMES[l])}</div><div class="row"><div class="row-text"><strong>${t('set.fuzzy')}</strong><span>${t('set.fuzzyDesc')}</span></div><button type="button" class="toggle ${on(settings.fuzzy)}" data-toggle="fuzzy" role="switch" aria-checked="${settings.fuzzy}" aria-label="${t('set.fuzzy')}"></button></div>
     </div></details>
     <details class="settings-section" data-section="games"${settingsSections.has('games') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">${GLYPH.tiles}</span><span>${t('set.section.games')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
@@ -1462,13 +1486,14 @@ export async function settingsScreen(root, _, refresh) {
         <button type="button" class="btn btn-ghost" id="rare-reset">${t('set.rareReset')}</button></div></div>
 
     </div></details>
-    <details class="settings-section" data-section="display"${settingsSections.has('display') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">◐</span><span>${t('set.section.display')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
+    <details class="settings-section" data-section="display"${settingsSections.has('display') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">${UI_ICONS.display}</span><span>${t('set.section.display')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
+<div class="row"><div class="row-text"><strong>${t('set.buttonSize')}</strong></div>${seg('buttonSize', ['100', '115', '130', '150'], v => t('set.buttonSizePercent', { n: v }))}</div>
 <div class="row"><div class="row-text"><strong>${t('set.theme')}</strong></div>${seg('theme', ['dark', 'light', 'system'], v => t('theme.' + v))}</div><div class="row"><div class="row-text"><strong>${t('set.palette')}</strong><span>${t('set.paletteDesc')}</span></div>
         <div class="palette-swatches">${Object.keys(PALETTES).map(id => `<button type="button" data-palette-choice="${id}" class="${on((settings.palette ?? 'classic') === id)}" aria-label="${t('palette.' + id)}" aria-pressed="${(settings.palette ?? 'classic') === id}"><span class="palette-preview" data-preview="${id}" aria-hidden="true"><i>Aa</i></span><span>${t('palette.' + id)}</span></button>`).join('')}</div></div><div class="row"><div class="row-text"><strong>${t('set.accent')}</strong><span>${t('set.accentDesc')}</span></div>
         <div class="swatches">${Object.entries(ACCENTS).map(([name, hex]) =>
     `<button type="button" data-accent="${name}" class="${on(settings.accent === name)}" style="--swatch:${hex}" aria-label="${name}"></button>`).join('')}</div></div><div class="row"><div class="row-text"><strong>${t('set.sound')}</strong><span>${t('set.soundDesc')}</span></div><button type="button" class="toggle ${on(settings.sound)}" data-toggle="sound" role="switch" aria-checked="${settings.sound}" aria-label="${t('set.sound')}"></button></div>
     </div></details>
-    <details class="settings-section" data-section="time"${settingsSections.has('time') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">◷</span><span>${t('set.section.time')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
+    <details class="settings-section" data-section="time"${settingsSections.has('time') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">${UI_ICONS.playTime}</span><span>${t('set.section.time')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
 
       <h2 class="title">${t('set.time')}</h2>
       <div class="row"><div class="row-text"><strong>${t('set.clock')}</strong><span>${t('set.clockDesc')}</span></div><button type="button" class="toggle ${on(settings.showClock)}" data-toggle="showClock" role="switch" aria-checked="${!!settings.showClock}" aria-label="${t('set.clock')}"></button></div>
@@ -1478,10 +1503,10 @@ export async function settingsScreen(root, _, refresh) {
         <input class="input" type="number" inputmode="numeric" id="rm-m" min="0" max="59" step="5" value="${(settings.remindMin || 90) % 60}" aria-label="${t('set.minutes')}"><span>${t('set.minutes')}</span></div></div>
 
     </div></details>
-    <details class="settings-section" data-section="online"${settingsSections.has('online') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">↗</span><span>${t('set.section.online')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
+    <details class="settings-section" data-section="online"${settingsSections.has('online') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">${UI_ICONS.online}</span><span>${t('set.section.online')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
 <div class="row"><div class="row-text"><label for="my-name"><strong>${t('set.myName')}</strong></label><span>${t('set.myNameDesc')}</span></div>${myNameInput()}</div>${netKinds().includes('bt') ? `<div class="row"><div class="row-text"><strong>${t('set.btRemind')}</strong><span>${t('set.btRemindDesc')}</span></div><button type="button" class="toggle ${on(settings.btRemind)}" data-toggle="btRemind" role="switch" aria-checked="${!!settings.btRemind}" aria-label="${t('set.btRemind')}"></button></div>` : ''}
     </div></details>
-    <details class="settings-section" data-section="about"${settingsSections.has('about') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">i</span><span>${t('set.section.about')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
+    <details class="settings-section" data-section="about"${settingsSections.has('about') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">${UI_ICONS.about}</span><span>${t('set.section.about')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
 
       <h2 class="title">${t('set.updates')}</h2>
       <div class="row"><div class="row-text"><strong>${t('set.autoCheck')}</strong><span>${t('set.autoCheckDesc')}</span></div><button type="button" class="toggle ${on(settings.updateCheck)}" data-toggle="updateCheck" role="switch" aria-checked="${!!settings.updateCheck}" aria-label="${t('set.autoCheck')}"></button></div>
@@ -1524,6 +1549,7 @@ export async function settingsScreen(root, _, refresh) {
     settings[b.dataset.k] = b.dataset.v;
     saveSettings();
     if (b.dataset.k === 'theme') applyTheme();
+    if (b.dataset.k === 'buttonSize') applyButtonSize();
     refresh();
   }));
   root.querySelectorAll('[data-toggle]').forEach(el => el.addEventListener('click', () => {

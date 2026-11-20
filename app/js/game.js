@@ -2,7 +2,7 @@
 import { t, plural, esc, num, clock } from './i18n.js';
 import { counts, markPractice, settings, getSave, putSave, recordGuess, recordEnd, noteMove, bestGuessWin, playClock } from './store.js';
 import { load, resolve, suggest, rankAll, pct, hint, HINT_FLOOR } from './engine.js';
-import { topbar, fillColor, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink, gameTitle, flashTap } from './ui.js';
+import { UI_ICONS, topbar, fillColor, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink, gameTitle, flashTap } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 import { bump, recordAchievementEnd } from './achievements.js';
@@ -37,7 +37,7 @@ export async function gameScreen(root, id) {
       + stat(t('game.category'), game.friend ? '—' : t('cat.' + game.cat))
       + stat(t('game.language'), game.lang.toUpperCase())
       + (playing()
-        ? `<div class="status-actions"><a class="btn btn-ghost" href="#/games/guess">${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${t('game.giveUp')}</button>${gearButton('gs-inrow')}</div>`
+        ? `<div class="status-actions"><a class="btn btn-ghost" href="#/games/guess">${UI_ICONS.saveExit}${t('game.saveExit')}</a><button class="btn btn-ghost btn-danger" type="button" id="give-up">${UI_ICONS.giveUp}${t('game.giveUp')}</button>${gearButton('gs-inrow')}</div>`
         : stat(t('game.time'), clock(game.timeMs), false));
     if (playing()) confirmClick($('#give-up'), () => finish(false), refit);
   }
@@ -59,7 +59,7 @@ export async function gameScreen(root, id) {
         <span class="eyebrow">${t(won ? 'end.guessWordWon' : 'end.wordLost')}</span>
         <p class="display">${esc(game.secret)}</p>
         <div class="result-stats">${facts.filter(Boolean).join(dot)}</div>
-        <div class="result-actions"><a class="btn btn-outline" href="#/">${t('menu')}</a><a class="btn btn-primary" href="#/new">${t('games.new')} <span class="arrow">→</span></a>${meaningButton(game.secret, game.lang)}</div>
+        <div class="result-actions"><a class="btn btn-outline" href="#/">${UI_ICONS.menu}${t('menu')}</a><a class="btn btn-primary" href="#/new">${t('games.new')} <span class="arrow">→</span></a>${meaningButton(game.secret, game.lang)}</div>
       </div>
     </div>`;
       return;
@@ -71,7 +71,7 @@ export async function gameScreen(root, id) {
         <button class="btn btn-primary submit" type="button">${t('game.submit')}</button>
         <div class="ac" role="listbox" hidden></div>
       </div>
-      <div class="entry-actions"><button class="btn btn-ghost" type="button" id="hint">${t('game.hint')}</button><span class="help" id="hint-note"></span></div>
+      <div class="entry-actions"><button class="btn btn-ghost" type="button" id="hint" aria-label="${t('game.hint')}" title="${t('game.hint')}">${UI_ICONS.hint}</button><span class="help" id="hint-note"></span></div>
     </div>`;
     input = $('#entry input');
     ac = $('#entry .ac');

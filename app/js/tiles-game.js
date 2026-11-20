@@ -13,12 +13,13 @@ import { bump, grant, playChallenges, gameChallenges } from './achievements.js';
 import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, pointsBreakdown, checkMove, apply, canExchange,
   unseen, undo, wordList, loadTileWords, checkWord, fullBag, hintCost, BLANK, newGame as startOf, outOf, levelKey, voteFits, voteCertain, voteStatus, canApprove } from './tiles.js';
 import { hint as bestMove, hintLevels, sameMove, computerMove, lookBack, LEVELS, loadSpoken } from './tiles-moves.js';
-import { practiceBadge, confirmClick, outcome, openDialog, openRules, settingRows, wireSettingRows, meaningButton, wordLink, remindBt } from './ui.js';
+import { UI_ICONS, playerIcon, practiceBadge, confirmClick, outcome, openDialog, openRules, settingRows, wireSettingRows, meaningButton, wordLink, remindBt } from './ui.js';
 import { fitAll } from './fit.js';
 import { click, chime } from './sound.js';
 
 // a bonus square's look and label: d / t = double / triple letter, D / T = double / triple word (tiles.js BOARDS)
 export const LABEL = { d: 'l2', t: 'l3', D: 'w2', T: 'w3' };
+export { playerIcon } from './ui.js';
 const svg = paths => `<svg viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
 const ICON = {
   shuffle: svg('<path d="m18 14 4 4-4 4"></path><path d="m18 2 4 4-4 4"></path><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-7.6a4 4 0 0 1 3.3-1.7H22"></path><path d="M2 6h1.972a4 4 0 0 1 3.6 2.2"></path><path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"></path>'),
@@ -32,9 +33,6 @@ const ICON = {
   wholeBoard: svg('<path d="M9 3H3v6M15 3h6v6M3 15v6h6M21 15v6h-6"></path>'),
   redo: svg('<path d="m15 14 5-5-5-5"></path><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"></path>'),
 };
-export const playerIcon = (S, p) => S.players[p].cpu
-  ? svg('<rect x="3" y="4" width="18" height="13" rx="2"></rect><path d="M8 21h8M12 17v4M7 9h.01M17 9h.01M8 13h8"></path>')
-  : svg('<circle cx="12" cy="7" r="4"></circle><path d="M4 22v-3a8 8 0 0 1 16 0v3"></path>');
 const CLOSE = svg('<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>');
 const FIND = svg('<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>');
 const DOOR = svg('<path d="M4 21V3h13v18M4 3l9 3v15l-9-3M10 12v2M2 21h19"></path>');
@@ -257,7 +255,7 @@ export async function tilesGameScreen(root, id) {
     <div class="status"></div>
     <div class="tl-bwrap"><div class="tl-board"><div class="tb"></div></div></div>
     <div class="tl-messages"><div class="tl-moves" role="status"></div><div class="tl-vote" hidden></div></div>
-    <div class="tl-rack"></div>
+    <div class="tl-rack-area"><div id="tl-move-error" class="tl-move-error" role="status" aria-atomic="true" aria-hidden="true"></div><div class="tl-rack"></div></div>
     <div class="tl-dock"></div>
     <div class="tl-more"></div>
     <div class="tl-over"></div>
@@ -267,7 +265,7 @@ export async function tilesGameScreen(root, id) {
   const repaint = () => { if (S.over) return; paintStatus(); paintTurn(); paintMore(); refit(); };
   const $ = s => play.querySelector(s);
   const status = $('.status'), boardEl = $('.tl-board'), tb = $('.tb'), say = $('.tl-moves'), rackEl = $('.tl-rack'), dock = $('.tl-dock');
-  const more = $('.tl-more'), over = $('.tl-over'), voteEl = $('.tl-vote');
+  const more = $('.tl-more'), over = $('.tl-over'), voteEl = $('.tl-vote'), moveError = $('#tl-move-error');
   const refit = () => fitAll(root);
 
   // The board looks shared by the live and final boards (owner, 2026-11-14).
@@ -343,7 +341,7 @@ export async function tilesGameScreen(root, id) {
     if (row) { row.scrollLeft = was; if (cur) row.scrollTo({ left: cur.offsetLeft - row.firstElementChild.offsetLeft, behavior: 'smooth' }); }
   }
   // Everyone's tiles (the rule): the other people's racks, one row each, always in view - never a computer's.
-  const othersHtml = () => `<div class="tl-others">${people.filter(p => p !== shown).map(p => `<div class="tl-other pc${p}"><i aria-hidden="true"></i><span>${esc(nameOf(S, p))}</span><span class="mt-row">${
+  const othersHtml = () => `<div class="tl-others">${people.filter(p => p !== shown).map(p => `<div class="tl-other pc${p}"><i class="tl-player-icon" aria-hidden="true">${playerIcon(S, p)}</i><span>${esc(nameOf(S, p))}</span><span class="mt-row">${
     rackOf(p).map(x => `<i class="mtl${x === BLANK ? ' bl' : ''}">${x === BLANK ? '' : `${esc(x)}<i class="p">${valueOf(lang, x)}</i>`}</i>`).join('')}</span></div>`).join('')}</div>`;
   // Each person's score card shows their countdown, or elapsed time with no limit.
   function paintClock() {
@@ -470,20 +468,27 @@ export async function tilesGameScreen(root, id) {
   const endWarning = () => endingNext(S) ? ' ' + t('tiles.endWarning', { n: S.zeros, limit: 2 * S.players.filter((_, p) => !isOut(p)).length }) : '';
   function paintSay() {
     const me = shown >= 0 ? shown : solo >= 0 ? solo : S.turn, res = judge();
-    let text = '', err = false;
+    const prompt = myTurn() ? t(S.cells.some(Boolean) ? (solo >= 0 ? 'tiles.say.turn' : 'tiles.say.turnOf') : 'tiles.placeCentre', { name: esc(nameOf(S, S.turn)) }) + (!placedOnce && !S.cells.some(Boolean) ? ' ' + t('tiles.firstCue') : '') : '';
+    // Validation belongs by the rack; keep the move bar neutral (owner, 2026-11-20).
+    const error = myTurn() && mode === 'play' && res?.error ? (res.error === 'word'
+      ? t(canApprove(S) ? 'tiles.approval.unknown' : 'tiles.err.unknown', { w: esc(res.bad.join(', ').toUpperCase()) }) : t(ERR[res.error])) : '';
+    if (error) moveError.innerHTML = `<span aria-hidden="true">✕</span> ${error}`;
+    moveError.classList.toggle('visible', !!error);
+    moveError.setAttribute('aria-hidden', String(!error));
+    let text = '';
     if (mode === 'exchange') text = t('tiles.ex.pick', { n: picks.size }) + (picks.size ? ' · ' + t('tiles.ex.summary', { letters: esc(exchangeLetters(rackOf(shown), picks, t('tiles.blankName'))) }) : '') + endWarning();
     else if (mode === 'pass') text = t('tiles.pass.ask') + endWarning();
     else if (mode === 'hint') text = msg?.html ?? (levels?.big && S.rules.hintCost ? t('tiles.hint.pickCost', Object.fromEntries(['small', 'big', 'master'].map(l => [l, levels[l] ? hintCost(S.rules, l, levels) : '–'])))
       : t('tiles.hint.pick'));
-    else if (res?.error) { err = true; text = res.error === 'word' ? t(canApprove(S) ? 'tiles.approval.unknown' : 'tiles.err.unknown', { w: esc(res.bad.map(w => w.toUpperCase()).join(', ')) }) : t(ERR[res.error]); }
-    else if (!res && msg) { text = msg.html; err = !!msg.err; }
+    else if (res?.error) text = prompt;
+    else if (!res && msg) text = msg.html;
     else if (!res && myTurn() && sel >= 0) text = t('tiles.say.tap');
     const mine = lastMove(p => p === me), theirs = lastMove(p => p !== me);
-    const card = text ? `<div class="mc me pc${me}${err ? ' err' : ''}">${whoCell(me)}<span class="msg">${text}</span></div>`
-      : res ? `<div class="mc me live pc${me}">${whoCell(me)}<span class="w">${draft[0].hint ? hintMark() : ''}${cardWords(res.words, draft.length === 7)}</span><button type="button" class="pt" data-points="draft" aria-label="${t('tiles.pointsExplain')}">${res.score}</button><span class="rr">${
+    const card = text ? `<div class="mc me pc${me}">${whoCell(me)}<span class="msg">${text}</span></div>`
+      : res && !res.error ? `<div class="mc me live pc${me}">${whoCell(me)}<span class="w">${draft[0].hint ? hintMark() : ''}${cardWords(res.words, draft.length === 7)}</span><button type="button" class="pt" data-points="draft" aria-label="${t('tiles.pointsExplain')}">${res.score}</button><span class="rr">${
         draft[0].hint ? `<small class="hlv">${t('tiles.hint.' + draft[0].hint)}${hintPaid ? ' −' + hintPaid : ''}</small>` : ''}</span></div>`
       : mine >= 0 ? moveCard(mine, 'me')
-      : `<div class="mc me pc${me}">${whoCell(me)}<span class="msg">${myTurn() ? t(S.cells.some(Boolean) ? (solo >= 0 ? 'tiles.say.turn' : 'tiles.say.turnOf') : 'tiles.placeCentre', { name: esc(nameOf(S, S.turn)) }) + (!placedOnce && !S.cells.some(Boolean) ? ' ' + t('tiles.firstCue') : '') : ''}</span></div>`;
+      : `<div class="mc me pc${me}">${whoCell(me)}<span class="msg">${prompt}</span></div>`;
     const other = thinking && S.turn !== me && !linked ? `<div class="mc them pc${S.turn}">${whoCell(S.turn)}<span class="msg">${t('tiles.say.thinking')}</span></div>`
       : theirs >= 0 ? moveCard(theirs, 'them') : '';
     say.innerHTML = `${linked ? linkLine() : ''}<div class="mcards">${card}${other}</div><p class="mc-bag">${fresh?.p === me ? t('tiles.drew', { l: `<b>${fresh.letters.map(x => x === BLANK ? '?' : esc(x.toUpperCase())).join(' · ')}</b>` }) : ''}</p>`;
@@ -563,7 +568,7 @@ export async function tilesGameScreen(root, id) {
       dock.innerHTML = `${cancel}<button class="btn btn-primary play" type="button" data-act="passYes"${off ? ' disabled' : ''}>${t('tiles.passConfirm')} <span class="arrow">→</span></button>`;
     } else {
       const res = judge(), ok = !off && res && (!res.error || (res.error === 'word' && canApprove(S)));
-      let reason = ok || off ? '' : res?.error ? (res.error === 'word' ? t(canApprove(S) ? 'tiles.approval.unknown' : 'tiles.err.unknown', { w: esc(res.bad.join(', ').toUpperCase()) }) : t(ERR[res.error])) : t(S.cells.some(Boolean) ? 'tiles.placeTiles' : 'tiles.placeCentre');
+      let reason = ok || off || res?.error ? '' : t(S.cells.some(Boolean) ? 'tiles.placeTiles' : 'tiles.placeCentre');
       // Compare rendered text so escaped word errors and the onboarding cue also match.
       const reasonText = document.createElement('span');
       reasonText.innerHTML = reason;
@@ -575,7 +580,7 @@ export async function tilesGameScreen(root, id) {
         hintsOn() ? tool('hint', off ? 'off' : '') : '',
         !off && S.pending ? tool('challenge', 'chal') : '',
         canUndo ? `<i class="br" aria-hidden="true"></i><button class="btn btn-ghost tl-tool ur" type="button" data-act="undo" aria-label="${t('tiles.undo')}" title="${t('tiles.undo')}"${undo(S, isWord, 0) ? '' : ' disabled'}>${ICON.undo}</button><button class="btn btn-ghost tl-tool ur" type="button" data-act="redo" aria-label="${t('tiles.redo')}" title="${t('tiles.redo')}"${redoStack.length && !thinking ? '' : ' disabled'}>${ICON.redo}</button>` : '',
-        `<button class="btn btn-primary play${ok ? '' : ' off'}" type="button" data-act="play" ${reason ? 'aria-describedby="tl-play-reason"' : ''}${ok ? '' : ' disabled'}>${t(res?.error === 'word' && canApprove(S) ? 'tiles.approval.ask' : 'tiles.play')}${ok && !res.error ? ` <span class="num">${res.score}</span>` : ''}${reason ? `<small id="tl-play-reason">${reason}</small>` : ''}</button>`,
+        `<button class="btn btn-primary play${ok ? '' : ' off'}" type="button" data-act="play" ${!off && res?.error ? 'aria-describedby="tl-move-error"' : reason ? 'aria-describedby="tl-play-reason"' : ''}${ok ? '' : ' disabled'}>${t(res?.error === 'word' && canApprove(S) ? 'tiles.approval.ask' : 'tiles.play')}${ok && !res.error ? ` <span class="num">${res.score}</span>` : ''}${reason ? `<small id="tl-play-reason">${reason}</small>` : ''}</button>`,
       ].join('');
     }
     refit();
@@ -686,7 +691,7 @@ export async function tilesGameScreen(root, id) {
     let html = '';
     if (endStep) {
       const o = S.over, sign = v => v > 0 ? '+' + v : v < 0 ? '−' + -v : '0';
-      const rows = S.players.map((_, p) => isOut(p) ? '' : `<li class="pc${p}"><i class="dot-p" aria-hidden="true"></i><span class="nm">${esc(nameOf(S, p))}</span><span class="mt-row">${
+      const rows = S.players.map((_, p) => isOut(p) ? '' : `<li class="pc${p}"><i class="tl-player-icon" aria-hidden="true">${playerIcon(S, p)}</i><span class="nm">${esc(nameOf(S, p))}</span><span class="mt-row">${
         S.racks[p].map(ch => `<i class="mtl" style="--s:24px">${ch === BLANK ? '' : esc(ch.toUpperCase())}<i class="p">${valueOf(S.lang, ch) || ''}</i></i>`).join('')}</span><b class="${o.adjust[p] > 0 ? 'plus' : o.adjust[p] < 0 ? 'minus' : ''}">${
         sign(o.adjust[p])}</b></li>`).join('');
       const title = o.reason === 'out' ? t(o.by === solo ? 'tiles.endStep.outYou' : 'tiles.endStep.out', { name: esc(nameOf(S, o.by)) }) : t('tiles.endStep.passes');
@@ -716,7 +721,7 @@ export async function tilesGameScreen(root, id) {
         t('tiles.bt.letIn')}</button><button class="btn btn-ghost" type="button" data-act="netRefuse">${t('tiles.bt.refuse')}</button></div>${pick}</div>`;
     } else if (waitCard()) {
       const here = party?.here() ?? [];
-      const seats = S.players.map((_, p) => p === linkMe || isOut(p) ? '' : `<li class="pc${p}${here[p] ? ' in' : ''}"><i class="dot-p" aria-hidden="true"></i><span>${esc(nameOf(S, p))}</span><small>${
+      const seats = S.players.map((_, p) => p === linkMe || isOut(p) ? '' : `<li class="pc${p}${here[p] ? ' in' : ''}"><i class="tl-player-icon" aria-hidden="true">${playerIcon(S, p)}</i><span>${esc(nameOf(S, p))}</span><small>${
         t(here[p] ? 'net.seat.in' : 'net.seat.wait')}</small></li>`).join('');
       html += `<div class="tl-hand tl-wait" role="dialog"><span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span><strong>${t(S.players.length > 2 ? 'net.waiting' : 'tiles.bt.waiting')}</strong>${
         kind === 'web' ? (roomCode ? `<p class="tl-phone">${t('net.roomCode', { code: `<b class="tl-code">${esc(roomCode)}</b>` })}</p>` : '')
@@ -725,7 +730,7 @@ export async function tilesGameScreen(root, id) {
         linkNote ? t(linkNote) : t(kind === 'bt' ? 'tiles.bt.waitingHelp' : kind === 'near' ? 'net.waitingHelpNear' : kind === 'web' ? 'net.waitingHelpWeb' : 'net.waitingHelpLan')}${kind === 'lan' && !myWifi ? ' ' + t('net.hostNoWifi') : ''}</p><div class="acts">${kind === 'bt' && (visibleDeclined || findable === false) ? `<button class="btn btn-primary" type="button" data-act="netVisible">${t('net.visible')}</button>` : ''}${linkNote ? `<button class="btn btn-primary" type="button" data-act="netRetry">${
         t('tiles.bt.retry')}</button>` : ''}<button class="btn btn-ghost" type="button" data-act="netLeave">${t(S.log.length ? 'game.saveExit' : 'tiles.cancel')}</button></div></div>`;
     } else if (linked && !host && !ended && linkUp && startWaits() && !joinedAs) {
-      const seats = S.players.map((_, p) => p === linkMe || isOut(p) ? '' : `<li class="pc${p}${hereList[p] ? ' in' : ''}"><i class="dot-p" aria-hidden="true"></i><span>${esc(nameOf(S, p))}</span><small>${
+      const seats = S.players.map((_, p) => p === linkMe || isOut(p) ? '' : `<li class="pc${p}${hereList[p] ? ' in' : ''}"><i class="tl-player-icon" aria-hidden="true">${playerIcon(S, p)}</i><span>${esc(nameOf(S, p))}</span><small>${
         t(hereList[p] ? 'net.seat.in' : 'net.seat.wait')}</small></li>`).join('');
       html += `<div class="tl-hand tl-wait" role="dialog"><span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span><strong>${t('net.waiting')}</strong><p class="tl-phone">${
         t('net.youAreIn', { name: `<b>${esc(nameOf(S, linkMe))}</b>` })}</p><ul class="tl-seats">${seats}</ul><p class="help">${t('net.waitStart')}</p><div class="acts"><button class="btn btn-ghost" type="button" data-act="netBack">${
@@ -736,7 +741,7 @@ export async function tilesGameScreen(root, id) {
         ended === 'lost' ? `<button class="btn btn-primary" type="button" data-act="netRetry">${t('tiles.bt.retry')}</button>` : ''}<button class="btn btn-ghost" type="button" data-act="netBack">${t('net.back')}</button></div></div>`;
     }
     if (handOver) {
-      html += `<div class="tl-hand pc${S.turn}" role="dialog"><i class="dot-big" aria-hidden="true"></i><strong>${t('tiles.hand.title', { name: esc(nameOf(S, S.turn)) })}</strong><p class="help">${
+      html += `<div class="tl-hand pc${S.turn}" role="dialog"><i class="tl-player-icon" aria-hidden="true">${playerIcon(S, S.turn)}</i><strong>${t('tiles.hand.title', { name: esc(nameOf(S, S.turn)) })}</strong><p class="help">${
         t('tiles.hand.help')}</p><button class="btn btn-primary" type="button" data-act="show">${t('tiles.hand.show')} <span class="arrow">→</span></button></div>`;
     }
     over.innerHTML = html;
@@ -1366,7 +1371,7 @@ export async function tilesGameScreen(root, id) {
     const nameLv = p => esc(nameOf(S, p)) + (!inPlay(p) ? ` <small>(${t('net.withdrawn')})</small>` : '') + (S.players[p].cpu ? ` <span class="lv">· ${t(levelKey(S.players[p].cpu))}</span>` : '');
     const scores = np === 2
       ? `<div class="tl-fs">${[0, 1].map(p => `<span class="${S.scores[p] < best || !inPlay(p) ? 'lose' : ''}"><small class="eyebrow">${nameLv(p)}</small><b>${S.scores[p]}</b></span>`).join('<span class="colon">:</span>')}</div>`
-      : `<ol class="tl-places">${order.map((p, k) => `<li class="pc${p}${S.scores[p] === best && inPlay(p) ? ' first' : ''}"><span>${k + 1}.</span><i></i><span>${nameLv(p)}</span><b>${S.scores[p]}</b></li>`).join('')}</ol>`;
+      : `<ol class="tl-places">${order.map((p, k) => `<li class="pc${p}${S.scores[p] === best && inPlay(p) ? ' first' : ''}"><span>${k + 1}.</span><i class="tl-player-icon" aria-hidden="true">${playerIcon(S, p)}</i><span>${nameLv(p)}</span><b>${S.scores[p]}</b></li>`).join('')}</ol>`;
     // what the leftover tiles did to the scores (and the clock, per game)
     const sign = v => v > 0 ? '+' + v : v < 0 ? '−' + -v : '0';
     const why = o.reason === 'out' ? (o.by === solo ? t('tiles.end.outYou') : t('tiles.end.out', { name: esc(nameOf(S, o.by)) }))
@@ -1407,7 +1412,7 @@ export async function tilesGameScreen(root, id) {
       ${people.length ? `<p class="calc tl-times">${t('tiles.end.time')}: ${people.map(p => `${esc(nameOf(S, p))} ${mmss(S.clock?.[p] || 0)}`).join(' · ')}</p>` : ''}
       ${top ? `<div class="tl-best"><span class="eyebrow">${t('tiles.end.bestWord')}</span><span class="mt-row">${tilesOf(top)}</span><span class="num">${top.score}</span></div>` : ''}
       <div class="result-stats"><span><b>${bingos}</b> ${plural(bingos, 'tiles.end.bingos')}</span>${DOT}<span><b>${hints}</b> ${plural(hints, 'tiles.end.hints')}</span>${DOT}<span>${t('tiles.board.' + S.board)}</span></div>
-      <div class="result-actions">${host && party ? `<button class="btn btn-primary" type="button" data-rematch>${t('net.rematch')}</button>` : ''}<a class="btn btn-ghost" href="#/">${t('menu')}</a><a class="btn btn-primary" href="${linked ? '#/online' : '#/new/tiles'}">${t(linked ? 'games.new' : 'lt.again')} <span class="arrow">→</span></a></div>
+      <div class="result-actions">${host && party ? `<button class="btn btn-primary" type="button" data-rematch>${t('net.rematch')}</button>` : ''}<a class="btn btn-ghost" href="#/">${UI_ICONS.menu}${t('menu')}</a><a class="btn btn-primary" href="${linked ? '#/online' : '#/new/tiles'}">${t(linked ? 'games.new' : 'lt.again')} <span class="arrow">→</span></a></div>
     </div>
     ${people.length ? `<div class="card tl-fair"><span class="eyebrow">${t('tiles.fair.title')}</span>${people.map(fairOf).join('')}</div>` : ''}
     <div class="tl-final"><div class="tl-board"><div class="tb n${n}${looks()}" style="--n:${n}">${boardInner(S)}</div></div></div>
@@ -1433,7 +1438,7 @@ export async function tilesGameScreen(root, id) {
         recordTilesRating(game, people.reduce((a, p) => a + sum(p, 'played', false), 0), people.reduce((a, p) => a + sum(p, 'best', false), 0));
       }
       const overall = hints => S.players.map((_, p) => { const best = sum(p, 'best', hints), got = sum(p, 'played', hints), r = rateOf(got, best);
-        return `<li class="pc${p}"><i></i><span>${esc(nameOf(S, p))}</span>${r ? `<span class="rate rate-${r}">${t('tiles.rate.' + r)} · ${pctOf(got, best)}%</span>` : '<span>—</span>'}</li>`; }).join('');
+        return `<li class="pc${p}"><i class="tl-player-icon" aria-hidden="true">${playerIcon(S, p)}</i><span>${esc(nameOf(S, p))}</span>${r ? `<span class="rate rate-${r}">${t('tiles.rate.' + r)} · ${pctOf(got, best)}%</span>` : '<span>—</span>'}</li>`; }).join('');
       // a switch right here (owner, 2026-09-26): the overall ratings with or without the moves from hints - not saved
       const hintSwitch = rows.some(x => x.hinted) ? `<div class="tl-hsw"><span>${t('tiles.eval.countHints')}</span><button type="button" class="toggle on" role="switch" aria-checked="true" aria-label="${t('tiles.eval.countHints')}"></button></div>` : '';
       // the best move of each turn only where the game shows best moves - at the end nobody remembers what they could have
@@ -1464,7 +1469,8 @@ export async function tilesGameScreen(root, id) {
       ...(S.rules.rating === false ? [] : [['tilesRate', t('tiles.rate.setting'), t('tiles.rate.settingHelp') + (S.rules.rating === 'score' ? ' ' + t('tiles.rate.fixed') : ' ' + t('help.bestNote')), RATE_LOOKS.map(([v, k]) => [v, t('tiles.rate.look.' + k)])]]),
       ['tilesUnder', t('tiles.under'), t('tiles.underHelp'), ['rating', 'rarity', 'both'].map(v => [v, t('tiles.under.' + v)])]];
     const tile = (ch, colour = '') => `<span class="rt" aria-hidden="true"${colour ? ` style="--tl-tile:${colour}"` : ''}>${ch}<i class="p">1</i></span>`;
-    const lookItems = [['theme', t('set.theme'), '', ['dark', 'light', 'system'].map(v => [v, t('theme.' + v)])],
+    const lookItems = [['buttonSize', t('set.buttonSize'), '', ['100', '115', '130', '150'].map(v => [v, t('set.buttonSizePercent', { n: v })])],
+      ['theme', t('set.theme'), '', ['dark', 'light', 'system'].map(v => [v, t('theme.' + v)])],
       ['tilesLast', t('tiles.last'), t('tiles.lastHelp')],
       ['tilesFrame', t('tiles.frame'), '', ['graphite', 'frameless', 'orange'].map(v => [v, t('tiles.frame.' + v)])],
       ['tilesTile', t('tiles.tile'), t('tiles.tileHelp'), TILE_LOOKS.map(([k, c]) => [k, tile('A', c) + `<small>${t('tiles.tile.' + k)}</small>`, t('tiles.tile.' + k)])], ['tiles3d', t('tiles.raised'), t('tiles.raisedHelp')],
@@ -1477,7 +1483,7 @@ export async function tilesGameScreen(root, id) {
       <div class="op-content">
         <section id="op-history" role="tabpanel" aria-labelledby="op-tab-history"><h2>${t('tiles.history')}</h2><div class="seg op-filter">${[[null, t('tiles.hist.all')], ...S.players.map((_, p) => [p, esc(nameOf(S, p))])].map(([p, label]) => `<button type="button" data-filter="${p ?? ''}" aria-pressed="${p === null}" class="${p === null ? 'on' : ''}">${label}</button>`).join('')}</div><div class="op-history-list">${histHtml(null)}</div></section>
         <section id="op-look" role="tabpanel" aria-labelledby="op-tab-look" hidden><div class="op-look-head"><h2>${t('tiles.visual')}</h2><div class="op-preview">${[...'TILES'].map(ch => tile(ch)).join('')}</div></div>${settingRows(lookItems)}</section>
-        <section id="op-players" role="tabpanel" aria-labelledby="op-tab-players" hidden><h2>${t('net.players')}</h2>${host ? hostSection() : `<ul class="op-players">${S.players.map((_, p) => `<li><div class="op-who pc${p}"><i class="dot-p" aria-hidden="true"></i><span>${esc(nameOf(S, p))}</span></div></li>`).join('')}</ul>`}${settingRows(playerItems)}${host ? `<button class="btn btn-ghost btn-danger op-end" type="button">${t('net.endGame')}</button>` : ''}</section>
+        <section id="op-players" role="tabpanel" aria-labelledby="op-tab-players" hidden><h2>${t('net.players')}</h2>${host ? hostSection() : `<ul class="op-players">${S.players.map((_, p) => `<li><div class="op-who pc${p}"><i class="tl-player-icon" aria-hidden="true">${playerIcon(S, p)}</i><span>${esc(nameOf(S, p))}</span></div></li>`).join('')}</ul>`}${settingRows(playerItems)}${host ? `<button class="btn btn-ghost btn-danger op-end" type="button">${t('net.endGame')}</button>` : ''}</section>
       </div><footer class="op-foot"><button class="btn btn-outline btn-danger op-quit" type="button">${t('game.giveUp')}</button></footer>`);
     dlg.classList.add('tl-options');
     const selectTab = id => {
@@ -1537,7 +1543,7 @@ export async function tilesGameScreen(root, id) {
   function hostSection() {
     const here = party?.here() ?? [];
     const state = p => t(isOut(p) ? 'net.seat.out' : !here[p] ? 'net.seat.away' : away[p] ? 'net.seat.app' : 'net.seat.in');
-    const who = p => `<div class="op-who pc${p}"><i class="dot-p" aria-hidden="true"></i><span>${esc(nameOf(S, p))}</span><small>${state(p)}</small></div>`;
+    const who = p => `<div class="op-who pc${p}"><i class="tl-player-icon" aria-hidden="true">${playerIcon(S, p)}</i><span>${esc(nameOf(S, p))}</span><small>${state(p)}</small></div>`;
     const turn = !S.over && remote(S.turn) ? `<div class="op-turn"><span class="eyebrow">${t('net.nowPlays')}</span>${who(S.turn)}<button class="btn btn-outline op-act" type="button" data-skipturn>${
       t('net.skipTurn', { name: esc(nameOf(S, S.turn)) })}</button></div>` : '';
     const rows = S.players.map((_, p) => p === linkMe ? '' : `<li>${who(p)}${isOut(p) ? '' : `<button class="btn btn-ghost btn-danger op-act" type="button" data-remove="${p}">${
