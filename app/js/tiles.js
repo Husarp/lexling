@@ -556,6 +556,23 @@ export function replay(state, isWord) {
   return out;
 }
 
+// The result replay follows History's move numbers and needs no word list (owner, 2026-11-26).
+export function replayBoard(state, moves, at) {
+  const n = sizeOf(state.board), cells = Array(n * n).fill(null);
+  let withdrawn;
+  for (let i = 0; i < at; i++) {
+    const m = moves[i];
+    if (m.kind === 'challenge' && m.ok && withdrawn) {
+      for (const d of withdrawn.placed) cells[d.r * n + d.c] = null;
+      withdrawn = null;
+    }
+    if (m.kind !== 'play' && m.kind !== 'withdrawn') continue;
+    for (const d of m.placed) cells[d.r * n + d.c] = { ch: d.ch, blank: d.blank, by: m.p, hint: m.hinted };
+    if (m.kind === 'withdrawn') withdrawn = m;
+  }
+  return { lang: state.lang, board: state.board, cells };
+}
+
 // Undo (owner, 2026-09-25: "undo all the moves, even the computer's, back to the start - only against the computer"):
 // back to the last turn a person took, before it - their move and every move after it come off - or null when there
 // is none. The bag is then shuffled again from `seed` (owner: "the draws will be random"), so the next tiles are not
@@ -606,6 +623,29 @@ export function unseen(state, p = state.turn) {
 }
 
 // ── Statistics ───────────────────────────────────────────────────────────────────────────────────
+// Match highlights and running totals from the settled history (owner, 2026-11-26).
+export function matchSummary(state) {
+  let best = null, longest = null;
+  const scores = state.players.map(() => 0), totals = [[...scores]];
+  for (const m of state.moves) {
+    if (m.kind === 'hint') {
+      scores[m.p] -= m.cost || 0;
+      continue;   // History attaches hints to a move, without numbering them.
+    }
+    if (m.kind === 'play') {
+      scores[m.p] += m.score;
+      if (!best || m.score > best.score) best = { word: m.words[0].w, score: m.score };
+      for (const { w } of m.words) {
+        const letters = [...w].length;
+        if (!longest || letters > longest.letters) longest = { word: w, letters };
+      }
+    }
+    // Rack and clock adjustments belong to the final score, after the moves.
+    totals.push([...scores]);
+  }
+  return { best, longest, totals };
+}
+
 // What a finished game adds to the statistics (store.js recordTilesEnd). Every game on the device counts,
 // several people included (owner, 2026-09-25: "it's the phone's statistics") - the computer's own moves never
 // do. `level` = the strongest computer in the game, or 'people'; `won` = a person beat the computer.

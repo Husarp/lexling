@@ -219,7 +219,11 @@ for (const lang of ['en', 'pl']) {
   const html = root.innerHTML;
   check(`${lang}: five game tabs`, (html.match(/role="tab"/g) ?? []).length, 5);
   const tabs = [...html.matchAll(/<button[^>]*role="tab"[^>]*>[\s\S]*?<\/button>/g)].map(m => m[0]);
-  check(`${lang}: icon-only tabs retain translated names and tooltips`, tabs.every(tab => /aria-label="[^"]+" title="[^"]+"/.test(tab) && /<\/svg><\/span><\/button>$/.test(tab)), true);
+  const labels = ['col.all', ...['guess', 'letters', 'connect', 'tiles'].map(mode => 'mode.' + mode)].map(key => t(key));
+  check(`${lang}: game tabs have translated text and accessible names`, tabs.map(tab =>
+    [tab.match(/aria-label="([^"]+)"/)?.[1], tab.match(/class="ach-tab-label">([^<]+)/)?.[1]]), labels.map(label => [label, label]));
+  check(`${lang}: every summary shape has a visible tier label`,
+    [...html.matchAll(/class="ach-count"><svg[^]*?<\/svg><small>([^<]+)<\/small>/g)].map(m => m[1]), TIERS.map(k => t('tier.' + k)));
   check(`${lang}: selected section has a visible name`, html.includes(`<h2 class="ach-section-title">${t('col.all')}</h2>`), true);
   check(`${lang}: nineteen achievement squares`, (html.match(/data-ach="/g) ?? []).length, 19);
   check(`${lang}: earlier awards are collapsed`, html.includes('<details class="earlier-ach"><summary>' + t('ach.earlier')), true);

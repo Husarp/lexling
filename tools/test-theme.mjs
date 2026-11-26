@@ -91,7 +91,7 @@ check('theme and palette switches preserve the accent', html.style['--accent'], 
 const game = new Element();
 game.innerHTML = '<button class="gs-open"></button>';
 let changed;
-wireGear(game, [], key => { changed = [key, html.dataset.theme, meta.content]; });
+wireGear(game, 'guess', [], key => { changed = [key, html.dataset.theme, meta.content]; });
 game.fire(game.buttons[0]);
 const dlg = lastDialog;
 check('gear has Sound, then all three theme choices', dlg.buttons.filter(b => b.dataset.key).map(b => [b.dataset.key, b.dataset.v]),

@@ -30,6 +30,7 @@ packaged, the bundled fonts work, localStorage is writable and both languages' w
 writes a one-line report. The build runs it and refuses to package a build that fails.
 """
 import argparse
+import base64
 import ctypes
 import json
 import os
@@ -45,6 +46,7 @@ import webbrowser
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from uuid import UUID
 
 import webview
 
@@ -158,6 +160,33 @@ class Bridge:
             return False
         webbrowser.open(url)
         return True
+
+    def save_tiles_image(self, png: str) -> bool:
+        """Save the finished Tiles story in Windows Downloads (owner, 2026-11-26)."""
+        if not isinstance(png, str) or len(png) > 12_000_000 or not png.startswith("iVBORw0KGgo"):
+            return False
+        target = None
+        try:
+            data = base64.b64decode(png, validate=True)
+            downloads = Path.home() / "Downloads"
+            if sys.platform == "win32":
+                # FOLDERID_Downloads follows the location selected in Windows Explorer.
+                folder = (ctypes.c_ubyte * 16).from_buffer_copy(UUID("374DE290-123F-4565-9164-39C4925E467B").bytes_le)
+                path = ctypes.c_wchar_p()
+                if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(folder), 0, None, ctypes.byref(path)) == 0:
+                    try:
+                        downloads = Path(path.value)
+                    finally:
+                        ctypes.windll.ole32.CoTaskMemFree(path)
+            downloads.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(dir=downloads, prefix="Lexling-Tiles-", suffix=".png", delete=False) as out:
+                target = Path(out.name)
+                out.write(data)
+            return True
+        except (OSError, ValueError):
+            if target is not None:
+                target.unlink(missing_ok=True)
+            return False
 
     def install_update(self, url: str, version: str) -> str:
         """The new version (APP-STANDARDS.md): LexlingSetup-X.Y.Z.exe downloaded into the temp folder, started, and this

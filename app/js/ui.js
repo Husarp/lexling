@@ -1,10 +1,12 @@
 import { achievementIcon } from './achievement-icons.js';
-import { achievementDetail, achievementInk } from './achievement-view.js';
-import { settings, saveSettings, gameName, counts } from './store.js';
+import { achievementDetail } from './achievement-view.js';
+import { settings, saveSettings, gameName, counts, isKept, toggleKept } from './store.js';
 import { t, esc } from './i18n.js';
 import { TIERS } from './achievements.js';
-import { click } from './sound.js';
+import { playCue, queueTap, syncSound } from './sound.js';
 import { btStillOn, btLetBe, btSettings } from './net.js';
+import { feedback } from './letters.js';
+import { botLevelIcon } from './bot-level-icons.js';
 
 // Owner-picked icons from notes/icon-places/index.html; geometry stays with its proposal.
 export const UI_ICONS = {
@@ -31,7 +33,7 @@ export const UI_ICONS = {
 // Shared seat symbols keep setup and play consistent (owner, 2026-11-20).
 const playerSvg = paths => `<svg viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
 export const playerIcon = (S, p) => S.players[p].cpu
-  ? playerSvg('<rect x="3" y="4" width="18" height="13" rx="2"></rect><path d="M8 21h8M12 17v4M7 9h.01M17 9h.01M8 13h8"></path>')
+  ? botLevelIcon(S.players[p].cpu)
   : playerSvg('<circle cx="12" cy="7" r="4"></circle><path d="M4 22v-3a8 8 0 0 1 16 0v3"></path>');
 export const TILE_SETUP_ICONS = {
   dice: playerSvg('<rect x="3" y="3" width="18" height="18" rx="3"></rect><path d="M7 7h.01M17 7h.01M12 12h.01M7 17h.01M17 17h.01"></path>'),
@@ -51,13 +53,13 @@ function showAchievement() {
   const notice = achievementNotice = document.createElement('div');
   notice.className = 'achievement-notice';
   notice.setAttribute('role', 'status');
-  notice.style?.setProperty('--ink', achievementInk(tier === undefined ? 5 : +tier));
   notice.innerHTML = `<span class="ach-notice-icon"><img src="img/achievement.webp" alt="">${achievementIcon(id)}</span><span><strong>${t('ach.unlocked')}</strong><b>${tier === undefined ? t('ach.earned') : t('tier.' + TIERS[+tier])}</b><span>${esc(name)}</span></span><span class="ach-notice-actions"><button data-see>${t('ach.see')}</button><button data-close>${t('ach.nice')}</button></span>`;
   let closed = false;
   const close = () => { if (closed) return; closed = true; notice.remove(); achievementNotice = null; showAchievement(); };
   notice.querySelector?.('[data-close]')?.addEventListener('click', close);
   notice.querySelector?.('[data-see]')?.addEventListener('click', () => { close(); achievementDetail(id); });
   document.body.append(notice);
+  playCue('achievement');
   setTimeout(close, 3000);
 }
 document.addEventListener('lexling:achievement', e => {
@@ -77,10 +79,10 @@ document.addEventListener('lexling:save-evicted', () => {
 });
 
 // A game's name in its top bar (owner, 2026-09-26: "Name (Game 12)"): a long name gives way, its number always shows.
-export const practiceBadge = g => counts(g) ? '' : `<span class="practice-badge">${t('practice')}</span>`;
-export const gameTitle = g => (g.name
-  ? `<span class="eyebrow gname"><span class="nm">${esc(g.name)}</span><span class="no">(${t('games.defaultName', { n: g.auto ?? 1 })})</span></span>`
-  : `<span class="eyebrow">${esc(gameName(g))}</span>`) + practiceBadge(g);
+export const practiceBadge = (g, archived = false) => (archived ? !g.practice : counts(g)) ? '' : `<span class="practice-badge">${t('practice')}</span>`;
+export const gameTitle = (g, archived = false) => (g.name
+  ? `<span class="eyebrow gname game-title"><span class="nm">${esc(g.name)}</span><span class="no">(${t('games.defaultName', { n: g.auto ?? 1 })})</span></span>`
+  : `<span class="eyebrow game-title">${esc(gameName(g))}</span>`) + practiceBadge(g, archived);
 
 // A word's meaning (owner, 2026-09-26: no dictionary inside the app - too big - "open the browser with the word"): sjp.pl
 // for Polish (it knows every form, and says which word it comes from), Wiktionary for English. In the phone's own
@@ -96,6 +98,11 @@ const BOOK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 3h6a4 4 0 
 // a button under a word ("What it means ↗"), or the word itself as a link (dotted underline) in a list
 export const meaningButton = (word, lang) => `<button type="button" class="btn btn-ghost mean" data-mean="${esc(word)}" data-lang="${lang}">${BOOK}${t('meaning')} <span class="arrow">↗</span></button>`;
 export const wordLink = (word, lang, text = word) => `<button type="button" class="mw" data-mean="${esc(word)}" data-lang="${lang}" title="${t('meaning')}">${esc(text)}</button>`;
+// Buttons that place letters or commit Tiles turns have their own feedback (owner, 2026-11-26).
+document.addEventListener('click', e => {
+  const control = e.target.closest?.('button, a[href], summary');
+  if (control && !control.disabled && !control.matches('.cn-key, .kb [data-k], [data-act="play"], [data-act="swap"], [data-act="passYes"], [data-act="challenge"]')) queueTap();
+}, true);
 document.addEventListener('click', e => {
   const el = e.target.closest?.('[data-mean]');
   if (el) openExternal(meaningUrl(el.dataset.mean, el.dataset.lang));
@@ -120,15 +127,25 @@ export function flashTap(el) {
   clearTimeout(el.flashTimer);
   el.flashTimer = setTimeout(() => el.classList.remove('tap-flash'), 500);
 }
-export const wireGear = (root, extra = [], onChange = () => {}) =>
-  wireDialog(root, '.gs-open', t('set.title'), [['sound', t('set.sound'), t('set.soundDesc')],
+export function wireGear(root, mode, extra = [], onChange = () => {}) {
+  const items = [['sound', t('set.sound'), t('set.soundDesc')],
     // the same theme choice inside every game (owner, 2026-11-14)
-    ['theme', t('set.theme'), '', ['dark', 'light', 'system'].map(v => [v, t('theme.' + v)])], ...extra], onChange);
-// A small settings window opened by `trigger` (the gear): its rows, changed as they are tapped.
-export function wireDialog(root, trigger, title, items, onChange = () => {}) {
-  root.firstElementChild.addEventListener('click', e => {        // the screen, which goes when it is replaced
-    if (!e.target.closest(trigger)) return;
-    wireSettingRows(openDialog(title, settingRows(items)).dlg, onChange);
+    ['theme', t('set.theme'), '', ['dark', 'light', 'system'].map(v => [v, t('theme.' + v)])], ...extra];
+  const screen = root.firstElementChild;
+  const openSettings = (returning = false) => {
+    const { dlg, close } = openDialog(t('set.title'),
+      `<button class="btn gs-guide" type="button"><span>${t('howto.title')}</span><span class="arrow" aria-hidden="true">›</span></button>${settingRows(items)}`);
+    wireSettingRows(dlg, onChange);
+    const guide = dlg.querySelector('.gs-guide');
+    if (returning) guide.focus();
+    // The guide replaces Settings and returns to it over the same draft (owner, 2026-11-26).
+    guide.addEventListener('click', () => {
+      close();
+      openRules(mode).dlg.addEventListener('close', () => { if (screen.isConnected) openSettings(true); }, { once: true });
+    });
+  };
+  screen.addEventListener('click', e => {
+    if (e.target.closest('.gs-open')) openSettings();
   });
 }
 // A small window over the screen: a head with the title and ✕; Esc, ✕ or a tap outside closes it. (Tiles' Options is
@@ -166,13 +183,18 @@ export function applyButtonSize() {
   document.documentElement.style.setProperty('--button-scale', ['100', '115', '130', '150', '175'].includes(size) ? Number(size) / 100 : 1.3);
 }
 
+// One Letters display preference for Settings, the gear and the guide example (owner, 2026-11-26).
+export function applyLettersContrast() {
+  document.documentElement.dataset.lettersContrast = String(settings.lettersContrast === true);
+}
+
 // Settings as rows: [key, label, help] a switch; [key, label, help, choices] a choice - each [value, label, name], the
 // label may be a picture (a colour swatch), `name` then says it.
 export const settingRows = items => items.map(([key, label, help, choices]) => choices
   ? `<div class="gs-row col"><div class="row-text"><strong>${label}</strong><span>${help}</span></div><div class="seg" role="radiogroup">${choices.map(([v, text, name]) =>
     `<button type="button" data-key="${key}" data-v="${v}" class="${settings[key] === v ? 'on' : ''}"${name ? ` aria-label="${name}" title="${name}"` : ''}>${text}</button>`).join('')}</div></div>`
   : `<div class="gs-row"><div class="row-text"><strong>${label}</strong><span>${help}</span></div><button type="button" class="toggle${settings[key] ? ' on' : ''}" role="switch" aria-checked="${!!settings[key]}" aria-label="${label}" data-key="${key}"></button></div>`).join('');
-// A tap on one of those rows: the setting changes and is saved, then onChange(key) - Sound answers with its click.
+// A tap on one of those rows: the setting changes and is saved, then onChange(key).
 export function wireSettingRows(el, onChange = () => {}) {
   el.addEventListener('click', e => {
     const toggle = e.target.closest('[data-key]');
@@ -189,7 +211,8 @@ export function wireSettingRows(el, onChange = () => {}) {
     saveSettings();
     if (key === 'theme') applyTheme();
     if (key === 'buttonSize') applyButtonSize();
-    if (key === 'sound') click(); else onChange(key);
+    if (key === 'lettersContrast') applyLettersContrast();
+    if (key === 'sound') syncSound(); else onChange(key);
   });
 }
 
@@ -197,6 +220,25 @@ export function wireSettingRows(el, onChange = () => {}) {
 // screen's own note on the right. The side slots are equal columns, so the brand stays centred.
 export const topbar = ({ left = '', right = '' } = {}) =>
   `<header class="topbar"><span class="side">${left}</span><a class="brand" href="#/">Lex<b>/</b>ling<small class="tb-clock" aria-live="off"></small></a><span class="side end">${right}</span></header>`;
+export const resultHref = (id, kept) => `#/${kept ? 'kept-result' : 'result'}/${id}`;
+export const backToResults = kept => `<a class="btn btn-ghost" href="#/${kept ? 'kept-games' : 'last-games'}">${t(kept ? 'back.keptGames' : 'back.lastGames')}</a>`;
+
+// Both finished lists and their results use the same star (owner, 2026-11-26).
+export const keepButton = (game, on = game && isKept(game.id)) => game ? `<span class="keep-game">
+  <button class="btn btn-outline" type="button" data-keep aria-pressed="${on}" aria-label="${t('lastGames.keep')}" title="${t('lastGames.keep')}"><span aria-hidden="true">${on ? '★' : '☆'}</span></button>
+  <span class="keep-status help" role="status"></span>
+</span>` : '';
+export function wireKeep(root, game, changed) {
+  const button = root.querySelector('[data-keep]');
+  button?.addEventListener('click', () => {
+    const on = toggleKept(game);
+    button.nextElementSibling.textContent = on === null ? t('lastGames.keepFailed') : '';
+    if (on === null) return;
+    button.setAttribute('aria-pressed', on);
+    button.firstElementChild.textContent = on ? '★' : '☆';
+    changed?.(on);
+  });
+}
 
 // Which game a screen or a save belongs to: the mode's small glyph and its name.
 // Chunky line icons from icon proposal C, shared by every mode label and tab.
@@ -293,7 +335,7 @@ export function applyTheme() {
 }
 systemLight.addEventListener('change', applyTheme);
 
-// One floating chapter reader for setup help and the in-game Tiles guide.
+// One floating chapter reader for setup help and in-game guides.
 export function openRules(mode, topicsHtml = null) {
   let chapters;
   if (topicsHtml) {
@@ -304,8 +346,16 @@ export function openRules(mode, topicsHtml = null) {
       body: [...d.children].slice(1).map(el => el.outerHTML).join(''),
     }));
   } else chapters = t('howto.' + mode).split('\n').map((body, i) => ({
-    title: t(`howto.${mode}.${i}`), body: `<p class="help">${body}</p>`,
+    title: t(`howto.${mode}.${i}`),
+    body: mode === 'letters' && i === 2 ? `<ul class="help">${t('howto.letters.controls')}</ul>` : `<p class="help">${body}</p>`,
   }));
+  if (mode === 'letters') {
+    // Use the same scoring and tile colours as the board (owner, 2026-11-26).
+    const guess = t('howto.letters.example.guess'), answer = t('howto.letters.example.answer');
+    const colours = feedback(guess, answer);
+    chapters[1].body += `<div class="lt-board" aria-hidden="true"><div class="lt-row" style="--n:${colours.length};--max:36px">${[...guess].map((ch, i) =>
+      `<span class="lt ${TILE[colours[i]]}">${esc(ch)}</span>`).join('')}</div></div><p class="help">${t('howto.letters.example.text', { guess, answer })}</p>`;
+  }
   const { dlg, close } = openDialog(`${GLYPH[mode]} ${t('mode.' + mode)} · ${t('howto.title')}`,
     '<div class="chapter-title"><span class="chapter-count"></span><h2 id="rules-chapter"></h2></div><div class="chapter-body"></div><nav class="rules-nav"></nav>');
   dlg.classList.add('rules-window', 'rules-a');

@@ -159,7 +159,18 @@ stops (an unsigned APK cannot be installed); `-DebugBuild` still works.
 
 Needs the Android SDK (`%LOCALAPPDATA%\Android\Sdk`) and Android Studio's bundled JDK 21 — the script
 points at both, so neither has to be on PATH — plus `npm install` once for the Capacitor CLI. The APK
-wraps the very same `app/` folder as the desktop build; `cap sync` copies it into `android/`.
+wraps the same `app/` folder as the desktop build, bundled for older Android WebViews
+(`scripts/build-web.mjs`) and synced into `android/` by `scripts/ota-prepare-android.mjs`.
+
+On Linux: `npm run android:debug` (debug APK) or `npm run android:release` (signed; release passwords from the
+environment variables named in `ota.config.json`, or the key's properties file).
+
+**Live updates (Android).** The Android app downloads only the changed files of a new Lexling version and starts
+it on the next launch, with a signed list of files (Ed25519; the private key stays outside the repository, the
+public one is `keys/public-key.b64`) and an automatic way back if a version doesn't start. App identity, update
+addresses and keys are set in `ota.config.json`; `npm run android:ota:bundle` / `android:ota:shell` prepare an
+update, `android:ota:publish` uploads it to the fixed `channel` / `shell-channel` pre-releases. Normal releases
+keep **Latest** for the Windows installer, fresh installs and older APKs. Windows keeps its installer updates.
 
 ## Play online over the internet (Firebase)
 

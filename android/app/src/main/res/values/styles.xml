@@ -19,4 +19,16 @@
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
     </style>
+
+    <style name="OtaDialog.Dark" parent="android:style/Theme.Material.Dialog.Alert">
+        <item name="android:colorAccent">#DB5126</item>
+        <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="android:textColorSecondary">#9E9E9E</item>
+    </style>
+
+    <style name="OtaDialog.Light" parent="android:style/Theme.Material.Light.Dialog.Alert">
+        <item name="android:colorAccent">#DB5126</item>
+        <item name="android:textColorPrimary">#000000</item>
+        <item name="android:textColorSecondary">#4A4A4A</item>
+    </style>
 </resources>

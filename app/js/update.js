@@ -4,11 +4,12 @@
 import { settings, saveSettings } from './store.js';
 import { VERSION, REPO } from './version.js';
 import { newer, whatsnewShown } from './whatsnew.js';
+import { otaActive } from './ota.js';
 export { newer } from './whatsnew.js';
 
 // First install stays quiet; an update is acknowledged by opening What's new or closing its notice (owner, 2026-11-14).
 if (!settings.seenVersion) { settings.seenVersion = VERSION; saveSettings(); }
-export const recentUpdateShown = () => whatsnewShown(settings.seenVersion, VERSION);
+export const recentUpdateShown = () => !otaActive() && whatsnewShown(settings.seenVersion, VERSION);
 export const closeRecentUpdate = () => {
   if (recentUpdateShown()) { settings.seenVersion = VERSION; saveSettings(); }
 };
@@ -18,7 +19,7 @@ let running = null;
 
 // true when the check went through (or one was made just now); the menu hears 'lexling:update' when it has news
 export function checkUpdate(force = false) {
-  if (!REPO) return Promise.resolve(false);
+  if (otaActive() || !REPO) return Promise.resolve(false);
   if (!force && !settings.updateCheck) return Promise.resolve(false);   // Settings → Check for updates, switched off
   if (!force && Date.now() - (settings.lastCheck || 0) < EVERY) return Promise.resolve(true);
   running ??= (async () => {
@@ -40,7 +41,7 @@ export function checkUpdate(force = false) {
   return running;
 }
 
-export const updateWaiting = () => !!REPO && !!settings.latest && newer(settings.latest, VERSION);
+export const updateWaiting = () => !otaActive() && !!REPO && !!settings.latest && newer(settings.latest, VERSION);
 // the menu's banner: a newer version, while Check for updates is on. ✕ hides it until Lexling next starts (owner,
 // 2026-09-27): coming back from another app keeps it hidden; a fresh start - closed, or closed by the phone - shows it
 let closed = null;

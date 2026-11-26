@@ -1,25 +1,63 @@
 apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
 
-// The version comes from app/js/version.js, the one place it is written - as for the Windows build.
-// versionCode must grow with every release or Android refuses the update: 0.22.3 → 2203, 1.0.0 → 10000.
-def appVersion = (file('../../app/js/version.js').text =~ /VERSION\s*=\s*'([^']+)'/)[0][1]
-def (major, minor, patch) = appVersion.tokenize('.').collect { it as int }
+def checkout = rootProject.projectDir.parentFile.canonicalFile
+def configOutput = providers.exec {
+    workingDir checkout
+    commandLine 'node', 'scripts/ota-config.mjs', 'android'
+}.standardOutput.asText.get()
+def ota = new groovy.json.JsonSlurper().parseText(configOutput)
 
-// Release signing: android/keystore.properties (git-ignored) says where the key is and its password.
-// The key stays outside the repository. Without the file a release build is left unsigned, as before.
-def signing = new Properties()
-def signingFile = rootProject.file('keystore.properties')
-if (signingFile.exists()) signingFile.withInputStream { signing.load(it) }
+def releaseRequested = gradle.startParameter.taskNames.any {
+    def task = it.tokenize(':').last().toLowerCase(Locale.ROOT)
+    task.contains('release') || task in ['build', 'assemble', 'bundle']
+}
+def releaseSigning = null
+if (releaseRequested) {
+    def configuredKeystore = file(ota.signing.keystore).canonicalFile
+    def propertiesFile = file(ota.signing.properties).canonicalFile
+    if (configuredKeystore.isFile() && [configuredKeystore, propertiesFile].every { !it.toPath().startsWith(checkout.toPath()) }) {
+        def storePass = providers.environmentVariable(ota.signing.storePasswordEnv).orNull
+        def keyPass = providers.environmentVariable(ota.signing.keyPasswordEnv).orNull
+        if ((!storePass || !keyPass) && propertiesFile.isFile()) {
+            def signingInput = new Properties()
+            propertiesFile.withInputStream { signingInput.load(it) }
+            storePass = storePass ?: signingInput.getProperty('storePassword')
+            keyPass = keyPass ?: signingInput.getProperty('keyPassword')
+        }
+        if (storePass && keyPass) {
+            releaseSigning = [file: configuredKeystore, alias: ota.signing.keyAlias, storePass: storePass, keyPass: keyPass]
+        }
+    }
+    // The existing Windows build script supplies a complete signing configuration in this file.
+    if (!releaseSigning) {
+        def legacyFile = rootProject.file('keystore.properties')
+        def legacy = new Properties()
+        if (legacyFile.isFile()) legacyFile.withInputStream { legacy.load(it) }
+        if (legacy.storeFile && legacy.keyAlias && legacy.storePassword && legacy.keyPassword) {
+            def keystore = file(legacy.storeFile).canonicalFile
+            if (keystore.isFile() && !keystore.toPath().startsWith(checkout.toPath())) {
+                releaseSigning = [file: keystore, alias: legacy.keyAlias, storePass: legacy.storePassword, keyPass: legacy.keyPassword]
+            }
+        }
+    }
+}
 
 android {
     namespace "com.husarp.lexling"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.husarp.lexling"
+        applicationId ota.appId
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode major * 10000 + minor * 100 + patch
-        versionName appVersion
+        versionCode ota.build.versionCode as int
+        versionName ota.build.versionName
+        resValue 'string', 'app_name', ota.appName
+        buildConfigField 'String', 'OTA_BUNDLE_URL', groovy.json.JsonOutput.toJson(ota.urls.bundle)
+        buildConfigField 'String', 'OTA_SHELL_URL', groovy.json.JsonOutput.toJson(ota.urls.shell)
+        buildConfigField 'String', 'OTA_RELEASES_URL', groovy.json.JsonOutput.toJson(ota.urls.releases)
+        buildConfigField 'int', 'SHELL_API', "${ota.build.shellApi}"
+        buildConfigField 'long', 'SHELL_RELEASED_AT', "${Long.parseLong(findProperty('shellReleasedAt') ?: '0')}L"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -27,22 +65,45 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    buildFeatures {
+        buildConfig true
+    }
     signingConfigs {
-        if (signing.storeFile) release {
-            storeFile file(signing.storeFile)
-            storePassword signing.storePassword
-            keyAlias signing.keyAlias
-            keyPassword signing.keyPassword
+        if (releaseSigning) release {
+            storeFile releaseSigning.file
+            storePassword releaseSigning.storePass
+            keyAlias releaseSigning.alias
+            keyPassword releaseSigning.keyPass
         }
     }
     buildTypes {
+        // Test builds install next to the real app and never update it (owner, 2026-11-26)
+        debug {
+            applicationIdSuffix '.test'
+            versionNameSuffix '-test'
+            resValue 'string', 'app_name', ota.appName + ' Test'
+        }
         release {
-            if (signing.storeFile) signingConfig signingConfigs.release
+            if (releaseSigning) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }
+kotlin {
+    jvmToolchain(21)
+    compilerOptions {
+        // Nearby 19.5.0 ships Kotlin 2.4 metadata. Lexling uses its Java API.
+        freeCompilerArgs.add('-Xskip-metadata-version-check')
+    }
+}
+
+def verifyReleaseConfig = tasks.register('verifyReleaseConfig') {
+    doLast {
+        if (!releaseSigning) throw new GradleException('Configure the existing Lexling release keystore before building a release.')
+    }
+}
+tasks.matching { it.name == 'preReleaseBuild' }.configureEach { dependsOn verifyReleaseConfig }
 
 repositories {
     flatDir{
@@ -51,6 +112,9 @@ repositories {
 }
 
 dependencies {
+    implementation project(':core')
+    implementation 'androidx.work:work-runtime-ktx:2.10.1'
+    implementation 'com.google.code.gson:gson:2.11.0'
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"

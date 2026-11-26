@@ -1,8 +1,8 @@
 // The Tiles game screen (design v5 "Lexling Tiles"): the board, the rack, the tools, the computer's
 // turns, the hand-over between people, the panel (history, letters left, check a word), the end and the
 // look-back. The rules are tiles.js; finding moves - the computer, hints, the look-back - is tiles-moves.js.
-import { t, esc, clock, plural } from './i18n.js';
-import { counts, settings, saveSettings, getSave, putSave, deleteSave, recordMove, noteMove, tilesProgress, recordTilesEnd, recordTilesRating, playClock, gameName, newGame as makeSave } from './store.js';
+import { t, esc, clock, duration, plural } from './i18n.js';
+import { counts, settings, saveSettings, getSave, getFinished, putSave, deleteSave, recordMove, noteMove, tilesProgress, recordTilesEnd, recordTilesRating, playClock, gameName, newGame as makeSave } from './store.js';
 import { createHost, createGuest, seatName } from './session.js';
 import { net, netReady } from './net.js';
 import { loadWords, resolve } from './engine.js';
@@ -11,11 +11,12 @@ import { has } from './dawg.js';
 import { cleanTiers, moveRarity, listedPct } from './rarity.js';
 import { bump, grant, playChallenges, gameChallenges } from './achievements.js';
 import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, pointsBreakdown, checkMove, apply, canExchange,
-  unseen, undo, wordList, loadTileWords, checkWord, fullBag, hintCost, BLANK, newGame as startOf, outOf, levelKey, voteFits, voteCertain, voteStatus, canApprove } from './tiles.js';
-import { hint as bestMove, hintLevels, sameMove, computerMove, lookBack, LEVELS, loadSpoken } from './tiles-moves.js';
-import { UI_ICONS, playerIcon, practiceBadge, confirmClick, outcome, openDialog, openRules, settingRows, wireSettingRows, meaningButton, wordLink, remindBt } from './ui.js';
+  unseen, undo, wordList, loadTileWords, checkWord, fullBag, hintCost, BLANK, STANDARD, newGame as startOf, outOf, levelKey, voteFits, voteStatus, canApprove, matchSummary, replayBoard } from './tiles.js';
+import { findMoves, evaluateMoves, hintLevels, sameMove, computerMove, lookBack, LEVELS, loadSpoken } from './tiles-moves.js';
+import { UI_ICONS, playerIcon, practiceBadge, confirmClick, outcome, openDialog, openRules, settingRows, wireSettingRows, meaningButton, wordLink, remindBt, topbar, backToResults, keepButton, wireKeep, resultHref, gameTitle } from './ui.js';
 import { fitAll } from './fit.js';
-import { click, chime } from './sound.js';
+import { playCue, tilesMoveCue } from './sound.js';
+import { shareTilesStory } from './tiles-share.js';
 
 // a bonus square's look and label: d / t = double / triple letter, D / T = double / triple word (tiles.js BOARDS)
 export const LABEL = { d: 'l2', t: 'l3', D: 'w2', T: 'w3' };
@@ -32,6 +33,7 @@ const ICON = {
   zoomIn: svg('<circle cx="10" cy="10" r="7"></circle><path d="m15 15 6 6M7 10h6M10 7v6"></path>'),
   wholeBoard: svg('<path d="M9 3H3v6M15 3h6v6M3 15v6h6M21 15v6h-6"></path>'),
   redo: svg('<path d="m15 14 5-5-5-5"></path><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"></path>'),
+  share: svg('<path d="M12 16V3m-4 4 4-4 4 4M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>'),
 };
 const CLOSE = svg('<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>');
 const FIND = svg('<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>');
@@ -42,7 +44,7 @@ const ERR = { line: 'tiles.err.line', gap: 'tiles.err.gap', alone: 'tiles.err.to
 // motion and zoom (design NOTES): the computer "thinks" 900 ms, who-starts shows 1200 ms; the board zooms in on
 // the move being built when its squares are under 32 px, and pinches up to 2.5 ×
 const THINK_MS = 900, TOAST_MS = 1200, SMALL = 32, AUTO_ZOOM = 2, ZOOM_MAX = 2.5;
-const VOTE_MS = 20000;
+const VOTE_MS = 20000, STILL_THINKING_MS = 30000;
 // What another phone may send on its turn, rebuilt from the fields each action needs (security review, 2026-11-14):
 // no 'shuffle' (it reseeds the bag), no 'end' / 'voteEnd' / taking players out (the host's own), a hint's cost a
 // non-negative number, time a non-negative number of at most an hour. null = refused.
@@ -74,11 +76,18 @@ export const readinessText = (kind, ready) => ready === 'retry' ? 'net.retryFail
 
 const clampPan = (v, z) => Math.min(0, Math.max(-(1 - 1 / z), v));
 
-// How good a move was (owner, 2026-09-26): its points against the best move there was on that board with that rack -
-// the best, excellent (85 %+), good (65 %+), fair (40 %+) or weak. No rating when there was no move to make.
+// Older evaluations stored the raw best alone or stored the overall leader under rarer.
 const BANDS = [[1, 'best'], [0.85, 'great'], [0.65, 'good'], [0.4, 'fair'], [0, 'weak']];
 export const rateOf = (played, best) => best > 0 ? BANDS.find(([k]) => played / best >= k - 1e-9)[1] : null;
 const pctOf = (played, best) => Math.min(100, Math.round(played / best * 100));
+const referenceOf = ev => ev?.reference ?? ev?.best ?? 0;
+const topScoreOf = ev => ev?.rarer?.score ?? ev?.best ?? 0;
+const hasBetter = (ev, played) => topScoreOf(ev) > played;
+// A narrow lead can put the top score below the benchmark. The top play still earns full credit.
+const creditOf = (played, ev) => {
+  const reference = referenceOf(ev);
+  return !hasBetter(ev, played) ? reference : Math.min(played, reference);
+};
 
 // The bonus squares' look (owner, 2026-09-26): in colour (true), only their labels coloured on a plain square ('text'),
 // or one quiet grey (false) - a choice in the gear, History, New game and Settings.
@@ -110,30 +119,91 @@ export function nameOf(state, p) {
   return x.cpu ? t(same > 1 ? 'tiles.cpuN' : 'tiles.cpu', { n: k }) : t(same > 1 ? 'tiles.playerN' : 'tiles.you', { n: k });
 }
 
-// How to play, topic by topic (owner, 2026-09-25): on New game all of them; in a game (the "?") the ones its rules use.
+// Match highlights and score progression share the live and Last games results (owner, 2026-11-26).
+function matchDetails(state, timeMs) {
+  const { best, longest, totals } = matchSummary(state);
+  const rows = [
+    ['best', best && `<strong>${esc(best.word.toUpperCase())}</strong> <span>+${best.score} ${t('tiles.hist.pts')}</span>`],
+    ['longest', longest && `<strong>${esc(longest.word.toUpperCase())}</strong> <span>· ${longest.letters} ${plural(longest.letters, 'lt.letters')}</span>`],
+    ['length', duration(timeMs)],
+  ];
+  return `<section class="card tl-highlights">
+    <h2 class="eyebrow">${t('tiles.match.title')}</h2>
+    <dl>${rows.map(([key, value]) => `<div><dt>${t('tiles.match.' + key)}</dt><dd>${value ?? '–'}</dd></div>`).join('')}</dl>
+  </section>
+  ${scoreChart(state, totals)}`;
+}
+
+const scoreChartX = (move, last) => 44 + move / Math.max(1, last) * 260;
+function scoreChart(state, totals) {
+  let low = 0, high = 1;
+  for (const scores of totals) {
+    low = Math.min(low, ...scores);
+    high = Math.max(high, ...scores);
+  }
+  const last = totals.length - 1, range = (high - low) / 4;
+  const unit = 10 ** Math.floor(Math.log10(Math.max(1, range)));
+  const step = [1, 2, 5, 10].find(n => n * unit >= range) * unit;
+  const min = Math.floor(low / step) * step, max = Math.ceil(high / step) * step;
+  const x = move => scoreChartX(move, last);
+  const y = score => 124 - (score - min) / (max - min) * 100;
+  const ticks = Array.from({ length: (max - min) / step + 1 }, (_, i) => min + i * step);
+  const moves = [...new Set([0, Math.round(last / 3), Math.round(2 * last / 3), last])];
+  return `<section class="card tl-score-chart">
+    <h2 class="eyebrow">${t('tiles.match.chart')}</h2>
+    <svg viewBox="0 0 320 169" role="img" aria-label="${t('tiles.match.chartLabel')}">
+      <text x="44" y="12">${t('tiles.end.pts')}</text>
+      ${ticks.map(score => `<line class="grid" x1="44" x2="304" y1="${y(score)}" y2="${y(score)}"/><text x="37" y="${y(score) + 4}" text-anchor="end">${score}</text>`).join('')}
+      ${moves.map(move => `<text x="${x(move)}" y="143" text-anchor="middle">${move}</text>`).join('')}
+      <text x="174" y="163" text-anchor="middle">${t('tiles.match.move')}</text>
+      ${state.players.map((_, p) => `<g class="pc${p}">
+        <polyline points="${totals.map((scores, i) => `${x(i).toFixed(2)},${y(scores[p]).toFixed(2)}`).join(' ')}"/>
+        <circle cx="${x(last)}" cy="${y(totals[last][p])}" r="3"/>
+      </g>`).join('')}
+      <line class="replay-marker" x1="44" x2="44" y1="24" y2="124" visibility="hidden" aria-hidden="true"/>
+    </svg>
+    <ul>${state.players.map((_, p) => `<li class="pc${p}"><i aria-hidden="true"></i>${esc(nameOf(state, p))}</li>`).join('')}</ul>
+  </section>`;
+}
+
+// Keep the basics first, then active rules, then the optional chapters (owner, 2026-11-26).
 export function topics(rules = null) {
-  const keys = ['goal', 'turn', 'points', 'looks', 'blank', 'swap', 'end'];
-  if (!rules || rules.check === 'challenge') keys.push('challenge');
-  if (!rules || rules.time) keys.push('clock');
-  if (!rules || rules.veto) keys.push('veto');
+  const title = k => t('howto.tiles.' + k);
+  const help = k => `<p class="help">${title(k)}</p>`;
+  const active = [], optional = [];
+  for (const [key, on] of [['hints', rules?.hints], ['challenge', rules?.check === 'challenge'], ['clock', rules?.time], ['veto', rules?.veto]]) {
+    if (rules || key !== 'hints') (on ? active : optional).push(key);
+  }
   const legend = `<p class="tl-legend${settings.tilesCb ? ' cb' : ''}">${['l2', 'l3', 'w2', 'w3'].map(k => `<span><i class="q ${k}">${t('tiles.label.' + k)}${bonusMark()}</i></span>`).join('')}</p>`;
   // every look a tile can have on the board, drawn as it is there (owner, 2026-09-26: "show what each tile style means")
   const looks = `<ul class="tl-looks">${[['', 'plain'], ['bl', 'blank'], ['last', 'last'], ['new', 'new'], ['new bad', 'bad'], ['new hint', 'hint'],
     ['p0 own hinted', 'hinted'], ['peek', 'peek']].map(([cls, k]) => `<li><b class="t ${cls}" aria-hidden="true">${k === 'blank' ? 'E' : 'A'}<i class="p">${
     k === 'blank' ? '' : 1}</i></b><span>${t('tiles.looks.' + k)}</span></li>`).join('')}</ul>`;
-  return `<div class="tl-topics">${keys.map(k => `<details><summary>${t('howto.tiles.' + k)}<span class="arrow" aria-hidden="true">›</span></summary><p class="help">${
-    t(`howto.tiles.${k}.t`)}</p>${k === 'points' ? legend : k === 'looks' ? looks : ''}</details>`).join('')}</div>`;
+  const bingo = rules?.bingo ?? STANDARD.bingo;
+  const bodies = {
+    goal: help('goal.t'),
+    turn: t('howto.tiles.turn.t', { check: title(rules?.check === 'challenge' ? 'turn.check.challenge' : 'turn.check.auto') }),
+    points: help('points.t') + (rules ? help(rules.premiums === 'always' ? 'points.always' : 'points.once') +
+      (bingo ? `<p class="help">${t('howto.tiles.points.bingo', { n: bingo })}</p>` : '') : '') + legend,
+    blank: help('blank.t') + looks,
+    swap: help('swap.t') + (rules ? help(rules.exchange === 'always' ? 'swap.always' : 'swap.bag7') : ''),
+    end: help('end.t'),
+    challenge: help('challenge.t') + help('challenge.end'),
+  };
+  return `<div class="tl-topics">${['goal', 'turn', 'points', 'blank', 'swap', 'end', ...active, ...optional].map(k =>
+    `<details><summary>${title(k)}<span class="arrow" aria-hidden="true">›</span></summary>${
+      optional.includes(k) ? `<p class="rule-status">${title(rules ? 'off' : 'optional')}</p>` : ''}${bodies[k] ?? help(k + '.t')}</details>`).join('')}</div>`;
 }
 
-// Check a word (owner, 2026-09-25: any time) - the Check tab of a game's panel.
+// Check a word (owner, 2026-11-26): use the game's loaded dictionary, even during a challenge.
 const checkHtml = () => `<div class="tl-check"><form novalidate><input class="input" type="text" maxlength="20" placeholder="${t('tiles.check.ph')}" aria-label="${
   t('tiles.check')}" autocomplete="off" autocapitalize="none" spellcheck="false"><button class="btn btn-outline" type="submit">${t('tiles.checkTab')}</button></form><p class="res" role="status"></p><div class="mean-slot"></div></div>`;
-function wireCheck(box, langOf, rules) {
+function wireCheck(box, lang, rules, dict) {
   const input = box.querySelector('input'), res = box.querySelector('.res');
-  box.querySelector('form').addEventListener('submit', async e => {
+  box.querySelector('form').addEventListener('submit', e => {
     e.preventDefault();
     if (!input.value.trim()) return;
-    const lang = langOf(), r = checkWord(await loadTileWords(lang, rules), lang, input.value);
+    const r = checkWord(dict, lang, input.value);
     res.className = 'res ' + (r.ok ? 'ok' : 'no');
     res.textContent = t('tiles.checkedList', { list: t('tiles.r.dictionary.' + wordList(rules)) }) + ' · ' + t(r.ok ? 'tiles.check.ok' : 'tiles.check.' + r.why, { w: r.word.toUpperCase() });
     // what it means - in the browser (owner, 2026-09-26); a word too short or with a letter no tile has, never
@@ -145,7 +215,7 @@ function wireCheck(box, langOf, rules) {
 // squares are the grid's background). `draft` = this turn's tiles. No points on the board, ever (owner, 2026-09-26) - the
 // message line and Play show them.
 // `hinted` = squares of tiles already down that belong to a hinted word: they take the hint look too.
-export function boardInner(S, { draft = [], bad = false, badWords = [], cursor = null, drop = -1, hinted = new Set(), peek = -1 } = {}) {
+export function boardInner(S, { draft = [], bad = false, badWords = [], cursor = null, drop = -1, hinted = new Set(), peek = -1, selected = null, highlight } = {}) {
   const n = sizeOf(S.board), prem = premiums(S.board), mid = centre(S.board);
   const fresh = new Map((S.vote?.placed ?? draft).map(d => [d.r * n + d.c, d]));
   // Mark the whole rejected word, including letters already on the board. Shared letters
@@ -160,7 +230,8 @@ export function boardInner(S, { draft = [], bad = false, badWords = [], cursor =
   }
   // Only the last move, by anyone; a withdrawn or vetoed word clears it (owner, 2026-11-14).
   const move = (S.moves ?? []).findLast(m => ['play', 'withdrawn', 'vetoed'].includes(m.kind));
-  const last = new Set(settings.tilesLast !== false && move?.kind === 'play' ? (move.placed ?? []).map(d => d.r * n + d.c) : []);
+  const marked = highlight ?? (settings.tilesLast !== false && move?.kind === 'play' ? move.placed : []);
+  const last = new Set((marked ?? []).map(d => d.r * n + d.c));
   const at = i => `grid-row:${Math.floor(i / n) + 1};grid-column:${i % n + 1}`;
   let html = '';
   for (let i = 0; i < n * n; i++) {
@@ -177,30 +248,80 @@ export function boardInner(S, { draft = [], bad = false, badWords = [], cursor =
   // each row above the one before it, so a raised tile's face goes over the tile above (css .tb.raised)
   const tile = (i, ch, blank, cls) => `<b class="t ${cls}${blank ? ' bl' : ''}" data-i="${i}" style="${at(i)};z-index:${2 + Math.floor(i / n)}">${esc(ch)}<i class="p">${blank || !ch ? '' : valueOf(S.lang, ch)}</i></b>`;
   S.cells.forEach((x, i) => { if (x) html += tile(i, x.ch, x.blank, (hinted.has(i) ? 'hint' : 'p' + x.by + (x.hint ? ' hinted' : '')) + (last.has(i) ? ' last' : '') + (i === peek ? ' peek' : '') + (rejected.has(i) ? ' bad' : '')); });
-  for (const [i, d] of fresh) html += tile(i, d.ch, d.blank, (S.vote ? 'voting' : d.hint ? 'new hint' : 'new') + (bad || rejected.has(i) ? ' bad' : '') + (i === drop ? ' drop' : ''));
+  for (const [i, d] of fresh) html += tile(i, d.ch, d.blank, (S.vote ? 'voting' : d.hint ? 'new hint' : 'new') + (bad || rejected.has(i) ? ' bad' : '') + (i === drop ? ' drop' : '') + (d === selected ? ' selected' : ''));
   return html;
 }
 
-export async function tilesGameScreen(root, id) {
-  let game = getSave(id);
-  let dict = null, lex = null, spoken = null;
-  // Rarity loads in the background unless a computer needs frequencies to play (owner, 2026-11-14).
-  const lexReady = game ? loadWords(game.lang).catch(() => null) : Promise.resolve(null);
-  if (game) {
-    // The words people say matter to a computer that knows fewer words (tiles-moves.js LEVELS).
-    const levels = game.state.players.filter(x => x.cpu).map(x => LEVELS[x.cpu] ?? LEVELS.normal);
-    const slow = levels.some(L => L.known > 0 && L.known !== Infinity), says = levels.some(L => L.spoken);
-    try {
-      [dict, lex, spoken] = await Promise.all([loadTileWords(game.lang, game.state.rules), slow ? loadWords(game.lang) : null,
-        says ? loadSpoken(game.lang).catch(() => new Map()) : null]);
-    } catch { dict = null; }
+const historyAction = m => m.kind === 'swap' ? plural(m.n, 'tiles.hist.exchanged').replace('{n}', m.n)
+  : m.kind === 'pass' ? t(m.away ? 'tiles.hist.away' : 'tiles.hist.passed')
+    : m.kind === 'resign' ? t(m.removed ? 'tiles.hist.removed' : 'tiles.hist.resigned')
+      : m.kind === 'timeout' ? t('tiles.hist.timeout')
+        : ['withdrawn', 'vetoed'].includes(m.kind) ? t(m.approval ? 'tiles.hist.notApproved' : 'tiles.hist.' + m.kind)
+          : t(m.ok ? 'tiles.hist.challengeWon' : 'tiles.hist.challengeLost');
+
+// Replay stays on the results screen and only repaints its board and chart marker (owner, 2026-11-26).
+function wireReplay(main, state, board) {
+  const toggle = main.querySelector('[data-replay]'), controls = main.querySelector('.tl-replay-controls');
+  const counter = controls.querySelector('b'), detail = controls.querySelector('p');
+  const marker = main.querySelector('.replay-marker'), buttons = [...controls.querySelectorAll('[data-step]')];
+  const moves = state.moves.filter(m => m.kind !== 'hint'), total = moves.length;
+  let at = 0;
+  function paint() {
+    const move = moves[at - 1];
+    const words = move?.words?.map(w => w.w.toUpperCase()).join(', ');
+    const action = move?.kind === 'play' ? words : [words, move && historyAction(move)].filter(Boolean).join(' · ');
+    detail.textContent = move ? t('tiles.replay.detail', { name: nameOf(state, move.p), action, points: move.kind === 'play' ? move.score : 0 })
+      : t('tiles.replay.start');
+    counter.textContent = t('tiles.replay.counter', { move: at, total });
+    buttons.forEach((b, i) => { b.disabled = i < 2 ? at === 0 : at === total; });
+    const highlight = move && ['play', 'withdrawn'].includes(move.kind) ? move.placed : [];
+    const draft = move?.kind === 'vetoed' ? move.placed : [];
+    board.innerHTML = boardInner(replayBoard(state, moves, at), { highlight, draft, bad: true });
+    const x = scoreChartX(at, total);
+    marker.setAttribute('x1', x);
+    marker.setAttribute('x2', x);
   }
-  if (!dict) { location.replace('#/games/tiles'); return; }
-  if (location.hash !== '#/game/' + id) return;   // left while the words loaded: a newer screen is up
+  toggle.addEventListener('click', () => {
+    const active = controls.hidden;
+    controls.hidden = !active;
+    toggle.setAttribute('aria-expanded', active);
+    toggle.textContent = t(active ? 'tiles.replay.final' : 'tiles.replay');
+    marker.setAttribute('visibility', active ? 'visible' : 'hidden');
+    if (active) paint();
+    else board.innerHTML = boardInner(state);
+  });
+  const steps = [() => 0, () => at - 1, () => at + 1, () => total];
+  buttons.forEach((b, i) => b.addEventListener('click', () => {
+    at = steps[i]();
+    paint();
+  }));
+}
+
+export async function tilesGameScreen(root, id, archived = false, kept = false) {
+  let game = archived ? getFinished(id) : getSave(id);
+  let dict = null, lex = null, spoken = null, familiar = null;
+  let wordsReady;
+  // Rarity loads in the background unless a computer needs frequencies to play (owner, 2026-11-14).
+  const lexReady = game && !archived ? loadWords(game.lang).catch(() => null) : Promise.resolve(null);
+  if (game && (!archived || game.state.rules?.rating !== false)) {
+    // The words people say matter to a computer that knows fewer words (tiles-moves.js LEVELS).
+    const levels = archived ? [] : game.state.players.filter(x => x.cpu).map(x => LEVELS[x.cpu] ?? LEVELS.normal);
+    const slow = levels.some(L => L.known > 0 && L.known !== Infinity), says = levels.some(L => L.spoken);
+    wordsReady = Promise.all([loadTileWords(game.lang, game.state.rules), slow ? loadWords(game.lang) : null,
+      says ? loadSpoken(game.lang).catch(() => new Map()) : null,
+      game.state.rules?.rating === false ? null : loadTileWords(game.lang, { dictionary: 'familiar' }).catch(() => null)])
+      .then(words => { [dict, lex, spoken, familiar] = words; }).catch(() => { dict = null; });
+    // Archived results and replay open while the optional analysis loads (owner, 2026-11-26).
+    if (!archived) await wordsReady;
+  }
+  if (location.hash !== (archived ? resultHref(id, kept) : '#/game/' + id)) return;
+  if (!archived && !dict) { location.replace('#/games/tiles'); return; }
 
   let S = game.state;
-  game.statsDone ??= S.moves.length;
-  game.achDone ??= S.moves.length;   // older saves and newly joined phones count from now (owner, 2026-11-14)
+  if (!archived) {
+    game.statsDone ??= S.moves.length;
+    game.achDone ??= S.moves.length;   // older saves and newly joined phones count from now (owner, 2026-11-14)
+  }
   const { lang } = S, n = sizeOf(S.board);
   const isWord = w => has(dict, w);
   const rankOf = w => (lex && resolve(lex, w)?.idx) ?? Infinity, spokenOf = w => spoken?.get(w) ?? Infinity;
@@ -212,13 +333,14 @@ export async function tilesGameScreen(root, id) {
   const linked = !!game.link, host = linked && game.link.role === 'host';
   let linkMe = linked ? game.link.me : -1;
   const remote = p => linked && p !== linkMe;
-  const kind = game.link?.kind ?? 'bt', wire = linked ? net(kind) : null;
+  const kind = game.link?.kind ?? 'bt', wire = linked && !archived ? net(kind) : null;
   let party = null, linkUp = false, linkNote = '', retry = 0, beat = 0, myPhone = '', myWifi = true, roomCode = '';
   let asked = null, hereList = [], ended = '', frozenLive = null;   // host: a phone waiting to be let in; guest: who is there, why it ended
   // the phones, for the host's decisions (owner, 2026-09-27): away[p] - that phone shows another app (Lexling in the
   // background); goneSince[p] - when it lost the connection. Meanwhile the others play on; the host can skip the move of
   // whoever is on turn, or make a player give up (Options → Players)
-  let away = [], goneSince = [], askSeat = -1, presenceTimer = 0, visibleDeclined = false, visAsking = false, joinedAs = false;
+  let away = [], goneSince = [], askSeat = -1, visibleDeclined = false, visAsking = false, joinedAs = false;
+  let remoteMs = 0, linkHtml = '', linkDraft = null, sentDraft = null;
   let findable = null;   // Bluetooth host: can other phones' search find this one now (null: not known)
   const handles = [];
   // one person here (against computers, or on their own phone): their rack is always shown
@@ -231,7 +353,9 @@ export async function tilesGameScreen(root, id) {
 
   let shown = solo;           // whose rack is on screen: -1 = nobody's (between people, or a computer's turn)
   let draft = [];             // this turn's tiles: { slot (in the rack), r, c, ch, blank, hint }
+  let stashedDraft = null;    // Pass or Exchange is open
   let sel = -1;               // a rack tile lifted by a tap, to be tapped onto a square
+  let selectedTile = null;    // a tile this turn, lifted by a tap to swap with another on the board
   let mode = 'play';          // 'play', 'exchange' (picking tiles to swap), 'pass' (asking first) or 'hint' (which one)
   let picks = new Set();      // exchange: the rack tiles picked
   let levels = null;          // the three hints for this turn, { small, big, master } (tiles-moves.js hintLevels)
@@ -244,6 +368,7 @@ export async function tilesGameScreen(root, id) {
   let landing = null;         // squares whose tiles just came down, to animate
   let endStep = false;        // the end, before the results: what the tiles left on the racks cost (finish)
   let thinking = false, toast = false, handOver = false, wide = false;
+  let turnCuePending = !S.log.length;
   let voteAt = null, seenAt = 0, sentVote = null, lastVote = null, voteMoveAt = 0, voteResult = null;
   let manualOverview = false, placedOnce = false;
   let zoom = { z: 1, x: 0, y: 0 };      // x / y: the board's shift, in fractions of its size (0 or less)
@@ -251,6 +376,7 @@ export async function tilesGameScreen(root, id) {
   const touches = new Map();
 
   root.innerHTML = `<div class="app fit" data-screen="tiles">
+  ${archived ? topbar({ left: backToResults(kept), right: gameTitle(game, archived) }) : ''}
   <main class="main"><div class="tl-play">
     <div class="status"></div>
     <div class="tl-bwrap"><div class="tl-board"><div class="tb"></div></div></div>
@@ -304,7 +430,9 @@ export async function tilesGameScreen(root, id) {
     voteAt = at; seenAt = Date.now(); sentVote = null;
   }
   const voteMs = () => Math.max(0, Date.now() - seenAt);
-  const liveMs = () => linked && !host && !linkUp ? frozenLive ?? game.turnMs ?? 0 : S.vote ? voteMs() : game.turnMs || 0;
+  // The watching phone estimates time until the mover's logged time arrives (owner, 2026-11-26).
+  const liveMs = () => linked && !host && !linkUp ? frozenLive ?? game.turnMs ?? 0
+    : S.vote ? voteMs() : remote(S.turn) ? remoteMs : game.turnMs || 0;
   const turnMs = () => (S.used || 0) + liveMs();
 
   // The move as it stands: { error } or { words, score }. With challenges the words go down unchecked, so the
@@ -334,7 +462,7 @@ export async function tilesGameScreen(root, id) {
     status.innerHTML = `<div class="ps-row${np > 2 ? ' many' : ''}">${S.players.map((_, p) => chip(p)).join('')}</div>
       <button class="ps-bag" type="button" data-open="unseen" aria-label="${t('tiles.unseen')}"><span class="nm">${t('tiles.bag')}</span><span class="sc">${S.bag.length}</span></button>
       ${open ? othersHtml() : ''}
-      <div class="status-actions">${practiceBadge(game)}<a class="btn btn-ghost tl-exit" href="#/games/tiles">${DOOR}<span>${t(linked && !host ? 'net.leave' : 'game.saveExit')}</span></a><button class="btn btn-ghost tl-find" type="button" data-open="check" aria-label="${t('tiles.check')}" title="${t('tiles.check')}">${FIND}</button>${['zoomIn', 'wholeBoard'].map(act => `<button class="btn btn-ghost tl-find" type="button" data-act="${act}" aria-label="${t('tiles.' + act)}" title="${t('tiles.' + act)}">${ICON[act]}</button>`).join('')}<button class="btn btn-ghost tl-opts" type="button" data-act="options">${LIST}<span>${t('tiles.options')}</span></button></div>`;
+      <div class="status-actions"><a class="btn btn-ghost tl-exit" href="#/games/tiles">${DOOR}<span>${t(linked && !host ? 'net.leave' : 'game.saveExit')}</span></a>${practiceBadge(game)}<button class="btn btn-ghost tl-find" type="button" data-open="check" aria-label="${t('tiles.check')}" title="${t('tiles.check')}">${FIND}</button>${['zoomIn', 'wholeBoard'].map(act => `<button class="btn btn-ghost tl-find" type="button" data-act="${act}" aria-label="${t('tiles.' + act)}" title="${t('tiles.' + act)}">${ICON[act]}</button>`).join('')}<button class="btn btn-ghost tl-opts" type="button" data-act="options">${LIST}<span>${t('tiles.options')}</span></button></div>`;
     paintClock();
     paintZoomTools();
     const row = status.querySelector('.ps-row.many'), cur = row?.querySelector('.ps.on');
@@ -360,7 +488,7 @@ export async function tilesGameScreen(root, id) {
     const res = judge(), lifted = press?.drag && press.kind === 'tile' ? press.di : -1;
     const shownDraft = draft.filter((_, i) => i !== lifted);
     tb.className = `tb n${n}${zoom.z > 1 ? ' zoom' : ''}${looks()}`;
-    tb.innerHTML = boardInner(S, { draft: shownDraft, bad: !!res?.error && res.error !== 'word', badWords: res?.bad ?? [], cursor: myTurn() && mode === 'play' ? cursor : null, drop: dropAt, hinted: hintedCells(), peek: peekAt });
+    tb.innerHTML = boardInner(S, { draft: shownDraft, bad: !!res?.error && res.error !== 'word', badWords: res?.bad ?? [], cursor: myTurn() && mode === 'play' ? cursor : null, drop: dropAt, hinted: hintedCells(), peek: peekAt, selected: myTurn() ? selectedTile : null });
     applyZoom(!!(pinch || press?.drag));
     // tiles that just came down settle in, 150 ms each, 60 apart (design: motion)
     landing?.forEach((i, k) => tb.querySelector(`[data-i="${i}"]`)?.animate([{ transform: 'translateY(-35%) scale(1.15)', opacity: 0 }, { transform: 'none', opacity: 1 }],
@@ -456,17 +584,18 @@ export async function tilesGameScreen(root, id) {
     return `<small class="rare rare-${rare.pct > 50 ? 'grey' : rare.tier}" title="${esc(about)}" aria-label="${esc(label + ' · ' + about)}">${label}</small>`;
   }
   function moveCard(i, cls) {
-    const m = S.moves[i], play = m.kind === 'play', ev = rateOn() && game.evals?.[i];
-    const band = play && ev?.best > 0 ? rateOf(m.score, ev.best) : null;
+    const m = S.moves[i], play = m.kind === 'play', ev = rateOn() && (play || m.kind === 'timeout') && game.evals?.[i];
+    const reference = referenceOf(ev), credit = creditOf(m.score, ev), band = play && rateOf(credit, reference);
     // under it: Master's own reason (it weighs the rest of the game - owner 1a), or the best move there was
-    const under = !ev ? '' : m.hinted === 'master' && band && m.score < ev.best ? t('tiles.rate.masterNote')
-      : bestOn() && ev.best > (play ? m.score : 0) ? bestWas(ev) : '';
+    const under = m.hinted === 'master' && band && credit < reference ? t('tiles.rate.masterNote')
+      : bestOn() && hasBetter(ev, play ? m.score : 0) ? bestWas(ev) : '';
     return `<div class="mc ${cls} pc${m.p}">${whoCell(m.p)}<span class="w${play ? '' : ' quiet'}">${m.hinted ? hintMark() : ''}${
       play ? cardWords(m.words, m.bingo) : m.kind === 'vetoed' ? `${cardWords(m.words, false)} · ${t(m.approval ? 'tiles.hist.notApproved' : 'tiles.hist.vetoed')}` : t(m.kind === 'swap' ? 'tiles.look.swap' : 'tiles.look.pass')}</span>${play ? `<button type="button" class="pt" data-points="${i}" aria-label="${t('tiles.pointsExplain')}">${m.score}</button>` : '<span class="pt">–</span>'}<span class="rr">${
-      band ? `<small class="rate rate-${band}"><span class="bn">${t('tiles.rate.' + band)} · </span>${pctOf(m.score, ev.best)}%</small>` : ''}${rarityChip(m)}</span>${under ? `<span class="bw">${under}</span>` : ''}</div>`;
+      band ? `<small class="rate rate-${band}"><span class="bn">${t('tiles.rate.' + band)} · </span>${pctOf(credit, reference)}%</small>` : ''}${rarityChip(m)}</span>${under ? `<span class="bw">${under}</span>` : ''}</div>`;
   }
   const endWarning = () => endingNext(S) ? ' ' + t('tiles.endWarning', { n: S.zeros, limit: 2 * S.players.filter((_, p) => !isOut(p)).length }) : '';
   function paintSay() {
+    sendDraft();
     const me = shown >= 0 ? shown : solo >= 0 ? solo : S.turn, res = judge();
     const prompt = myTurn() ? t(S.cells.some(Boolean) ? (solo >= 0 ? 'tiles.say.turn' : 'tiles.say.turnOf') : 'tiles.placeCentre', { name: esc(nameOf(S, S.turn)) }) + (!placedOnce && !S.cells.some(Boolean) ? ' ' + t('tiles.firstCue') : '') : '';
     // Validation belongs by the rack; keep the move bar neutral (owner, 2026-11-20).
@@ -488,10 +617,12 @@ export async function tilesGameScreen(root, id) {
       : res && !res.error ? `<div class="mc me live pc${me}">${whoCell(me)}<span class="w">${draft[0].hint ? hintMark() : ''}${cardWords(res.words, draft.length === 7)}</span><button type="button" class="pt" data-points="draft" aria-label="${t('tiles.pointsExplain')}">${res.score}</button><span class="rr">${
         draft[0].hint ? `<small class="hlv">${t('tiles.hint.' + draft[0].hint)}${hintPaid ? ' −' + hintPaid : ''}</small>` : ''}</span></div>`
       : mine >= 0 ? moveCard(mine, 'me')
+      : linked && remote(S.turn) ? ''   // the live line already covers the wait (owner, 2026-11-26)
       : `<div class="mc me pc${me}">${whoCell(me)}<span class="msg">${prompt}</span></div>`;
     const other = thinking && S.turn !== me && !linked ? `<div class="mc them pc${S.turn}">${whoCell(S.turn)}<span class="msg">${t('tiles.say.thinking')}</span></div>`
       : theirs >= 0 ? moveCard(theirs, 'them') : '';
-    say.innerHTML = `${linked ? linkLine() : ''}<div class="mcards">${card}${other}</div><p class="mc-bag">${fresh?.p === me ? t('tiles.drew', { l: `<b>${fresh.letters.map(x => x === BLANK ? '?' : esc(x.toUpperCase())).join(' · ')}</b>` }) : ''}</p>`;
+    linkHtml = linked ? linkLine() : '';
+    say.innerHTML = `${linkHtml}<div class="mcards">${card}${other}</div><p class="mc-bag">${fresh?.p === me ? t('tiles.drew', { l: `<b>${fresh.letters.map(x => x === BLANK ? '?' : esc(x.toUpperCase())).join(' · ')}</b>` }) : ''}</p>`;
     paintDock();
   }
 
@@ -510,11 +641,10 @@ export async function tilesGameScreen(root, id) {
     const detail = pointsBreakdown(state, placed);
     openDialog(t('tiles.pointsExplain'), `<div class="tl-calculation">${detail.words.map(w => `<p><b>${esc(w.w.toUpperCase())}</b>: (${w.letters.map(l => `${esc(l.ch.toUpperCase())}${l.blank ? ' (' + t('tiles.blankName') + ')' : ''} ${l.value}${l.multiplier > 1 ? ' × ' + l.multiplier : ''}`).join(' + ')}) × ${w.multiplier} = <b>${w.score}</b></p>`).join('')}${detail.bonus ? `<p>${t('tiles.sevenBonus')}: +${detail.bonus}</p>` : ''}<p><b>${t('tiles.pointsTotal')}: ${detail.score}</b></p></div>`);
   });
-  // two phones: the other player's side of things, one line above the move cards (owner, 2026-09-27) - their turn, or
-  // the connection
+  // Online: the mover's activity or the connection, above the move cards (owner, 2026-11-26).
   function linkLine() {
     if (S.over) return '<p class="mc-link"></p>';
-    const line = (cls, text, dots) => `<p class="mc-link ${cls}"><i class="ld" aria-hidden="true"></i><span>${text}</span>${dots ? '<span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span>' : ''}</p>`;
+    const line = (cls, text, dots, p) => `<p class="mc-link ${cls}"><i class="${p === undefined ? 'ld' : 'tl-player-icon pc' + p}" aria-hidden="true">${p === undefined ? '' : playerIcon(S, p)}</i><span>${text}</span>${dots ? '<span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span>' : ''}</p>`;
     if (linkNote) return line('down', t(linkNote));
     if (!host && !linkUp) return line('down', t('net.hostDisconnected'), true);
     const missing = gone(), also = missing.filter(p => p !== S.turn);
@@ -522,19 +652,41 @@ export async function tilesGameScreen(root, id) {
     if (isOut(linkMe)) return line('down', t(removedPlayer(S, linkMe) ? 'net.removed' : 'net.youOut') + more);
     if (!remote(S.turn)) return line(also.length ? 'down' : 'on', t(also.length ? 'net.yourTurn' : 'net.yourMove') + more);
     // whoever is on turn: gone (and for how long - the host knows), in another app, or playing
-    const name = esc(nameOf(S, S.turn));
-    if (missing.includes(S.turn)) return line('down', t('net.turnGone', { name }) + (host && goneSince[S.turn] ? ' · ' + mmss(Date.now() - goneSince[S.turn]) : '') + more, true);
-    if (away[S.turn]) return line('down', t('net.turnApp', { name }) + more, true);
-    return line('on', t('tiles.bt.moving', { name }) + more, true);
+    const p = S.turn, name = `<strong>${esc(nameOf(S, p))}</strong>`;
+    if (missing.includes(p)) return line('down', t('net.turnGone', { name }) + (host && goneSince[p] ? ' · ' + mmss(Date.now() - goneSince[p]) : '') + more, true, p);
+    if (away[p]) return line('down', t('net.turnApp', { name }) + more, true, p);
+    const key = draftIsCurrent(linkDraft) ? 'placing' : turnMs() >= STILL_THINKING_MS ? 'stillThinking' : 'moving';
+    return line('on', t('tiles.bt.' + key, { name }) + more, true, p);
+  }
+  function paintLinkLine() {
+    const html = linkLine(), el = say.querySelector('.mc-link');
+    if (el && linkHtml !== html) el.outerHTML = linkHtml = html;
+  }
+
+  // Only the current mover's draft flag travels, when it changes (owner, 2026-11-26).
+  const draftIsCurrent = m => m && m.id === game.link.id && m.n === S.log.length;
+  function sendDraft() {
+    if (!linked || !party || remote(S.turn) || !myTurn()) return;
+    const placing = draft.length > 0;
+    if (placing === !!(draftIsCurrent(sentDraft) && sentDraft.placing)) return;
+    sentDraft = { id: game.link.id, n: S.log.length, placing };
+    if (host) linkDraft = placing ? sentDraft : null;
+    party.draft(sentDraft);
+  }
+  function receiveDraft(m, p = S.turn) {
+    if (S.over || S.vote || p !== S.turn || !remote(p) || !netOk() || !draftIsCurrent(m) || typeof m.placing !== 'boolean') return false;
+    if (m.placing === !!draftIsCurrent(linkDraft)) return false;
+    linkDraft = m.placing ? m : null;
+    paintLinkLine();
+    return true;
   }
 
   function paintRack() {
     if (shown < 0) { rackEl.innerHTML = '<span class="rt" style="visibility:hidden"></span>'.repeat(7); return; }
-    const tiles = rackOf(shown), hintDraft = !!draft[0]?.hint, dragging = press?.drag && press.kind === 'rack';
+    const tiles = rackOf(shown), dragging = press?.drag && press.kind === 'rack' && !inDraft(press.slot);
     const voting = new Set(), left = S.vote?.p === shown ? S.vote.placed.map(x => x.blank ? BLANK : x.ch) : [];
     tiles.forEach((ch, i) => { const k = left.indexOf(ch); if (k >= 0) { voting.add(i); left.splice(k, 1); } });
-    let order = tiles.map((_, i) => i).filter(i => hintDraft || !inDraft(i));
-    if (dragging && rackGap >= 0) { order = order.filter(i => i !== press.slot); order.splice(rackGap, 0, press.slot); }
+    const order = dragging && rackGap >= 0 ? rackOrder(tiles, press.slot, rackGap) : tiles.map((_, i) => i);
     const drawn = new Set();
     if (fresh?.p === shown) {
       const want = [...fresh.letters];
@@ -542,12 +694,15 @@ export async function tilesGameScreen(root, id) {
     }
     rackEl.innerHTML = order.map(i => {
       const x = tiles[i], cls = ['rt'];
+      const face = x === BLANK ? '' : `${esc(x)}<i class="p">${valueOf(lang, x)}</i>`;
+      // The slot stays put when its tile goes down (owner, 2026-11-26). Tap its shadow to find the tile.
+      if (inDraft(i)) return `<button type="button" class="rt used shadow" data-slot="${i}" data-act="locate" aria-label="${esc(t('tiles.locate', { tile: x === BLANK ? t('tiles.blankName') : x.toUpperCase() }))}">${face}</button>`;
       if (drawn.has(i)) cls.push('fresh');
-      if ((hintDraft && inDraft(i)) || voting.has(i)) cls.push('used');
+      if (voting.has(i)) cls.push('used');
       if (dragging && press.slot === i) cls.push('gap');
       if (sel === i) cls.push('sel');
       if (picks.has(i)) cls.push('pick');
-      return `<span class="${cls.join(' ')}" data-slot="${i}">${x === BLANK ? '' : `${esc(x)}<i class="p">${valueOf(lang, x)}</i>`}${picks.has(i) ? '<i class="ck">✓</i>' : ''}</span>`;
+      return `<span class="${cls.join(' ')}" data-slot="${i}">${face}${picks.has(i) ? '<i class="ck">✓</i>' : ''}</span>`;
     }).join('');
   }
 
@@ -556,7 +711,7 @@ export async function tilesGameScreen(root, id) {
     const off = !myTurn();
     const tool = (act, cls = '') => `<button class="btn btn-ghost tl-tool${cls ? ' ' + cls : ''}" type="button" data-act="${act}">${ICON[act]}<span class="lbl">${
       t(act === 'challenge' ? 'tiles.chal.button' : 'tiles.' + act)}</span></button>`;
-    const cancel = `<button class="btn btn-ghost wide" type="button" data-act="cancel">${t('tiles.cancel')}</button>`;
+    const cancel = `<button class="btn btn-ghost wide" type="button" data-act="cancel">${t(stashedDraft ? 'tiles.backToWord' : 'tiles.cancel')}</button>`;
     if (mode === 'exchange') {
       const ok = picks.size && canExchange(S, picks.size);
       dock.innerHTML = `${cancel}<button class="btn btn-primary play${ok ? '' : ' off'}" type="button" data-act="swap"${ok && !off ? '' : ' disabled'}>${t('tiles.exchangeN', { n: picks.size })} <span class="arrow">→</span></button>`;
@@ -645,14 +800,12 @@ export async function tilesGameScreen(root, id) {
       const quiet = m.kind !== 'play';
       const w = m.kind === 'play' ? words(m) + (m.bingo && S.rules.bingo ? `<small> +${S.rules.bingo}</small>` : '') + (m.hinted && !hintsOf.has(i) ? hintMark() : '')
         : m.kind === 'hint' ? hintMark()
-        : m.kind === 'swap' ? plural(m.n, 'tiles.hist.exchanged').replace('{n}', m.n) : m.kind === 'pass' ? t(m.away ? 'tiles.hist.away' : 'tiles.hist.passed')
-          : m.kind === 'resign' ? t(m.removed ? 'tiles.hist.removed' : 'tiles.hist.resigned')
-          : m.kind === 'timeout' ? t('tiles.hist.timeout') : ['withdrawn', 'vetoed'].includes(m.kind) ? `${words(m)} · ${t(m.approval ? 'tiles.hist.notApproved' : 'tiles.hist.' + m.kind)}`
-            : t(m.ok ? 'tiles.hist.challengeWon' : 'tiles.hist.challengeLost');
-      const ev = rated && m.kind === 'play' && game.evals?.[i], r = ev && rateOf(m.score, ev.best);
-      const best = r && bestOn() && m.score < ev.best ? `<small class="best">${bestWas(ev)}</small>` : '';
+          : ['withdrawn', 'vetoed'].includes(m.kind) ? `${words(m)} · ${historyAction(m)}` : historyAction(m);
+      const ev = rated && m.kind === 'play' && game.evals?.[i], reference = referenceOf(ev), credit = creditOf(m.score, ev), r = rateOf(credit, reference);
+      const best = r && bestOn() && hasBetter(ev, m.score) ? `<small class="best">${bestWas(ev)}</small>` : '';
+      const rating = r ? `<small class="rate rate-${r}">${pctOf(credit, reference)}%</small>` : rated && (m.kind === 'pass' || m.kind === 'swap') ? '–' : '';
       return `<li class="pc${m.p}${quiet ? ' quiet' : ''}"><span class="i">${m.kind === 'hint' ? '' : no}</span><span class="w">${w}${best}${hintsOf.has(i) ? hintLine(hintsOf.get(i)) : ''}</span><span class="r">${m.kind === 'hint' ? (m.cost ? '−' + m.cost : '–') : quiet ? '–' : m.score}</span>${
-        column ? `<span class="pct">${r ? `<small class="rate rate-${r}">${pctOf(m.score, ev.best)}%</small>` : ''}${rarityChip(m)}</span>` : ''}<span class="who">${esc(nameOf(S, m.p))}</span></li>`;
+        column ? `<span class="pct">${rating}${rarityChip(m)}</span>` : ''}<span class="who">${esc(nameOf(S, m.p))}</span></li>`;
     }).filter(Boolean).reverse();
     const head = `<li class="head"><span></span><span>${t('tiles.look.played')}</span><span>${t('tiles.hist.pts')}</span>${column ? `<span>${t(rated && rare ? 'tiles.under.both' : rare ? 'tiles.hist.rarity' : 'tiles.hist.rating')}</span>` : ''}<span>${t('tiles.hist.who')}</span></li>`;
     return rows.length ? `<ol class="tl-hist${column ? ' rated' : ''}">${head}${rows.join('')}</ol>` : `<p class="help">${t('tiles.hist.empty')}</p>`;
@@ -669,6 +822,7 @@ export async function tilesGameScreen(root, id) {
   function paintMore() {
     const input = more.querySelector('.tl-check input'), res = more.querySelector('.tl-check .res');
     const kept = input && { value: input.value, cls: res.className, text: res.textContent, mean: more.querySelector('.tl-check .mean-slot').innerHTML };
+    const focus = kept && document.activeElement === input;
     const which = panel ?? (wide ? 'hist' : null);
     let html = '';
     if (which) {
@@ -680,8 +834,15 @@ export async function tilesGameScreen(root, id) {
     more.innerHTML = html;
     const box = more.querySelector('.tl-check');
     if (box) {
-      wireCheck(box, () => lang, S.rules);
-      if (kept) { box.querySelector('input').value = kept.value; box.querySelector('.res').className = kept.cls; box.querySelector('.res').textContent = kept.text; box.querySelector('.mean-slot').innerHTML = kept.mean; }
+      wireCheck(box, lang, S.rules, dict);
+      if (kept) {
+        const nextInput = box.querySelector('input');
+        nextInput.value = kept.value;
+        box.querySelector('.res').className = kept.cls;
+        box.querySelector('.res').textContent = kept.text;
+        box.querySelector('.mean-slot').innerHTML = kept.mean;
+        if (focus) { nextInput.focus({ preventScroll: true }); nextInput.setSelectionRange(input.selectionStart, input.selectionEnd); }
+      }
     }
     refit();
   }
@@ -754,34 +915,37 @@ export async function tilesGameScreen(root, id) {
 
   // ── turns ──
   function resetTurn(keepHints = false) {
-    draft = []; sel = -1; mode = 'play'; picks = new Set(); levels = null; cursor = null; blankFor = -1;
+    draft = []; sel = -1; selectedTile = null; mode = 'play'; picks = new Set(); levels = null; cursor = null; blankFor = -1;
+    stashedDraft = null;
     if (!keepHints) turnHints = [];
     zoomOut();
   }
   // Every action goes through here: into the engine (apply), the save, what the message line says, the next turn.
-  function act(action, fromLink = false) {
+  function act(action, fromLink = false, candidates, replaying = false) {
     const p = S.turn, before = S, rackBefore = [...S.racks[p]];
     if (!cpu(p)) redoStack = [];   // a new move: nothing to redo any more
     if (!cpu(p) && !fromLink && !['vote', 'voteEnd'].includes(action.type)) action = { ...action, ms: game.turnMs || 0 };
-    // the best move there was this turn - for rating it (settings: "Rate my moves"; History)
-    const closing = S.vote && (action.type === 'voteEnd' || action.type === 'resign' || (action.type === 'vote' && voteCertain({ ...S, vote: { ...S.vote, votes: { ...S.vote.votes, [action.p]: !!action.veto } } })));
-    const top = S.rules.rating !== false && (closing || ['place', 'exchange', 'pass', 'timeout'].includes(action.type)) ? bestMove(S, dict) : undefined;
-    try { S = apply(S, action, isWord); } catch (e) { msg = { html: esc(e.message), err: true }; paintSay(); return false; }
+    let after;
+    try { after = apply(before, action, isWord); } catch (e) { msg = { html: esc(e.message), err: true }; paintSay(); return false; }
+    const added = after.moves.slice(before.moves.length), played = added.findLast(m => m.kind === 'play'), vetoed = added.findLast(m => m.kind === 'vetoed');
+    // Passes and exchanges carry no rating (owner, 2026-11-26). A vote may append a resignation before the accepted move.
+    const rated = before.rules.rating !== false && ['play', 'timeout'].includes(added.at(-1)?.kind);
+    const evaluation = rated ? evaluateMoves(before, candidates?.() ?? findMoves(before, dict), familiar) : null;
+    game.evals = (game.evals ?? []).slice(0, before.moves.length);
+    if (added.length) game.evals[after.moves.length - 1] = evaluation;
+    S = after;
+    if (before.turn !== S.turn || before.vote || !(action.type === 'hint' || (action.type === 'resign' && action.p !== p))) remoteMs = 0;
     game.state = S;
     seeVote();
-    const added = S.moves.slice(before.moves.length), played = added.findLast(m => m.kind === 'play'), vetoed = added.findLast(m => m.kind === 'vetoed');
     // the statistics, as it is played (owner, 2026-09-28): a move of this device's own player makes the game count; the
     // rest keeps its record up to date. Best moves shown to that player mark the game as helped.
     if (!cpu(p) && !remote(p) && (played || (!before.vote && ['exchange', 'pass'].includes(action.type)))) {
-      if (rateOn() && bestOn()) game.bsOn = true;
+      if (played && rateOn() && bestOn()) game.bsOn = true;
       recordMove(game, statsNow());
     } else noteMove(game, statsNow());
     party?.flush(S.log);   // the host: to every phone; a joining phone: to the host
     if (!cpu(p) && !remote(p) && (played || action.type === 'exchange')) drew(p, rackBefore, played ? played.placed.map(x => x.blank ? BLANK : x.ch) : action.tiles);
     game.turnMs = 0;
-    // game.evals lines up with S.moves: { best, word } for a turn a player took, null for anything else
-    game.evals = (game.evals ?? []).slice(0, before.moves.length);
-    if (S.moves.length > before.moves.length) game.evals[S.moves.length - 1] = top === undefined ? null : { best: top?.score ?? 0, word: top?.word ?? '' };
     resetTurn(!!S.vote || (!!before.vote && S.turn === p));
     // no points bubble on the board after a move (owner, 2026-09-25) - the message line says what was played
     if (played) {
@@ -790,17 +954,21 @@ export async function tilesGameScreen(root, id) {
     // a challenge's outcome, or a turn lost to the clock, stays on the line while the next player moves
     const approvalMove = vetoed?.approval ? vetoed : played?.approved ? played : null;
     const said = approvalMove ? { html: t(played ? 'tiles.approval.allowed' : 'tiles.approval.denied', { name: esc(nameOf(S, approvalMove.p)), w: (approvalMove.approved || approvalMove.approval).map(w => esc(w.toUpperCase())).join(', ') }), err: !!vetoed } : vetoed ? { html: t('tiles.say.vetoed', { w: vetoed.words.map(x => esc(x.w.toUpperCase())).join(', '), name: esc(nameOf(S, vetoed.p)) }), err: true }
-      : report(played ? { type: 'place' } : action, p, game.evals.at(-1));
+      : report(played ? { type: 'place' } : action, p, evaluation);
     msg = msg?.keep && said && action.type !== 'challenge' ? { ...said, html: `${msg.html} ${said.html}` } : said;
     if (vetoed || approvalMove) {
       const notice = msg;
       setTimeout(() => { if (msg === notice) { msg = null; if (app.isConnected) paintSay(); } }, 4500);
     }
     countAchievements();
-    if (S.over) { finish(); return true; }
+    // A settled move either announces the local turn or acknowledges the other mover (owner, 2026-11-26).
+    const cue = replaying ? null : tilesMoveCue(before, S, solo);
+    if (S.over) { finish(cue, replaying); return true; }
+    if (cue === 'turn') turnCuePending = true;
+    else if (cue) playCue(cue);
     putSave(game);
     if (vetoed && !linked && !open && solo < 0) shown = -1;
-    next();
+    next(replaying);
     return true;
   }
   function report(action, p, ev) {
@@ -809,8 +977,8 @@ export async function tilesGameScreen(root, id) {
     // help used (the end's card): the best move there was, shown to this person under their move (not for Master's, which
     // shows its own reason there)
     const played = action.type === 'place' ? m.score : 0;
-    if (!cpu(p) && !remote(p) && ['place', 'exchange', 'pass', 'timeout'].includes(action.type) && rateOn() && bestOn() && ev?.best > played
-      && !(action.type === 'place' && m.hinted === 'master')) count('best', p);
+    if (!cpu(p) && !remote(p) && ['place', 'timeout'].includes(action.type) && rateOn() && bestOn() && hasBetter(ev, played)
+      && !(action.type === 'place' && m.hinted === 'master' && creditOf(played, ev) < referenceOf(ev))) count('best', p);
     if (action.type === 'timeout') return { html: t('tiles.say.timeout'), keep: true };
     if (action.type === 'challenge') {
       if (!m.ok) return { html: p === solo ? t('tiles.chal.okYou') : t('tiles.chal.ok', { name }) };
@@ -826,13 +994,17 @@ export async function tilesGameScreen(root, id) {
   const rateOn = () => S.rules.rating !== false && settings.tilesRate !== false && (settings.tilesUnder ?? 'rating') !== 'rarity';
   const rareOn = () => ['rarity', 'both'].includes(settings.tilesUnder ?? 'rating');
   const bestOn = () => settings.tilesRate === true && S.rules.rating !== 'score';
-  const bestWas = ev => t('tiles.rate.bestWas', { w: `<b>${esc(ev.word.toUpperCase())}</b>`, n: ev.best });
+  const bestWas = ev => t('tiles.rate.bestWas', { w: `<b>${esc((ev.rarer?.word ?? ev.word).toUpperCase())}</b>`, n: topScoreOf(ev) });
   // Whose turn now: a computer thinks; between people the device changes hands first, the rack hidden.
-  function next() {
+  function next(replaying = false) {
     if (S.over) return;
     // On one shared device the mover's rack stays private while others vote (owner, 2026-11-14).
     if (S.vote) { thinking = false; handOver = false; if (linked) shown = solo; else if (!open) shown = -1; paintAll(); return; }
     const p = S.turn;
+    if (!replaying && turnCuePending && netOk()) {
+      turnCuePending = false;
+      if (!remote(p) && !cpu(p)) playCue('turn');
+    }
     if (remote(p)) { shown = solo; thinking = true; paintAll(); return; }   // their move comes over the link
     if (cpu(p)) { shown = solo; thinking = true; paintAll(); think(); return; }
     if (solo < 0 && !open && shown !== p) { handOver = true; shown = -1; } else shown = p;
@@ -843,18 +1015,19 @@ export async function tilesGameScreen(root, id) {
     const at = S, p = S.turn, started = Date.now();
     setTimeout(() => {
       if (!app.isConnected || S !== at) return;
-      let action = null;
-      try { action = computerMove(S, dict, S.players[p].cpu, rankOf, Math.random, spokenOf); } catch { /* it passes */ }
+      let action = null, moves;
+      const candidates = () => moves ??= findMoves(at, dict);
+      try { action = computerMove(S, dict, S.players[p].cpu, rankOf, Math.random, spokenOf, candidates); } catch { /* it passes */ }
       const took = Date.now() - started;
       setTimeout(() => {
         if (!app.isConnected || S !== at) return;
         thinking = false;
-        if (!act({ ...(action ?? { type: 'pass' }), ms: took })) act({ type: 'pass', ms: took });
+        if (!act({ ...(action ?? { type: 'pass' }), ms: took }, false, candidates)) act({ type: 'pass', ms: took }, false, candidates);
       }, Math.max(0, THINK_MS - took));
     }, 60);
   }
   let finished = false;
-  function finish() {
+  function finish(moveCue = null, quiet = false) {
     if (finished) return;   // once: the end and the statistics
     finished = true;
     thinking = false;
@@ -862,7 +1035,12 @@ export async function tilesGameScreen(root, id) {
     game.status = 'over';
     recordTilesEnd(game, linked ? linkMe : -1, { u: canUndo, bs: !!game.bsOn });   // two phones: each counts its own player
     countAchievements(true);
-    if (S.over.winner >= 0 && !cpu(S.over.winner)) chime();
+    if (!quiet) {
+      const winner = S.over.winner;
+      const outcome = winner < 0 ? null : (solo >= 0 ? winner === solo : !cpu(winner)) ? 'win' : 'loss';
+      if (moveCue && outcome) playCue(moveCue, outcome);
+      else if (outcome || moveCue) playCue(outcome ?? moveCue);
+    }
     // The end as it happened (owner, 2026-09-28: "the computer's last move is done in an instant and you are teleported
     // to the results"): that move lands on the board, then a card - the bag empty, or only passes - with the tiles left
     // on each rack and what they cost, then Continue → the results. Giving up goes straight there.
@@ -882,7 +1060,16 @@ export async function tilesGameScreen(root, id) {
   }
 
   // ── the tools ──
-  const quiet = () => { draft = []; sel = -1; cursor = null; blankFor = -1; zoomOut(); };
+  const quiet = () => { draft = []; sel = -1; selectedTile = null; cursor = null; blankFor = -1; zoomOut(); };
+  // Pass and Exchange set the word and its view aside until the player decides (owner, 2026-11-26).
+  function setAside(nextMode) {
+    stashedDraft = draft.length ? { draft, sel, selectedTile, cursor, blankFor, zoom: { ...zoom }, manualOverview } : null;
+    quiet();
+    mode = nextMode;
+    picks = new Set();
+    paintTurn();
+    paintOver();
+  }
   const TOOLS = {
     shuffle() {
       if (S.vote || shown < 0 || draft.length) return;
@@ -894,6 +1081,7 @@ export async function tilesGameScreen(root, id) {
       rackEl.querySelectorAll('.rt').forEach(el => el.animate([{ transform: 'scale(.85)', opacity: .6 }, { transform: 'none', opacity: 1 }], { duration: 200, easing: 'ease-out' }));
     },
     recall() { quiet(); paintTurn(); paintOver(); },
+    locate(el) { locateTile(+el.dataset.slot); },
     options() { openOptions(); },
     // the host stops waiting: a game with no move yet goes, one under way stays saved
     netLeave() {
@@ -932,12 +1120,9 @@ export async function tilesGameScreen(root, id) {
         msg = { html: S.bag.length ? t('tiles.ex.off', { n: S.bag.length }) : t('tiles.ex.offAny'), err: true };
         return paintSay();
       }
-      quiet();
-      mode = 'exchange';
-      picks = new Set();
-      paintTurn();
+      setAside('exchange');
     },
-    pass() { if (!myTurn()) return; quiet(); mode = 'pass'; paintTurn(); },
+    pass() { if (myTurn()) setAside('pass'); },
     // Hint (owner, 2026-09-25): three levels - Small, Big, Master (tiles-moves.js hintLevels) - picked on the tool row;
     // the move goes straight onto the board as dashed tiles, in its place, with its points: Play plays it, Recall takes
     // it back. A level that would show the same move as a smaller one is faded, and says so when tapped.
@@ -964,7 +1149,15 @@ export async function tilesGameScreen(root, id) {
       const hint = draft[0]?.hint ?? turnHints.find(h => h.key === keyOf(placedOf()))?.level;
       if (myTurn() && res && (!res.error || (res.error === 'word' && canApprove(S)))) act({ type: 'place', placed: placedOf(), ...(hint ? { hint } : {}) });
     },
-    cancel() { mode = 'play'; picks = new Set(); levels = null; msg = null; paintTurn(); },
+    cancel() {
+      if (stashedDraft) {
+        ({ draft, sel, selectedTile, cursor, blankFor, zoom, manualOverview } = stashedDraft);
+        stashedDraft = null;
+      }
+      mode = 'play'; picks = new Set(); levels = null; msg = null;
+      paintTurn();
+      paintOver();
+    },
     swap() {
       if (!myTurn() || !picks.size || !canExchange(S, picks.size)) return;
       const tiles = rackOf(shown);
@@ -998,7 +1191,7 @@ export async function tilesGameScreen(root, id) {
       paintOver();
       paintTurn();
     },
-    // the blank alone back to the rack (owner, 2026-09-26: tapping it on the board opens its letters - no other way back)
+    // the blank alone back to the rack from its letter picker (owner, 2026-09-26)
     pickRemove() {
       if (draft[blankFor]) draft.splice(blankFor, 1);
       blankFor = -1;
@@ -1090,8 +1283,8 @@ export async function tilesGameScreen(root, id) {
     if (draft[0]?.hint) draft = [];     // the hint's word makes way for the player's own
     const x = rackOf(shown)[slot];
     draft.push({ slot, r, c, ch: x === BLANK ? typed : x, blank: x === BLANK });
-    sel = -1; msg = null;
-    click();
+    sel = -1; selectedTile = null; msg = null;
+    playCue('tile');
     follow();
     if (x === BLANK && !typed) openPicker(draft.length - 1);
     paintTurn();
@@ -1104,11 +1297,21 @@ export async function tilesGameScreen(root, id) {
     if (Date.now() - pickOpened < 600 && e.target.closest('.tl-scrim, .tl-pick')) { e.stopPropagation(); e.preventDefault(); }
   }, true);
   function unplace(di) { draft.splice(di, 1); paintTurn(); }
+  function locateTile(slot) {
+    const d = draft.find(d => d.slot === slot);
+    if (!d) return;
+    tb.querySelector(`[data-i="${d.r * n + d.c}"]`)?.animate([
+      { backgroundColor: 'color-mix(in srgb, var(--tl-tile) 55%, var(--accent))', offset: 0.15 },
+    ], { duration: 1000, easing: 'ease-out' });
+  }
+  function rackOrder(tiles, slot, gap) {
+    const order = tiles.map((_, i) => i), loose = order.filter(i => i !== slot && !inDraft(i));
+    loose.splice(gap, 0, slot);
+    return order.map(i => inDraft(i) ? i : loose.shift());
+  }
   function reorder(slot, gap) {
-    const tiles = rackOf(shown), vis = tiles.map((_, i) => i).filter(i => !inDraft(i) && i !== slot);
-    vis.splice(gap, 0, slot);
-    setOrder(shown, [...vis, ...draft.map(d => d.slot)].map(i => tiles[i]));
-    draft.forEach((d, j) => { d.slot = vis.length + j; });
+    const tiles = rackOf(shown);
+    setOrder(shown, rackOrder(tiles, slot, gap).map(i => tiles[i]));
     sel = -1;
     putSave(game);
   }
@@ -1126,7 +1329,10 @@ export async function tilesGameScreen(root, id) {
   const overRack = (x, y) => { const b = rackEl.getBoundingClientRect(); return x >= b.left - 8 && x <= b.right + 8 && y >= b.top - 20 && y <= b.bottom + 20; };
   function gapAt(x) {
     let best = 0, d = Infinity;
-    [...rackEl.children].forEach((el, k) => { const b = el.getBoundingClientRect(), dd = Math.abs(b.left + b.width / 2 - x); if (dd < d) { d = dd; best = k; } });
+    [...rackEl.children].filter(el => !inDraft(+el.dataset.slot)).forEach((el, k) => {
+      const b = el.getBoundingClientRect(), dd = Math.abs(b.left + b.width / 2 - x);
+      if (dd < d) { d = dd; best = k; }
+    });
     return best;
   }
 
@@ -1159,13 +1365,25 @@ export async function tilesGameScreen(root, id) {
   function tap(p) {
     if (p.kind === 'rack') {
       if (mode === 'exchange') { if (picks.has(p.slot)) picks.delete(p.slot); else picks.add(p.slot); return; }
-      if (mode === 'play') { sel = sel === p.slot ? -1 : p.slot; cursor = null; }
+      if (mode === 'play') { sel = sel === p.slot ? -1 : p.slot; selectedTile = null; cursor = null; }
       return;
     }
     if (p.kind === 'tile') {
-      if (draft[p.di].blank) openPicker(p.di); else unplace(p.di);
+      const d = draft[p.di];
+      if (!myTurn() || mode !== 'play' || !d || d.hint) return;
+      // Two different tiles trade squares. Tap the same one again to recall it or edit its blank (owner, 2026-11-26).
+      const from = draft.indexOf(selectedTile), target = swapTarget({ kind: 'tile', di: from }, d);
+      sel = -1; cursor = null;
+      if (from === p.di) {
+        selectedTile = null;
+        if (d.blank) openPicker(p.di); else unplace(p.di);
+      } else if (target >= 0) {
+        selectedTile = null;
+        swapDraft(from, target);
+      } else selectedTile = d;
       return;
     }
+    selectedTile = null;
     const sq = p.cell;
     if (sq && S.cells[sq.r * n + sq.c]) return peek(sq.r * n + sq.c);
     if (!sq || !myTurn() || mode !== 'play' || !free(sq.r, sq.c)) return;
@@ -1189,6 +1407,13 @@ export async function tilesGameScreen(root, id) {
     if (p.kind !== 'rack' && (p.kind !== 'tile' || !draft[p.di] || draft[p.di].hint)) return -1;
     return draft.findIndex((d, i) => i !== (p.kind === 'tile' ? p.di : -1) && !d.hint && d.r === sq.r && d.c === sq.c);
   }
+  function swapDraft(from, to) {
+    const { r, c } = draft[from], other = draft[to];
+    draft[from] = { ...draft[from], r: other.r, c: other.c };
+    draft[to] = { ...other, r, c };
+    playCue('tile');
+    follow();
+  }
   function drop(p, x, y) {
     const sq = squareAt(x, y);
     const target = swapTarget(p, sq);
@@ -1198,14 +1423,12 @@ export async function tilesGameScreen(root, id) {
       if (rackGap >= 0) reorder(p.slot, rackGap);
       return;
     }
-    if (target >= 0) {
-      const { r, c } = draft[p.di];
+    if (target >= 0) swapDraft(p.di, target);
+    else if (sq && free(sq.r, sq.c, p.di)) {
+      if (draft[p.di].r !== sq.r || draft[p.di].c !== sq.c) playCue('tile');
       draft[p.di] = { ...draft[p.di], r: sq.r, c: sq.c };
-      draft[target] = { ...draft[target], r, c };
       follow();
-    }
-    else if (sq && free(sq.r, sq.c, p.di)) { draft[p.di] = { ...draft[p.di], r: sq.r, c: sq.c }; follow(); }
-    else if (overRack(x, y)) draft.splice(p.di, 1);
+    } else if (overRack(x, y)) draft.splice(p.di, 1);
   }
 
   play.addEventListener('pointerdown', e => {
@@ -1244,6 +1467,7 @@ export async function tilesGameScreen(root, id) {
     if (!press.drag) {
       press.drag = true;
       sel = -1;
+      selectedTile = null;
       if (press.kind === 'rack' && draft[0]?.hint) draft = [];
       startDrag();
       paintTurn();
@@ -1334,6 +1558,7 @@ export async function tilesGameScreen(root, id) {
     }
     if (e.key === 'Escape') {
       if (panel && !wide) { e.preventDefault(); panel = null; return paintMore(); }
+      if (mode === 'pass' || mode === 'exchange') { e.preventDefault(); return TOOLS.cancel(); }
       if (draft.length || cursor || sel >= 0 || mode !== 'play') { e.preventDefault(); mode = 'play'; picks = new Set(); levels = null; msg = null; TOOLS.recall(); }
       return;
     }
@@ -1344,6 +1569,7 @@ export async function tilesGameScreen(root, id) {
     if (e.key === 'Backspace' && draft.length) {
       e.preventDefault();
       const d = draft.pop();
+      selectedTile = null;
       cursor = { r: d.r, c: d.c, down: cursor?.down ?? false };
       return paintTurn();
     }
@@ -1365,6 +1591,7 @@ export async function tilesGameScreen(root, id) {
   // ── the end ──
   function paintEnd() {
     app.classList.remove('fit');
+    const saved = archived ? game : getFinished(game.id);
     const o = S.over, np = S.players.length, whose = people.length ? people : S.players.map((_, p) => p);
     const inPlay = p => !outOf(S)[p] && !(o.reason === 'resign' && p === o.by);
     const best = Math.max(...S.scores.filter((_, p) => inPlay(p)));
@@ -1384,7 +1611,7 @@ export async function tilesGameScreen(root, id) {
     // a computer's level beside its name (owner, 2026-09-26: "the difficulty is not shown")
     const nameLv = p => esc(nameOf(S, p)) + (!inPlay(p) ? ` <small>(${t('net.withdrawn')})</small>` : '') + (S.players[p].cpu ? ` <span class="lv">· ${t(levelKey(S.players[p].cpu))}</span>` : '');
     const scores = np === 2
-      ? `<div class="tl-fs">${[0, 1].map(p => `<span class="${S.scores[p] < best || !inPlay(p) ? 'lose' : ''}"><small class="eyebrow">${nameLv(p)}</small><b>${S.scores[p]}</b></span>`).join('<span class="colon">:</span>')}</div>`
+      ? `<div class="tl-fs">${[0, 1].map(p => `<span class="${S.scores[p] < best || !inPlay(p) ? 'lose' : ''}"><small class="eyebrow">${cpu(p) ? playerIcon(S, p) : ''}${nameLv(p)}</small><b>${S.scores[p]}</b></span>`).join('<span class="colon">:</span>')}</div>`
       : `<ol class="tl-places">${order.map((p, k) => `<li class="pc${p}${S.scores[p] === best && inPlay(p) ? ' first' : ''}"><span>${k + 1}.</span><i class="tl-player-icon" aria-hidden="true">${playerIcon(S, p)}</i><span>${nameLv(p)}</span><b>${S.scores[p]}</b></li>`).join('')}</ol>`;
     // what the leftover tiles did to the scores (and the clock, per game)
     const sign = v => v > 0 ? '+' + v : v < 0 ? '−' + -v : '0';
@@ -1426,26 +1653,74 @@ export async function tilesGameScreen(root, id) {
       ${people.length ? `<p class="calc tl-times">${t('tiles.end.time')}: ${people.map(p => `${esc(nameOf(S, p))} ${mmss(S.clock?.[p] || 0)}`).join(' · ')}</p>` : ''}
       ${top ? `<div class="tl-best"><span class="eyebrow">${t('tiles.end.bestWord')}</span><span class="mt-row">${tilesOf(top)}</span><span class="num">${top.score}</span></div>` : ''}
       <div class="result-stats"><span><b>${bingos}</b> ${plural(bingos, 'tiles.end.bingos')}</span>${DOT}<span><b>${hints}</b> ${plural(hints, 'tiles.end.hints')}</span>${DOT}<span>${t('tiles.board.' + S.board)}</span></div>
-      <div class="result-actions">${host && party ? `<button class="btn btn-primary" type="button" data-rematch>${t('net.rematch')}</button>` : ''}<a class="btn btn-ghost" href="#/">${UI_ICONS.menu}${t('menu')}</a><a class="btn btn-primary" href="${linked ? '#/online' : '#/new/tiles'}">${t(linked ? 'games.new' : 'lt.again')} <span class="arrow">→</span></a></div>
+      <div class="result-actions">${archived ? '' : `${host && party ? `<button class="btn btn-primary" type="button" data-rematch>${t('net.rematch')}</button>` : ''}<a class="btn btn-ghost" href="#/">${UI_ICONS.menu}${t('menu')}</a><a class="btn btn-primary" href="${linked ? '#/online' : '#/new/tiles'}">${t(linked ? 'games.new' : 'lt.again')} <span class="arrow">→</span></a>`}${keepButton(saved)}</div>
+    </div>
+    ${matchDetails(S, game.timeMs)}
+    <div class="tl-final">
+      <button class="btn btn-outline" type="button" data-replay aria-expanded="false" aria-controls="tl-replay-controls">${t('tiles.replay')}</button>
+      <div class="tl-replay-controls" id="tl-replay-controls" hidden>
+        <div class="tl-replay-steps">${[['⏮', 'first'], ['◀', 'prev'], ['▶', 'next'], ['⏭', 'last']].map(([icon, key]) =>
+          `<button class="btn btn-outline" type="button" data-step="${key}" aria-label="${t('tiles.replay.' + key)}" title="${t('tiles.replay.' + key)}">${icon}</button>`).join('')}</div>
+        <div role="status"><b></b><p></p></div>
+      </div>
+      <div class="tl-board"><div class="tb n${n}${looks()}" style="--n:${n}">${boardInner(S)}</div></div>
     </div>
     ${people.length ? `<div class="card tl-fair"><span class="eyebrow">${t('tiles.fair.title')}</span>${people.map(fairOf).join('')}</div>` : ''}
-    <div class="tl-final"><div class="tl-board"><div class="tb n${n}${looks()}" style="--n:${n}">${boardInner(S)}</div></div></div>
+    <section class="card tl-end-history" aria-labelledby="tl-end-history-title">
+      <div class="tl-end-history-head"><h2 id="tl-end-history-title">${t('tiles.history')}</h2>
+        <button class="btn btn-outline" type="button" data-share>${ICON.share}${t('tiles.share')}</button></div>
+      <p class="help tl-share-status" role="status"></p>
+      <div class="seg">${[[null, t('tiles.hist.all')], ...S.players.map((_, p) => [p, esc(nameOf(S, p))])].map(([p, label]) =>
+        `<button type="button" data-filter="${p ?? ''}" aria-pressed="${p === null}" class="${p === null ? 'on' : ''}">${label}</button>`).join('')}</div>
+      <div class="tl-end-moves">${histHtml(null)}</div>
+    </section>
     <div class="card tl-look" hidden></div>`;
     main.querySelector('[data-rematch]')?.addEventListener('click', rematch);
+    wireKeep(main, saved);
+    const finalBoard = main.querySelector('.tl-final .tb');
+    wireReplay(main, S, finalBoard);
+    // Finished History also opens from Last games (owner, 2026-11-26).
+    const history = main.querySelector('.tl-end-history'), share = history.querySelector('[data-share]');
+    history.querySelector('.seg').addEventListener('click', e => {
+      const filter = e.target.closest('[data-filter]');
+      if (!filter) return;
+      history.querySelector('.tl-end-moves').innerHTML = histHtml(filter.dataset.filter === '' ? null : +filter.dataset.filter);
+      history.querySelectorAll('[data-filter]').forEach(b => {
+        b.classList.toggle('on', b === filter);
+        b.setAttribute('aria-pressed', b === filter);
+      });
+    });
+    share.addEventListener('click', async () => {
+      if (share.disabled) return;
+      share.disabled = true;
+      const status = history.querySelector('.tl-share-status');
+      status.textContent = '';
+      try {
+        if (await shareTilesStory(S, order, S.players.map((_, p) => nameOf(S, p)))) status.textContent = t('tiles.share.saved');
+      } catch {
+        status.textContent = t('tiles.share.failed');
+      } finally {
+        share.disabled = false;
+      }
+    });
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    cells.observe(main.querySelector('.tl-final .tb'));
+    cells.observe(finalBoard);
     refit();
-    // How the game went (the owner's plan, 2026-09-26 for every player): each player's points against the best there
-    // was, then every turn - who, what, its rating, the best move. It replays the game, so it comes a moment after the rest.
-    setTimeout(() => {
-      const box = main.querySelector('.tl-look');
-      if (!box?.isConnected || S.rules.rating === false) return;   // a game without ratings: none at the end either
+    // The end review replays the moves and reuses the saved benchmarks where available.
+    const box = main.querySelector('.tl-look');
+    setTimeout(async () => {
+      await wordsReady;
+      if (!box?.isConnected || !dict || S.rules.rating === false) return;   // a game without ratings: none at the end either
       let rows;
-      try { rows = lookBack(S, dict, true); } catch { return; }
+      try {
+        rows = lookBack(S, dict, true, (before, i) => game.evals?.[i] ?? evaluateMoves(before, findMoves(before, dict), familiar));
+      } catch { return; }
       if (!rows.length) return;
-      const sum = (p, k, hints = true) => rows.filter(x => x.p === p && (hints || !x.hinted)).reduce((a, x) => a + (k === 'best' ? x.best?.score ?? 0 : x.played), 0);
+      const sum = (p, k, hints = true) => rows.filter(x => x.p === p && (hints || !x.hinted)).reduce((a, x) => {
+        return a + (k === 'best' ? referenceOf(x.evaluation) : creditOf(x.played, x.evaluation));
+      }, 0);
       // the people's moves into the statistics' move rating, once
-      if (!ratedInStats) {
+      if (!archived && !ratedInStats) {
         ratedInStats = true;
         const people = linked ? [linkMe] : S.players.map((x, p) => x.cpu ? -1 : p).filter(p => p >= 0);
         // without the moves from hints - else it says nothing about the player (owner, 2026-09-26)
@@ -1459,12 +1734,12 @@ export async function tilesGameScreen(root, id) {
       // played, so there it is the ratings alone (owner, 2026-09-27)
       const withBest = bestOn();
       box.innerHTML = `<span class="eyebrow">${t('tiles.eval')}</span><ul class="tl-evals">${overall(true)}</ul>${hintSwitch}<p class="help">${t('tiles.eval.help')}</p><ol${withBest ? '' : ' class="nobest"'}><li class="head"><span></span><span>${t('tiles.look.played')}</span><span>${t('tiles.hist.rating')}</span>${withBest ? `<span>${t('tiles.look.best')}</span>` : ''}<span>${t('tiles.hist.who')}</span></li>${rows.map((x, k) => {
-        const same = !x.best || x.played >= x.best.score;
+        const ev = x.evaluation, reference = referenceOf(ev), same = !hasBetter(ev, x.played);
         const played = x.kind === 'place' ? `${esc(x.word)} <small>${x.played}</small>` : `<small>${t(x.kind === 'exchange' ? 'tiles.look.swap' : 'tiles.look.pass')}</small>`;
-        const r = x.best && rateOf(x.played, x.best.score);
+        const credit = creditOf(x.played, ev), r = rateOf(credit, reference);
         return `<li class="pc${x.p}${same ? ' same' : ''}"><span class="i">${k + 1}</span><span class="w">${played}${x.hinted ? ` <span class="hi" title="${t('tiles.rate.hinted')}" aria-label="${t('tiles.rate.hinted')}">${ICON.hint}</span>` : ''}</span><span class="pct">${
-          r ? `<small class="rate rate-${r}">${pctOf(x.played, x.best.score)}%</small>` : ''}</span>${withBest ? `<span class="best"><span class="w">${
-          x.best ? `${esc(x.best.word)} <small>${x.best.score}</small>` : '—'}</span></span>` : ''}<span class="who">${esc(nameOf(S, x.p))}</span></li>`;
+          r ? `<small class="rate rate-${r}">${pctOf(credit, reference)}%</small>` : x.kind === 'pass' || x.kind === 'exchange' ? '–' : ''}</span>${withBest ? `<span class="best"><span class="w">${
+          ev?.word ? bestWas(ev) : '—'}</span></span>` : ''}<span class="who">${esc(nameOf(S, x.p))}</span></li>`;
       }).join('')}</ol>`;
       box.querySelector('.tl-hsw .toggle')?.addEventListener('click', e => {
         const b = e.currentTarget, on = !b.classList.contains('on');
@@ -1494,9 +1769,9 @@ export async function tilesGameScreen(root, id) {
     const tabs = [['history', t('tiles.history')], ['look', t('tiles.visual')], ['players', t('net.players')]];
     const { dlg, close } = openDialog(t('tiles.options'), `<div class="op-tabs" role="tablist" aria-label="${t('tiles.options')}">${tabs.map(([id, label], i) => `<button type="button" role="tab" id="op-tab-${id}" data-tab="${id}" aria-controls="op-${id}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${label}</button>`).join('')}</div>
       <div class="op-content">
-        <section id="op-history" role="tabpanel" aria-labelledby="op-tab-history"><h2>${t('tiles.history')}</h2><div class="seg op-filter">${[[null, t('tiles.hist.all')], ...S.players.map((_, p) => [p, esc(nameOf(S, p))])].map(([p, label]) => `<button type="button" data-filter="${p ?? ''}" aria-pressed="${p === null}" class="${p === null ? 'on' : ''}">${label}</button>`).join('')}</div><div class="op-history-list">${histHtml(null)}</div></section>
-        <section id="op-look" role="tabpanel" aria-labelledby="op-tab-look" hidden><div class="op-look-head"><h2>${t('tiles.visual')}</h2><div class="op-preview">${[...'TILES'].map(ch => tile(ch)).join('')}</div></div>${settingRows(lookItems)}</section>
-        <section id="op-players" role="tabpanel" aria-labelledby="op-tab-players" hidden><h2>${t('net.players')}</h2>${host ? hostSection() : `<ul class="op-players">${S.players.map((_, p) => `<li><div class="op-who pc${p}"><i class="tl-player-icon" aria-hidden="true">${playerIcon(S, p)}</i><span>${esc(nameOf(S, p))}</span></div></li>`).join('')}</ul>`}${settingRows(playerItems)}${host ? `<button class="btn btn-ghost btn-danger op-end" type="button">${t('net.endGame')}</button>` : ''}</section>
+        <section id="op-history" role="tabpanel" aria-labelledby="op-tab-history"><h2><span class="category-icon" aria-hidden="true">${UI_ICONS.time}</span>${t('tiles.history')}</h2><div class="seg op-filter">${[[null, t('tiles.hist.all')], ...S.players.map((_, p) => [p, esc(nameOf(S, p))])].map(([p, label]) => `<button type="button" data-filter="${p ?? ''}" aria-pressed="${p === null}" class="${p === null ? 'on' : ''}">${label}</button>`).join('')}</div><div class="op-history-list">${histHtml(null)}</div></section>
+        <section id="op-look" role="tabpanel" aria-labelledby="op-tab-look" hidden><div class="op-look-head"><h2><span class="category-icon" aria-hidden="true">${UI_ICONS.display}</span>${t('tiles.visual')}</h2><div class="op-preview">${[...'TILES'].map(ch => tile(ch)).join('')}</div></div>${settingRows(lookItems)}</section>
+        <section id="op-players" role="tabpanel" aria-labelledby="op-tab-players" hidden><h2><span class="category-icon" aria-hidden="true">${UI_ICONS.online}</span>${t('net.players')}</h2>${host ? hostSection() : `<ul class="op-players">${S.players.map((_, p) => `<li><div class="op-who pc${p}"><i class="tl-player-icon" aria-hidden="true">${playerIcon(S, p)}</i><span>${esc(nameOf(S, p))}</span></div></li>`).join('')}</ul>`}${settingRows(playerItems)}${host ? `<button class="btn btn-ghost btn-danger op-end" type="button">${t('net.endGame')}</button>` : ''}</section>
       </div><footer class="op-foot"><button class="btn btn-outline op-how" type="button" data-guide>${t('tiles.guide')}</button><button class="btn btn-outline btn-danger op-quit" type="button">${t('game.giveUp')}</button></footer>`);
     dlg.classList.add('tl-options');
     const selectTab = id => {
@@ -1613,8 +1888,10 @@ export async function tilesGameScreen(root, id) {
     if (host) {
       // (a game from 0.52 remembers its one other phone as `peer`)
       const known = game.link.seats ?? (game.link.peer ? [null, { address: game.link.peer.address, device: game.link.peer.name }] : []);
-      party = createHost({ players: S.players.length, me: linkMe, known, usable: p => !isOut(p), extra: () => ({ away }),
+      party = createHost({ players: S.players.length, me: linkMe, known, usable: p => !isOut(p),
+        extra: () => ({ away, ...(draftIsCurrent(linkDraft) ? { draft: linkDraft } : {}) }),
         onApp: (p, open) => { away[p] = !open; party.announce(); paintAll(); },
+        onDraft: (p, m) => { if (receiveDraft(m, p)) party.draft(m); },
         game: () => ({ id: game.link.id, title: gameName(game), host: linkMe, setup: setupOf(), log: S.log }),
         // a phone's move: its seat's turn (giving up: its own seat, any time), everyone there, the game where the phone
         // thought it was
@@ -1635,6 +1912,7 @@ export async function tilesGameScreen(root, id) {
           // gone: since when (the host shows it); back: in the app again
           goneSince[seat] = left ? Date.now() : 0;
           away[seat] = false;
+          if (left && seat === S.turn) linkDraft = null;
           game.link.seats = party.known();
           if (!left) {
             setNames(S.players.map((x, p) => p === seat ? seatName(x.name, name) : x.name));
@@ -1655,11 +1933,6 @@ export async function tilesGameScreen(root, id) {
         party?.tick();
         if (kind === 'bt' && party?.missing().length && !visibleDeclined) askVisible(true);
       }, 5000);
-      // every second: how long the one on turn has been without a connection
-      presenceTimer = setInterval(() => {
-        if (!app.isConnected || !party) return clearInterval(presenceTimer);
-        if (!S.over && remote(S.turn) && goneSince[S.turn] && party.missing().includes(S.turn)) paintSay();
-      }, 1000);
       hosting();
     } else {
       party = createGuest({ name: settings.myName ?? '', send: text => { if (game.link.conn) wire.send(game.link.conn, text).catch(() => {}); }, on: {
@@ -1670,7 +1943,12 @@ export async function tilesGameScreen(root, id) {
           else if (!(m.n < S.log.length && JSON.stringify(S.log[m.n]) === JSON.stringify(m.a))) party.resync();   // lost track
         },
         names: m => setNames(m.names),
-        here: m => { hereList = m.here; away = m.away ?? []; party?.relax(!!away[hostSeat()]); paintAll(); if (netOk() && !S.over) next(); },
+        here: m => {
+          hereList = m.here; away = m.away ?? [];
+          if (!hereList[S.turn]) linkDraft = null;
+          party?.relax(!!away[hostSeat()]); paintAll(); if (netOk() && !S.over) next();
+        },
+        draft: receiveDraft,
         reject: () => { msg = { html: t('net.rejected'), err: true }; party.resync(); },
         end: () => { if (S.over) return; ended = 'left'; closeGuest(); },
         refused: () => { ended = 'refused'; closeGuest(); },
@@ -1715,8 +1993,10 @@ export async function tilesGameScreen(root, id) {
     game.link.id = roundId ?? game.id;
     history.replaceState(null, '', '#/game/' + game.id);
     finished = endStep = ratedInStats = thinking = toast = handOver = false;
+    turnCuePending = true;
     voteAt = lastVote = sentVote = voteResult = null;
     msg = null; panel = null; landing = null; hintPaid = 0; redoStack = [];
+    remoteMs = 0; linkDraft = sentDraft = null;
     shown = solo;
     resetTurn();
     main.replaceChildren(play);
@@ -1739,7 +2019,7 @@ export async function tilesGameScreen(root, id) {
     game.link.hostSeat = m.host;
     if (m.title) game.title = m.title;
     if (m.id !== game.link.id || m.setup.seed !== S.start.seed) beginRound(startOf(m.setup), m.title, m.id);
-    const had = S.log, now = m.log;
+    const before = S, had = S.log, now = m.log;
     const prefix = had.length <= now.length && had.every((x, i) => JSON.stringify(x) === JSON.stringify(now[i]));
     if (m.seat !== linkMe || !prefix) {
       linkMe = solo = shown = game.link.me = m.seat;
@@ -1749,16 +2029,23 @@ export async function tilesGameScreen(root, id) {
       game.achDone = S.moves.length;   // a rebuilt history counts only from now (owner, 2026-11-14)
       game.evals = [];
       redoStack = [];
+      remoteMs = 0;
       resetTurn();
     } else {
-      for (let i = had.length; i < now.length && !S.over; i++) { thinking = false; act(now[i], true); }
+      for (let i = had.length; i < now.length && !S.over; i++) { thinking = false; act(now[i], true, undefined, true); }
       setNames(m.setup.players.map(x => x.name));
     }
     party.synced(S.log.length);
+    linkDraft = m.draft?.placing === true && draftIsCurrent(m.draft) ? m.draft : null;
+    sentDraft = null;   // tell the host again if the mover rejoined with tiles on the board
     sentVote = null;   // a reconnect may retry an unconfirmed vote
     putSave(game);
     paintAll();
-    if (S.over) finish(); else next();
+    if (S.over) finish(null, true);
+    else {
+      if (S.turn === linkMe && (S.turn !== before.turn || S.moves.length > before.moves.length)) turnCuePending = true;
+      next();
+    }
   }
   function up() {
     if (S.vote && frozenLive !== null) seenAt = Date.now() - frozenLive;
@@ -1783,6 +2070,7 @@ export async function tilesGameScreen(root, id) {
   }
   function closeGuest() {
     clearTimeout(retry);
+    if (linkUp) frozenLive = liveMs();
     linkUp = false;
     party?.disconnected();
     if (game.link.conn) wire.close(game.link.conn).catch(() => {});
@@ -1814,7 +2102,6 @@ export async function tilesGameScreen(root, id) {
   function stopLink() {
     clearTimeout(retry);
     clearInterval(beat);
-    clearInterval(presenceTimer);
     document.removeEventListener('visibilitychange', onShown);
     if (party && host) party.end(S.over ? 'over' : 'left');
     else if (party && linkUp) party.leave();
@@ -1830,6 +2117,8 @@ export async function tilesGameScreen(root, id) {
   // the squares' size in pixels: the tiles' points are drawn at 10px and scaled to a quarter of a square - Android draws
   // no text under 8px, so on a narrow phone they grew over the letters (owner, 2026-09-27: "numbers should never overlap")
   const cells = new ResizeObserver(entries => entries.forEach(e => { const el = e.target; el.style.setProperty('--cpx', ((el.offsetWidth - (n - 1)) / n).toFixed(2)); }));
+  // Reopen the analysis directly, without finishing or starting a session (owner, 2026-11-26).
+  if (archived) { paintEnd(); return () => cells.disconnect(); }
   cells.observe(tb);
   const resize = new ResizeObserver(() => {
     if (!app.isConnected) return resize.disconnect();
@@ -1849,6 +2138,11 @@ export async function tilesGameScreen(root, id) {
         if (elapsed >= VOTE_MS) { act({ type: 'voteEnd', ms: elapsed }, true); return; }
       }
       paintVote();
+    } else if (remote(S.turn)) {
+      if (!cpu(S.turn) && netOk() && !away[S.turn] && !gone().includes(S.turn)) remoteMs += 1000;
+      paintLinkLine();
+      paintClock();
+      return;   // only the mover can run out of time on their phone
     } else {
       if (!myTurn() || document.visibilityState !== 'visible') return;
       game.turnMs = (game.turnMs || 0) + 1000;
@@ -1863,7 +2157,7 @@ export async function tilesGameScreen(root, id) {
   joinedAs = !!game.link?.fresh;
   if (joinedAs) { delete game.link.fresh; setTimeout(() => { joinedAs = false; if (app.isConnected) paintOver(); }, 2600); }
   if (linked && !S.over) startLink();
-  if (S.over) finish();                                   // never saved like this; a safeguard
+  if (S.over) finish(null, true);                         // never saved like this; a safeguard
   else if (!S.log.length && !game.toasted && !linked) {
     // who starts (drawn at random, or chosen on New game): a card over the board for 1.2 s or until the first tap
     game.toasted = true;

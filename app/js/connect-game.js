@@ -1,12 +1,13 @@
 // The Connect game screen (design v4, "Lexling Connect"): the crossword, the circle of letters and
 // the end. The rules - what a word is, the hints, when the board is done - are in connect.js.
 import { t, esc, plural } from './i18n.js';
-import { counts, markPractice, getSave, putSave, recordMove, noteMove, recordConnectEnd, playClock, gameName, collect } from './store.js';
+import { counts, getSave, getFinished, putSave, recordMove, noteMove, recordConnectEnd, playClock, gameName, collect } from './store.js';
 import { loadWords } from './engine.js';
 import { WORD_MIN, cellsOf, visible, isDone, nextHint, judge } from './connect.js';
-import { UI_ICONS, topbar, modeTag, confirmClick, outcome, gearButton, wireGear, wordLink, gameTitle, flashTap } from './ui.js';
+import { isLetterKey } from './letters.js';
+import { UI_ICONS, topbar, backToResults, keepButton, wireKeep, resultHref, modeTag, confirmClick, outcome, gearButton, wireGear, wordLink, gameTitle, flashTap } from './ui.js';
 import { fitAll } from './fit.js';
-import { click, chime } from './sound.js';
+import { playCue } from './sound.js';
 import { bump, recordAchievementEnd, recordConnectBonus } from './achievements.js';
 
 // Where the letters sit on the circle, in % of its box, clockwise from the top (design v4).
@@ -26,19 +27,21 @@ const DOT = '<span class="dot">·</span>';
 const SHUFFLE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 14 4 4-4 4"></path><path d="m18 2 4 4-4 4"></path><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-7.6a4 4 0 0 1 3.3-1.7H22"></path><path d="M2 6h1.972a4 4 0 0 1 3.6 2.2"></path><path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"></path></svg>';
 const BULB = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path></svg>';
 
-export async function connectGameScreen(root, id) {
-  const game = getSave(id);
-  const m = game && await loadWords(game.lang);
-  if (!m) { location.replace('#/games/connect'); return; }
-  if (location.hash !== '#/game/' + id) return;   // left while the word data loaded: a newer screen is up
+export async function connectGameScreen(root, id, archived = false, kept = false) {
+  const game = archived ? getFinished(id) : getSave(id);
+  const m = !archived && game && await loadWords(game.lang);
+  if (location.hash !== (archived ? resultHref(id, kept) : '#/game/' + id)) return;
+  if (!archived && !m) { location.replace('#/games/connect'); return; }
   const { board } = game;
   const letters = [...game.ring], n = letters.length;
   const playing = () => game.status === 'playing';
   const desk = matchMedia('(pointer: fine)').matches;
+  const min = game.two ? 2 : WORD_MIN;
   let slots = letters.map((_, i) => i);      // which place on the circle each letter is in (Shuffle moves them)
   let path = [];                             // the letters joined so far, as indexes into `letters`
   let finger = null;                         // [x, y] in % of the circle while dragging
-  let dragging = false, busy = false;        // busy: an answer is being shown (the shake), the circle waits
+  let press = null, tapped = false;
+  let busy = false;                           // an answer is being shown (the shake), the circle waits
   let pick = null;                           // the word chosen for the next hint
 
   // every cell of the board and its letter
@@ -56,14 +59,14 @@ export async function connectGameScreen(root, id) {
   }
 
   root.innerHTML = `<div class="app" data-screen="connect">
-  ${topbar({ left: modeTag('connect'), right: gameTitle(game) })}
+  ${topbar({ left: archived ? backToResults(kept) : modeTag('connect'), right: gameTitle(game, archived) })}
   <main class="main"></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main');
-  wireGear(root);
+  if (!archived) wireGear(root, 'connect');
   const $ = sel => main.querySelector(sel);
   const refit = () => fitAll(root);
-  let cells = new Map(), ring, dock, bonusBtn;
+  let cells = new Map(), ring, dock, bonusBtn, tapActions, tapSubmit;
 
   // ── the crossword ──
   const boardHtml = max => `<div class="cw" role="grid" aria-label="${t('cn.board')}" style="--cols:${board.cols};--rows:${board.rows};--max:${max}px">${
@@ -74,9 +77,9 @@ export async function connectGameScreen(root, id) {
   // outline after giving up for what was left; the word chosen for a hint outlined in the theme colour. A hinted
   // letter in a word that is complete turns green but keeps its dashed edge, during the game and on the end screen
   // (owner, 2026-09-25: "it doesn't show where you used a hint").
-  function paintCells(end = false) {
+  function paintCells(end = false, revealed = game.shown) {
     const found = new Set(board.words.filter(x => game.found.includes(x.w)).flatMap(cellsOf));
-    const shown = new Set(game.shown), vis = visible(board, game.found, game.shown);
+    const shown = new Set(revealed), vis = visible(board, game.found, revealed);
     const done = new Set(board.words.filter(x => isDone(x, game.found, vis)).flatMap(cellsOf));
     const picked = new Set(pick ? cellsOf(board.words.find(x => x.w === pick)) : []);
     for (const [k, el] of cells) {
@@ -127,7 +130,10 @@ export async function connectGameScreen(root, id) {
   // shuffle - would press it again instead. Tab still reaches it.
   const noFocus = el => el.addEventListener('pointerdown', e => e.preventDefault());
   // (a word chosen for a hint lets go once it is done, however that happened)
-  const unpick = () => { const x = board.words.find(b => b.w === pick); if (x && isDone(x, game.found, visible(board, game.found, game.shown))) pick = null; };
+  const unpick = (vis = visible(board, game.found, game.shown)) => {
+    const x = board.words.find(b => b.w === pick);
+    if (x && isDone(x, game.found, vis)) pick = null;
+  };
 
   // ── the circle ──
   function placeKeys() {
@@ -138,13 +144,35 @@ export async function connectGameScreen(root, id) {
     });
   }
   function paintPath() {
-    ring.querySelectorAll('.cn-key').forEach(el => el.classList.toggle('on', path.includes(+el.dataset.i)));
+    ring.querySelectorAll('.cn-key').forEach(el => {
+      const on = path.includes(+el.dataset.i);
+      el.classList.toggle('on', on);
+      el.setAttribute('aria-pressed', on);
+    });
     const pts = path.map(i => POS[n][slots[i]]);
     if (finger && path.length) pts.push(finger);
     ring.querySelector('polyline').setAttribute('points', pts.map(p => p.join(',')).join(' '));
+    const hideActions = !tapped || !path.length;
+    if (tapActions.hidden !== hideActions) {
+      tapActions.hidden = hideActions;
+      if (!hideActions) fitAll(tapActions);
+    }
+    tapSubmit.disabled = path.length < min;
     if (path.length) sayWord(path.map(i => letters[i]).join(''));
   }
-  const clearPath = () => { path = []; finger = null; paintPath(); };
+  const clearPath = () => { path = []; finger = null; tapped = false; paintPath(); };
+  function tapLetter(i) {
+    if (path.includes(i)) return;
+    tapped = true;
+    path.push(i);
+    playCue('tile');
+    paintPath();
+  }
+  function removeLast() {
+    path.pop();
+    if (!path.length) { clearPath(); sayIdle(); }
+    else paintPath();
+  }
   // the letter under the pointer (-1 if none), and where the pointer is, in % of the circle
   function under(e) {
     const box = ring.getBoundingClientRect();
@@ -161,12 +189,14 @@ export async function connectGameScreen(root, id) {
   function answer() {
     if (!playing()) return clearPath();
     const word = path.map(i => letters[i]).join('');
-    if ([...word].length < (game.two ? 2 : WORD_MIN)) { clearPath(); return sayIdle(); }   // a tap or a slip: nothing to judge
+    if (path.length < min) { clearPath(); return sayIdle(); }   // a short swipe or typed word: nothing to judge
     const verdict = judge(m, board, state(), word, !!game.two);
     const x = board.words.find(b => b.w === word);
     if (verdict === 'none') {
+      playCue('rejected');
       // not a word: the chips and the path go red and the letters shake, then it clears
       busy = true;
+      tapActions.hidden = true;
       sayWord(word, 'bad');
       ring.classList.add('bad', 'shake');
       setTimeout(() => {
@@ -179,6 +209,7 @@ export async function connectGameScreen(root, id) {
       return;
     }
     clearPath();
+    if (verdict === 'again' || verdict === 'bonusAgain') playCue('rejected');
     if (verdict === 'found') {
       game.found.push(word);
       recordMove(game, connectRecord());
@@ -188,18 +219,19 @@ export async function connectGameScreen(root, id) {
       }
       unpick();
       putSave(game);
-      click();
       sayWord(word, 'old');
       paintCells();
       animate(cellsOf(x), 'fresh', 150);
       paintStatus();
-      if (doneList().length === board.words.length) return finish('won');
+      if (doneList().length === board.words.length) return finish('won', true);
+      playCue('accepted');
       setTimeout(() => { if (playing() && !path.length) sayIdle(); }, 600);
     } else if (verdict === 'again') {
       sayWord(word, 'old');
       animate(cellsOf(x), 'flash', 320);
       setTimeout(() => { if (playing() && !path.length) sayText(t('cn.msg.already', { w: loud(word) })); }, 400);
     } else if (verdict === 'bonus') {
+      playCue('accepted');
       // a real word that is not on the board: its chips fly into the counter, which then bumps
       game.bonus.push(word);
       recordConnectBonus(game);
@@ -207,7 +239,6 @@ export async function connectGameScreen(root, id) {
       recordMove(game, connectRecord());
       collect('connect', game.lang, word, game);
       putSave(game);
-      click();
       sayWord(word, '');
       const chips = $('.say .w'), from = chips.getBoundingClientRect(), to = bonusBtn.getBoundingClientRect();
       chips.style.setProperty('--fx', `${(to.left + to.width / 2) - (from.left + from.width / 2)}px`);
@@ -226,7 +257,7 @@ export async function connectGameScreen(root, id) {
   }
 
   function shuffle() {
-    if (!playing() || busy || dragging) return;
+    if (!playing() || busy || press) return;
     const next = [...slots];
     do {
       for (let i = next.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [next[i], next[j]] = [next[j], next[i]]; }
@@ -240,28 +271,32 @@ export async function connectGameScreen(root, id) {
   // A hint: a random letter not showing yet (connect.js, nextHint) - in the chosen word if there is one -
   // and never more than half of any word's letters from hints.
   function hint() {
-    if (!playing() || busy) return;
+    if (!playing() || busy || !app.isConnected) return;
     const h = nextHint(board, game.found, game.shown, pick);
     if (!h) return;
     if (!h.cell) return sayText(pick ? t('cn.msg.wordCapped', { w: loud(pick) }) : t('cn.msg.noHints'));
-    markPractice(game);
-    $('.topbar .side.end').innerHTML = gameTitle(game);
-    $('.practice-hint')?.remove();
-    game.shown.push(h.cell);
-    game.hints++;
-    noteMove(game, connectRecord());
-    putSave(game);
-    flashTap($('.hint-btn'));
-    const vis = visible(board, game.found, game.shown);
+    const cell = cells.get(h.cell);
+    if (!cell || !main.contains(cell)) return;
+
+    const revealed = [...game.shown, h.cell];
+    const vis = visible(board, game.found, revealed);
     const finished = board.words.find(x => h.words.includes(x.w) && isDone(x, game.found, vis));
     const chosen = board.words.find(x => x.w === pick);
-    unpick();
+    unpick(vis);
+    paintCells(false, revealed);
+
+    game.shown = revealed;
+    game.hints++;
+    putSave(game);   // counts() marks practice from the revealed letter and flags any existing record
+    noteMove(game, connectRecord());
+    const title = app.querySelector('.topbar .side.end');
+    if (title) title.innerHTML = gameTitle(game);
+    $('.practice-hint')?.remove();
+    flashTap($('.hint-btn'));
     if (finished) sayText(t('cn.msg.byHints', { w: loud(finished.w) }));
     else if (chosen) sayText(t('cn.msg.hint', { k: cellsOf(chosen).filter(k => vis.has(k)).length, n: [...chosen.w].length }));
     else sayText(t('cn.msg.hinted'));
-    // the first one says what it costs (owner, 2026-09-28)
 
-    paintCells();
     animate([h.cell], 'new-hint', 150);
     paintStatus();
     if (doneList().length === board.words.length) finish('won');
@@ -301,10 +336,12 @@ export async function connectGameScreen(root, id) {
     main.innerHTML = `<div class="status"></div>
     <div class="play">
       <div class="cw-wrap">${boardHtml(innerWidth > 900 ? 46 : 40)}</div>
-      <div class="say" role="status" aria-live="polite"></div>
+      <div class="cn-entry"><div class="say" role="status" aria-live="polite"></div>
+        <div class="cn-tap-actions" hidden><button class="btn btn-outline" type="button" data-remove>${t('cn.removeLast')}</button><button class="btn btn-primary" type="button" data-submit>${t('cn.submit')}</button></div>
+      </div>
       <div class="dock">
         <div class="cn-ring n${n}"><svg class="cn-path" viewBox="0 0 100 100" aria-hidden="true"><polyline points=""></polyline></svg>${
-          letters.map((ch, i) => `<span class="cn-key" data-i="${i}">${esc(ch)}</span>`).join('')}</div>
+          letters.map((ch, i) => `<button class="cn-key" type="button" data-i="${i}" aria-pressed="false">${esc(ch)}</button>`).join('')}</div>
         <button class="btn btn-ghost cn-tool shuf" type="button" aria-label="${t('cn.shuffle')}">${SHUFFLE}<span class="lbl">${t('cn.shuffle')}</span></button>
         <button class="btn btn-ghost cn-tool hint-btn" type="button" aria-label="${t('cn.hint')}">${BULB}<span class="lbl">${t('cn.hint')}</span></button>
         <button class="cn-bonus" type="button" aria-label="${t('cn.bonusList')}"><span class="num">${game.bonus.length}</span><small>${t('cn.bonus')}</small></button>
@@ -315,70 +352,91 @@ export async function connectGameScreen(root, id) {
     ring = $('.cn-ring');
     dock = $('.dock');
     bonusBtn = $('.cn-bonus');
+    tapActions = $('.cn-tap-actions');
+    tapSubmit = $('[data-submit]');
     collectCells();
     paintStatus();
     paintCells();
     placeKeys();
     sayIdle();
 
-    // Dragging: a press on a letter starts the word, moving onto another adds it, moving back onto the
-    // one before takes the last off, letting go checks the word. The line follows the pointer.
+    // A short press adds to the draft. A swipe starts from the pressed letter and submits on release
+    // (owner, 2026-11-26). Moving back onto the previous letter still takes the last off.
     ring.addEventListener('pointerdown', e => {
-      if (!playing() || busy || dragging || !e.isPrimary) return;
-      const { i, at } = under(e);
+      if (!playing() || busy || press || !e.isPrimary || e.button !== 0) return;
+      const { i } = under(e);
       if (i < 0) return;
       e.preventDefault();
       ring.setPointerCapture(e.pointerId);
       closePop();
-      dragging = true;
-      path = [i];
-      finger = at;
-      paintPath();
+      press = { id: e.pointerId, i, x: e.clientX, y: e.clientY };
     });
     ring.addEventListener('pointermove', e => {
-      if (!dragging) return;
+      if (press?.id !== e.pointerId) return;
       const { i, at } = under(e);
+      let added = false;
+      if (!finger) {
+        if ((i < 0 || i === press.i) && Math.hypot(e.clientX - press.x, e.clientY - press.y) < 8) return;
+        path = [press.i];
+        added = true;
+        tapped = false;
+      }
       finger = at;
       if (i >= 0 && path.length > 1 && i === path.at(-2)) path.pop();
-      else if (i >= 0 && !path.includes(i)) path.push(i);
+      else if (i >= 0 && !path.includes(i)) { path.push(i); added = true; }
+      if (added) playCue('tile');
       paintPath();
     });
-    ring.addEventListener('pointerup', () => {
-      if (!dragging) return;
-      dragging = false;
+    ring.addEventListener('pointerup', e => {
+      if (press?.id !== e.pointerId) return;
+      const { i } = press;
+      press = null;
+      if (!finger) return tapLetter(i);
       finger = null;
       answer();
     });
-    ring.addEventListener('pointercancel', () => { dragging = false; clearPath(); sayIdle(); });
+    const cancelPress = e => {
+      if (press?.id !== e.pointerId) return;
+      press = null;
+      if (finger) { clearPath(); sayIdle(); }
+    };
+    ring.addEventListener('pointercancel', cancelPress);
+    ring.addEventListener('lostpointercapture', cancelPress);
+    ring.addEventListener('click', e => {
+      const key = e.target.closest('.cn-key');
+      if (key && e.detail === 0 && playing() && !busy && !press) tapLetter(+key.dataset.i);
+    });
+    const remove = $('[data-remove]');
+    remove.addEventListener('click', () => { if (playing() && !busy && !press) removeLast(); });
+    tapSubmit.addEventListener('click', () => { if (playing() && !busy && !press) answer(); });
 
     $('.cw').addEventListener('click', e => { const el = e.target.closest('[data-cell]'); if (el) choose(el.dataset.cell); });
     $('.shuf').addEventListener('click', shuffle);
     $('.hint-btn').addEventListener('click', hint);
     bonusBtn.addEventListener('click', togglePop);
-    [$('.shuf'), $('.hint-btn'), bonusBtn].forEach(noFocus);
+    [$('.shuf'), $('.hint-btn'), bonusBtn, remove, tapSubmit].forEach(noFocus);
     refit();
   }
 
   // A computer types as well: each letter lights the first unused one on the circle and draws the path;
   // Backspace takes one off, Enter checks, Space shuffles, Esc lets go of the word (then leaves, main.js).
   function onKey(e) {
-    if (!playing() || e.defaultPrevented || !app.isConnected || busy || dragging) return;
+    if (!playing() || e.defaultPrevented || !app.isConnected || busy || press) return;
     if (e.target.closest?.('input, textarea')) return;
     if ((e.key === 'Enter' || e.key === ' ') && e.target.closest?.('button, a')) return;   // a focused button presses itself
     if (e.metaKey || ((e.ctrlKey || e.altKey) && !e.getModifierState?.('AltGraph'))) return;
     const ch = e.key.toLowerCase();
-    if (/^\p{L}$/u.test(e.key)) {
+    if (isLetterKey(e.key)) {
       const i = letters.findIndex((l, k) => l === ch && !path.includes(k));
       if (i < 0) return;
       e.preventDefault();
       closePop();
       path.push(i);
+      playCue('tile');
       paintPath();
     } else if (e.key === 'Backspace' && path.length) {
       e.preventDefault();
-      path.pop();
-      paintPath();
-      if (!path.length) sayIdle();
+      removeLast();
     } else if (e.key === 'Enter' && path.length) {
       e.preventDefault();
       answer();
@@ -396,11 +454,12 @@ export async function connectGameScreen(root, id) {
   }
 
   // The result is recorded at once; after a win the end waits for the last word to finish landing.
-  function finish(status) {
+  function finish(status, accepted = false) {
     game.status = status;
     recordConnectEnd(game, connectRecord());
     recordAchievementEnd(game, 'connect');
-    if (status === 'won') chime();
+    const cue = status === 'won' ? 'win' : 'loss';
+    if (accepted) playCue('accepted', cue); else playCue(cue);
     setTimeout(() => { if (app.isConnected) paintEnd(); }, status === 'won' ? 700 : 0);
   }
 
@@ -409,17 +468,19 @@ export async function connectGameScreen(root, id) {
     const left = board.words.filter(x => !done.includes(x));
     const count = `${done.length}/${total}`;
     const head = outcome(won, t(won ? 'cn.solved' : 'end.gaveUp'), count, t('cn.wordsLow'));
+    const saved = archived ? game : getFinished(id);
     const card = `<div class="card result ${won ? 'won' : 'lost'}">
       <span class="eyebrow">${t(won ? 'cn.allLetters' : 'cn.left')}</span>
       ${won ? `<p class="display">${esc(game.key)}</p>` : `<p class="left-words">${left.map(x => `<span>${esc(x.w)}</span>`).join('')}</p>`}
       <div class="result-stats"><span><b>${count}</b> ${t('cn.wordsLow')}</span>${DOT}<span><b>${game.bonus.length}</b> ${plural(game.bonus.length, 'cn.bonusLow')}</span>${DOT}<span><b>${game.hints}</b> ${plural(game.hints, 'cn.hintsLow')}</span>${DOT}<span>${t('end.level')} <b>${t('diff.' + (game.diff ?? 'normal'))}</b></span></div>
       <p class="mean-words"><span class="eyebrow">${t('meaning.words')}</span>${board.words.map(x => wordLink(x.w, game.lang)).join('')}</p>
-      <div class="result-actions"><a class="btn btn-ghost" href="#/">${UI_ICONS.menu}${t('menu')}</a><a class="btn btn-primary" href="#/new/connect">${t('lt.again')} <span class="arrow">→</span></a></div>
+      <div class="result-actions">${archived ? '' : `<a class="btn btn-ghost" href="#/">${UI_ICONS.menu}${t('menu')}</a><a class="btn btn-primary" href="#/new/connect">${t('lt.again')} <span class="arrow">→</span></a>`}${keepButton(saved)}</div>
     </div>`;
     app.classList.remove('fit');
     main.innerHTML = `${head}${card}<div class="cw-flow">${boardHtml(40)}</div>
     <div class="cw-legend"><span><i class="c hit">a</i>${t('cn.lgFound')}</span><span><i class="c hit hinted">a</i>${t('cn.lgHintDone')}</span><span><i class="c hint">a</i>${t('cn.lgHint')}</span>${
       won ? '' : `<span><i class="c left">a</i>${t('cn.lgLeft')}</span>`}</div>`;
+    wireKeep(main, saved);
     pick = null;
     collectCells();
     paintCells(!won);
@@ -427,7 +488,8 @@ export async function connectGameScreen(root, id) {
     refit();
   }
 
-  if (playing()) paintPlay(); else paintEnd();   // a finished game is deleted, so this is only a safeguard
+  if (playing()) paintPlay(); else paintEnd();
+  if (archived) return;
   document.addEventListener('keydown', onKey, true);   // before main.js's Esc-goes-back
   document.addEventListener('click', onDocClick);
   const stop = playClock(root, game, () => app.isConnected);

@@ -197,4 +197,20 @@ check('local games keep both editable player names', root.querySelectorAll('[dat
 await root.querySelector('form').fire('submit');
 const local = getSave(location.hash.split('/').at(-1));
 check('local game names and chosen starter are unchanged', [local.state.players.map(x => x.name), local.state.start.first, local.link], [['Own name', 'Friend'], 1, undefined]);
+
+// Setup labels number the displayed seats, including bots (owner, 2026-11-26).
+for (const [lang, label] of [['en', 'Player'], ['pl', 'Gracz']]) {
+  setLang(lang);
+  settings.setup.tiles = { board: 'classic', players: [{ name: 'Ada', cpu: null }, { name: 'Bot', cpu: 'medium' }] };
+  root = new Element();
+  tilesNewScreen(root, null, () => {});
+  const seats = () => root.querySelectorAll('.tl-seat').map(seat => [seat.firstElementChild.textContent, seat.querySelector('.tl-prow input').value]);
+  check(`${lang}: both players have numbered labels above their boxes`, seats(), [[label + ' 1', 'Ada'], [label + ' 2', 'Bot']]);
+  await root.querySelector('[data-add]').fire('click');
+  check(`${lang}: adding a bot labels the third box`, seats(), [[label + ' 1', 'Ada'], [label + ' 2', 'Bot'], [label + ' 3', '']]);
+  await root.querySelector('[data-down="0"]').fire('click');
+  check(`${lang}: reordering updates the numbers attached to each player`, seats(), [[label + ' 1', 'Bot'], [label + ' 2', 'Ada'], [label + ' 3', '']]);
+  await root.querySelector('[data-rm="0"]').fire('click');
+  check(`${lang}: removing the first player renumbers the remaining seats`, seats(), [[label + ' 1', 'Ada'], [label + ' 2', '']]);
+}
 console.log(`all ${passed} your-name tests passed`);

@@ -3,10 +3,12 @@ Familiar words / Znane słowa
 Polish / polski: SJP.PL, https://sjp.pl/sl/growy/, CC BY 4.0.
 SJP game forms selected by NKJP exact count >=2, spoken/TWO lists, or a known
 Polimorf lemma (sum of counts >=1, any spoken form, or app vocab lemma).
-Neg-tagged nie forms require exact-form evidence; yoni excluded.
+Neg-tagged nie forms require exact-form evidence; yoni excluded; English words
+from tools/familiar-block-pl.txt removed.
 Formy SJP wybierane według liczności NKJP >=2, list spoken/TWO lub znanego
 lematu Polimorf (suma >=1, forma spoken lub lemat w słowniku aplikacji).
-Formy nie z tagiem neg wymagają poświadczenia; wykluczono yoni.
+Formy nie z tagiem neg wymagają poświadczenia; wykluczono yoni i słowa
+angielskie z tools/familiar-block-pl.txt.
 
 Polimorf 20261115, Morfeusz / SGJP, BSD 2-clause.
 https://download.sgjp.pl/morfeusz/20261115/polimorf-20261115.tab.gz

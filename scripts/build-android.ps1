@@ -28,9 +28,12 @@ $env:ANDROID_SDK_ROOT = $Sdk
 $version = (Select-String -Path "$Root\app\js\version.js" -Pattern "VERSION\s*=\s*'([^']+)'").Matches[0].Groups[1].Value
 Write-Output "Building Lexling $version for Android"
 
-# 1. copy app\ into the native project (android\app\src\main\assets\public)
-& npx cap sync android
-if ($LASTEXITCODE) { throw "cap sync failed" }
+# 1. build the Android copy of app\ (Chrome 60 bundle) and sync it into the native project, with the built-in
+#    update manifest and the live-update public key (scripts/ota-prepare-android.mjs)
+#    A release build also archives its built-in version and checks the live-update key pair (--release).
+$prepare = @("scripts/ota-prepare-android.mjs"); if ($Release) { $prepare += "--release" }
+& node @prepare
+if ($LASTEXITCODE) { throw "Android preparation failed" }
 
 # 2. the APK itself
 # an unsigned APK cannot be installed at all - stop here rather than build one

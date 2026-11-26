@@ -1,13 +1,21 @@
-﻿{
+{
   "name": "lexling",
-  "version": "0.72.1",
+  "version": "0.73.0",
   "private": true,
   "description": "Lexling - Android wrapper. The game itself is app/ and needs none of this; these packages only build the APK (see PLAN.md M6).",
   "scripts": {
     "serve": "node tools/serve.mjs",
     "data": "node tools/build-data.mjs",
-    "android:sync": "cap sync android",
-    "android:apk": "cap sync android && cd android && gradlew.bat assembleDebug"
+    "test": "node tools/run-tests.mjs",
+    "build:web": "node scripts/build-web.mjs",
+    "android:sync": "node scripts/ota-prepare-android.mjs",
+    "android:debug": "node scripts/android-release.mjs --debug",
+    "android:release:audit": "node scripts/android-release.mjs --audit",
+    "android:release": "node scripts/android-release.mjs --build",
+    "android:ota:freeze-baseline": "node scripts/ota-prepare-android.mjs --freeze-baseline",
+    "android:ota:bundle": "node scripts/ota-release.mjs",
+    "android:ota:shell": "node scripts/ota-release-shell.mjs",
+    "android:ota:publish": "node scripts/ota-publish.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
@@ -15,6 +23,8 @@
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^7.0.0"
+    "@capacitor/cli": "^7.0.0",
+    "esbuild": "0.28.2",
+    "jsdom": "26.1.0"
   }
 }

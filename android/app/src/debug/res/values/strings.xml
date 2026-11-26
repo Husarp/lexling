@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Test builds show as "Lexling Test" next to the real app (owner, 2026-11-26) -->
+    <string name="title_activity_main">Lexling Test</string>
+    <string name="package_name">com.husarp.lexling.test</string>
+    <string name="custom_url_scheme">com.husarp.lexling.test</string>
+</resources>

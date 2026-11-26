@@ -5,8 +5,8 @@
 // lines (net.js); this file only says what is in them.
 //
 //   host → phone: welcome {seat, id, title, setup, log, here}, act {n, a}, here {here}, names {names}, reject {n},
-//                 refused, full, version, end {why}, ping, pong
-//   phone → host: hello {v, name}, move {n, a}, app {open} (showing Lexling or not), ping, pong, bye
+//                 refused, full, version, end {why}, draft {id, n, placing}, ping, pong
+//   phone → host: hello {v, name}, move {n, a}, app {open} (showing Lexling or not), draft {id, n, placing}, ping, pong, bye
 export const PROTOCOL = 2;
 export const QUIET = 15000;   // nothing heard for this long: the connection counts as gone
 // a phone showing another app: Android may pause Lexling there, so its pings can stop - only a closed connection counts
@@ -24,7 +24,8 @@ const parse = text => { try { return JSON.parse(text); } catch { return null; } 
 // onAsk(phone | null): a phone waits to be let in (one at a time), or nobody does any more. usable(seat): a seat a
 // phone can take (not a player out of the game). extra(): more for every phone with who is here (who is away).
 // onApp(seat, open): that phone shows Lexling again, or another app.
-export function createHost({ players, me = 0, known = [], game, take, send, drop, onChange = () => {}, onAsk = () => {}, usable = () => true, extra = () => ({}), onApp = () => {} }) {
+// onDraft(seat, activity): an optional turn status, with no tiles or positions (owner, 2026-11-26).
+export function createHost({ players, me = 0, known = [], game, take, send, drop, onChange = () => {}, onAsk = () => {}, usable = () => true, extra = () => ({}), onApp = () => {}, onDraft = () => {} }) {
   const seats = Array.from({ length: players }, (_, i) => ({ conn: null, heard: 0, address: known[i]?.address ?? null, device: known[i]?.device ?? '' }));
   const waiting = new Map();   // conn → { device, address, name, said } - connected, not seated yet
   let asking = null, sent = game().log.length;
@@ -101,6 +102,7 @@ export function createHost({ players, me = 0, known = [], game, take, send, drop
       else if (m.t === 'move') { if (!take(i, m.n, m.a)) say(conn, { t: 'reject', n: m.n }); }
       else if (m.t === 'ping') say(conn, { t: 'pong' });
       else if (m.t === 'app') { seats[i].bg = !m.open; onApp(i, !!m.open); }
+      else if (m.t === 'draft' && typeof m.placing === 'boolean') onDraft(i, { id: m.id, n: m.n, placing: m.placing });
       else if (m.t === 'bye') { gone(conn); drop(conn); }
     },
     disconnected: gone,
@@ -125,6 +127,7 @@ export function createHost({ players, me = 0, known = [], game, take, send, drop
       others().forEach(i => { if (seats[i].conn) welcome(seats[i].conn, i); });
     },
     names: names => everyone({ t: 'names', names }),
+    draft: ({ id, n, placing }) => everyone({ t: 'draft', id, n, placing }),
     end: why => everyone({ t: 'end', why }),
     // every few seconds: a ping keeps the line alive; a phone quiet for too long is let go
     tick() {
@@ -165,6 +168,7 @@ export function createGuest({ name, send, on = {} }) {
     resync: () => say({ t: 'hello', v: PROTOCOL, name }),
     // this phone shows Lexling again, or another app
     app: open => say({ t: 'app', open }),
+    draft: ({ id, n, placing }) => say({ t: 'draft', id, n, placing }),
     // the host's phone shows another app: its silence counts for less
     relax: on => { relaxed = on; },
     // every few seconds: true when the host has gone quiet

@@ -17,8 +17,11 @@ export const settings = read('wg.settings', {
   lang: (navigator.language || 'en').toLowerCase().startsWith('pl') ? 'pl' : 'en',
   buttonSize: '130',
   theme: 'dark', palette: 'classic', accent: 'orange', sound: true, fuzzy: true, langChosen: false, lastCheck: 0, latest: '',
+  // Sound and vibration are independent (owner, 2026-11-26).
+  vibration: true, volume: 70,
   // Letters: tapping the tiles also opens the phone's own keyboard (the keys on screen stay) - owner, 2026-09-25
   phoneKb: false,
+  lettersContrast: false, // Dark outlines on coloured Letters tiles and keys (owner, 2026-11-26).
   // "Allow Polish letters" on the new-game screens: on at first, then whatever the player chose last - each
   // game its own choice (owner, 2026-09-25)
   polish: { letters: true, connect: true },
@@ -195,6 +198,68 @@ for (const g of saves) {
 saves = saves.filter(g => g.link?.role !== 'guest');
 const persistSaves = () => write('wg.saves', saves);
 
+// Last games keeps five end states independently of resumable games (owner, 2026-11-26).
+const FINISHED_LIMIT = 5;
+let finished = [];
+try {
+  const stored = JSON.parse(localStorage.getItem('wg.finished'));
+  if (Array.isArray(stored)) finished = stored.slice(0, FINISHED_LIMIT);
+} catch { /* storage unavailable or invalid */ }
+export const listFinished = () => [...finished];
+// Kept games survive the recent-game limit (owner, 2026-11-26).
+const keptKey = 'wg.kept';
+export function listKept() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(keptKey));
+    if (Array.isArray(stored)) return stored;
+  } catch { /* storage unavailable or invalid */ }
+  return [];
+}
+export const isKept = id => listKept().some(g => g.id === id);
+export const getFinished = id => finished.find(g => g.id === id) ?? listKept().find(g => g.id === id);
+const pick = (obj, keys) => Object.fromEntries(keys.filter(k => k in obj).map(k => [k, obj[k]]));
+function resultSnapshot(game) {
+  const common = ['id', 'mode', 'lang', 'auto', 'name', 'title', 'practice', 'timeMs', 'status', 'endedAt'];
+  const fields = {
+    guess: ['cat', 'diff', 'friend', 'secret', 'guesses', 'bestWin'],
+    letters: ['cat', 'diff', 'len', 'tries', 'marks', 'secret', 'guesses'],
+    connect: ['diff', 'key', 'ring', 'board', 'found', 'shown', 'bonus', 'hints'],
+    tiles: ['aids'],
+  };
+  const result = pick(game, [...common, ...fields[game.mode ?? 'guess']]);
+  if (game.mode === 'tiles') {
+    const S = game.state, rated = S.rules?.rating !== false;
+    // Preserve the final board and history, with the action log only where end ratings replay it (owner, 2026-11-26).
+    result.state = {
+      ...pick(S, ['lang', 'board', 'players', 'rules', 'scores', 'over', 'out', 'cells', 'clock', 'hints', 'moves']),
+      ...(rated ? pick(S, ['start', 'words', 'log']) : { log: S.log.filter(a => a.type === 'resign' && a.removed) }),
+    };
+    if (rated && game.evals) result.evals = game.evals.map(ev => ev && {
+      ...pick(ev, ['word', 'best', 'reference']),
+      ...(ev.rarer ? { rarer: pick(ev.rarer, ['word', 'score']) } : {}),
+    });
+    if (game.link) result.link = pick(game.link, ['role', 'me']);
+  }
+  return result;
+}
+export function toggleKept(game) {
+  const kept = listKept();
+  const on = !kept.some(g => g.id === game.id);
+  const next = on ? [...kept, resultSnapshot(game)].sort((a, b) => b.endedAt - a.endedAt || (b.auto ?? 0) - (a.auto ?? 0))
+    : kept.filter(g => g.id !== game.id);
+  try {
+    localStorage.setItem(keptKey, JSON.stringify(next));
+    return on;
+  } catch { return null; }
+}
+
+function keepFinished(game, status, fields = {}) {
+  if (game.live || game.link?.role === 'guest' || getFinished(game.id)) return;
+  const snapshot = JSON.parse(JSON.stringify(resultSnapshot({ ...game, ...fields, status, endedAt: Date.now() })));
+  finished = [snapshot, ...finished].slice(0, FINISHED_LIMIT);
+  write('wg.finished', finished);
+}
+
 export const listSaves = () => [...saves].sort((a, b) => b.updated - a.updated);
 // A game this phone joined on someone else's phone (Tiles on several phones): here only while it is played - never
 // saved, never listed (owner, 2026-09-27: "the game isn't saved on his device").
@@ -267,12 +332,14 @@ export function recordLettersMove(game, word) {
 // (a win with hints, in a category, or with a word a friend chose is no record - the statistics screen sees to that)
 export function recordEnd(game, won, difficulty = -1) {
   closeRecord(game, won ? 'won' : 'gave', { h: game.guesses.filter(x => x.hint).length, dif: difficulty, ...(won ? { w: game.secret } : {}) });
-  deleteSave(game.id);   // finished games leave the picker; their numbers live on in the stats
+  keepFinished(game, won ? 'won' : 'gaveup', { bestWin: won ? bestGuessWin() : 0 });
+  deleteSave(game.id);
 }
 
 // A Letters game ends won, lost (out of tries) or given up. Only a win keeps the streak going.
 export function recordLettersEnd(game) {
   closeRecord(game, game.status === 'won' ? 'won' : game.status === 'lost' ? 'lost' : 'gave', { g: game.guesses.length });
+  keepFinished(game, game.status === 'won' || game.status === 'lost' ? game.status : 'gaveup');
   deleteSave(game.id);
 }
 
@@ -283,6 +350,7 @@ export function recordLettersEnd(game) {
 // `game` = its save. Practice retains only participation and time.
 export function recordTilesEnd(game, only, help) {
   closeRecord(game, 'done', { finished: tilesRecord(game.state, only).finished, ...help });
+  if (game.state.over) keepFinished(game, 'over');
   deleteSave(game.id);
 }
 // a Tiles game's record: its numbers for this device's people (tiles.js results)
@@ -319,9 +387,7 @@ export function tilesProgress(game, only = -1) {
     tiles: (r?.tiles || 0) + mine.reduce((n, m) => n + (m.placed?.length ?? 0), 0), ...quality };
 }
 
-// How good the people's moves were in a finished Tiles game - their points and the best there was, summed - for the
-// statistics' move rating (owner, 2026-09-26). From the end review, so only games that have ratings; its entry was made
-// by recordTilesEnd a moment before.
+// Points credited for rated moves and the corresponding benchmarks, summed in the end review.
 export function recordTilesRating(game, played, best) {
   if (best) noteMove(game, { rp: played, rb: best });
 }
@@ -329,6 +395,7 @@ export function recordTilesRating(game, played, best) {
 // `fields`: connect-game.js connectRecord() - words with a hinted letter kept apart
 export function recordConnectEnd(game, fields) {
   closeRecord(game, game.status === 'won' ? 'won' : 'gave', fields);
+  keepFinished(game, game.status === 'won' ? 'won' : 'gaveup');
   deleteSave(game.id);
 }
 

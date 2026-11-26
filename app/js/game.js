@@ -1,30 +1,31 @@
 // The game screen - markup from design/handoff/game.html (states: 0 guesses / mid-game / won).
 import { t, plural, esc, num, clock } from './i18n.js';
-import { counts, markPractice, settings, getSave, putSave, recordGuess, recordEnd, noteMove, bestGuessWin, playClock } from './store.js';
+import { counts, markPractice, settings, getSave, getFinished, putSave, recordGuess, recordEnd, noteMove, bestGuessWin, playClock } from './store.js';
 import { load, resolve, suggest, rankAll, pct, hint, HINT_FLOOR } from './engine.js';
-import { UI_ICONS, topbar, fillColor, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink, gameTitle, flashTap } from './ui.js';
+import { UI_ICONS, topbar, backToResults, keepButton, wireKeep, resultHref, fillColor, confirmClick, outcome, gearButton, wireGear, meaningButton, wordLink, gameTitle, flashTap, openDialog } from './ui.js';
 import { fitAll } from './fit.js';
-import { click, chime } from './sound.js';
+import { playCue } from './sound.js';
 import { bump, recordAchievementEnd } from './achievements.js';
 
 const FORM_EXAMPLE = { pl: { a: 'psami', b: 'pies' }, en: { a: 'mice', b: 'mouse' } };
 
-export async function gameScreen(root, id) {
-  const game = getSave(id);
-  const m = game && await load(game.lang);
+export async function gameScreen(root, id, archived = false, kept = false) {
+  const game = archived ? getFinished(id) : getSave(id);
+  const m = !archived && game && await load(game.lang);
+  if (location.hash !== (archived ? resultHref(id, kept) : '#/game/' + id)) return;
   const secretIdx = m ? m.words.indexOf(game.secret) : -1;
-  if (secretIdx < 0) { location.replace('#/games/guess'); return; }
-  const rank = rankAll(m, secretIdx);
+  if (!archived && secretIdx < 0) { location.replace('#/games/guess'); return; }
+  const rank = m && rankAll(m, secretIdx);
 
   root.innerHTML = `<div class="app" data-screen="game">
-  ${topbar({ left: `<a class="btn btn-ghost" href="#/games/guess">${t('back.games')}</a>`, right: gameTitle(game) })}
+  ${topbar({ left: archived ? backToResults(kept) : `<a class="btn btn-ghost" href="#/games/guess">${t('back.games')}</a>`, right: gameTitle(game, archived) })}
   <main class="main">
     <div class="status"></div>
     <div id="entry"></div>
     <div id="board"></div>
   </main>
 </div>`;
-  wireGear(root);
+  if (!archived) wireGear(root, 'guess');
   const $ = sel => root.querySelector(sel);
   const board = $('#board');
   let input, ac, items = [], hl = 0, picked = false;
@@ -47,21 +48,24 @@ export async function gameScreen(root, id) {
       // design v2: the outcome banner first, then the word and the numbers in a card - the same ending
       // as Letters. Giving up names the closest the player got; a win, their best win so far.
       const won = game.status === 'won', n = realGuesses(), dot = '<span class="dot">·</span>';
+      const best = won && (archived ? game.bestWin : bestGuessWin());
       const closest = game.guesses.filter(g => !g.hint).reduce((b, g) => !b || g.rank < b.rank ? g : b, null);
       // the difficulty too, in every mode that has one (owner, 2026-09-28)
       const facts = [!game.friend && `<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span>`, !game.friend && `<span>${t('end.level')} <b>${t('diff.' + (game.diff ?? 'normal'))}</b></span>`,
         `<span><b>${num(n)}</b> ${plural(n, 'n.guesses')}</span>`, `<span><b>${clock(game.timeMs)}</b> ${t('game.inGame')}</span>`,
-        won && bestGuessWin() && `<span>${t('game.bestWin')} <b>${num(bestGuessWin())}</b></span>`,
+        best && `<span>${t('game.bestWin')} <b>${num(best)}</b></span>`,
         !won && closest && `<span>${t('end.closest', { w: esc(closest.w) })} <b>${num(closest.rank)}</b></span>`];
+      const saved = archived ? game : getFinished(id);
       $('#entry').outerHTML = `<div id="entry" class="ended">
       ${outcome(won, t(won ? 'end.won' : 'end.gaveUp'), num(n), plural(n, 'n.guesses'))}
       <div class="card result ${won ? 'won' : 'lost'}">
         <span class="eyebrow">${t(won ? 'end.guessWordWon' : 'end.wordLost')}</span>
         <p class="display">${esc(game.secret)}</p>
         <div class="result-stats">${facts.filter(Boolean).join(dot)}</div>
-        <div class="result-actions"><a class="btn btn-outline" href="#/">${UI_ICONS.menu}${t('menu')}</a><a class="btn btn-primary" href="#/new">${t('games.new')} <span class="arrow">→</span></a>${meaningButton(game.secret, game.lang)}</div>
+        <div class="result-actions">${archived ? '' : `<a class="btn btn-outline" href="#/">${UI_ICONS.menu}${t('menu')}</a><a class="btn btn-primary" href="#/new">${t('games.new')} <span class="arrow">→</span></a>`}${meaningButton(game.secret, game.lang)}${keepButton(saved)}</div>
       </div>
     </div>`;
+      wireKeep($('#entry'), saved);
       return;
     }
     $('#entry').outerHTML = `<div id="entry">
@@ -75,7 +79,7 @@ export async function gameScreen(root, id) {
     </div>`;
     input = $('#entry input');
     ac = $('#entry .ac');
-    $('#hint').addEventListener('click', giveHint);
+    $('#hint').addEventListener('click', askHint);
     paintHintNote();
     input.addEventListener('input', () => { picked = false; hl = 0; say(''); paintAc(); });
     input.addEventListener('blur', () => { ac.hidden = true; });
@@ -128,11 +132,20 @@ export async function gameScreen(root, id) {
     if (button) button.disabled = bestRank() > 0 && bestRank() <= HINT_FLOOR;
   }
 
-  // A hint lands in the list like a guess, but marked as one: it shows its rank, so it moves the game
-  // forward the same way a good guess would, and it is honest about where it came from.
-  function giveHint() {
+  // Ask before the first hint changes a counted game to practice (owner, 2026-11-26).
+  function askHint() {
     const found = hint(m, rank, secretIdx, { best: bestRank(), taken: game.guesses.map(g => g.w) });
     if (!found) return say(t(bestRank() && bestRank() <= HINT_FLOOR ? 'game.hintNone' : 'game.hintFail'));
+    if (!counts(game)) return giveHint(found);
+    const { dlg, close } = openDialog(t('game.hint'), `<p class="help">${t('game.hintConfirm')}</p>
+      <div class="gs-acts"><button class="btn btn-ghost" type="button" data-keep autofocus>${t('game.keepPlaying')}</button><button class="btn btn-primary" type="button" data-use>${t('game.useHint')}</button></div>`);
+    dlg.querySelector('[data-keep]').addEventListener('click', close);
+    dlg.querySelector('[data-use]').addEventListener('click', () => { close(); giveHint(found); });
+  }
+
+  // A hint lands in the list like a guess, but marked as one: it shows its rank, so it moves the game
+  // forward the same way a good guess would, and it is honest about where it came from.
+  function giveHint(found) {
     const word = m.words[found.idx];
     markPractice(game);
     $('.topbar .side.end').innerHTML = gameTitle(game);
@@ -140,7 +153,7 @@ export async function gameScreen(root, id) {
     noteMove(game, { h: game.guesses.filter(x => x.hint).length });
     putSave(game);
     flashTap($('#hint'));
-    click();
+    playCue('tap');
     say('');
     paintStatus();
     paintHintNote();
@@ -157,10 +170,11 @@ export async function gameScreen(root, id) {
     if (!text) return;
     option ??= items[picked ? hl : 0];
     const hit = option ? { idx: option.idx, typed: option.w } : resolve(m, text) ?? (items[0] && { idx: items[0].idx, typed: items[0].w });
-    if (!hit) return say(t('game.unknown', { w: text }));
+    if (!hit) { playCue('rejected'); return say(t('game.unknown', { w: text })); }
     const word = m.words[hit.idx];
     const before = game.guesses.find(g => g.w === word);
     if (before) {
+      playCue('rejected');
       // The word is right, it is just spent - so clear the field instead of leaving the player to
       // delete it by hand. Setting .value fires no input event, so the message below stays put.
       input.value = '';
@@ -178,7 +192,7 @@ export async function gameScreen(root, id) {
     paintAc();
     if (hit.idx === secretIdx) return finish(true);
     putSave(game);
-    click();
+    playCue('accepted');
     paintStatus();
     paintBoard(word);
     refit();
@@ -192,7 +206,7 @@ export async function gameScreen(root, id) {
     recordEnd(game, won, m.hardOf.get(secretIdx) ?? -1);
     if (won) bump('guess.finished', 1, game);
     recordAchievementEnd(game, 'guess', m.hardOf.get(secretIdx) ?? -1);
-    if (won) chime();
+    if (won) playCue('accepted', 'win'); else playCue('loss');
     say('');
     paintStatus();
     paintEntry();
@@ -227,11 +241,10 @@ export async function gameScreen(root, id) {
     const was = new Map([...board.querySelectorAll('.guesses.top .guess')].map(el => [el.dataset.w, el.getBoundingClientRect().top]));
     const open = board.querySelector('.history')?.open;
     const top = [...all].sort((a, b) => a.rank - b.rank).slice(0, 5);
-    // The newest guess always gets its own box at the bottom, next to the input, even when it also
-    // stands in the top five - by request: that is where the eye is after pressing Guess.
+    // Give the newest guess its own row only below the top five (owner, 2026-11-26).
     const last = playing() ? all[all.length - 1] : null;
     board.innerHTML = `<ol class="guesses top" aria-label="${t('game.topAria')}">${top.map(g => box(g, { latest: g === last, fresh: g.w === fresh })).join('')}</ol>
-    ${last ? `<div class="divider">${t('game.latest')}</div>
+    ${last && !top.includes(last) ? `<div class="divider" aria-hidden="true"></div>
     <ol class="guesses" aria-label="${t('game.latestAria')}">${box(last, { latest: true, fresh: last.w === fresh })}</ol>` : ''}
     <details class="history"${open ? ' open' : ''}>
       <summary><span class="arrow">→</span> ${t('game.all')} <span class="num" style="color:var(--text)">${num(all.length)}</span></summary>
@@ -255,5 +268,5 @@ export async function gameScreen(root, id) {
   paintStatus();
   paintEntry();
   paintBoard();
-  return playClock(root, game, () => board.isConnected);
+  if (!archived) return playClock(root, game, () => board.isConnected);
 }

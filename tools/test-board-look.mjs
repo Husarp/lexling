@@ -17,7 +17,7 @@ const { t, setLang, plural } = await import('../app/js/i18n.js');
 const { newGame, sizeOf, premiums, apply } = await import('../app/js/tiles.js');
 const { boardInner, boardStyleSeg, topics, LABEL, BONUS_LOOKS, TILE_LOOKS, RATE_LOOKS, tileSwatch, finalOrder, removedPlayer } = await import('../app/js/tiles-game.js');
 const { tilesNewScreen } = await import('../app/js/screens.js');
-const { playerIcon, TILE_SETUP_ICONS, settingRows, wireSettingRows } = await import('../app/js/ui.js');
+const { UI_ICONS, playerIcon, TILE_SETUP_ICONS, settingRows, wireSettingRows } = await import('../app/js/ui.js');
 const source = read('app/js/tiles-game.js');
 // Exercise the live zoom-tool updater across overview, intermediate and maximum scales.
 for (const z of [1, 1.5, 2, 2.5]) {
@@ -147,7 +147,7 @@ for (const lang of ['en', 'pl']) {
 // Execute the real closed-over Options function, with a repaint counter and the real shared row wiring.
 let dialog, repaints = 0;
 const options = source.slice(source.indexOf('  function openOptions() {'), source.indexOf('  // ── several phones', source.indexOf('  function openOptions() {')));
-const context = { playerIcon, S: { rules: {}, players: [{}, { cpu: true }] }, nameOf: (_, p) => p ? 'Computer' : 'You', esc: s => s, histHtml: () => '<p>History rows</p>', host: false, settings, t, BONUS_LOOKS, TILE_LOOKS, RATE_LOOKS, tileSwatch,
+const context = { UI_ICONS, playerIcon, S: { rules: {}, players: [{}, { cpu: true }] }, nameOf: (_, p) => p ? 'Computer' : 'You', esc: s => s, histHtml: () => '<p>History rows</p>', host: false, settings, t, BONUS_LOOKS, TILE_LOOKS, RATE_LOOKS, tileSwatch,
   window: { addEventListener() {}, removeEventListener() {} }, LIST: '', settingRows, wireSettingRows, applyTileLook() {}, repaint() { repaints++; }, confirmClick() {},
   openDialog(title, html) { dialog = new Element(); dialog.innerHTML = html; return { dlg: dialog, close() {} }; } };
 runInNewContext(options + '\nopenOptions();', context);

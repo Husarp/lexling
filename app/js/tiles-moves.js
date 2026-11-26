@@ -157,6 +157,26 @@ export function hint(state, dict) {
   return moves.length ? moves.reduce((a, b) => b.score > a.score ? b : a) : null;
 }
 
+// A familiar play uses familiar words throughout, including any cross-words.
+export function evaluateMoves(state, moves, familiar) {
+  let top = null, known = null;
+  const membership = new Map();
+  const knows = w => {
+    if (!membership.has(w)) membership.set(w, has(familiar, w));
+    return membership.get(w);
+  };
+  for (const move of moves) {
+    if (!top || move.score > top.score) top = move;
+    // Only higher scores can improve the familiar leader.
+    if (!familiar || (known && move.score <= known.score)) continue;
+    const allKnown = knows(move.word) && (move.made === 1 || wordsMade(state, move.placed).words.every(x => knows(x.w)));
+    if (allKnown) known = move;
+  }
+  const best = top?.score ?? 0;
+  const reference = known?.score > 0 && best > known.score ? known.score / 0.95 : best;
+  return { best, word: top?.word ?? '', reference };
+}
+
 // Hints in three levels (owner, 2026-09-25), each a move { placed, word, score } or null:
 // small - an easy move: everyday words only (the ones the Easy computer knows), four tiles at most, worth about half the
 //   best there is (owner, 2026-09-26: "how is a seven-tile 84 a small hint?", "small often gives super good words" - it
@@ -285,14 +305,14 @@ function simulated(state, dict, moves, rand, samples = 10) {
 // `rankOf(word)` = the place of the word's base word in the frequency list, or Infinity when unknown; `spokenOf(word)`
 // = its place in the spoken list (loadSpoken), or Infinity when not in it. With nothing it knows to play, it swaps its whole rack
 // while it may, and passes when it may not.
-export function computerMove(state, dict, level = 'normal', rankOf = () => 0, rand = Math.random, spokenOf = () => 0) {
+export function computerMove(state, dict, level = 'normal', rankOf = () => 0, rand = Math.random, spokenOf = () => 0, candidates = () => findMoves(state, dict)) {
   if (state.pending) {
     const move = state.moves[state.moves.length - 1];
     if (move.words.some(x => !has(dict, x.w))) return { type: 'challenge' };
   }
   const L = LEVELS[level] || LEVELS.normal, rack = state.racks[state.turn], seed = state.start?.seed ?? 0;
   const swapAll = () => canExchange(state, rack.length) ? { type: 'exchange', tiles: [...rack] } : { type: 'pass' };
-  const moves = findMoves(state, dict).filter(m => m.made < 3 || rand() < L.multi ** (m.made - 2)).sort((x, y) => y.score - x.score);
+  const moves = candidates().filter(m => m.made < 3 || rand() < L.multi ** (m.made - 2)).sort((x, y) => y.score - x.score);
   const said = w => w.length > 3 ? spokenOf(w) < L.spoken : w.length === 3 ? spokenOf(w) < L.short : L.short === Infinity || TWO[state.lang]?.has(w);
   const word = w => said(w) || rankOf(w) < L.known || odds(w, seed) < L.rare;
   // looking words up is the slow part, so only as far as needed
@@ -325,22 +345,26 @@ export function computerMove(state, dict, level = 'normal', rankOf = () => 0, ra
 // ── After the game: looking back (the owner's plan) ──────────────────────────────────────────────
 // For each turn a person took: what they did and scored, next to the best move there was on that board with that
 // rack - [{ i (the action's place in the log), p, kind, played, word (the one it made), best: { word, score, placed } | null }].
-// `everyone`: the computers' turns too (the end of a game rates every player - owner, 2026-09-26).
-export function lookBack(state, dict, everyone = false) {
+// `everyone`: the computers' turns too. The screen can supply a saved evaluation by move index.
+export function lookBack(state, dict, everyone = false, evaluate) {
   const states = replay(state, w => has(dict, w)), out = [];
   state.log.forEach((a, i) => {
     const before = states[i];
     // (a turn passed for a player whose phone was away is no move of theirs)
     if (!['place', 'exchange', 'pass', 'timeout'].includes(a.type) || a.away || (!everyone && before.players[before.turn].cpu)) return;
     // a vetoed word never became a turn; neither did a vote interrupted by the clock or giving up (owner, 2026-11-14)
+    let moveAt = before.moves.length;
     if (a.type === 'place' && states[i + 1].vote?.at === i) {
       const closed = states.find((s, j) => j > i + 1 && s.vote?.at !== i);
-      if (!closed || closed.moves.length === before.moves.length || closed.moves.at(-1)?.kind !== 'play') return;
+      if (!closed || closed.moves.length === moveAt || closed.moves.at(-1)?.kind !== 'play') return;
+      moveAt = closed.moves.length - 1;
     }
-    const best = hint(before, dict);
+    // Keep passes and exchanges in the review without a benchmark (owner, 2026-11-26).
+    const rated = a.type !== 'pass' && a.type !== 'exchange';
+    const best = !evaluate && rated ? hint(before, dict) : null;
     const made = a.type === 'place' ? wordsMade(before, a.placed) : null;
     out.push({ i, p: before.turn, kind: a.type, played: made ? made.score : 0, word: made?.words[0]?.w ?? '', hinted: a.hint ?? null,
-      best: best && { word: best.word, score: best.score, placed: best.placed } });
+      ...(evaluate ? { evaluation: rated ? evaluate(before, moveAt) : null } : { best: best && { word: best.word, score: best.score, placed: best.placed } }) });
   });
   return out;
 }

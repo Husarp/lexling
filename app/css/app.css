@@ -13,6 +13,8 @@
   --text:#FFFFFF; --text-muted:#9E9E9E; --text-dim:#5C5C5C;
   --accent:#DB5126; --accent-hover:#B33D18; --accent-soft:rgba(219,81,38,.16); --on-accent:#FFFFFF;
   --error:#C0392B; --success:#27AE60;
+  --game-guess:#FF8271; --game-letters:#79B851; --game-connect:#70B7F2; --game-tiles:#F3C237;
+  --notice-update:#65A9FF; --notice-success:var(--success);
   /* Base-word rarity tiers, in both themes (owner, 2026-11-14). */
   --rare-purple-bg:#30223D; --rare-purple-ink:#DDB5FF; --rare-gold-bg:#382E18; --rare-gold-ink:#F3CE75;
   --rare-blue-bg:#1D3048; --rare-blue-ink:#A8D2FF; --rare-grey-bg:#303237; --rare-grey-ink:#D2D5DC;
@@ -32,6 +34,8 @@
   --bg:#F5F5F5; --surface:#FFFFFF; --surface-2:#EEEEEE; --line:#E0E0E0; --line-soft:#EEEEEE;
   --text:#000000; --text-muted:#4A4A4A; --text-dim:#9E9E9E; --accent-soft:#F2E8E4; --fill-alpha:.55;
   --shadow-md:0 4px 12px rgba(0,0,0,.10);
+  --game-guess:#B74334; --game-letters:#47762A; --game-connect:#2F6EA8; --game-tiles:#896500;
+  --notice-update:#2868AE; --notice-success:#247A49;
   --rare-purple-bg:#F1E6FC; --rare-purple-ink:#69359B; --rare-gold-bg:#FFF1CE; --rare-gold-ink:#795400;
   --rare-blue-bg:#E4F0FF; --rare-blue-ink:#245B96; --rare-grey-bg:#ECEEF1; --rare-grey-ink:#4B5260;
 }
@@ -61,7 +65,12 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:none;box-
 /* type */
 .eyebrow{font:600 12px/1.2 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted)}
 .title{display:flex;align-items:center;gap:var(--space-3);font:700 clamp(24px,4.5vw,30px)/1.05 var(--font-display);letter-spacing:-.02em;text-transform:uppercase}
-.title::before{content:"";flex:none;width:4px;height:.9em;background:var(--accent)}
+[data-game=guess],[data-screen=game]{--game-colour:var(--game-guess)}
+[data-game=letters],[data-screen=letters]{--game-colour:var(--game-letters)}
+[data-game=connect],[data-screen=connect]{--game-colour:var(--game-connect)}
+[data-game=tiles],[data-screen=tiles]{--game-colour:var(--game-tiles)}
+.title::before,.game-title::before{content:"";display:inline-block;flex:none;width:4px;height:.9em;background:var(--game-colour,var(--accent))}
+.game-title:not(.gname)::before{margin-inline-end:.45em;vertical-align:-.05em}
 .display{font:800 clamp(40px,10vw,72px)/.95 var(--font-display);letter-spacing:-.02em;text-transform:uppercase}
 .num{font:800 1em/1 var(--font-display);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .muted{color:var(--text-muted)}
@@ -149,7 +158,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=new] .hist .on b{background:var(--accent)}[data-screen=new] .hist .on em{color:var(--text-muted)}
 [data-screen=new] .readout{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-1) var(--space-3);padding:12px 14px;border-radius:var(--radius-md);background:var(--surface)}
 [data-screen=new] .readout .num{font-size:28px;color:var(--accent)}
-[data-screen=new] .friend{display:grid;gap:var(--space-4);padding:var(--space-5);border-left:3px solid var(--accent);border-radius:var(--radius-lg)}
+[data-screen=new] .friend{display:grid;gap:var(--space-4);padding:var(--space-5);border-radius:var(--radius-lg)}
 [data-screen=new] .friend .row{padding:0;border:0}
 /* How to play (owner, 2026-09-25): a card under the title that opens and closes - the Guess history's summary row */
 [data-screen=new] .howto{padding:0 var(--space-4)}
@@ -201,7 +210,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=game] .hist .r{justify-content:flex-end;font:700 16px/1 var(--font-display);font-variant-numeric:tabular-nums}
 [data-screen=game] .bar{height:4px;background:var(--surface-2);border-radius:var(--radius-sm);overflow:hidden;width:100%}
 [data-screen=game] .bar i{display:block;height:100%;width:var(--pct);background:var(--fill)}
-[data-screen=game] .empty{display:grid;gap:var(--space-4);padding:var(--space-6) var(--space-5);border-left:3px solid var(--accent)}
+[data-screen=game] .empty{display:grid;gap:var(--space-4);padding:var(--space-6) var(--space-5);border-left:3px solid var(--game-colour)}
 [data-screen=game] .empty h2{font:700 clamp(22px,5vw,28px)/1.05 var(--font-display);text-transform:uppercase;letter-spacing:-.02em}
 [data-screen=game] .legend{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--space-3);font-size:12px;color:var(--text-muted)}
 [data-screen=game] .ramp{height:8px;border-radius:var(--radius-sm);background:linear-gradient(90deg,var(--fill-cold),var(--fill-warm),var(--fill-mid),var(--fill-hot))}
@@ -328,6 +337,11 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .lt.hit{background:var(--lt-hit);border-color:var(--lt-hit);color:#fff}
 .lt.near{background:var(--lt-near);border-color:var(--lt-near);color:#fff}
 .lt.miss{background:var(--lt-miss);border-color:var(--lt-miss);color:#fff}
+/* Letters contrast option C (owner, 2026-11-26). Keep the white fill and draw the black stroke behind it. */
+[data-letters-contrast=true] :is(.lt,[data-screen=letters] .key):is(.hit,.near,.miss){-webkit-text-stroke:2px #000;paint-order:stroke fill}
+@supports not (paint-order:stroke fill){
+  [data-letters-contrast=true] :is(.lt,[data-screen=letters] .key):is(.hit,.near,.miss){-webkit-text-stroke:0;text-shadow:-1px 0 #000,1px 0 #000,0 -1px #000,0 1px #000}
+}
 .lt-row.bad .lt{border-color:var(--error)}
 [data-theme=light] .lt-row.now .lt{border-color:var(--palette-edge,#C4C9D6)}
 [data-theme=light] .lt.typed{border-color:var(--text-muted)}
@@ -369,7 +383,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .tries .stepper{flex:1 1 200px}
 .tries .chip{min-height:54px;padding:0 var(--space-5);display:inline-flex;align-items:center;gap:var(--space-2)}
 .tries .chip .num{font-size:22px}
-.polish{display:grid;gap:var(--space-3);padding:var(--space-5);border-left:3px solid var(--accent);border-radius:var(--radius-lg)}
+.polish{display:grid;gap:var(--space-3);padding:var(--space-5);border-radius:var(--radius-lg)}
 .polish .row{padding:0;border:0}
 .polish .marks{display:block;margin-top:2px;font:700 20px/1.2 var(--font-display);letter-spacing:.08em;color:var(--text)}
 [data-screen=new] .readout.none .num{color:var(--error)}
@@ -680,6 +694,9 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
 [data-screen=connect] .say{flex:none;position:relative;height:40px;display:flex;align-items:center;justify-content:center;text-align:center}
 [data-screen=connect] .say .help{line-height:1.3}
 [data-screen=connect] .say .help b{color:var(--text);font-weight:600;text-transform:uppercase}
+/* Tap controls use the space above the dock, keeping the ring in reach (owner, 2026-11-26). */
+.cn-entry{flex:none}
+.cn-tap-actions{display:flex;justify-content:center;gap:var(--space-2);margin-top:var(--space-1)}
 .say .w{display:flex;gap:4px;justify-content:center}
 .say .w i{font-style:normal;width:30px;height:36px;display:grid;place-items:center;border-radius:6px;background:var(--accent);color:var(--on-accent);font:600 18px/1 var(--font-body);text-transform:uppercase}
 .say.bad .w i{background:var(--error);color:#fff}
@@ -719,7 +736,7 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
   [data-screen=connect] .main{--col:1080px}
   [data-screen=connect] .play{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,380px);grid-template-rows:1fr auto auto;column-gap:var(--space-6)}
   [data-screen=connect] .cw-wrap{grid-column:1;grid-row:1/4;min-height:0}
-  [data-screen=connect] .say{grid-column:2;grid-row:2}
+  [data-screen=connect] .cn-entry{grid-column:2;grid-row:2}
   [data-screen=connect] .dock{grid-column:2;grid-row:3}
 }
 @keyframes cn-bump{0%,100%{transform:none}50%{transform:scale(1.18);border-color:var(--accent)}}
@@ -865,6 +882,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* this turn's tiles: a theme-colour ring; red when the move can't be played */
 .t.new{--ring:var(--accent);--rw:1px}
 .tb .t.bad{--ring:var(--error);--rw:1px;outline:none}
+.tb .t.selected{--rw:max(3px,calc(var(--cs) * .12))}
 /* a hint: the look every Lexling hint has — no fill, dashed edge, muted letter */
 .t.hint{background:var(--surface);color:var(--text-muted);box-shadow:none;outline:calc(var(--cs) * .06) dashed var(--text-muted);outline-offset:calc(var(--cs) * -.07)}
 .t.hint .p{color:var(--text-muted)}
@@ -908,6 +926,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .rt.lift{z-index:2;transform:translateY(-12px) scale(1.12);box-shadow:inset 0 calc(var(--rs) * -.07) 0 rgba(0,0,0,.2),var(--shadow-md);transition:none}
 .rt.gap{background:transparent;box-shadow:none;border:1.5px dashed var(--line);color:transparent}
 .rt.used{opacity:.35}
+.rt.shadow{cursor:pointer}
 .rt.pick{transform:translateY(-6px);outline:3px solid var(--accent);outline-offset:2px}
 .rt .ck{position:absolute;top:-8px;right:-8px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--on-accent);font:700 12px/1 var(--font-body);font-style:normal}
 [data-theme=light] .rt.gap{border-color:var(--palette-edge,#C4C9D6)}
@@ -998,13 +1017,47 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-fs b{font:800 clamp(44px,11cqi,68px)/.9 var(--font-display);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .tl-fs .colon{font:800 clamp(32px,8cqi,48px)/1 var(--font-display);color:var(--text-dim);padding-bottom:4px}
 .tl-fs .lose b{color:var(--text-muted)}
+.tl-fs .bot-level-icon{margin-inline-end:4px}
 .tl-best{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2) var(--space-4)}
 .tl-best .mt-row{flex-wrap:wrap;gap:4px}
 .tl-best .num{font-size:28px;color:var(--accent)}
+/* The results cards borrow the match highlights layout (owner, 2026-11-26). */
+.tl-highlights,.tl-score-chart{min-width:0;display:grid;gap:var(--space-3);padding:var(--space-4)}
+.tl-highlights dl{margin:0}
+.tl-highlights dl>div{display:grid;gap:4px;padding:var(--space-2) 0}
+.tl-highlights dl>div+div{border-top:1px solid var(--line-soft)}
+.tl-highlights dl>div:last-child{padding-bottom:0}
+.tl-highlights dt{font-size:13px;color:var(--text-muted)}
+.tl-highlights dd{margin:0;font:800 21px/1.2 var(--font-display);overflow-wrap:anywhere}
+.tl-highlights dd span{font:600 14px/1.2 var(--font-body);color:var(--text-muted);white-space:nowrap}
+.tl-highlights dl>div:first-child strong{color:var(--accent)}
+.tl-score-chart svg{display:block;width:min(100%,440px);justify-self:center;height:auto}
+.tl-score-chart text{fill:var(--text-muted);font:13px var(--font-body);font-variant-numeric:tabular-nums}
+.tl-score-chart .grid{stroke:var(--line)}
+.tl-score-chart .replay-marker{stroke:var(--text);stroke-width:1.5;stroke-dasharray:4 3}
+.tl-score-chart :is(g,li){--series:var(--pt)}
+[data-theme=light] .tl-score-chart :is(g,li){--series:var(--pc)}
+.tl-score-chart polyline{fill:none;stroke:var(--series);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.tl-score-chart circle{fill:var(--series)}
+.tl-score-chart ul{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--space-1) var(--space-3);margin:0;padding:0;list-style:none;font-size:13px}
+.tl-score-chart li{display:flex;align-items:center;gap:6px;min-width:0;overflow-wrap:anywhere}
+.tl-score-chart li i{width:14px;height:3px;border-radius:2px;background:var(--series);flex:none}
 .mtl{--s:32px;position:relative;flex:none;width:var(--s);height:var(--s);display:grid;place-items:center;border-radius:calc(var(--s) * .16);background:var(--tl-tile);color:var(--tl-ink);box-shadow:inset 0 calc(var(--s) * -.08) 0 rgba(0,0,0,.2);font:700 calc(var(--s) * .56)/1 var(--font-body);font-style:normal;text-transform:uppercase}
 .mtl .p{position:absolute;right:8%;bottom:10%;font:700 calc(var(--s) * .27)/1 var(--font-body);font-style:normal}
-.tl-final{container-type:inline-size;display:grid;justify-items:center}
+.tl-final{container-type:inline-size;display:grid;justify-items:center;gap:var(--space-2)}
 .tl-final .tl-board{width:min(100%,560px)}
+.tl-replay-controls{text-align:center}
+.tl-replay-steps{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--space-1);margin-bottom:var(--space-2)}
+.tl-replay-controls p{margin:0;color:var(--text-muted);overflow-wrap:anywhere}
+.tl-end-history{display:grid;gap:var(--space-3);padding:var(--space-4) var(--space-5)}
+.tl-end-history-head{display:flex;justify-content:space-between;align-items:center;gap:var(--space-2)}
+.tl-end-history-head h2{margin:0;font:800 24px/1 var(--font-display);text-transform:uppercase}
+.tl-end-history-head .btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tl-end-history .seg{flex-wrap:wrap}
+.tl-end-history .seg button{overflow-wrap:anywhere}
+.tl-end-moves .tl-hist,.tl-end-moves>.help{margin:0}
+.tl-share-status{margin:0}
+.tl-share-status:empty{position:absolute}
 /* saved-game card: the score line */
 [data-screen=games] .save-last .vs{display:inline-flex;align-items:center;gap:6px}
 [data-screen=games] .save-last .vs i{width:8px;height:8px;border-radius:50%;background:var(--tl-you)}
@@ -1108,6 +1161,9 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-legend i{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:3px;font:700 9px/1 var(--font-body);font-style:normal;vertical-align:middle;margin-right:4px}
 /* new game: the players, 2-5 rows - a coloured seat icon, the name, Person / Computer, and a computer's level */
 .tl-players{display:grid;gap:var(--space-2)}
+/* Show the seat number above the player box (owner, 2026-11-26). */
+.tl-seat{display:grid;gap:var(--space-1)}
+.tl-seat-label{font-size:14px;font-weight:600}
 .tl-prow{display:grid;gap:var(--space-2);padding:var(--space-3);border:1.5px solid var(--line);border-radius:var(--radius-md)}
 .tl-prow .top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--space-2)}
 /* Seat icons inherit player colours; fixed sizes also fit narrow setup rows (owner, 2026-11-20). */
@@ -1118,18 +1174,29 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-prow .input{min-height:40px;padding:0 var(--space-3)}
 .tl-prow .seg button{min-height:36px;padding:0 var(--space-2);font-size:11px}
 .tl-prow .lv{display:flex;flex-wrap:wrap;gap:6px}
-.tl-prow .lv .chip{min-height:34px;padding:0 var(--space-3);font-size:12px}
+.bot-level-icon{display:inline-block;flex:none;width:20px;height:20px;vertical-align:middle}
+.tl-prow .lv .chip{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 var(--space-3);font-size:12px}
+/* The 1A label colours (owner, 2026-11-26). Keep a dark chip surface in light mode for contrast. */
+.tl-prow .lv [data-lv=relaxed]{--level:#62d78b}
+.tl-prow .lv [data-lv=easy]{--level:#b7db69}
+.tl-prow .lv [data-lv=medium]{--level:#f2cd59}
+.tl-prow .lv [data-lv=normal]{--level:#ff9b56}
+.tl-prow .lv [data-lv=hard]{--level:#ff716e}
+.tl-prow .lv [data-lv=expert]{--level:#c49aff}
+.tl-prow .lv .chip{color:var(--level)}
+[data-theme=light] .tl-prow .lv .chip{background:#1a1a1a}
+.tl-prow .lv .chip.on{border-color:var(--level);background:color-mix(in srgb,var(--level) 15%,#000)}
 .tl-prow .rm{min-height:36px;padding:0 var(--space-2)}
 .tl-prow .kind{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-2)}
-/* the rules, folded away */
-:is(.tl-rules,.tl-assists) summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);min-height:48px;cursor:pointer}
-:is(.tl-rules,.tl-assists) summary::-webkit-details-marker{display:none}
-:is(.tl-rules,.tl-assists){padding:0 var(--space-4)}
+/* Match the folded setup rows (owner, 2026-11-26). */
+:is(.tl-rules,.tl-assists,#colours)>summary{min-height:48px}
+:is(.tl-rules,.tl-assists,#colours){padding:0 var(--space-4)}
+#colours[open]{padding-bottom:var(--space-4)}
+:is(.tl-rules,.tl-assists) summary .state{margin-inline-start:auto;text-align:end;color:var(--text-muted);font-size:12px;font-weight:500;line-height:1.25}
+:is(.tl-rules,.tl-assists)>summary::after{margin-left:0}
 :is(.tl-rules,.tl-assists) .rule{display:grid;gap:6px;padding:var(--space-2) 0 var(--space-3)}
 :is(.tl-rules,.tl-assists) .rule .seg button{font-size:11px}
-.tl-rules .muted{color:var(--text-dim);font-weight:500;text-transform:none;letter-spacing:0}
 /* Assists (owner, 2026-10-12): on its own, its state on the folded line - in the warning's amber while any is on */
-.tl-assists .state{color:var(--text-dim);font-weight:500;text-transform:none;letter-spacing:0}
 .tl-assists.used{border-color:color-mix(in srgb,var(--warn,#e0a800) 55%,transparent)}
 .tl-assists.used .state{color:var(--warn,#e0a800)}
 .tl-assists>.help{margin:0 0 var(--space-3)}
@@ -1223,6 +1290,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-theme=light] .game-settings::backdrop{background:rgba(0,0,0,.3)}
 .gs-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-2)}
 .gs-close{min-width:40px;padding:0}
+.gs-guide{justify-content:space-between;width:100%;min-height:48px;padding:0 12px;margin-bottom:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--text)}
+.gs-guide:hover,.gs-guide:focus-visible{border-color:var(--accent)}
 .gs-row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);padding:var(--space-3) 0;border-top:1px solid var(--line-soft)}
 .gs-row .row-text{display:grid;gap:4px}
 .gs-row strong{font-weight:600}
@@ -1468,9 +1537,9 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-moves .mc-bag{margin:0;min-height:16px;font-size:12px;line-height:16px;text-align:center;color:var(--text-muted)}
 .tl-moves .mc-bag b{color:var(--text);letter-spacing:.06em}
 @container (max-width:400px){.tl-moves .rate .bn{display:none}.tl-moves .w{font-size:17px}.tl-moves .pt{font-size:20px}.tl-moves .rr:has(.rare) .rate{font-size:10px;padding:2px 5px}.tl-moves .mcards:has(.rare){column-gap:6px}.tl-moves .mcards:has(.rare) .who{max-width:8ch}}
-/* the row under the scores: Save and exit, the check, Options */
+/* the row under the scores: Save and exit starts at the left (owner, 2026-11-26) */
 [data-screen=tiles] .status-actions .tl-exit,[data-screen=tiles] .status-actions .tl-opts{display:inline-flex;align-items:center;gap:6px}
-[data-screen=tiles] .status-actions .tl-exit{margin-right:auto}
+[data-screen=tiles] .status-actions .tl-exit{margin-right:auto;justify-content:flex-start;text-align:left}
 .tl-exit svg,.tl-opts svg{flex:none;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 /* Options: History and How to play; Settings and Look, one open at a time; Give up */
 .op-go{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 6px}
@@ -1517,6 +1586,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* two phones (0.52.3): the other player's state above the move cards - a dot: green connected, amber not */
 .tl-moves .mc-link{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 0 4px;min-height:16px;font-size:12px;line-height:16px;color:var(--text-muted);text-align:center}
 .tl-moves .mc-link .ld{flex:none;width:7px;height:7px;border-radius:50%;background:var(--lt-hit)}
+.tl-moves .mc-link .tl-player-icon{width:16px;height:16px}
+.tl-moves .mc-link strong{color:var(--text)}
 .tl-moves .mc-link.down .ld{background:var(--lt-near);animation:tl-dot 1.2s var(--ease) infinite}
 .tl-moves .mc-link .tl-dots i{width:4px;height:4px}
 .tl-wait .tl-phone{margin:0;font-size:14px;color:var(--text-dim)}
@@ -1554,21 +1625,21 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .op-who small{flex:none;font-size:12px;color:var(--text-muted)}
 .op-act{width:100%;min-height:40px}
 /* hosting an online game (0.55.0): what the host decides and can do */
-.tl-hostinfo{display:grid;gap:8px;padding:var(--space-4) var(--space-5);border-left:3px solid var(--accent);margin:0 0 var(--space-4)}
+.tl-hostinfo{display:grid;gap:8px;padding:var(--space-4) var(--space-5);margin:0 0 var(--space-4)}
 .tl-hostinfo ul{margin:0;padding-left:1.1em;display:grid;gap:6px;font-size:14px;line-height:1.45;color:var(--text-dim)}
 /* online (0.55.0): "(you)" after your own name in the score boxes; "you are playing as" does not block the board */
 .ps .nm .you{font:inherit;font-weight:500;opacity:.75}
-.tl-toast.joined{pointer-events:none}
+.tl-toast.joined{pointer-events:none;border-top-color:var(--notice-success)}
 /* a newer version at the bottom of the menu (0.55.1): Download or ✕. The buttons beside the text while both fit, else on
    their own line below it (0.58.0: a failed download has three - the text was squeezed to a word a line) */
-.upd{position:sticky;bottom:calc(8px + var(--safe-b, 0px));z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:var(--space-4);max-width:520px;padding:var(--space-3) var(--space-4);background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius-md)}
+.upd{position:sticky;bottom:calc(8px + var(--safe-b, 0px));z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:var(--space-4);max-width:520px;padding:var(--space-3) var(--space-4);background:var(--surface);border:1px solid var(--notice-update);border-radius:var(--radius-md)}
 .upd-text{flex:1 1 200px;min-width:0;font-weight:600;color:var(--text)}
 .upd-acts{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px;margin-left:auto}
 .upd-pair{display:flex;gap:6px}   /* GitHub and ✕ wrap together, never ✕ alone */
 .upd-note{flex:1 1 100%;font-size:13px;line-height:1.4;color:var(--text-muted)}
 /* the update downloading (0.57.0): its progress */
 .upd-bar{flex:1 1 100%;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
-.upd-bar i{display:block;height:100%;background:var(--accent);transition:width 300ms var(--ease)}
+.upd-bar i{display:block;height:100%;background:var(--notice-update);transition:width 300ms var(--ease)}
 /* online (0.57.1): why a connection failed, small; whether the host can be found */
 .tl-why{display:block;margin-top:4px;font-size:11px;color:var(--text-muted);word-break:break-word}
 .tl-findable{margin:0;font-size:13px}
@@ -1614,6 +1685,10 @@ input,textarea{-webkit-user-select:text;user-select:text}
    Rows are a subgrid, so numbers line up across a row even when one label takes two lines. */
 [data-screen=stats] .section{display:grid;gap:var(--space-3)}
 [data-screen=stats] .sgroup{display:grid;align-content:start;flex:none;gap:var(--space-4);padding:var(--space-4) var(--space-5) var(--space-5)}
+[data-screen=stats] .sgroup:not([data-game=general]){border-inline-start:3px solid var(--game-colour)}
+[data-screen=stats] .st-mode{display:flex;align-items:center;gap:8px;padding:10px;border-inline-start:3px solid var(--game-colour)}
+[data-screen=stats] .st-mode .lbl{display:flex;align-items:center;gap:8px;font-weight:600}
+[data-screen=stats] .st-mode .num{margin-inline-start:auto;font-size:25px}
 @container (max-width:340px){[data-screen=stats] .sgroup,[data-screen=stats] .chart{padding:var(--space-4)}}
 [data-screen=stats] .sgroup>.eyebrow{margin:0}
 [data-screen=stats] .scells{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:var(--space-5) var(--space-4)}
@@ -1703,11 +1778,30 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-screen=menu] .menu.cards a{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-width:0;height:94px;padding:10px 6px;border:1px solid var(--line-soft);border-radius:12px;background:var(--surface);box-shadow:var(--shadow-md);color:var(--text);font:700 17px/1.1 var(--font-display);letter-spacing:.025em;text-transform:uppercase;text-align:center;overflow-wrap:anywhere;transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease)}
 [data-screen=menu] .menu.cards a:hover{background:var(--accent-soft);border-color:var(--accent)}
 [data-screen=menu] .menu.cards a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-.menu-badge{display:grid;place-items:center;box-sizing:border-box;flex:none;width:36px;height:36px;padding:6px;border-radius:10px;background:var(--rare-blue-bg);color:var(--rare-blue-ink)}
-.menu.cards a:nth-child(2) .menu-badge{background:var(--rare-gold-bg);color:var(--rare-gold-ink)}
-.menu.cards a:nth-child(3) .menu-badge{background:var(--rare-purple-bg);color:var(--rare-purple-ink)}
-.menu.cards a:nth-child(4) .menu-badge{background:var(--rare-grey-bg);color:var(--rare-grey-ink)}
-.menu-badge svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.menu-badge{width:32px;height:32px;border-radius:50%}
+.menu.cards a[href="#/stats"]{--icon-ink:#8AB5FF}
+.menu.cards a[href="#/achievements"]{--icon-ink:var(--rare-gold-ink)}
+.menu.cards a[href="#/collection"]{--icon-ink:#61CFBA}
+.menu.cards a[href="#/settings"]{--icon-ink:#D0AEF5}
+[data-screen=menu] .menu.cards a[href="#/last-games"]{grid-column:1/-1;height:48px;flex-direction:row;gap:8px;--icon-ink:var(--accent)}
+[data-theme=light] .menu.cards a[href="#/stats"]{--icon-ink:#4168AD}
+[data-theme=light] .menu.cards a[href="#/collection"]{--icon-ink:#227869}
+[data-theme=light] .menu.cards a[href="#/settings"]{--icon-ink:#764E9F}
+.menu-badge svg{width:18px;height:18px}
+.menu-badge svg:not(.app-icon){fill:currentColor}
+
+/* Finished games (owner, 2026-11-26). */
+[data-screen=last-games] .saves{display:grid;gap:var(--space-3)}
+.last-game-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px}
+.last-game{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:4px;color:var(--text)}
+.last-game>span{display:grid;gap:3px;overflow-wrap:anywhere}
+.last-game>span>span,.last-game time{color:var(--text-muted);font-size:12px}
+.last-game time{text-align:end}
+.last-game-row:hover,.last-game-row:focus-within{border-color:var(--accent)}
+.keep-game{position:relative;display:inline-flex;justify-content:center}
+.keep-game [data-keep]{min-width:44px;font-size:1.35em;line-height:1;padding-inline:12px}
+.keep-game [aria-pressed=true]{color:var(--accent);border-color:var(--accent)}
+.keep-status:not(:empty){position:absolute;inset-inline-end:0;top:100%;z-index:1;width:15ch;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:6px}
 
 /* ── Time: the clock beside the name, the reminder ── (.tb-clock and .rm-every are in app.css)
    The clock is 12px, --text-dim, tabular, right of LEX/LING. */
@@ -1875,11 +1969,12 @@ canvas.co-dots{display:block;width:100%}
 .ach-pips .ach-shape{width:10px;height:10px}
 .ach-bar{height:4px;border-radius:4px;background:var(--surface-2);overflow:hidden}
 .ach-bar i{display:block;height:100%;background:var(--ink)}
-[data-screen=achievements] .ach-summary{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line-soft);border-radius:12px;padding:14px;margin:20px 0 10px}
-.ach-summary>div{flex:1;min-width:0}
+[data-screen=achievements] .ach-summary{display:grid;gap:12px;background:var(--surface);border:1px solid var(--line-soft);border-radius:12px;padding:14px;margin:20px 0 10px}
 .ach-summary .num{display:block;font-size:32px}
 .ach-summary small{display:block;color:var(--text-muted);font-size:11px}
-.ach-count{display:grid;justify-items:center;gap:5px;font-size:12px}
+.ach-counts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.ach-count{display:grid;justify-items:center;gap:5px;font-size:12px;text-align:center;overflow-wrap:anywhere}
+@container (min-width:600px){[data-screen=achievements] .ach-summary{grid-template-columns:1fr 3fr;align-items:center}}
 .ach-heading{font-size:12px;color:var(--text-muted);margin:20px 0 10px}
 .ach-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:20px}
 .ach-tile{border-radius:10px;position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-width:0;padding:8px 4px;border:1px solid color-mix(in srgb,var(--ink) 22%,var(--line-soft));background:color-mix(in srgb,var(--ink) 17%,var(--surface));color:var(--text);cursor:pointer;font:inherit}
@@ -1908,7 +2003,8 @@ canvas.co-dots{display:block;width:100%}
 .ach-step .ach-bar{margin-top:8px}
 .achievement-notice{pointer-events:auto;width:min(430px,calc(100% - 24px));box-sizing:border-box;gap:10px;padding:12px}
 .achievement-notice>span:nth-child(2){display:grid;gap:3px;flex:1;min-width:0}
-.achievement-notice b{color:var(--ink)}
+.achievement-notice{--ink:var(--rare-gold-ink)}
+.achievement-notice strong,.achievement-notice b{color:var(--ink)}
 .achievement-notice .ach-notice-actions{display:grid;gap:6px;flex:none}
 .ach-notice-actions button{font:inherit;font-size:12px;padding:7px;border:1px solid var(--line);border-radius:6px;color:var(--text);background:var(--surface-2);cursor:pointer}
 .ach-notice-actions button:first-child{background:var(--accent);color:var(--on-accent)}
@@ -1946,6 +2042,7 @@ canvas.co-dots{display:block;width:100%}
 .tl-check .input{border:1px solid #60656d;outline:none;box-shadow:none}
 .tl-check .input:focus{border-color:var(--success);outline:none;box-shadow:none}
 [data-screen=games] .save-last .vs .player-icon{width:12px;height:12px;flex:none;color:var(--pc)}
+[data-screen=games] .save-last .vs .bot-level-icon{width:20px;height:20px}
 /* Keep the board under the tools; spare height separates it from the reserved move cards. */
 [data-screen=tiles] .tl-messages{width:100%;max-width:560px;justify-self:center;min-width:0}
 @container (min-width:900px){
@@ -2073,7 +2170,13 @@ html{scrollbar-gutter:stable}
 .op-content{flex:1;min-height:0;overflow:auto;scrollbar-width:none;overscroll-behavior:contain;padding:8px 3px}
 .op-content::-webkit-scrollbar{display:none}
 .op-content [hidden]{display:none}
-.op-content h2{font:700 24px/1.3 var(--font-display);text-transform:uppercase;margin:0 0 16px}
+.op-content h2{display:flex;align-items:center;gap:8px;font:700 24px/1.3 var(--font-display);text-transform:uppercase;margin:0 0 16px}
+#op-history{--icon-ink:#78BCFB}
+#op-look{--icon-ink:#D9AFF7}
+#op-players{--icon-ink:#74D7AC}
+[data-theme=light] #op-history{--icon-ink:#326EA8}
+[data-theme=light] #op-look{--icon-ink:#7C4D9E}
+[data-theme=light] #op-players{--icon-ink:#287A59}
 .op-foot{flex:none;display:flex;justify-content:space-between;align-items:stretch;gap:12px;padding-top:12px}
 .op-foot .btn{width:auto;min-width:0;flex:0 1 auto;margin:0;min-height:42px;padding:8px 12px;white-space:normal;overflow-wrap:anywhere}
 .op-foot .op-quit{border-color:var(--error)}
@@ -2114,10 +2217,23 @@ html{scrollbar-gutter:stable}
 /* Selected Settings A: compact sections on a single page. */
 [data-screen=settings] .main{gap:12px}
 .settings-section{border:1px solid var(--line-soft);border-radius:14px;background:var(--surface);overflow:hidden;scroll-margin-top:70px}
-.settings-section>summary{display:flex;align-items:center;gap:12px;list-style:none;padding:12px 16px;font-weight:600;font-size:16px;cursor:pointer}
+.settings-section>summary{display:flex;align-items:center;gap:8px;list-style:none;min-height:46px;padding:7px 8px;font-weight:600;font-size:14px;cursor:pointer}
 .settings-section>summary::-webkit-details-marker{display:none}
 .settings-section[open]>summary{border-bottom:1px solid var(--line-soft)}
-.category-icon{display:grid;place-items:center;flex:none;width:30px;height:30px;font-size:13px;background:var(--accent-soft);border-radius:10px;color:var(--accent)}
+:is(.category-icon,.menu-badge){display:grid;place-items:center;flex:none;background:color-mix(in srgb,var(--icon-ink) 16%,transparent);color:var(--icon-ink)}
+.category-icon{width:30px;height:30px;border-radius:10px}
+.settings-section[data-section=general]{--icon-ink:#5CB6FF}
+.settings-section[data-section=games]{--icon-ink:#F3C237}
+.settings-section[data-section=display]{--icon-ink:#E297F4}
+.settings-section[data-section=time]{--icon-ink:#67D597}
+.settings-section[data-section=online]{--icon-ink:#57D3CE}
+.settings-section[data-section=about]{--icon-ink:#FF8B79}
+[data-theme=light] .settings-section[data-section=general]{--icon-ink:#276EA6}
+[data-theme=light] .settings-section[data-section=games]{--icon-ink:#896500}
+[data-theme=light] .settings-section[data-section=display]{--icon-ink:#913D9F}
+[data-theme=light] .settings-section[data-section=time]{--icon-ink:#26784A}
+[data-theme=light] .settings-section[data-section=online]{--icon-ink:#207675}
+[data-theme=light] .settings-section[data-section=about]{--icon-ink:#AD4D3D}
 /* One centred chevron for every expandable section, independent of font metrics. */
 details>summary{display:flex;align-items:center;gap:8px;list-style:none;cursor:pointer}
 details>summary::-webkit-details-marker{display:none}
@@ -2125,6 +2241,7 @@ details>summary::after{content:"";display:block;flex:none;width:20px;height:20px
 /* Bold down chevron, flips up when open (owner's pick, notes/chevron-options 1A, 2026-11-20). */
 details[open]>summary::after{transform:rotate(180deg)}
 details>summary :is(.arrow,.category-arrow){display:none}
+.settings-section>summary::after{color:var(--text-muted)}
 .section-content{padding:0 16px 12px}
 .section-content>.title{font-size:20px;margin:18px 0 6px}
 .settings-section .row{padding:12px 0;gap:10px;flex-wrap:wrap}
@@ -2133,13 +2250,16 @@ details>summary :is(.arrow,.category-arrow){display:none}
 .settings-section .row-text strong{font-size:14px}
 .settings-section .row-text span{font-size:11px;line-height:1.5}
 .settings-section .row>.seg,.settings-section .palette-swatches{width:100%;flex:none}
+#sound-volume{width:min(150px,38%);margin:0}
 .settings-section .input{max-width:100%}
 /* Shared, transparent SVG mode icons retain the proposal's colours in both themes. */
 svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.all{display:inline-block;position:static;flex:none;width:22px;height:22px;background:none;border-radius:0;vertical-align:middle;overflow:visible}
 /* Menu art stays dark in light theme: its edges are part of the selected artwork. */
-[data-screen=menu] .games.tight .game{position:relative;display:flex;justify-content:space-between;height:104px;min-height:104px;padding:0 18px;background:#110d0c;border-color:#352b27;isolation:isolate;overflow:hidden}
-[data-screen=menu] .menu-art{position:absolute;inset:0;margin:auto;width:auto;max-width:100%;height:100%;object-fit:contain;z-index:-1;mask-image:linear-gradient(90deg,transparent,#000 25%,#000 75%,transparent)}
+[data-screen=menu] .games.tight .game{grid-template-columns:minmax(0,1fr) minmax(0,48%) auto;min-height:104px;padding:0 18px;background:#110d0c;border-color:#352b27;overflow:hidden}
+[data-screen=menu] .menu-art{grid-column:2;grid-row:1;width:100%;height:102px;object-fit:cover;mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+[data-screen=menu] .games.tight .g-text{grid-column:1;grid-row:1;padding-block:8px;overflow-wrap:anywhere}
 [data-screen=menu] .games.tight .g-name{font:600 22px/1 var(--font-body);letter-spacing:0;text-transform:none;color:#fff3e9;text-shadow:0 2px 8px #000}
+[data-screen=menu] .games.tight .g-desc{color:#fff3e9;text-shadow:0 1px 3px #000,0 1px 6px #000}
 [data-screen=menu] .game>.arrow{color:#ED754C;text-shadow:0 2px 8px #000;font-size:22px}
 .empty-art{display:block;width:120px;max-width:65%;height:auto;max-height:140px;object-fit:contain;margin:0 auto 16px}
 .ach-notice-icon{position:relative;width:58px;height:60px;background:none}
@@ -2157,6 +2277,11 @@ svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.al
 .chapter-title h2{font:700 30px/1.08 var(--font-display);text-transform:uppercase;margin-top:8px}
 .chapter-body{overflow:auto;overscroll-behavior:contain}
 .chapter-body .help{font-size:16px;line-height:1.7;color:var(--text)}
+.chapter-body :is(ol,ul.help){padding-inline-start:1.4em;font-size:16px;line-height:1.7;color:var(--text)}
+.chapter-body :is(ol,ul.help) li+li,.chapter-body p.help+p.help{margin-top:8px}
+.chapter-body .rule-status{margin-bottom:12px;color:var(--text-muted);font-size:13px;font-weight:600}
+.chapter-body .lt-board{margin:12px 0}
+.chapter-body .lt-row{justify-content:start}
 .chapter-body .tl-legend{margin:24px 0;justify-content:space-around}
 .rules-nav{display:flex;align-items:center;justify-content:space-between;margin-top:24px;gap:10px}
 .rules-nav button{border:1px solid var(--line);border-radius:10px;width:48px;height:48px;font-size:24px;flex:none;color:var(--text);cursor:pointer}
@@ -2174,12 +2299,20 @@ svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.al
 :is([data-screen=stats],[data-screen=collection]) .seg.st-tabs button{display:flex;align-items:center;justify-content:center;gap:5px;white-space:normal;line-height:1.15}
 :is([data-screen=stats],[data-screen=collection]) .st-tabs .tg{flex:none}
 [data-screen=achievements] .seg.st-tabs button{display:flex;align-items:center;justify-content:center;padding:8px;gap:0}
+/* Show the achievement tab names when the column has room (owner, 2026-11-26). */
+[data-screen=achievements] .main{container-type:inline-size}
+.ach-tab-label{display:none}
+@container (min-width:600px){
+  [data-screen=achievements] .seg.st-tabs button{gap:6px}
+  .ach-tab-label{display:inline}
+}
 .ach-section-title{font:700 24px/1.1 var(--font-display);margin:4px 0 0}
 .tl-find:disabled{opacity:.3;cursor:default}
 
 /* Keep the original game colours readable on a neutral selected marker in either theme. */
 [data-screen=achievements] .st-tabs button.on{background:var(--surface-2);color:var(--text);box-shadow:inset 0 0 0 2px var(--accent)}
-.st-tabs button.on svg.glyph.all [stroke]{stroke:currentColor}
+/* "All" is always white (the text colour), selected or not (owner, 2026-11-26). */
+.st-tabs svg.glyph.all [stroke]{stroke:var(--text)}.st-tabs svg.glyph.all path[stroke]{opacity:.55}
 
 /* Owner, 2026-11-20: keep actions still while only the saved games scroll. */
 [data-screen=games].app{height:100dvh;min-height:0;overflow:hidden}
@@ -2230,9 +2363,48 @@ svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.al
 
 /* Owner-picked place icons: inherit text colour and keep their proposal strokes. */
 svg.app-icon{display:inline-block;flex:none;width:20px;height:20px;vertical-align:middle}
-.category-icon .app-icon{width:18px;height:18px}
+.category-icon :is(.app-icon,svg.glyph.tiles){width:18px;height:18px}
 #root .status-actions .app-icon{width:calc(18px * var(--button-scale));height:calc(18px * var(--button-scale))}
-[data-screen=new] :is(.howto .eyebrow,.tl-assists summary .eyebrow,.tl-rules summary .eyebrow,#colours summary,.friend strong,#only-new strong){display:flex;align-items:center;gap:8px}
+[data-screen=new] :is(.howto .eyebrow,.friend strong,#only-new strong){display:flex;align-items:center;gap:8px}
 [data-screen=new] .app-icon{color:var(--accent)}
+/* Tiles setup uses plain card borders (owner, 2026-11-26). */
+[data-screen=new]:not([data-game=tiles]) :is(.friend,.polish,.howto),
+[data-screen=games] .empty{border-inline-start:3px solid var(--game-colour)}
 [data-screen=stats] .scell .lbl .app-icon{width:18px;height:18px;margin-right:6px}
 [data-screen=letters] .stat .eyebrow{letter-spacing:.06em}
+
+/* Android update notices sit clear of the status bar and camera cutout. */
+.ota-banner{position:fixed;z-index:1100;left:var(--space-3);right:var(--space-3);
+  top:calc(var(--space-2) + var(--safe-area-inset-top, 0px));top:calc(var(--space-2) + max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px)));
+  left:calc(var(--space-3) + var(--safe-area-inset-left, 0px));right:calc(var(--space-3) + var(--safe-area-inset-right, 0px));
+  left:calc(var(--space-3) + max(env(safe-area-inset-left), var(--safe-area-inset-left, 0px)));
+  right:calc(var(--space-3) + max(env(safe-area-inset-right), var(--safe-area-inset-right, 0px)));
+  max-width:520px;margin:0 auto;display:flex;gap:var(--space-2);align-items:flex-start;padding:var(--space-3);background:var(--surface);color:var(--text);
+  border:1px solid var(--accent);border-top-width:3px;border-radius:var(--radius-md);box-shadow:var(--shadow-md);animation:ota-slide 180ms var(--ease)}
+@keyframes ota-slide{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
+@media (prefers-reduced-motion:reduce){.ota-banner{animation:none}}
+.ota-notice-body{flex:1;min-width:0;display:grid;justify-items:start;gap:var(--space-2)}
+.ota-notice-body .btn,.ota-actions .btn{white-space:normal;text-align:center;font-variant-numeric:tabular-nums}
+.ota-notice-link{font-weight:600;color:var(--text);text-decoration:underline;text-underline-offset:3px}
+.ota-dismiss.btn{flex:none;min-width:40px;padding:0 var(--space-2)}
+.ota-muted,.ota-progress{font-size:13px;color:var(--text-muted)}
+.ota-progress{width:100%;display:grid;gap:4px}
+.ota-progress progress{width:100%;height:6px;display:block;border:0;border-radius:var(--radius-pill);overflow:hidden;background:var(--surface-2);appearance:none;-webkit-appearance:none}
+.ota-progress progress::-webkit-progress-bar{background:var(--surface-2)}
+.ota-progress progress::-webkit-progress-value{background:var(--accent);transition:width 300ms var(--ease)}
+.ota-progress progress::-moz-progress-bar{background:var(--accent)}
+.ota-banner,.ota-settings,.ota-setup{font-variant-numeric:tabular-nums}
+.ota-settings{display:grid;gap:var(--space-2);scroll-margin-top:var(--topbar-h, 64px)}
+.ota-actions{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-2)}
+.ota-settings > .ota-actions:last-child{margin-top:var(--space-2)}
+.ota-github svg{width:20px;height:20px}
+.ota-control .seg{flex-wrap:wrap}
+.ota-control .seg button{flex:1 0 auto;max-width:100%;padding:4px 8px;line-height:1.2;text-transform:none;letter-spacing:0}
+.ota-control .row-text{flex:1 1 130px}
+.ota-settings input[readonly]{min-width:0;flex:1 1 220px}
+.ota-setup{width:calc(100vw - 24px);max-width:460px;max-height:calc(100vh - 24px);overflow:auto}
+.ota-setup{max-height:calc(100vh - 24px - max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px)) - max(env(safe-area-inset-bottom), var(--safe-area-inset-bottom, 0px)))}
+.ota-setup h2{font:700 28px/1.15 var(--font-display);margin-bottom:var(--space-3)}
+.ota-setup .ota-actions,.ota-setup .ota-muted{margin-top:var(--space-3)}
+.ota-release-notes{white-space:pre-wrap;overflow-wrap:break-word}
+.ota-banner[hidden],.ota-progress[hidden],.ota-settings [hidden],.ota-setup [hidden],.ota-muted:empty{display:none}

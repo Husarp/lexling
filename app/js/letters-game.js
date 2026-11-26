@@ -2,12 +2,12 @@
 // game-letters-end.html (won / lost / gave up), with the dummy text replaced by t(...) and live data.
 // The on-screen keyboard and editing a tile are design v4 ("Lexling Letters Keyboard").
 import { t, plural, esc } from './i18n.js';
-import { settings, getSave, putSave, recordLettersMove, recordLettersEnd, playClock, collect } from './store.js';
+import { settings, getSave, getFinished, putSave, recordLettersMove, recordLettersEnd, playClock, collect } from './store.js';
 import { loadWords, resolve } from './engine.js';
-import { feedback, typeLetter, eraseLetter, skipTile, keyStates, MARKED } from './letters.js';
-import { UI_ICONS, topbar, modeTag, confirmClick, TILE, outcome, gearButton, wireGear, meaningButton, gameTitle } from './ui.js';
+import { feedback, typeLetter, eraseLetter, skipTile, keyStates, MARKED, isLetterKey } from './letters.js';
+import { UI_ICONS, topbar, backToResults, keepButton, wireKeep, resultHref, modeTag, confirmClick, TILE, outcome, gearButton, wireGear, meaningButton, gameTitle } from './ui.js';
 import { fitAll } from './fit.js';
-import { click, chime } from './sound.js';
+import { playCue } from './sound.js';
 import { offensive } from './offensive.js';
 import { bump, recordAchievementEnd } from './achievements.js';
 
@@ -19,11 +19,11 @@ const LEFT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-
 const RIGHT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>';
 const BACKSPACE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"></path><path d="m12 9 6 6"></path><path d="m18 9-6 6"></path></svg>';
 
-export async function lettersGameScreen(root, id) {
-  const game = getSave(id);
-  const m = game && await loadWords(game.lang);
-  if (!m) { location.replace('#/games/letters'); return; }
-  if (location.hash !== '#/game/' + id) return;   // left while the word data loaded: a newer screen is up
+export async function lettersGameScreen(root, id, archived = false, kept = false) {
+  const game = archived ? getFinished(id) : getSave(id);
+  const m = !archived && game && await loadWords(game.lang);
+  if (location.hash !== (archived ? resultHref(id, kept) : '#/game/' + id)) return;
+  if (!archived && !m) { location.replace('#/games/letters'); return; }
   const n = game.len;
   const tries = game.tries || '∞';           // 0 = unlimited
   const playing = () => game.status === 'playing';
@@ -37,12 +37,12 @@ export async function lettersGameScreen(root, id) {
   // stuck). Saves from 0.28.2-0.33.3 may still carry `hinted`; it is ignored.
 
   root.innerHTML = `<div class="app" data-screen="letters">
-  ${topbar({ left: modeTag('letters'), right: gameTitle(game) })}
+  ${topbar({ left: archived ? backToResults(kept) : modeTag('letters'), right: gameTitle(game, archived) })}
   <main class="main"></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main');
   // the phone's own keyboard: a Letters choice, so in its gear (owner, 2026-09-26) - read at each tap, nothing to repaint
-  wireGear(root, [['phoneKb', t('set.phoneKb'), t('set.phoneKbDesc')]]);
+  if (!archived) wireGear(root, 'letters', [['phoneKb', t('set.phoneKb'), t('set.phoneKbDesc')], ['lettersContrast', t('set.lettersContrast'), '']]);
   const $ = sel => main.querySelector(sel);
   const refit = () => fitAll(root);
   let board, sink, kb;
@@ -132,6 +132,7 @@ export async function lettersGameScreen(root, id) {
     let at;
     ({ row: cur, sel, at } = typeLetter(cur, sel, ch));
     if (at < 0) return;                      // the row is full and nothing is selected
+    playCue('tile');
     bad = false;
     say('');
     paintNow(at);
@@ -249,9 +250,11 @@ export async function lettersGameScreen(root, id) {
     sink.addEventListener('input', () => {
       // letters only, never more than the word holds. Case is left alone - rewriting the field while
       // the phone keyboard is composing a word breaks it - and is dropped when the guess is read.
-      const clean = [...sink.value].filter(ch => /\p{L}/u.test(ch) && (marksOn || !MARKED.test(ch.toLowerCase()))).slice(0, n).join('');
+      const clean = [...sink.value].filter(ch => isLetterKey(ch) && (marksOn || !MARKED.test(ch.toLowerCase()))).slice(0, n).join('');
       if (clean !== sink.value) sink.value = clean;
-      cur = [...clean.toLowerCase(), ...blank()].slice(0, n);
+      const next = [...clean.toLowerCase(), ...blank()].slice(0, n);
+      if (next.some((ch, i) => ch && ch !== cur[i])) playCue('tile');
+      cur = next;
       bad = false;
       say('');
       paintNow();
@@ -273,7 +276,7 @@ export async function lettersGameScreen(root, id) {
     if ((e.key === 'Enter' || e.key === ' ') && e.target.closest?.('button, a')) return;   // a focused button presses itself
     // AltGr (Polish letters on Windows) reports Ctrl + Alt; any other shortcut is not typing
     if (e.metaKey || ((e.ctrlKey || e.altKey) && !e.getModifierState?.('AltGraph'))) return;
-    if (/^\p{L}$/u.test(e.key)) { e.preventDefault(); press(e.key.toLowerCase()); }
+    if (isLetterKey(e.key)) { e.preventDefault(); press(e.key.toLowerCase()); }
     else if (e.key === 'Backspace') { e.preventDefault(); back(); }
     else if (e.key === 'Enter') { e.preventDefault(); submit(); }
     else if (e.key === ' ') { e.preventDefault(); space(); }
@@ -288,14 +291,16 @@ export async function lettersGameScreen(root, id) {
     const k = cur.filter(Boolean).length;
     sel = null;                              // sending the row ends any editing
     if (k < n) {
+      playCue('rejected');
       bad = true;
       paintNow();
       return say(t('lt.needN', { n, letters: plural(n, 'lt.letters'), k }), true);
     }
     // a word the list places under a base word, or a stand-alone dictionary form (pasę, poszedłem)
     // ...and never a slur or a vulgar word (owner, 2026-09-25): those get the same answer as a non-word
-    if ((!resolve(m, word) && !m.extra.has(word)) || offensive(m, word)) { paintNow(); return say(t('lt.unknown', { w: word }), true); }
+    if ((!resolve(m, word) && !m.extra.has(word)) || offensive(m, word)) { playCue('rejected'); paintNow(); return say(t('lt.unknown', { w: word }), true); }
     if (game.guesses.includes(word)) {
+      playCue('rejected');
       cur = blank();
       sink.value = '';
       paintNow();
@@ -307,7 +312,6 @@ export async function lettersGameScreen(root, id) {
     cur = blank();
     sink.value = '';
     say('');
-    click();
     const won = word === game.secret;
     const out = !won && game.tries && game.guesses.length >= game.tries;
     // decided before drawing, so a winning row is not followed by an empty one while it colours in
@@ -320,7 +324,7 @@ export async function lettersGameScreen(root, id) {
     // 2026-09-25) - never before its tile, so the keyboard gives nothing away - with a small bounce.
     const step = Math.min(30, 300 / n);     // = the row's reveal, tile after tile (app.css .lt-row.reveal)
     for (let i = 0; i < n; i++) setTimeout(() => { if (kb.isConnected) paintKeys(game.guesses, i); }, i * step);
-    if (won || out) finish(game.status, true);
+    if (won || out) finish(game.status, true); else playCue('accepted');
   }
 
   // The result is recorded at once; the end card waits for the last row to finish colouring in.
@@ -329,7 +333,8 @@ export async function lettersGameScreen(root, id) {
     recordLettersEnd(game);
     if (status === 'won' || status === 'lost') bump('letters.finished', 1, game);
     recordAchievementEnd(game, 'letters');
-    if (status === 'won') chime();
+    const cue = status === 'won' ? 'win' : 'loss';
+    if (afterReveal) playCue('accepted', cue); else playCue(cue);
     if (!afterReveal) return paintEnd();
     revealing = true;
     setTimeout(() => { if (app.isConnected) paintEnd(); }, revealMs);
@@ -343,21 +348,24 @@ export async function lettersGameScreen(root, id) {
     // the category the game was played in, next to the word it hid
     const facts = [`<span>${t('game.endCat')} <b>${t('cat.' + game.cat)}</b></span>`, `<span>${t('end.level')} <b>${t('diff.' + (game.diff ?? 'normal'))}</b></span>`,
       `<span><b>${g}</b> ${plural(g, 'n.guesses')}</span>`];
+    const saved = archived ? game : getFinished(id);
     const card = `<div class="card result ${won ? 'won' : 'lost'}">
       <span class="eyebrow">${t(won ? 'end.wordWon' : 'end.wordLost')}</span>
       <p class="display">${esc(game.secret)}</p>
       <div class="result-stats">${facts.join(dot)}</div>
-      <div class="result-actions"><a class="btn btn-ghost" href="#/">${UI_ICONS.menu}${t('menu')}</a><a class="btn btn-primary" href="#/new/letters">${t('lt.again')} <span class="arrow">→</span></a>${meaningButton(game.secret, game.lang)}</div>
+      <div class="result-actions">${archived ? '' : `<a class="btn btn-ghost" href="#/">${UI_ICONS.menu}${t('menu')}</a><a class="btn btn-primary" href="#/new/letters">${t('lt.again')} <span class="arrow">→</span></a>`}${meaningButton(game.secret, game.lang)}${keepButton(saved)}</div>
     </div>`;
     app.classList.remove('fit', 'kbon');
     main.innerHTML = `${head}${card}<div class="lt-board" role="grid" aria-label="${t('game.guesses')}"></div>`;
+    wireKeep(main, saved);
     board = $('.lt-board');
     paintBoard();
     window.scrollTo({ top: 0, behavior: 'smooth' });
     refit();
   }
 
-  if (playing()) paintPlay(); else paintEnd();   // a finished game is deleted, so this is only a safeguard
+  if (playing()) paintPlay(); else paintEnd();
+  if (archived) return;
   window.addEventListener('resize', keepDown);
   window.visualViewport?.addEventListener('resize', keepDown);
   document.addEventListener('keydown', onKey, true);   // before main.js's Esc-goes-back: Esc first lets a selection go

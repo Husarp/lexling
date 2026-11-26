@@ -30,13 +30,14 @@ for (const lang of ['en', 'pl']) {
   setLang(lang);
   const c = {
     S: { ...newGame({ lang, players: [{}, {}], first: 0, seed: 12 }), racks: [[...'atx'], [...'cat']] },
-    shown: 0, solo: 0, mode: 'play', draft: [], placedOnce: true, sel: -1, msg: null,
+    shown: 0, solo: 0, mode: 'play', draft: [], stashedDraft: null, placedOnce: true, sel: -1, msg: null,
     myTurn: () => c.active && !c.S.vote, active: true, placedOf: () => c.draft,
     placementError, wordsMade, checkMove, isWord: w => w === 'at', canApprove, canExchange,
     t, esc, document, ERR: { line: 'tiles.err.line', gap: 'tiles.err.gap', alone: 'tiles.err.touch', centre: 'tiles.err.centre', single: 'tiles.err.single' },
     moveError: element(), say: element(), dock: element(),
     nameOf: () => 'You', whoCell: () => '<span class="who"><svg></svg></span>',
-    lastMove: () => -1, thinking: false, linked: false, fresh: null,
+    lastMove: () => -1, thinking: false, linked: false, fresh: null, linkHtml: '',
+    sendDraft() {}, remote: p => p !== c.solo, linkLine: () => '<p class="mc-link"></p>',
     cardWords: words => words.map(x => x.w).join(', '), hintMark: () => '', hintPaid: 0,
     ICON: {}, hintsOn: () => false, canUndo: false, refit() {},
   };
@@ -74,6 +75,15 @@ for (const lang of ['en', 'pl']) {
   check(`${lang}: corrected move enables PLAY with score`, !button(c).includes(' disabled') && button(c).includes('class="num"'), true);
   c.draft = []; c.paintSay();
   check(`${lang}: recall restores the neutral prompt`, c.say.innerHTML, neutral);
+
+  // The online turn line takes the place of the empty move card (owner, 2026-11-26).
+  c.linked = true; c.active = false; c.S.turn = 1; c.paintSay();
+  check(`${lang}: remote turn hides the empty card`, c.say.innerHTML.includes('class="mc me'), false);
+  c.lastMove = predicate => predicate(0) ? 0 : -1;
+  c.moveCard = () => '<div class="mc me">previous move</div>';
+  c.paintSay();
+  check(`${lang}: remote turn keeps my previous move`, c.say.innerHTML.includes('previous move'), true);
+  c.linked = false; c.active = true; c.S.turn = 0; c.lastMove = () => -1;
 
   c.draft = draft('ax'); c.paintSay();
   c.active = false; c.paintSay();

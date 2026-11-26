@@ -1,10 +1,10 @@
-// AnkiGo AchStyle.shapePath: dot, diamond, hexagon, sparkle, straight eight-point star.
+// AnkiGo AchStyle.shapePath, but common is a square (owner, 2026-11-26): square, diamond, hexagon, sparkle, straight eight-point star.
 const mythical = Array.from({ length: 16 }, (_, i) => {
   const a = (-90 + i * 22.5) * Math.PI / 180, r = i % 2 ? 2.9 : i % 4 ? 5.9 : 7.4;
   return `${i ? 'L' : 'M'}${8 + Math.cos(a) * r} ${8 + Math.sin(a) * r}`;
 }).join(' ') + 'Z';
 const paths=[
-'<circle cx="8" cy="8" r="5.2"/>',
+'<rect x="3.2" y="3.2" width="9.6" height="9.6" rx="1.4"/>',
 '<path d="M8 1.6 14.4 8 8 14.4 1.6 8Z"/>',
 '<path d="M8 1.4 13.7 4.7v6.6L8 14.6l-5.7-3.3V4.7Z"/>',
 '<path d="M8 .8C8.6 5.4 10.6 7.4 15.2 8 10.6 8.6 8.6 10.6 8 15.2 7.4 10.6 5.4 8.6 .8 8 5.4 7.4 7.4 5.4 8 .8Z"/>',

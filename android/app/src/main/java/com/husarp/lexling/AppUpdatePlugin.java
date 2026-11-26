@@ -1,11 +1,13 @@
 package com.husarp.lexling;
 
 import android.app.DownloadManager;
+import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
+import android.util.Base64;
 
 import androidx.core.content.FileProvider;
 
@@ -51,6 +53,43 @@ public class AppUpdatePlugin extends Plugin {
             getContext().startActivity(view);
             call.resolve();
         } catch (Exception e) { call.reject("cannot open: " + e.getMessage()); }
+    }
+
+    /** Share a finished Tiles game as a PNG from app cache (owner, 2026-11-26). */
+    @PluginMethod
+    public void shareTilesImage(PluginCall call) {
+        String png = call.getString("png");
+        if (png == null || !png.startsWith("iVBORw0KGgo") || png.length() > 12_000_000) {
+            call.reject("invalid PNG");
+            return;
+        }
+        File file = null;
+        try {
+            File folder = new File(getContext().getCacheDir(), "tiles-share");
+            if (!folder.isDirectory() && !folder.mkdirs() && !folder.isDirectory()) throw new Exception("cannot create share cache");
+            long cutoff = System.currentTimeMillis() - 86_400_000L;
+            File[] stale = folder.listFiles(f -> f.lastModified() < cutoff);
+            if (stale != null) for (File old : stale) old.delete();
+            file = File.createTempFile("Lexling-Tiles-", ".png", folder);
+            try (FileOutputStream out = new FileOutputStream(file)) {
+                out.write(Base64.decode(png, Base64.DEFAULT));
+            }
+            Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", file);
+            String title = call.getString("title");
+            Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType("image/png");
+            send.putExtra(Intent.EXTRA_STREAM, uri);
+            send.putExtra(Intent.EXTRA_TEXT, call.getString("caption"));
+            send.setClipData(ClipData.newRawUri(title, uri));
+            send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Intent chooser = Intent.createChooser(send, title);
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(chooser);
+            call.resolve();
+        } catch (Exception e) {
+            if (file != null) file.delete();
+            call.reject("cannot share PNG", e);
+        }
     }
 
     /** Starts downloading `url` into the cache as `name` (Lexling-X.Y.Z.apk). Resolves at once; progress() tells how it goes. */

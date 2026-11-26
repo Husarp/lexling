@@ -14,6 +14,7 @@ const { loadWords, resolve } = await import('../app/js/engine.js');
 const { buildDawg, has, toBytes, fromBytes } = await import('../app/js/dawg.js');
 const T = await import('../app/js/tiles.js');
 const { setupPractice } = await import('../app/js/store.js');
+const { tilesMoveCue } = await import('../app/js/sound.js');
 const { findMoves, computerMove, hint, lookBack, leaveValue, LEVELS, COMMON, loadSpoken } = await import('../app/js/tiles-moves.js');
 const { BOARDS, sizeOf, premiums, letterSet, fullBag, loadTileWords, newGame, placementError, wordsMade, checkMove,
   play, exchange, pass, resign, canExchange, apply, replay, hinted, unseen, checkWord, results, STANDARD, RACK, BINGO, BLANK } = T;
@@ -21,6 +22,28 @@ const { BOARDS, sizeOf, premiums, letterSet, fullBag, loadTileWords, newGame, pl
 let passed = 0;
 const check = (name, actual, expected) => { assert.deepEqual(actual, expected, name); passed++; };
 const seeded = seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+
+// The result uses the recorded moves, including crosswords and scoreless turns (owner, 2026-11-26).
+{
+  const players = [{}, { cpu: 'normal' }, {}];
+  const moves = [
+    { kind: 'hint', p: 0, cost: 6 },
+    { kind: 'pass', p: 0 },
+    { kind: 'play', p: 1, score: 42, words: [{ w: 'żar' }, { w: 'gałązka' }] },
+    { kind: 'vetoed', p: 2, score: 90, words: [{ w: 'niezatwierdzony' }] },
+    { kind: 'withdrawn', p: 2, score: 70, words: [{ w: 'unieważniony' }] },
+    { kind: 'challenge', p: 0, ok: true },
+    { kind: 'play', p: 0, score: 10, words: [{ w: 'łódź' }] },
+    { kind: 'swap', p: 2 },
+  ];
+  check('match summary: all seats, crossword length, settled plays, hint cost and move numbering',
+    T.matchSummary({ players, moves, scores: [0, 55, -7], over: { adjust: [-4, 13, -7] } }), {
+      best: { word: 'żar', score: 42 }, longest: { word: 'gałązka', letters: 7 },
+      totals: [[0, 0, 0], [-6, 0, 0], [-6, 42, 0], [-6, 42, 0], [-6, 42, 0], [-6, 42, 0], [4, 42, 0], [4, 42, 0]],
+    });
+  check('match summary: game ended before a move', T.matchSummary({ players, moves: [] }),
+    { best: null, longest: null, totals: [[0, 0, 0]] });
+}
 
 // Quality of life: calculations use the scoring rules, selections preserve duplicates.
 {
@@ -140,7 +163,8 @@ const seeded = seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul
   const gates = source.slice(source.indexOf('  const rateOn ='), source.indexOf('  // Whose turn now:'));
   const meaningWord = source.slice(source.indexOf('  const meaningWord ='), source.indexOf('  let meaningBusy ='));
   const cards = source.slice(source.indexOf('  const cardWords ='), source.indexOf('  function paintSay()'));
-  const history = source.slice(source.indexOf('  function histHtml('), source.indexOf('  function unseenHtml()'));
+  const history = source.slice(source.indexOf('const historyAction ='), source.indexOf('// Replay stays'))
+    + source.slice(source.indexOf('  function histHtml('), source.indexOf('  function unseenHtml()'));
   const context = { playerIcon: () => '<svg></svg>', t, esc, cleanTiers, moveRarity, ICON: { hint: '' }, nameOf: (_, p) => ['You', 'Computer'][p],
     lang: 'en', histOf: null, wordLink: w => esc(w), settings: {}, lex: { count: 100 },
     rankOf: w => ({ common: 0, half: 50, blue: 80, gold: 95, purple: 99 })[w] ?? Infinity,
@@ -197,13 +221,13 @@ const seeded = seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul
   setLang('en');
 
   // Run the actual startup prefix with frequencies pending, including a computer that uses them.
-  const startup = source.slice(source.indexOf('  let game = getSave(id);'), source.indexOf('  let S = game.state;'));
+  const startup = source.slice(source.indexOf('\n', source.indexOf('export async function tilesGameScreen(')), source.indexOf('  let S = game.state;'));
   const arrival = source.slice(source.indexOf('  lexReady.then(m => {'), source.indexOf("  document.addEventListener('keydown', onKey, true);"));
   for (const cpu of [undefined, 'relaxed', 'normal', 'hard', 'expert', 'legacy']) {
     let resolveLex, completed = false, wordLoads = 0;
     const pending = new Promise(resolve => { resolveLex = resolve; });
     const lex = { count: 100 }, slow = cpu === 'hard';
-    const ctx = { id: 'old', getSave: () => ({ lang: 'en', state: { players: [{}, { cpu }], rules: { hints: false } } }),
+    const ctx = { id: 'old', archived: false, getSave: () => ({ lang: 'en', state: { players: [{}, { cpu }], rules: { hints: false } } }),
       loadWords: () => { wordLoads++; return pending; }, loadTileWords: async () => ({ words: 100 }), loadSpoken: async () => new Map(),
       LEVELS, location: { hash: '#/game/old', replace() { throw Error('unexpected redirect'); } } };
     const loading = runInNewContext('(async () => {' + startup + '\nreturn { dict, lex, lexReady }; })()', ctx).then(value => { completed = true; return value; });
@@ -978,7 +1002,9 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     + part('  function paintClock()', '  function paintBoard()')
     + part('  function paintRack()', '  // the panel: history')
     + part('  function resetTurn(', '  // the game\'s statistics record:');
-  const nextCode = part('  function next()', '  // The computer\'s turn:');
+  const nextCode = part('  function next(', '  // The computer\'s turn:');
+  const ratings = part('const BANDS =', '// The bonus squares').replace(/^export /gm, '');
+  const linkCode = part('  function linkLine()', '  function paintRack()');
   const cards = part('  const meaningWord =', '  let meaningBusy =') + part('  const cardWords =', '  function paintSay()');
   const history = part('  function histHtml(', '  function unseenHtml()');
   const board = part('export function boardInner(', 'export async function tilesGameScreen(').replace('export ', '');
@@ -991,13 +1017,16 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
       racks: Array.from({ length: players }, () => [...'caters?']), bag: [...'aeiourstn'] };
     const chip = { textContent: '', classList: { toggle(k, on) { chip[k] = on; } } }, number = chip;
     const otherChip = { textContent: '', classList: { toggle() {} } };
-    const ctx = { S, game: { state: S, turnMs: 120, evals: [] }, t, esc, clock, apply, isWord: () => true, voteFits: T.voteFits, voteCertain: T.voteCertain, voteStatus: T.voteStatus,
+    const ctx = { S, game: { state: S, turnMs: 120, evals: [], link: { id: 'game' } }, t, esc, clock, apply, isWord: () => true, voteFits: T.voteFits, voteCertain: T.voteCertain, voteStatus: T.voteStatus,
       Date: { now: () => now }, VOTE_MS: 20000, voteAt: null, seenAt: 0, sentVote: null, lastVote: null, voteMoveAt: 0, voteResult: null, frozenLive: null, linked: false, host: false, linkMe: 0, solo: -1, open: false,
       gone: () => ctx.missing ?? [], missing: [],
+      remoteMs: 0, STILL_THINKING_MS: 30000, away: [], goneSince: [], linkNote: '', linkHtml: '', linkDraft: null, sentDraft: null,
+      isOut: p => !!T.outOf(ctx.S)[p], say: { querySelector: () => linkLine },
       shown: 0, thinking: false, toast: false, handOver: false, linkUp: true, ended: '', party: null,
-      draft: [], sel: -1, mode: 'play', picks: new Set(), levels: null, cursor: null, blankFor: -1, turnHints: ['remember hint'], redoStack: [],
+      tilesMoveCue, turnCuePending: false, cues: [], playCue: cue => ctx.cues.push(cue),
+      draft: [], stashedDraft: null, sel: -1, mode: 'play', picks: new Set(), levels: null, cursor: null, blankFor: -1, turnHints: ['remember hint'], redoStack: [],
       press: null, rackGap: -1, fresh: null, msg: null, landing: null, n: 15, lang: 'en', settings: {}, dict: {}, histOf: null,
-      BLANK, wordsMade, LABEL: { d: 'l2', t: 'l3', D: 'w2', T: 'w3' }, sizeOf, premiums, centre: T.centre, valueOf: T.valueOf,
+      BLANK, STANDARD, wordsMade, LABEL: { d: 'l2', t: 'l3', D: 'w2', T: 'w3' }, sizeOf, premiums, centre: T.centre, valueOf: T.valueOf,
       playerIcon, nameOf: (s, p) => s.players[p].name, cpu: p => !!ctx.S.players[p].cpu, remote: p => ctx.linked && p !== ctx.linkMe, netOk: () => true,
       rackOf: p => [...ctx.S.racks[p]], inDraft: i => ctx.draft.some(d => d.slot === i),
       rackEl: { innerHTML: '' }, dock: { innerHTML: '' }, voteEl: { hidden: true, innerHTML: '', querySelectorAll: () => [], addEventListener: (_, fn) => { ctx.voteClick = fn; } },
@@ -1005,12 +1034,15 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
       timers: [], setTimeout: fn => { ctx.timers.push(fn); ctx.clearNotice = fn; }, document: { visibilityState: 'visible' }, setInterval: fn => { ctx.tickNow = fn; return 1; }, clearInterval() {},
       refit() {}, zoomOut() {}, paintSay() {}, paintAll: () => ctx.paintVote(), think() {}, putSave() {}, finish() {}, countAchievements() {}, quiet() {},
       statsNow: () => ({}), recorded: 0, drawn: [], evaluated: [], recordMove: () => ctx.recorded++, noteMove() {},
-      drew: (...args) => ctx.drawn.push(args), bestMove: s => { ctx.evaluated.push(s); return { score: 20, word: 'cat' }; },
+      drew: (...args) => ctx.drawn.push(args), familiar: null,
+      findMoves: s => { ctx.evaluated.push(s); return [{ score: 20, word: 'cat' }]; },
+      evaluateMoves: (s, moves) => ({ best: moves[0].score, word: moves[0].word }),
       rateOn: () => false, rareOn: () => false, bestOn: () => false, bonusMark: () => '', wordLink: w => esc(w), count() {}, ICON: { hint: '' } };
-    runInNewContext(code + nextCode + cards + history + board + topics + tickCode
+    const linkLine = { outerHTML: '' };
+    runInNewContext(ratings + code + nextCode + linkCode + cards + history + board + topics + tickCode
       + '\nthis.turnTime = turnMs; this.totalTime = timeOf; this.canMove = myTurn; this.card = () => moveCard(S.moves.length - 1, "me"); this.latest = lastMove;', ctx);
     ctx.advance = ms => { now += ms; };
-    ctx.number = number; ctx.chip = chip;
+    ctx.number = number; ctx.chip = chip; ctx.linkLineEl = linkLine;
     return ctx;
   }
   for (const lang of ['en','pl']) {
@@ -1048,6 +1080,63 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     check(`${lang}: rejected approval history says not approved`, disconnected.histHtml().includes(t('tiles.hist.notApproved')), true);
   }
   setLang('en');
+  const sound = screen(3, { veto: false });
+  sound.linked = true;
+  sound.solo = sound.linkMe = 0;
+  sound.act({ type: 'pass' });
+  check('own Tiles move is silent', sound.cues, []);
+  sound.act({ type: 'pass' }, true);
+  check('a remote move before another remote turn plays once', sound.cues, ['move']);
+  sound.act({ type: 'pass' }, true);
+  sound.next();
+  check('a remote move into my turn plays only the turn cue, once', sound.cues, ['move', 'turn']);
+
+  // The observer's estimate never creates an action or changes the logged time (owner, 2026-11-26).
+  for (const [lang, moving, placing, still] of [
+    ['en', 'is moving', 'is laying out a word', 'is still thinking'],
+    ['pl', 'wykonuje ruch', 'układa słowo', 'wciąż myśli'],
+  ]) {
+    setLang(lang);
+    const c = screen(3, { veto: false });
+    c.linked = true; c.linkMe = c.solo = c.shown = 1;
+    c.S.players[0].name = '<Mami>';
+    c.tickNow();
+    const line = () => c.linkLineEl.outerHTML;
+    check(`${lang}: observer clock ticks without recording time`, [c.chip.textContent, c.S.clock[0], c.game.turnMs], ['0:01', 0, 120]);
+    check(`${lang}: turn status has person icon, escaped bold name and three dots`,
+      /class="tl-player-icon pc0"[^>]*><svg/.test(line()) && line().includes(`<strong>&lt;Mami&gt;</strong> ${moving}`) && line().includes('<i></i><i></i><i></i>'), true);
+    const activity = { id: 'game', n: 0, placing: true };
+    check(`${lang}: activity must match the round, action log and mover`,
+      [c.receiveDraft({ ...activity, id: 'old' }), c.receiveDraft({ ...activity, n: 1 }), c.receiveDraft(activity, 2), c.receiveDraft(activity)],
+      [false, false, false, true]);
+    for (let i = 1; i < 30; i++) c.tickNow();
+    check(`${lang}: placed tiles take priority over thinking`, line().includes(placing), true);
+    c.receiveDraft({ ...activity, placing: false });
+    check(`${lang}: clearing the draft after 30 seconds shows still thinking`, [c.chip.textContent, line().includes(still)], ['0:30', true]);
+    c.away[0] = true; c.tickNow();
+    check(`${lang}: remote clock pauses while the mover is in another app`, c.chip.textContent, '0:30');
+    c.away[0] = false; c.missing = [0]; c.tickNow();
+    check(`${lang}: remote clock pauses while the mover is disconnected`, c.chip.textContent, '0:30');
+    c.missing = []; c.act({ type: 'pass', ms: 29500 }, true); c.tickNow();
+    check(`${lang}: logged time replaces the estimate at handover`, [c.totalTime(0), c.turnTime()], [29500, 1000]);
+  }
+  setLang('en');
+  const scoreless = screen();
+  scoreless.act({ type: 'pass' });
+  scoreless.act({ type: 'exchange', tiles: [scoreless.S.racks[scoreless.S.turn][0]] });
+  check('live pass and exchange are saved without searching for a benchmark',
+    [scoreless.S.moves.map(m => m.kind), plain(scoreless.game.evals), scoreless.evaluated.length], [['pass', 'swap'], [null, null], 0]);
+  const timedRemote = screen(2, { time: { per: 'move', seconds: 1 } });
+  timedRemote.linked = timedRemote.host = true; timedRemote.linkMe = 1;
+  timedRemote.tickNow(); timedRemote.tickNow();
+  check('remote per-move countdown does not time out from the watching host', [timedRemote.chip.textContent, timedRemote.S.log.length], ['−0:01', 0]);
+  const mover = screen(), flags = [];
+  mover.linked = true; mover.party = { draft: m => flags.push(plain(m)) };
+  mover.sendDraft();
+  mover.draft = row(7, 7, 'cat'); mover.sendDraft(); mover.sendDraft();
+  mover.draft = []; mover.sendDraft();
+  check('only first placement and final recall send draft activity', flags,
+    [{ id: 'game', n: 0, placing: true }, { id: 'game', n: 0, placing: false }]);
   const placed = row(7, 7, 'cat');
   {
     const c = screen(2, { veto: false });
@@ -1097,8 +1186,25 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     check(`${lang} screen: accepted result stays visible briefly`, c.voteEl.innerHTML.includes(t('tiles.vote.accepted')), true);
     c.timers.at(-1)();
     check(`${lang} screen: result card closes after its timer`, [c.voteEl.hidden, c.voteEl.innerHTML], [true, '']);
-    check(`${lang} screen: closing ratings are computed before any proposed tiles land`, c.evaluated.every(s => s.cells.every(x => !x)), true);
-    check(`${lang} screen: guide includes veto on setup and when enabled only`, [c.topics().includes(t('howto.tiles.veto.t')), c.topics({ veto: true }).includes(t('howto.tiles.veto.t')), c.topics({}).includes(t('howto.tiles.veto.t'))], [true, true, false]);
+    check(`${lang} screen: only the accepted turn is rated, on its original board`, [c.evaluated.length, c.evaluated[0]?.cells.some(Boolean)], [1, false]);
+    const chapters = rules => [...c.topics(rules).matchAll(/<summary>(.*?)<span.*?<\/summary>(.*?)<\/details>/g)].map(([, name, body]) => [name, body]);
+    const basics = ['goal', 'turn', 'points', 'blank', 'swap', 'end'];
+    const off = t('howto.tiles.off'), optional = t('howto.tiles.optional');
+    const standard = chapters({});
+    check(`${lang} screen: standard guide puts the goal first and labels every optional rule`,
+      standard.map(([name, body]) => [name, body.includes(off)]),
+      [...basics, 'hints', 'challenge', 'clock', 'veto'].map((key, i) => [t('howto.tiles.' + key), i >= basics.length]));
+    const custom = chapters({ check: 'challenge', veto: true, exchange: 'always', premiums: 'always', bingo: 0 });
+    check(`${lang} screen: active rules before inactive rules`, custom.slice(basics.length).map(([name, body]) => [name, body.includes(off)]),
+      ['challenge', 'veto', 'hints', 'clock'].map((key, i) => [t('howto.tiles.' + key), i >= 2]));
+    check(`${lang} screen: setup describes optional rules without saying they are off`,
+      chapters().slice(basics.length).map(([name, body]) => [name, body.includes(optional), body.includes(off)]),
+      ['challenge', 'clock', 'veto'].map(key => [t('howto.tiles.' + key), true, false]));
+    check(`${lang} screen: custom scoring, checking and exchange rules are reflected`,
+      [custom[1][1].includes(t('howto.tiles.turn.check.challenge')), custom[2][1].includes(t('howto.tiles.points.always')),
+        custom[2][1].includes(t('howto.tiles.points.bingo', { n: STANDARD.bingo })), custom[4][1].includes(t('howto.tiles.swap.always'))],
+      [true, true, false, true]);
+    check(`${lang} screen: default scoring retains the seven-tile bonus`, standard[2][1].includes(t('howto.tiles.points.bingo', { n: STANDARD.bingo })), true);
   }
   setLang('en');
   const vetoPhones = [0, 1, 2].map(seat => {
@@ -1159,6 +1265,7 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
 {
   const source = readFileSync(new URL('../app/js/screens.js', import.meta.url), 'utf8');
   const { t, esc, setLang, LANG_NAMES } = await import('../app/js/i18n.js');
+  const { botLevelIcon } = await import('../app/js/bot-level-icons.js');
   const code = source.slice(source.indexOf('const TL_NEW ='), source.indexOf('// ── Tiles: Play online')).replace('export function tilesNewScreen', 'function tilesNewScreen');
   class Element {
     constructor(dataset = {}) { this.dataset = dataset; this.children = new Map(); this.listeners = {}; this.classList = { toggle() {} }; }
@@ -1173,8 +1280,8 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     setLang(lang);
     for (const [kind, cpus, expected] of [['alone', [null, 'medium'], false], ['friends', [null, null], true], ['computers', ['easy', 'hard'], false], ['online', [null, 'medium'], true]]) {
       const root = new Element(), ctx = { root, UI_ICONS, setupPractice, STANDARD, BOARDS, LABEL: { d: 'l2', t: 'l3', D: 'w2', T: 'w3' }, LEVEL_ORDER: T.LEVEL_ORDER, PLAYERS_MAX: T.PLAYERS_MAX,
-        t, esc, LANG_NAMES, playerIcon: () => '<svg></svg>', TILE_SETUP_ICONS: { dice: '<svg></svg>', addPlayer: '<svg></svg>' }, levelKey: T.levelKey, fullBag, settings: { lang, newGame: {}, tilesRate: false }, on: b => b ? 'on' : '', DOT: ' · ', LIST_OF: { tiles: '' },
-        remembered: () => ({ board: 'classic', players: cpus.map(cpu => ({ name: '', cpu })), first: 0, rules: { rating: false, veto: true } }),
+        t, esc, LANG_NAMES, playerIcon: () => '<svg></svg>', botLevelIcon, TILE_SETUP_ICONS: { dice: '<svg></svg>', addPlayer: '<svg></svg>' }, levelKey: T.levelKey, fullBag, settings: { lang, newGame: {}, tilesRate: false }, on: b => b ? 'on' : '', DOT: ' · ', LIST_OF: { tiles: '' },
+        remembered: () => ({ board: kind === 'friends' ? 'bonus' : 'classic', players: cpus.map((cpu, p) => ({ name: kind === 'friends' ? `Player ${p + 1}` : '', cpu })), first: 0, rules: { rating: false, veto: true } }),
         nameOf: (_, p) => `P${p + 1}`, topbar: () => '', modeTag: () => '', howTo: () => '', nameField: () => '',
         tileSeg: () => '', bonusSeg: () => '', boardStyleSeg: () => '', fitAll() {}, saveSettings() {}, remember() {},
         loadTileWords: async () => ({ tag: 1 }), tilesGame: o => { ctx.created = o; return newGame(o); }, newGame: o => ({ ...o, id: 'new' }),
@@ -1183,7 +1290,7 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
       const assists = root.querySelector('.assists-body');
       check(`${lang}/${kind}: Veto is offered only with other people`, assists.innerHTML.includes('data-rule="veto"'), expected);
       check(`${lang}/${kind}: Veto stays outside the records warning`, root.querySelector('.help-warn').hidden, true);
-      check(`${lang}/${kind}: Veto alone does not make own rules`, root.querySelector('.tl-rules .muted').textContent, t('tiles.rules.standard'));
+      check(`${lang}/${kind}: Veto alone does not make own rules`, root.querySelector('.tl-rules .state').textContent, t('tiles.rules.standard'));
       check(`${lang}/${kind}: the summary names Veto when available and on`, root.querySelector('.summary').innerHTML.includes(`<span>${t('tiles.r.veto')}</span>`), expected);
       if (expected) {
         check(`${lang}/${kind}: Veto has its translated help`, assists.innerHTML.includes(t('tiles.r.vetoHelp')), true);
@@ -1195,6 +1302,17 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
       check(`${lang}/${kind}: Start forces Veto off without another person`, ctx.created.rules.veto, expected);
       if (kind === 'friends') {
         const players = root.querySelector('.tl-players');
+        const rules = root.querySelector('.rules-body');
+        check(`${lang}: standard rules hide the reset button despite custom assists`, rules.innerHTML.includes('data-reset-rules'), false);
+        for (const [rule, v] of [['dictionary', 'familiar'], ['premiums', 'always'], ['check', 'challenge'], ['exchange', 'always'], ['bingo', '0'], ['open', 'true']]) rules.fire({ rule, v });
+        rules.fire({ time: 'game' });
+        rules.fire({ secs: '1200' });
+        check(`${lang}: custom rules show the translated reset button at the bottom`, rules.innerHTML.endsWith(`data-reset-rules>${t('tiles.rules.restore')}</button></div>`), true);
+        const before = ctx.created;
+        rules.fire({ resetRules: '' });
+        check(`${lang}: reset hides the button and selects clock off`, [rules.innerHTML.includes('data-reset-rules'), rules.innerHTML.includes('data-time="none" class="on"')], [false, true]);
+        await root.querySelector('form').listeners.submit({ preventDefault() {} });
+        check(`${lang}: reset restores all rule fields and preserves setup and assists`, JSON.stringify(ctx.created), JSON.stringify(before));
         const value = () => Number(assists.innerHTML.match(/<output>(\d+)<\/output>/)[1]);
         check(`${lang}: threshold starts at one`, value(), 1);
         for (let p = 2; p < 5; p++) { players.fire({ add: '' }); players.fire({ kind: 'person', p: String(p) }); }
@@ -1226,6 +1344,9 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
 // Every game, including guests and legacy saves, selects one graph for all callers.
 {
   const source = readFileSync(new URL('../app/js/screens.js', import.meta.url), 'utf8');
+  const gameSource = readFileSync(new URL('../app/js/tiles-game.js', import.meta.url), 'utf8');
+  const { t, setLang } = await import('../app/js/i18n.js');
+  const checker = gameSource.slice(gameSource.indexOf('function wireCheck('), gameSource.indexOf('// The board\'s squares'));
   check('guest loads the host rules before checking its graph tag', source.includes('loadTileWords(m.setup.lang, m.setup.rules)'), true);
   check('old saves select full', T.wordList({}), 'full');
   check('missing rules select full', T.wordList(), 'full');
@@ -1235,6 +1356,30 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     check(`${lang}: separate familiar graph`, familiar === full, false);
     check(`${lang}: yoni in full`, has(full, 'yoni'), true);
     check(`${lang}: yoni absent in familiar`, has(familiar, 'yoni'), false);
+    const word = lang === 'pl' ? 'żółw' : 'cat';
+    for (const [dictionary, dict] of [['full', full], ['familiar', familiar]]) {
+      const game = newGame({ lang, players: [{}, {}], seed: 123, rules: { dictionary, check: 'challenge' } });
+      const move = hint(game, dict);
+      const pending = apply(game, { type: 'place', placed: move.placed }, w => has(dict, w));
+      const input = {}, res = {}, meaning = {};
+      let submit;
+      const elements = { input, '.res': res, '.mean-slot': meaning, form: { addEventListener: (_, handler) => { submit = handler; } } };
+      const box = { querySelector: selector => elements[selector] };
+      const before = JSON.stringify(pending);
+      setLang(lang === 'pl' ? 'en' : 'pl');   // the screen language and game language can differ
+      runInNewContext(checker + '\nwireCheck(box, state.lang, state.rules, dict);', {
+        t, box, state: pending, dict, checkWord, wordList: T.wordList, meaningButton: () => ''
+      });
+      for (const [value, allowed] of [[word, true], ['yoni', dictionary === 'full']]) {
+        input.value = `  ${value.toUpperCase()} `;
+        submit({ preventDefault() {} });
+        check(`${lang}/${dictionary}: offline checker uses the game's language and dictionary during a challenge`,
+          [res.className, res.textContent], [allowed ? 'res ok' : 'res no',
+            t('tiles.checkedList', { list: t('tiles.r.dictionary.' + dictionary) }) + ' · ' + t(allowed ? 'tiles.check.ok' : 'tiles.check.unknown', { w: value.toUpperCase() })]);
+      }
+      check(`${lang}/${dictionary}: checking leaves the challenge pending`, [!!pending.pending, JSON.stringify(pending)], [true, before]);
+    }
+    setLang('en');
     const walk = (n, prefix) => {
       if (familiar.final[n]) assert.ok(has(full, prefix), `${lang}: familiar subset: ${prefix}`);
       for (let e = familiar.first[n]; e < familiar.first[n + 1]; e++) walk(familiar.target[e], prefix + familiar.letters[familiar.letter[e]]);

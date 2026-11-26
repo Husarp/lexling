@@ -2,7 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <application
+        android:name="com.husarp.ota.OtaApplication"
         android:allowBackup="true"
+        android:dataExtractionRules="@xml/backup_rules"
+        android:fullBackupContent="@xml/backup_legacy"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -10,18 +13,25 @@
         android:theme="@style/AppTheme">
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation"
-            android:name=".MainActivity"
+            android:name="com.husarp.ota.MainActivity"
             android:screenOrientation="portrait"
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize"
+            android:exported="true" />
+        <!-- The launcher entry keeps the old activity name (com.husarp.lexling.MainActivity, up to 0.72): home-screen
+             icons and shortcuts that phones saved for it keep opening Lexling after this update. -->
+        <activity-alias
+            android:name="com.husarp.lexling.MainActivity"
+            android:targetActivity="com.husarp.ota.MainActivity"
+            android:label="@string/title_activity_main"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -30,13 +40,22 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+
+        <receiver android:name="com.husarp.ota.InstallStatusReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Updates (AppUpdatePlugin): Lexling hands a downloaded new version to Android's installer, which still asks -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- App updates use Android's installer. Android may ask for confirmation. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Tiles on two phones over Bluetooth (BluetoothLinkPlugin) - up to Android 11 the old permissions, searching
          needing location; from Android 12 the nearby-devices ones, the search never used for location (the location
@@ -53,8 +72,6 @@
          permission on Android 12 as well, and the Wi-Fi the phones share (it never changes the phone's Wi-Fi) -->
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" android:usesPermissionFlags="neverForLocation" tools:targetApi="tiramisu" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-    <!-- the Nearby library wants Android 7; Lexling still installs on Android 6, where Nearby is simply not offered -->
-    <uses-sdk tools:overrideLibrary="com.google.android.gms.nearby" />
     <!-- Tiles on several phones over Wi-Fi (LanLinkPlugin): is there a network, and finding games on it -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />

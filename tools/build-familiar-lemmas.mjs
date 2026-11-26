@@ -47,7 +47,8 @@ const scores = new Float64Array(all.length);
 scores.fill(-1);
 const probes = new Set(['dolewałaś', 'nakradniemy', 'zazębionemu', 'skarboneczka', 'yoni', 'niebandżulskimi', 'odsztafirujże', 'buławinkowca', 'kotą', 'triu']);
 // Odd forms of known words, blocked by hand (owner's round, 2026-11-16).
-const PL_BLOCK = new Set(['yoni', 'kotą', 'triu']);
+// English junk words, picked 2026-11-26: tools/familiar-block-pl.txt.
+const PL_BLOCK = new Set(['yoni', 'kotą', 'triu', ...readFileSync(new URL('familiar-block-pl.txt', import.meta.url), 'utf8').split(/\r?\n/).filter(w => w && !w.startsWith('#'))]);
 const evidence = [];
 for await (const line of rows()) {
   const [form, lemma, tags] = line.split('\t');

@@ -1,24 +1,36 @@
-import { settings, getSave } from './store.js';
+import { settings, getSave, getFinished } from './store.js';
 import { setLang } from './i18n.js';
-import { applyTheme, applyAccent, applyButtonSize } from './ui.js';
+import { applyTheme, applyAccent, applyButtonSize, applyLettersContrast } from './ui.js';
 import { fitAll, watchResize } from './fit.js';
 import { watchScrollFades } from './scroll-fades.js';
-import { menu, games, newGameScreen, lettersNewScreen, connectNewScreen, tilesNewScreen, tilesJoinScreen, tilesOnlineScreen, statsScreen, achievementsScreen, whatsnewScreen, settingsScreen, collectionScreen } from './screens.js';
+import { menu, games, lastGamesScreen, newGameScreen, lettersNewScreen, connectNewScreen, tilesNewScreen, tilesJoinScreen, tilesOnlineScreen, statsScreen, achievementsScreen, whatsnewScreen, settingsScreen, collectionScreen } from './screens.js';
 import { gameScreen } from './game.js';
 import { lettersGameScreen } from './letters-game.js';
 import { connectGameScreen } from './connect-game.js';
 import { tilesGameScreen, applyTileLook } from './tiles-game.js';
 import { VERSION } from './version.js';
 import { checkUpdate, cleanUpdate } from './update.js';
+import './ota.js';
 import { startPlaytime, paintClock } from './playtime.js';
 
 // Routes name the mode where it matters: #/new is Guess, #/new/letters, #/new/connect, #/new/tiles the others,
 // and #/game/<id> takes the mode from the save itself.
 // Tiles online: #/online (the connection, then host or join), #/host/<bt|lan> (New game, online), #/join/<bt|lan>
-const ROUTES = { '': menu, games, stats: statsScreen, achievements: achievementsScreen, settings: settingsScreen, whatsnew: whatsnewScreen, collection: collectionScreen, online: tilesOnlineScreen, join: tilesJoinScreen,
+const gameView = mode => ({ letters: lettersGameScreen, connect: connectGameScreen, tiles: tilesGameScreen }[mode] ?? gameScreen);
+const ROUTES = { '': menu, games, 'last-games': root => lastGamesScreen(root), 'kept-games': root => lastGamesScreen(root, true),
+  stats: statsScreen, achievements: achievementsScreen, settings: settingsScreen, whatsnew: whatsnewScreen, collection: collectionScreen, online: tilesOnlineScreen, join: tilesJoinScreen,
   host: (root, kind, refresh) => tilesNewScreen(root, 'tiles', refresh, kind),
   new: (root, mode, refresh) => ({ letters: lettersNewScreen, connect: connectNewScreen, tiles: tilesNewScreen }[mode] ?? newGameScreen)(root, mode, refresh),
-  game: (root, id, refresh) => ({ letters: lettersGameScreen, connect: connectGameScreen, tiles: tilesGameScreen }[getSave(id)?.mode] ?? gameScreen)(root, id, refresh) };
+  game: (root, id) => gameView(getSave(id)?.mode)(root, id),
+  // Finished results have their own back destination (owner, 2026-11-26).
+  result: (root, id) => resultScreen(root, id),
+  'kept-result': (root, id) => resultScreen(root, id, true),
+};
+function resultScreen(root, id, kept = false) {
+  const game = getFinished(id);
+  if (!game) { location.replace(kept ? '#/kept-games' : '#/last-games'); return; }
+  return gameView(game.mode)(root, id, true, kept);
+}
 const root = document.getElementById('root');
 let cleanup, shown, latest = 0;
 
@@ -46,6 +58,7 @@ setLang(settings.lang);
 applyTheme();
 applyTileLook();
 applyButtonSize();
+applyLettersContrast();
 applyAccent();
 
 // A phone keyboard eats about half the screen, and that is the state the game is played in. When the
@@ -72,6 +85,7 @@ window.visualViewport?.addEventListener('resize', keyboardCheck);
 // Each mode has its own games list, so "up" from a new game or a game is that mode's list. A game
 // that has just ended is no longer saved, so its mode is read off the screen instead.
 const PARENT = { whatsnew: () => '#/settings', games: () => '#/', stats: () => '#/', achievements: () => '#/', settings: () => '#/', collection: () => '#/', online: () => '#/games/tiles', join: () => '#/online', host: () => '#/online',
+  'last-games': () => '#/', result: () => '#/last-games',
   new: mode => ['letters', 'connect', 'tiles'].includes(mode) ? '#/games/' + mode : '#/games/guess',
   game: () => document.querySelector('[data-screen=letters]') ? '#/games/letters'
     : document.querySelector('[data-screen=connect]') ? '#/games/connect'
@@ -82,36 +96,43 @@ document.addEventListener('keydown', e => {
   const up = PARENT[name]?.(param);
   if (up) location.hash = up;
 });
-// First paint happens only when the bundled fonts are ready: no fallback-font frame, no layout shift.
-await Promise.all(['800 1em "Barlow Condensed"', '700 1em "Barlow Condensed"', '400 1em Inter', '500 1em Inter', '600 1em Inter']
-  .map(font => document.fonts.load(font)));
-// Android may close the page while Lexling is in the background (memory): back within half an hour, the screen it was on
-// opens again instead of the menu (owner, 2026-09-27: "you get teleported to the main menu"). A game joined on another
-// phone lives in memory only: its Join screen then, and the host puts the phone straight back in its seat.
-const BACK = 'wg.back';
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'hidden') return;
-  const [name, id] = location.hash.replace(/^#\/?/, '').split('/');
-  const g = name === 'game' ? getSave(id) : null;
-  try { localStorage.setItem(BACK, JSON.stringify({ hash: g?.live ? '#/join/' + (g.link?.kind ?? 'bt') : location.hash, at: Date.now() })); } catch { /* storage off */ }
-});
-if (!location.hash || location.hash === '#/') {
-  try {
-    const b = JSON.parse(localStorage.getItem(BACK) || 'null');
-    localStorage.removeItem(BACK);
-    const [name, id] = (b?.hash ?? '').replace(/^#\/?/, '').split('/');
-    if (b?.hash && Date.now() - b.at < 30 * 60000 && (name !== 'game' || getSave(id))) location.replace(b.hash);
-  } catch { /* nothing to go back to */ }
+async function start() {
+  // First paint happens only when the bundled fonts are ready: no fallback-font frame, no layout shift.
+  await Promise.all(['800 1em "Barlow Condensed"', '700 1em "Barlow Condensed"', '400 1em Inter', '500 1em Inter', '600 1em Inter']
+    .map(font => document.fonts.load(font)));
+  window.LXStartup?.step('Fonts loaded');
+  // Android may close the page while Lexling is in the background (memory): back within half an hour, the screen it was on
+  // opens again instead of the menu (owner, 2026-09-27: "you get teleported to the main menu"). A game joined on another
+  // phone lives in memory only: its Join screen then, and the host puts the phone straight back in its seat.
+  const BACK = 'wg.back';
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'hidden') return;
+    const [name, id] = location.hash.replace(/^#\/?/, '').split('/');
+    const g = name === 'game' ? getSave(id) : null;
+    try { localStorage.setItem(BACK, JSON.stringify({ hash: g?.live ? '#/join/' + (g.link?.kind ?? 'bt') : location.hash, at: Date.now() })); } catch { /* storage off */ }
+  });
+  if (!location.hash || location.hash === '#/') {
+    try {
+      const b = JSON.parse(localStorage.getItem(BACK) || 'null');
+      localStorage.removeItem(BACK);
+      const [name, id] = (b?.hash ?? '').replace(/^#\/?/, '').split('/');
+      if (b?.hash && Date.now() - b.at < 30 * 60000 && (name !== 'game' || getSave(id))) location.replace(b.hash);
+    } catch { /* nothing to go back to */ }
+  }
+  await render();
+  window.LXStartup?.step('First screen drawn');
+  // The desktop wrapper keeps its window hidden until this appears (no half-drawn first frame), and the
+  // build's self-test compares it with the version it packaged.
+  document.documentElement.dataset.ready = VERSION;
+  window.LXStartup?.finish();
+  watchResize(root);
+  watchScrollFades();
+  window.addEventListener('hashchange', () => render());
+  // a newer version: looked for on opening, and on coming back to the app (update.js - not more than every few minutes)
+  cleanUpdate();
+  startPlaytime();   // the time on screen, and the play-time reminder (Settings)
+  checkUpdate();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 }
-await render();
-// The desktop wrapper keeps its window hidden until this appears (no half-drawn first frame), and the
-// build's self-test compares it with the version it packaged.
-document.documentElement.dataset.ready = VERSION;
-watchResize(root);
-watchScrollFades();
-window.addEventListener('hashchange', () => render());
-// a newer version: looked for on opening, and on coming back to the app (update.js - not more than every few minutes)
-cleanUpdate();
-startPlaytime();   // the time on screen, and the play-time reminder (Settings)
-checkUpdate();
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
+
+start().catch(error => window.LXStartup?.fail(error));

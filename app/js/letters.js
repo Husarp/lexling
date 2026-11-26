@@ -5,6 +5,11 @@ import { offensiveWord } from './offensive.js';
 // Polish letters with marks are separate letters here: ó is not o, so `zolw` is simply wrong for
 // `żółw`. With the switch off, the hidden word has none of them.
 export const MARKED = /[ąćęłńóśźż]/;
+// Older WebViews can still type every letter in Lexling's two alphabets.
+let letterKey;
+try { letterKey = new RegExp('^\\p{L}$', 'u'); }
+catch { letterKey = /^[a-ząćęłńóśźż]$/i; }
+export const isLetterKey = key => letterKey.test(key);
 
 // ── Which words can be hidden ────────────────────────────────────────────────────────────────────
 // Any common word, whatever its part of speech, but always in its base form and never on the stoplist.

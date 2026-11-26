@@ -305,6 +305,23 @@ for (const outcome of ['veto', 'accept', 'silence', 'timeout']) {
   check('reconnecting after a rematch restores the new game', [b.seat, same(b.S, h.S)], [2, true]);
 }
 
+// Draft activity is optional, scoped to a seated connection and carries no board data (owner, 2026-11-26).
+{
+  const seen = [], wire = [], received = [], activity = { id: 'g1', n: 1, placing: true };
+  const h = createHost({ players: 2, game: () => ({ log: [{}] }), take: () => false, drop() {},
+    send: (_, text) => wire.push(text), onDraft: (p, m) => { seen.push([p, m]); h.draft(m); } });
+  const g = createGuest({ send: text => h.message('phone', text), on: { draft: m => received.push(m) } });
+  h.connected('phone');
+  h.message('phone', JSON.stringify({ t: 'draft', ...activity }));
+  check('a phone waiting for a seat cannot send draft activity', seen, []);
+  g.connected(); h.letIn('phone'); wire.length = 0;
+  h.message('phone', JSON.stringify({ t: 'draft', ...activity, placing: 'true' }));
+  g.draft({ ...activity, tiles: ['a'] });
+  check('only boolean draft activity reaches the host, attributed to its seat', seen, [[1, activity]]);
+  wire.forEach(text => g.message(text));
+  check('a relayed draft carries only the round, log number and flag', received, [{ t: 'draft', ...activity }]);
+}
+
 // Exercise the screen's reconnect path with each local transport, without a browser.
 {
   const source = readFileSync(new URL('../app/js/tiles-game.js', import.meta.url), 'utf8');

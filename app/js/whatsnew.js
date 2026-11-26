@@ -1,5 +1,18 @@
 // Recent releases in player language (owner, 2026-11-14). Keep the last three at release.
 export const whatsnew = [
+  { version: '0.73.0', date: '2026-11-26', en: [
+    'Android: updates now download only what changed, so most updates take seconds - see Settings → Updates. Lexling now needs Android 8 or newer.',
+    'Tiles: replay any finished game move by move, keep games forever, share a picture of the result, and see match highlights with a points chart. Last games keeps your five newest results from all four games.',
+    'Tiles: fairer move ratings when only rare words score more, a word checker, tap two of your new tiles to swap them, Cancel gives your word back, and computer levels have their own colours and faces.',
+    'Sounds and vibration for your turn, moves, wins and losses, with a volume slider; tap letters in Connect; a High contrast option for Letters.',
+    'How to play is rewritten and opens from every game; clearer statistics times, labels in Achievements, coloured section icons, and online clocks that run live.',
+  ], pl: [
+    'Android: aktualizacje pobierają tylko to, co się zmieniło, więc zwykle trwają kilka sekund - zobacz Ustawienia → Aktualizacje. Lexling wymaga teraz Androida 8 lub nowszego.',
+    'Kafelki: odtwarzanie skończonej gry ruch po ruchu, zachowywanie gier na zawsze, udostępnianie obrazka z wynikiem oraz najważniejsze momenty z wykresem punktów. Ostatnie gry pamiętają pięć najnowszych wyników ze wszystkich czterech gier.',
+    'Kafelki: uczciwsza ocena ruchów, gdy więcej punktów dają tylko rzadkie słowa, sprawdzanie słów, zamiana dwóch nowych płytek dotknięciem, Anuluj oddaje ułożone słowo, a poziomy komputera mają własne kolory i miny.',
+    'Dźwięki i wibracje przy twojej turze, ruchach, wygranej i przegranej, z suwakiem głośności; dotykanie liter w Połącz; opcja Wysoki kontrast w Literach.',
+    'Jak grać napisane od nowa i dostępne z każdej gry; czytelniejsze czasy w statystykach, podpisy w Osiągnięciach, kolorowe ikony sekcji i zegary online na żywo.',
+  ] },
   { version: '0.72.1', date: '2026-11-21', en: [
     'Tiles: drag a tile onto another of your unplayed tiles to swap them - or drop a rack tile on one to replace it.',
     'Bigger game buttons by default (130 %), now from 100 to 175 % in Settings.',
@@ -19,17 +32,6 @@ export const whatsnew = [
     'Kafelki: ikony osoby, komputera i kostki zamiast kropek, niezagrane płytki zachowują kolor, a złe słowo pokazuje krótki napis nad płytkami zamiast czerwonej ramki.',
     'Ustawienie Rozmiar przycisków dla narzędzi gry, nowe ikony w całej aplikacji, wyraźniejsze strzałki rozwijania i miejsce na wycięcie aparatu na każdym ekranie.',
     'Listy gier trzymają Nową grę na dole i mieszczą do 20 zapisanych gier na tryb; nowe osiągnięcie w Kafelkach: Rzutem na taśmę.',
-  ] },
-  { version: '0.71.0', date: '2026-11-20', en: [
-    'A fresh look: new menu cards with artwork, a wallpaper, new game icons, and Settings in sections that fold open.',
-    'Tiles: a cleaner game screen - the last move highlighted, a choice of board frames, a new Options window, and the time limit on the player cards (computers are never timed).',
-    'Fair statistics: totals only, and a game where you used help becomes Practice and adds nothing from then on.',
-    'How to play opens one chapter at a time, and online games say clearly who lost the connection.',
-  ], pl: [
-    'Nowy wygląd: karty gier z grafikami, tapeta, nowe ikony gier i Ustawienia w rozwijanych sekcjach.',
-    'Kafelki: czystszy ekran gry - podświetlony ostatni ruch, wybór ramki planszy, nowe okno Opcji i limit czasu na kartach graczy (komputer nigdy nie ma limitu).',
-    'Uczciwe statystyki: tylko sumy, a gra, w której użyto pomocy, staje się Treningiem i od tej chwili nic nie dodaje.',
-    'Jak grać pokazuje jeden rozdział naraz, a gry online jasno mówią, kto stracił połączenie.',
   ] },
 ];
 

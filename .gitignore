@@ -19,6 +19,17 @@ android/capacitor-cordova-android-plugins/
 android/keystore.properties
 *.jks
 *.keystore
+*.pem
+# Android live updates (scripts/ota-*.mjs, ota.config.json): the built app bundle, prepared releases and the frozen
+# baselines are outputs. The OTA private key lives in ~/.keystores; only its public half (keys/) is committed.
+dist-web/
+dist/
+.local/
+# written by scripts/ota-prepare-android.mjs from ota.config.json - one editable source of the app's identity
+capacitor.config.json
+android/app/src/main/assets/embedded-manifest.json
+android/app/src/main/assets/public-key.b64
+android/.kotlin/
 
 # ── Not part of the program ───────────────────────────────────────────────────────────────────────
 # This repository is PUBLIC. Anything not listed here is published the moment it is committed, so

@@ -1,4 +1,4 @@
-// Tests for the Connect mode rules in app/js/connect.js, against the real word data.
+// Tests for Connect rules against the real word data, and for the Hint button and its saved results.
 // Run: node tools/test-connect.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -166,5 +166,137 @@ check('offensive: an English slur is not a bonus', judge(en, board, state, 'fagg
 check('offensive: nor its plural', judge(en, board, state, 'bitches'), 'none');
 check('offensive: an innocent word that starts the same still counts', judge(en, board, state, 'niggle'), 'bonus');
 check('offensive: an everyday word from the data stoplist still counts', judge(en, board, state, 'then'), 'bonus');
+
+// A small DOM fixture keeps the real screen's header and main in separate subtrees.
+class Element extends EventTarget {
+  constructor(tag = 'div', attrs = {}) {
+    super();
+    this.tag = tag;
+    this.attrs = attrs;
+    this.className = attrs.class ?? '';
+    this.dataset = { cell: attrs['data-cell'], i: attrs['data-i'] };
+    this.children = [];
+    this.style = { setProperty() {} };
+    this.classList = {
+      contains: name => this.className.split(/\s+/).includes(name),
+      add: name => { if (!this.classList.contains(name)) this.className += ' ' + name; },
+      remove: name => { this.className = this.className.split(/\s+/).filter(c => c !== name).join(' '); },
+      toggle: (name, on) => on ? this.classList.add(name) : this.classList.remove(name),
+    };
+  }
+  get isConnected() { return this.parent?.isConnected ?? this.tag === 'root'; }
+  get firstElementChild() { return this.children[0]; }
+  get innerHTML() { return this.html; }
+  set innerHTML(html) {
+    this.html = html;
+    for (const child of [...this.children]) child.remove();
+    const stack = [this];
+    for (const [, close, tag, attrs] of html.matchAll(/<(\/?)([\w-]+)\b([^>]*)>/g)) {
+      if (close) { stack.pop(); continue; }
+      const el = new Element(tag, Object.fromEntries([...attrs.matchAll(/([\w-]+)(?:="([^"]*)")?/g)].map(m => [m[1], m[2] ?? ''])));
+      stack.at(-1).append(el);
+      if (!attrs.endsWith('/') && !['br', 'img'].includes(tag)) stack.push(el);
+    }
+  }
+  append(el) { el.parent = this; this.children.push(el); }
+  remove() { this.parent.children = this.parent.children.filter(el => el !== this); this.parent = null; }
+  contains(el) { return el === this || this.children.some(child => child.contains(el)); }
+  matches(s) {
+    if (s.startsWith('.')) return s.slice(1).split('.').every(c => this.classList.contains(c));
+    if (s.startsWith('#')) return this.attrs.id === s.slice(1);
+    if (s.startsWith('[')) return Object.hasOwn(this.attrs, s.slice(1, -1));
+    return this.tag === s;
+  }
+  querySelectorAll(selector) {
+    const matches = el => selector.split(',').some(s => {
+      const parts = s.trim().split(/\s+/);
+      if (!el.matches(parts.pop())) return false;
+      let parent = el.parent;
+      while (parts.length) {
+        const part = parts.pop();
+        while (parent && !parent.matches(part)) parent = parent.parent;
+        if (!parent) return false;
+        parent = parent.parent;
+      }
+      return true;
+    });
+    return this.children.flatMap(el => [...(matches(el) ? [el] : []), ...el.querySelectorAll(selector)]);
+  }
+  querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; }
+  getAttribute(name) { return this.attrs[name] ?? null; }
+  setAttribute(name, value) { this.attrs[name] = value; }
+  getBoundingClientRect() { return { left: 0, right: 200, top: 0, width: 200, height: 100 }; }
+  click() { this.dispatchEvent(new Event('click')); }
+}
+
+const storage = new Map();
+globalThis.localStorage = { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v) };
+Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { language: 'en' } });
+globalThis.document = Object.assign(new EventTarget(), {
+  documentElement: {},
+  createRange: () => ({ selectNodeContents() {}, getBoundingClientRect: () => ({ left: 0, right: 100 }) }),
+});
+globalThis.window = Object.assign(new EventTarget(), { scrollTo() {} });
+globalThis.getComputedStyle = () => ({ paddingLeft: '0', paddingRight: '0', borderLeftWidth: '0', borderRightWidth: '0' });
+globalThis.matchMedia = () => ({ matches: true, addEventListener() {} });
+globalThis.location = {};
+globalThis.innerWidth = 800;
+const { newGame, settings, totals } = await import('../app/js/store.js');
+const { setLang, plural } = await import('../app/js/i18n.js');
+const { connectGameScreen } = await import('../app/js/connect-game.js');
+settings.sound = false;
+
+const tapKey = key => document.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { key }));
+const storedGame = id => JSON.parse(storage.get('wg.saves')).find(g => g.id === id);
+const storedRecord = id => JSON.parse(storage.get('wg.stats')).rec[id];
+for (const [lang, grid, ring, bonuses] of [
+  ['en', { cols: 5, rows: 1, words: [{ w: 'stare', r: 1, c: 1, d: 'a' }] }, 'stare', ['star', 'tear', 'rate', 'seat']],
+  ['pl', board, 'karton', ['kot', 'rok', 'rak', 'ton']],
+]) {
+  setLang(lang);
+  for (const earlierMove of [false, true]) {
+    const label = `${lang} ${earlierMove ? 'after four bonus words' : 'blank board'}`;
+    const game = newGame({ mode: 'connect', lang, board: grid, ring, found: [], shown: [], bonus: [], hints: 0 });
+    location.hash = '#/game/' + game.id;
+    const root = new Element('root');
+    const cleanup = await connectGameScreen(root, game.id);
+    try {
+      if (earlierMove) for (const word of bonuses) [...word, 'Enter'].forEach(tapKey);
+      const before = storedGame(game.id), record = storedRecord(game.id);
+      const bonusCount = earlierMove ? bonuses.length : 0;
+      check(label + ': bonus words saved', before.bonus, earlierMove ? bonuses : []);
+      check(label + ': unassisted bonus total', totals('connect', lang).bonus, bonusCount);
+
+      const hint = root.querySelector('.hint-btn'), crossword = root.querySelector('.cw');
+      const parent = crossword.parent;
+      crossword.remove();
+      hint.click();
+      check(label + ': missing board leaves save and stats intact', [storedGame(game.id), storedRecord(game.id)], [before, record]);
+      parent.append(crossword);
+
+      hint.click();
+      const saved = storedGame(game.id);
+      check(label + ': hint saved with practice', [saved.hints, saved.shown.length, saved.practice], [1, 1, true]);
+      const shown = crossword.querySelectorAll('[data-cell]').filter(cell => cell.textContent);
+      const word = grid.words.find(w => cellsOf(w).includes(saved.shown[0]));
+      check(label + ': exactly one correct letter visible', shown.map(cell => [cell.dataset.cell, cell.textContent]),
+        [[saved.shown[0], [...word.w][cellsOf(word).indexOf(saved.shown[0])]]]);
+      check(label + ': practice badge and warning updated', [!!root.querySelector('.topbar .practice-badge'), root.querySelector('.practice-hint')], [true, null]);
+      check(label + ': stats flag earlier moves only', storedRecord(game.id), earlierMove ? { ...record, pr: 1 } : undefined);
+      const giveUp = root.querySelector('#give-up');
+      giveUp.click();
+      giveUp.click();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const result = root.querySelector('main').innerHTML;
+      check(label + ': result counts bonus words and hints', [
+        result.includes(`<b>${bonusCount}</b> ${plural(bonusCount, 'cn.bonusLow')}`),
+        result.includes(`<b>1</b> ${plural(1, 'cn.hintsLow')}`),
+      ], [true, true]);
+      check(label + ': practice bonus words excluded from Statistics', [totals('connect', lang).bonus, totals('connect', lang).bonusPerGame], [0, null]);
+    } finally {
+      cleanup();
+    }
+  }
+}
 
 console.log(`all ${passed} Connect tests passed`);

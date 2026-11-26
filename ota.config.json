@@ -1,0 +1,19 @@
+{
+  "appId": "com.husarp.lexling",
+  "appName": "Lexling",
+  "github": { "owner": "Husarp", "repo": "lexling" },
+  "channels": { "bundle": "channel", "shell": "shell-channel" },
+  "artifacts": { "manifest": "manifest.json", "shellManifest": "shell.json", "apk": "LexlingShell-{code}.apk", "asset": "f-{sha256}.bin" },
+  "updateUrls": { "bundle": null, "shell": null, "releases": null },
+  "build": { "shellApi": 1, "minShellApi": 1 },
+  "signing": {
+    "privateKey": "~/.keystores/lexling-ota/ota-private.pem",
+    "publicKey": "keys/public-key.b64",
+    "keystore": "~/.keystores/lexling-release.jks",
+    "properties": "~/.keystores/lexling-signing.properties",
+    "keyAlias": "lexling",
+    "storePasswordEnv": "LEXLING_ANDROID_STORE_PASSWORD",
+    "keyPasswordEnv": "LEXLING_ANDROID_KEY_PASSWORD"
+  },
+  "bundle": { "sourceDir": "dist-web", "baselineDir": ".local/ota-baseline/0.73.0", "baselineVersion": "0.73.0", "baselineMinShellApi": 1 }
+}
