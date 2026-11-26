@@ -45,18 +45,16 @@ class UpdateSettingsTest {
         assertTrue(automaticDownload(s,"fix",5*MIB+1,true))
         assertTrue(automaticDownload(s,"feature",1,true))
     }
-    @Test fun unansweredSetupAllowsSmallFixesAndShellUpdatesWithinDefaults() {
+    @Test fun unansweredSetupOnlyChecksForUpdates() {
         val unanswered = UpdateSettings()
+        assertTrue(unanswered.automaticChecks)
         for (wifi in listOf(true, false)) {
-            assertTrue(automaticDownload(unanswered,"fix",SMALL_FIX_LIMIT,wifi))
+            assertFalse(automaticDownload(unanswered,"fix",SMALL_FIX_LIMIT,wifi))
             assertFalse(automaticDownload(unanswered,"fix",SMALL_FIX_LIMIT+1,wifi,true))
             assertFalse(automaticDownload(unanswered,"feature",1,wifi,true))
-            assertTrue(automaticDownload(unanswered,"shell",1,wifi))
-            assertFalse(automaticDownload(unanswered,"shell",21*MIB,wifi))
+            assertFalse(automaticDownload(unanswered,"shell",1,wifi))
         }
-        assertTrue(automaticShellInstall(unanswered))
-        assertFalse(automaticShellInstall(unanswered.copy(shellUpdates=false)))
-        assertFalse(automaticDownload(unanswered.copy(shellUpdates=false),"shell",1,true))
+        assertFalse(automaticShellInstall(unanswered))
     }
     @Test fun unansweredSetupPreservesOptOuts() {
         assertFalse(automaticDownload(migrateUpdateSettings(false),"fix",1,true))
@@ -108,7 +106,7 @@ class UpdateSettingsTest {
         assertEquals(Action.PROMPT,d.action); assertEquals(21*MIB,d.delta)
     }
     @Test fun settingsAppliedToRealDecision() {
-        assertEquals(Action.AUTO,decision(UpdateSettings(),1).action)
+        assertEquals(Action.PROMPT,decision(UpdateSettings(),1).action)
         assertEquals(Action.PROMPT,decision(UpdateSettings(),SMALL_FIX_LIMIT+1).action)
         assertEquals(Action.AUTO,decision(defaults,1).action)
         assertEquals(Action.PROMPT,decision(defaults.copy(smallFixes=false),1).action)

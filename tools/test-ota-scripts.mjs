@@ -171,6 +171,27 @@ try {
       write(versionFile, `export const VERSION = '${version}';\n`);
     }
   });
+  check('seeds the channel with the signed frozen inventory and no unchanged payloads', () => {
+    const baselineVersion = c.bundle.baselineVersion;
+    const args = [baselineVersion, '--kind', 'fix', '--message', 'Baseline'];
+    rejects(runScript('ota-release', version, '--kind', 'fix', '--baseline'), /configured baseline version/);
+    write(versionFile, `export const VERSION = '${baselineVersion}';\n// Changed source since the APK was frozen\n`);
+    try {
+      rejects(runScript('ota-release', ...args), /Release must exceed embedded version/);
+      rejects(runScript('ota-release', ...args, '--baseline', '--min-shell', '2'), /configured baseline version and shell API/);
+      const baseline = path.join(fixture, c.bundle.baselineDir);
+      const frozenFiles = inventory(baseline);
+      succeeds(runScript('ota-release', ...args, '--baseline'));
+      const plan = publishPlan('bundle', baselineVersion, c, fixture);
+      const manifest = readSignedManifest(plan.manifest, c, fixture);
+      assert.equal(plan.tag, c.channels.bundle);
+      assert.equal(manifest.minShellApi, c.bundle.baselineMinShellApi);
+      assert.deepEqual(manifest.files, frozenFiles);
+      assert.deepEqual(plan.payloads, []);
+    } finally {
+      write(versionFile, `export const VERSION = '${version}';\n`);
+    }
+  });
   const preparedAssets = path.join(fixture, 'android/app/src/main/assets');
   check('prepare preserves Capacitor identity and HTTPS origin', () => {
     succeeds(runScript('ota-prepare-android'));

@@ -83,7 +83,10 @@ class Engine(val root: File, val embedded: Manifest, private val shellApi: Int, 
         File(root, "staging").deleteRecursively()
         log.add("New APK: selected newer compatible web; embedded ${embedded.version}, current ${state.current}, pending ${state.pending}; lists retained", (System.nanoTime()-started)/1_000_000)
     }
-    @Synchronized fun coldStart(onApplying: (String) -> Unit = {}): Launch {
+    @Synchronized fun coldStart(
+        onProgress: (UpdateActivation.Progress) -> Unit = {},
+        onApplying: (String) -> Unit = {}
+    ): Launch {
         val started = System.nanoTime(); var notice: String? = null; var activated = false
         try {
         reconcileShell()
@@ -91,21 +94,26 @@ class Engine(val root: File, val embedded: Manifest, private val shellApi: Int, 
         if (state.current in state.blocked && state.current != embedded.version) notice = rollback(true)
         if (state.trial && state.trialStarts >= 2) notice = rollback(false)
         state.pending?.let { next ->
-            if (next in state.failed || next in state.blocked || runCatching { manifest(next) }.isFailure) {
+            val pending = if (next in state.failed || next in state.blocked) null else runCatching { manifest(next) }.getOrNull()
+            if (pending == null || (!state.trial && !checkPendingFiles(pending, onProgress))) {
                 log.add("Pending bundle unavailable/blocked; discard $next"); state.pending = null
             } else if (!state.trial) {
                 onApplying(next)
+                // Activation writes the state pointer and records the install date (owner, 2026-11-26).
+                onProgress(UpdateActivation.Progress(next, UpdateActivation.Step.APPLYING, 0, 2))
                 state.previous = state.current; state.current = next; state.pending = null
                 state.trial = true; state.trialStarts = 0
                 activated = true
-                notice = "Updated to $next · ${manifest(next).message}"
+                notice = "Updated to $next · ${pending.message}"
                 log.add("Staging → switch on start: ${state.previous} → $next")
             }
         }
         if (state.trial) { state.trialStarts++; log.add("Trial start count ${state.trialStarts}/2 for ${state.current}; recovery available before ready") }
         loaded = state.current; token = UUID.randomUUID().toString(); save()
+        if (activated) onProgress(UpdateActivation.Progress(loaded, UpdateActivation.Step.APPLYING, 1, 2))
         dates.record("web", loaded, manifest(loaded).releasedAt,
             installedAt = if (activated || loaded == embedded.version) System.currentTimeMillis() else null)
+        if (activated) onProgress(UpdateActivation.Progress(loaded, UpdateActivation.Step.APPLYING, 2, 2))
         cleanup()
         log.add("Cold start loaded $loaded", (System.nanoTime() - started) / 1_000_000)
         return Launch(loaded, token, notice)
@@ -117,6 +125,27 @@ class Engine(val root: File, val embedded: Manifest, private val shellApi: Int, 
             log.add("Startup storage/state error; emergency embedded fallback: ${e.message}")
             return Launch(loaded, token, null)
         }
+    }
+    private fun checkPendingFiles(pending: Manifest, onProgress: (UpdateActivation.Progress) -> Unit): Boolean {
+        if (webWaitsForShell(pending, shellApi)) return false
+        val embeddedByPath = embedded.files.associateBy { it.path }
+        val files = File(bundles, "${pending.version}/files")
+        val total = pending.files.size
+        fun report(done: Int) = onProgress(UpdateActivation.Progress(pending.version, UpdateActivation.Step.CHECKING_FILES, done, total))
+        report(0)
+        for ((index, entry) in pending.files.withIndex()) {
+            val baseline = embeddedByPath[entry.path]
+            if (baseline?.sha256 != entry.sha256 || baseline.size != entry.size) {
+                val overlay = File(files, entry.path)
+                // Staging already verified the hashes. Check overlay availability without rereading it on a cold start.
+                if (!overlay.isFile || overlay.length() != entry.size) {
+                    log.add("Pending file verification failed: ${entry.path}")
+                    return false
+                }
+            }
+            report(index + 1)
+        }
+        return true
     }
     @Synchronized fun ready(version: String, launchToken: String): Boolean {
         if (version != loaded || version != state.current || launchToken != token) {

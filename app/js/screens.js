@@ -75,11 +75,11 @@ export function menu(root, _, refresh) {
       <h1 class="display">${t('menu.h1')}</h1>
       <nav class="games tight" aria-label="${t('menu.modesAria')}">${GAMES.map(row).join('')}</nav>
       <nav class="menu cards" aria-label="${t('menu.nav')}">
+        <a href="#/last-games"><span class="menu-badge" aria-hidden="true">${UI_ICONS.time}</span><span>${t('menu.lastGames')}</span></a>
         <a href="#/stats"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="13" width="3" height="7" rx=".5"/><rect x="10.5" y="4" width="3" height="16" rx=".5"/><rect x="17" y="9" width="3" height="11" rx=".5"/></svg></span><span>${t('menu.stats')}</span></a>
         <a href="#/achievements"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg></span><span>${t('menu.ach')}</span></a>
         <a href="#/collection"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="4" height="15" rx=".5"/><rect x="10" y="3" width="4" height="17" rx=".5"/><path d="m16 6 3-1 3 14-3 1z"/></svg></span><span>${t('menu.collection')}</span></a>
         <a href="#/settings"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9.5 3-.5 2a7.5 7.5 0 0 0-2 1.2l-2-.6-2 3.4L4.5 10a7.5 7.5 0 0 0 0 4L3 15l2 3.4 2-.6A7.5 7.5 0 0 0 9 19l.5 2h5l.5-2a7.5 7.5 0 0 0 2-1.2l2 .6 2-3.4-1.5-1a7.5 7.5 0 0 0 0-4L21 9l-2-3.4-2 .6A7.5 7.5 0 0 0 15 5l-.5-2z"/><circle cx="12" cy="12" r="3"/></svg></span><span>${t('menu.settings')}</span></a>
-        <a href="#/last-games"><span class="menu-badge" aria-hidden="true">${UI_ICONS.time}</span><span>${t('menu.lastGames')}</span></a>
       </nav>
       <div class="upd-slot"></div>
     </div>
@@ -276,11 +276,12 @@ export function games(root, mode, refresh) {
   // Tiles online (several phones): hosting and joining both start here - only where there is Bluetooth or Wi-Fi to do it
   const join = mode === 'tiles' && netKinds().length ? `<a class="btn btn-outline" href="#/online">${t('net.online')}</a>` : '';
   const start = () => `<a class="btn btn-primary" href="${NEW_OF[mode]}">${t('games.new')} <span class="arrow">→</span></a>`;
+  // The section heading is for saved rows; the empty message sits on the page (owner, 2026-11-26).
   root.innerHTML = `<div class="app" data-screen="games" data-game="${mode}">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>`, right: modeTag(mode) })}
   <main class="main">
-    <div class="head"><h1 class="title">${t('games.title')}</h1></div>
-    <div class="games-scroll">${saves.length ? `<div class="saves">${saves.map(card).join('')}</div>` : `<div class="card empty">
+    ${saves.length ? `<div class="head"><h1 class="title">${t('games.title')}</h1></div>` : ''}
+    <div class="games-scroll">${saves.length ? `<div class="saves">${saves.map(card).join('')}</div>` : `<div class="empty">
       <img class="empty-art" src="img/empty.webp" alt=""><p class="display">${t('games.emptyTitle')}</p>
       <p class="help" style="max-width:36ch">${t('games.emptyText')}</p>
     </div>`}</div>
@@ -396,7 +397,7 @@ export function newGameScreen(root, _, refresh) {
   </main>
 </div>`;
   const $ = sel => root.querySelector(sel);
-  const err = $('#new-err'), toggle = $('.toggle'), secret = $('input[type=password]');
+  const form = $('form'), err = $('#new-err'), toggle = $('.toggle'), secret = $('input[type=password]');
   const sync = () => {
     root.querySelectorAll('[data-k]').forEach(b => b.classList.toggle('on', String(o[b.dataset.k]) === b.dataset.v));
     lengths();
@@ -417,17 +418,17 @@ export function newGameScreen(root, _, refresh) {
   // The histogram is this language and category's real word lengths, so it can only be drawn once the
   // word data is here (~1.3 s for Polish). Until then the bars stay flat rather than showing a guess.
   let token = 0;
-  async function lengths(stats) {
-    if (!stats) {
-      const mine = ++token;
-      const m = await load(o.lang).catch(() => null);
-      if (!m || mine !== token) return;          // a newer click already asked for other numbers
-      return lengths(lengthStats(m, o));
-    }
+  async function lengths() {
+    const mine = ++token;
+    const m = await load(o.lang).catch(() => null);
+    if (!m || mine !== token || !form.isConnected) return;
+    const hist = form.querySelector('#hist'), readout = form.querySelector('#readout');
+    if (!hist || !readout) return;
+    const stats = lengthStats(m, o);
     const tallest = Math.max(...stats.bars.map(b => b.count), 1);
-    $('#hist').innerHTML = stats.bars.map(b =>
+    hist.innerHTML = stats.bars.map(b =>
       `<span class="${b.on ? 'on' : ''}"><b style="height:${Math.round(b.count / tallest * 52) + (b.count ? 4 : 2)}px"></b><em>${b.len}${b.last ? '+' : ''}</em></span>`).join('');
-    $('#readout').innerHTML = stats.count
+    readout.innerHTML = stats.count
       ? `<span class="num">${stats.from === stats.to ? stats.from : `${stats.from}–${stats.to}`}</span><span class="help">${
         t('new.lenCount', { n: num(stats.count), words: plural(stats.count, 'n.words') })}</span>`
       : `<span class="num">0</span><span class="help">${t('new.lenEmpty')}</span>`;
@@ -450,9 +451,10 @@ export function newGameScreen(root, _, refresh) {
   $('#only-new .toggle').addEventListener('click', () => { o.onlyNew = !o.onlyNew; sync(); });
   secret.addEventListener('input', () => { err.hidden = true; });
 
-  $('form').addEventListener('submit', async e => {
+  form.addEventListener('submit', async e => {
     e.preventDefault();
     const m = await load(o.lang);
+    if ($('form') !== form) return;
     const idx = o.friend ? resolve(m, secret.value)?.idx ?? -1 : o.onlyNew ? freshPick(m, secretPool(m, o), 'guess', o.lang) : pickSecret(m, o);
     if (idx < 0) {
       err.textContent = t(o.friend ? 'new.errUnknown' : idx === -2 ? 'new.errAllFound' : 'new.errNoWords');
@@ -576,12 +578,14 @@ export function lettersNewScreen(root, _, refresh) {
   // the word data (~9 MB for Polish). Until it is here they stay flat, and the readout empty.
   const ready = {};
   function counts() {
-    const m = ready[o.lang];
-    const bars = [...$('#hist').children];
+    const hist = form.querySelector('#hist'), readout = form.querySelector('#readout');
+    if (!hist || !readout) return;
+    const lang = o.lang, m = ready[lang];
+    const bars = [...hist.children];
     if (!m) {
       bars.forEach(bar => { bar.className = o.anyLen || +bar.dataset.len === o.len ? 'on' : ''; });
-      $('#readout').innerHTML = '';
-      loadWords(o.lang).then(data => { ready[o.lang] = data; if (form.isConnected) counts(); }).catch(() => {});
+      readout.innerHTML = '';
+      loadWords(lang).then(data => { ready[lang] = data; if (form.isConnected && o.lang === lang) counts(); }).catch(() => {});
       return;
     }
     const n = new Map(lengths.map(len => [len, pool(m, { len, ...choice() }).length]));
@@ -592,8 +596,8 @@ export function lettersNewScreen(root, _, refresh) {
       bar.firstElementChild.style.height = (c ? Math.round(c / tallest * 52) + 4 : 3) + 'px';
     });
     const here = o.anyLen ? pool(m, choice()).length : n.get(o.len);
-    $('#readout').className = 'readout' + (here ? '' : ' none');
-    $('#readout').innerHTML = `<span class="num">${num(here)}</span><span class="help">${t(here ? 'lt.canHide' : 'lt.none')}</span>`;
+    readout.className = 'readout' + (here ? '' : ' none');
+    readout.innerHTML = `<span class="num">${num(here)}</span><span class="help">${t(here ? 'lt.canHide' : 'lt.none')}</span>`;
     err.textContent = t('lt.errNoWords');
     err.hidden = !!here;
     start.disabled = !here;
@@ -636,6 +640,7 @@ export function lettersNewScreen(root, _, refresh) {
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const m = await loadWords(o.lang);
+    if ($('form') !== form) return;
     const opts = { len: o.anyLen ? null : o.len, ...choice() };
     const idx = o.onlyNew ? freshPick(m, pool(m, opts), 'letters', o.lang) : pick(m, opts);
     if (idx < 0) { err.textContent = t(idx === -2 ? 'new.errAllFound' : 'lt.errNoWords'); err.hidden = false; return; }
@@ -751,6 +756,7 @@ export function connectNewScreen(root, _, refresh) {
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const m = await loadWords(o.lang);
+    if ($('form') !== form) return;
     const diff = o.diff;
     const puzzle = makePuzzle(m, { letters: o.letters, diff, marks: o.lang !== 'pl' || o.marks, two: !!o.two });
     if (!puzzle) { err.textContent = t('cn.errNone'); err.hidden = false; return; }
@@ -834,7 +840,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
         <div class="field-head"><span class="eyebrow">${t('tiles.new.players')}</span><span class="help">${t(hostKind ? 'net.playersOnline' : 'tiles.new.playersWhat')}</span></div>
         <div class="tl-players"></div>
       </div>
-      <details class="card polish" id="colours"><summary>${UI_ICONS.display}${t('howto.tiles.looks')}</summary>
+      <details class="card polish" id="colours"><summary>${UI_ICONS.display}${t('tiles.visual')}</summary>
         <div class="row"><div class="row-text"><strong>${t('tiles.tile')}</strong></div></div>
         <div id="tile-looks">${tileSeg()}</div>
         <p class="help"><span class="arrow">→</span> ${t('tiles.tileHelp')}</p>
@@ -853,20 +859,20 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
         <div class="tl-hints" id="hints"></div>
         <div class="assists-body"></div>
       </details>
+      <p class="help-warn" role="status" hidden><span></span> <button type="button" class="btn-link" data-assists>${t('help.change')}</button></p>
       <details class="card tl-rules"${o.rulesOpen ? ' open' : ''}>
         <summary>${UI_ICONS.rules}<span>${t('tiles.rules')}</span><span class="state"></span></summary>
         <div class="rules-body"></div>
       </details>
       ${nameField()}
       <div class="cta">
-        <p class="help-warn" role="status" hidden><span></span> <button type="button" class="btn-link" data-assists>${t('help.change')}</button></p>
-        <p class="summary"></p>
         <button class="btn btn-primary btn-lg btn-block" type="submit"></button>
       </div>
     </form>
   </main>
 </div>`;
   const $ = sel => root.querySelector(sel);
+  const form = $('form');
   const list = () => ({ players: o.players.map(x => ({ name: '', cpu: x.cpu })) });   // for the default names
   const nameAt = p => o.players[p].name.trim() || nameOf(list(), p);
   const standard = () => TL_RULE_KEYS.every(k => o.rules[k] === STANDARD[k]);
@@ -923,6 +929,9 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     const used = helps();
     $('.tl-assists').classList.toggle('used', used.length > 0);
     $('.tl-assists .state').textContent = used.length ? t('tiles.assists.on', { what: used.join(', ') }) : t('tiles.assists.off');
+    // Keep the practice warning with Assists and leave the Start button on its own (owner, 2026-11-26).
+    $('.help-warn').hidden = !used.length;
+    $('.help-warn span').textContent = used.length ? t('help.setupPractice') : '';
   }
   function paintRules() {
     const r = o.rules, per = r.time?.per ?? 'none';
@@ -934,18 +943,6 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
         `<button type="button" data-secs="${s}" class="${on(r.time.seconds === s)}">${s < 60 ? t('tiles.sec', { n: s }) : t('tiles.min', { n: s / 60 })}</button>`).join('')}</div><p class="help">${t('tiles.r.timeHelp.' + per)}</p>`}</div>`
       + (standard() ? '' : `<div class="rule"><button type="button" class="btn btn-outline" data-reset-rules>${t('tiles.rules.restore')}</button></div>`);
     $('.tl-rules .state').textContent = t(standard() ? 'tiles.rules.standard' : 'tiles.rules.own');
-  }
-  // Play over Bluetooth (owner, 2026-09-27): the same setup, then Start waits for the other phone to join
-  function paintSummary() {
-    // help on: those games leave the statistics' records and averages (owner, 2026-09-28: "show the alert")
-    const used = helps();
-    $('.help-warn').hidden = !used.length;
-    $('.help-warn span').textContent = used.length ? t('help.setupPractice') : '';
-    const who = o.players.map((x, p) => esc(nameAt(p)) + (x.cpu ? ` (${t(levelKey(x.cpu))})` : '')).join(', ');
-    const first = o.players.indexOf(o.first);
-    $('.summary').innerHTML = [LANG_NAMES[o.lang], t('tiles.board.' + o.board), o.net && t('net.tag.' + o.net), who, first >= 0 && `${t('tiles.first')}: ${esc(nameAt(first))}`,
-      canVeto() && o.rules.wordsVote && t('tiles.r.wordsVote'), canVeto() && o.rules.wordsVote && `${t('tiles.r.approvalNeed')}: ${o.rules.approvalNeed}`,
-      canVeto() && o.rules.veto && t('tiles.r.veto'), canVeto() && o.rules.veto && `${t('tiles.r.vetoNeed')}: ${o.rules.vetoNeed}`, !standard() && t('tiles.rules.own')].filter(Boolean).map(s => `<span>${s}</span>`).join(DOT);
   }
   const sync = () => {
     root.querySelectorAll('[data-lang]').forEach(b => b.classList.toggle('on', b.dataset.lang === o.lang));
@@ -965,7 +962,6 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     paintHints();
     paintAssists();
     paintRules();
-    paintSummary();
     $('[type=submit]').innerHTML = `${t(o.net ? 'net.start.' + o.net : 'new.start')} <span class="arrow">→</span>`;
     fitAll(root);
   };
@@ -998,7 +994,6 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     // the name also shows in "Who starts"
     const chip = $(`[data-first="${p}"]`);
     if (chip) chip.lastChild.textContent = nameAt(+p);
-    paintSummary();
   });
   $('.tl-players').addEventListener('click', e => {
     const b = e.target.closest('button');
@@ -1023,7 +1018,6 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     else return;
     paintHints();
     paintAssists();
-    paintSummary();
     fitAll(root);
   });
   const onRule = e => {
@@ -1040,15 +1034,15 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
     else return;
     paintAssists();
     paintRules();
-    paintSummary();
     fitAll(root);
   };
   $('.rules-body').addEventListener('click', onRule);
   $('.assists-body').addEventListener('click', onRule);
 
-  $('form').addEventListener('submit', async e => {
+  form.addEventListener('submit', async e => {
     e.preventDefault();
     const dict = await loadTileWords(o.lang, o.rules);
+    if ($('form') !== form) return;
     settings.newGame = { lang: o.lang };
     saveSettings();
     const players = o.players.map(x => ({ name: o.net && !x.here ? '' : x.name.trim(), cpu: x.cpu })), first = o.players.indexOf(o.first);
@@ -1294,11 +1288,12 @@ const STAT_TABS = ['general', 'guess', 'letters', 'connect', 'tiles'];
 const statFilter = {};      // language shown per game, kept while the app is open
 const MODES = ['guess', 'letters', 'connect', 'tiles'];
 
-// Approved square achievement grid; progress and dates come from the live ledger.
+// Game tabs use only glyphs at every width (owner, 2026-11-26).
 const gameTabs = (tabs, selected, attr, generalLabel) => `<div class="seg st-tabs" role="tablist">${tabs.map(m => {
-  const label = t(m === 'general' || m === 'all' ? generalLabel : 'mode.' + m), achievement = attr === 'ach-tab';
-  return `<button type="button" role="tab" data-${attr}="${m}" class="${on(selected === m)}" ${achievement ? `tabindex="${selected === m ? 0 : -1}" aria-label="${label}" title="${label}"` : ''} aria-selected="${selected === m}"><span class="tg" aria-hidden="true">${GLYPH[m === 'general' ? 'all' : m] ?? ''}</span>${achievement ? `<span class="ach-tab-label">${label}</span>` : label}</button>`;
+  const label = esc(t(m === 'general' || m === 'all' ? generalLabel : 'mode.' + m));
+  return `<button type="button" role="tab" data-${attr}="${m}" class="${on(selected === m)}"${attr === 'ach-tab' ? ` tabindex="${selected === m ? 0 : -1}"` : ''} aria-label="${label}" title="${label}" aria-selected="${selected === m}"><span class="tg" aria-hidden="true">${GLYPH[m === 'general' ? 'all' : m]}</span></button>`;
 }).join('')}</div>`;
+// Approved square achievement grid; progress and dates come from the live ledger.
 let achievementTab = 'all';
 export function achievementsScreen(root) {
   const reached = TIERED.reduce((n, d) => n + TIERS.filter((_, i) => gotAt(`${d.id}#${i}`) !== null).length, 0);
@@ -1314,7 +1309,6 @@ export function achievementsScreen(root) {
         <div class="ach-counts">${TIERS.map((tier, i) => `<span class="ach-count">${tierShape(i)}<small>${t('tier.' + tier)}</small>${num(TIERED.filter(d => gotAt(`${d.id}#${i}`) !== null).length)}</span>`).join('')}</div>
       </div>
       ${gameTabs(['all', ...GAMES], achievementTab, 'ach-tab', 'col.all')}
-      <h2 class="ach-section-title">${t(achievementTab === 'all' ? 'col.all' : 'mode.' + achievementTab)}</h2>
       ${filtered(TIERED).length ? `<h2 class="ach-heading">${t('ach.milestones')}</h2><div class="ach-grid">${filtered(TIERED).map(tile).join('')}</div>` : ''}
       ${filtered(CHALLENGES).length ? `<h2 class="ach-heading">${t('ach.challenges')} · ${num(filtered(CHALLENGES).filter(d => gotAt(d.id) !== null).length)} / ${num(filtered(CHALLENGES).length)}</h2><div class="ach-grid">${filtered(CHALLENGES).map(tile).join('')}</div>` : ''}
       ${earlierAchievements().length ? `<details class="earlier-ach"><summary>${t('ach.earlier')}</summary>${earlierAchievements().filter(([key]) => achievementTab === 'all' || key.startsWith(achievementTab + '.')).map(([key, at]) => {
@@ -1378,7 +1372,7 @@ export function statsScreen(root, _, refresh) {
     ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
     <main class="main"><h1 class="title">${t('stats.title')}</h1>
       ${gameTabs(STAT_TABS, statsTab, 'tab', 'stats.general')}
-      ${statsTab === 'general' ? '' : `<div class="st-filters"><div class="seg" role="radiogroup">${['all', 'pl', 'en'].map(l => `<button type="button" data-f-lang="${l}" class="${on(f.lang === l)}">${l === 'all' ? t('stats.tiles.bothLangs') : LANG_NAMES[l]}</button>`).join('')}</div></div>`}
+      ${statsTab === 'general' ? '' : `<div class="st-filters"><div class="seg" role="radiogroup">${['all', 'pl', 'en'].map(l => `<button type="button" data-f-lang="${l}" class="${on(f.lang === l)}">${l === 'all' ? t('lang.both') : LANG_NAMES[l]}</button>`).join('')}</div></div>`}
       <div class="section" role="tabpanel">
         <section class="card sgroup" data-game="${statsTab}"><div class="scells">${panel}</div></section>
         ${statsTab === 'general' ? `<h2 class="eyebrow">${t('stats.byMode')}</h2>
@@ -1407,9 +1401,8 @@ const colCats = mode => mode === 'connect' ? Array.from({ length: RING_MAX - WOR
 
 export async function collectionScreen(root, _, refresh) {
   colLang ??= settings.lang;
-  const tabs = `<div class="seg st-tabs" role="tablist">${COL_TABS.map(m => `<button type="button" role="tab" data-ctab="${m}" class="${on(colTab === m)}" aria-selected="${colTab === m}"><span class="tg">${
-    GLYPH[m] ?? ''}</span>${t(m === 'all' ? 'col.all' : 'mode.' + m)}</button>`).join('')}</div>
-    <div class="seg co-lang" role="radiogroup">${['pl', 'en'].map(l => `<button type="button" data-clang="${l}" class="${on(colLang === l)}">${LANG_NAMES[l]}</button>`).join('')}</div>`;
+  const tabs = `${gameTabs(COL_TABS, colTab, 'ctab', 'col.all')}
+    <div class="seg co-lang" role="radiogroup">${['all', 'pl', 'en'].map(l => `<button type="button" data-clang="${l}" class="${on(colLang === l)}">${l === 'all' ? t('lang.both') : LANG_NAMES[l]}</button>`).join('')}</div>`;
   const shell = body => `<div class="app" data-screen="collection">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
   <main class="main">
@@ -1428,8 +1421,10 @@ export async function collectionScreen(root, _, refresh) {
     root.querySelector('[data-cback]')?.addEventListener('click', () => { colCat = null; refresh(); });
   };
   wire();
-  const m = await loadWords(colLang).catch(() => null);
-  if (!m || !root.querySelector('[data-screen=collection]')) return;
+  const loading = root.firstElementChild;
+  // Both adds the lexicons' counts; a spelling found in one language only counts there (owner, 2026-11-26).
+  const lexicons = await Promise.all((colLang === 'all' ? ['pl', 'en'] : [colLang]).map(loadWords)).catch(() => null);
+  if (!lexicons || root.firstElementChild !== loading) return;
   const pctOf = (a, b) => b ? Math.round(a / b * 100) : 0;
   // one bar everywhere, green = found - a sliver as soon as one word is
   const bar = (a, b) => `<span class="co-bar${a ? '' : ' zero'}"><i style="--p:${Math.max(pctOf(a, b), a ? 1 : 0)}%"></i></span>`;
@@ -1437,42 +1432,58 @@ export async function collectionScreen(root, _, refresh) {
   // a row: [glyph] name …… 34 / 120 · 28 %  ›, the bar under it; tapping opens the game or the category
   const row = (attr, name, a, b) => `<li><button type="button" class="co-row${a ? '' : ' none'}" ${attr}><span class="co-top"><span class="co-name">${name}</span><span class="co-count"><b>${num(a)}</b> / ${num(b)} · <span class="pc">${
     pcs(a, b)}</span></span></span><span class="chev" aria-hidden="true">›</span>${bar(a, b)}</button></li>`;
-  const foundIn = (mode, list) => { const had = collected(mode, colLang); return list.filter(i => had.has(m.words[i])).length; };
+  const countsIn = (mode, indexes) => {
+    let found = 0, total = 0;
+    for (const m of lexicons) {
+      const list = indexes(m), had = mode === 'all'
+        ? new Set(COL_TABS.slice(1).flatMap(md => [...collected(md, m.lang)])) : collected(mode, m.lang);
+      for (const i of list) if (had.has(m.words[i])) found++;
+      total += list.length;
+    }
+    return [found, total];
+  };
   const letters = n => `${n} ${plural(+n, 'lt.letters')}`;
   let body, map = null;
   if (colTab === 'all') {
     // every word any game can hide (Letters' pool holds Connect's), and every one typed in any of them
-    const everyWord = new Set([...colPool(m, 'guess', 'all'), ...colPool(m, 'letters', 'all')]);
-    const typed = new Set(['guess', 'letters', 'connect'].flatMap(md => [...collected(md, colLang)]));
-    const got = [...everyWord].filter(i => typed.has(m.words[i])).length;
-    body = `<div class="card co-hero"><span class="eyebrow">${t('col.everything')}</span><span class="co-pct">${pctOf(got, everyWord.size)}<small>%</small></span>
-      <p class="co-line">${t('col.totalLine', { n: `<b>${num(got)}</b>`, of: num(everyWord.size) })}</p>${bar(got, everyWord.size)}</div>
-      <ul class="co-rows">${['guess', 'letters', 'connect'].map(md => {
-        const list = md === 'connect' ? colCats('connect').flatMap(c => colPool(m, 'connect', c)) : colPool(m, md, 'all');
-        return row(`data-ctab-go="${md}"`, `${GLYPH[md] ?? ''}${t('mode.' + md)}`, foundIn(md, list), list.length);
+    const [got, total] = countsIn('all', m => [...new Set([...colPool(m, 'guess', 'all'), ...colPool(m, 'letters', 'all')])]);
+    body = `<div class="card co-hero"><span class="eyebrow">${t('col.everything')}</span><span class="co-pct">${pctOf(got, total)}<small>%</small></span>
+      <p class="co-line">${t('col.totalLine', { n: `<b>${num(got)}</b>`, of: num(total) })}</p>${bar(got, total)}</div>
+      <ul class="co-rows">${COL_TABS.slice(1).map(md => {
+        const counts = countsIn(md, m => md === 'connect' ? colCats('connect').flatMap(c => colPool(m, 'connect', c)) : colPool(m, md, 'all'));
+        return row(`data-ctab-go="${md}"`, `${GLYPH[md] ?? ''}${t('mode.' + md)}`, ...counts);
       }).join('')}</ul>`;
   } else if (!colCat) {
     body = `<p class="co-lead">${t(colTab === 'connect' ? 'col.byLength' : 'col.byCategory')}</p><ul class="co-rows two">${colCats(colTab).map(c => {
-      const list = colPool(m, colTab, c);
-      return list.length ? row(`data-ccat="${c}"`, colTab === 'connect' ? letters(c) : t('cat.' + c), foundIn(colTab, list), list.length) : '';
+      const [found, total] = countsIn(colTab, m => colPool(m, colTab, c));
+      return total ? row(`data-ccat="${c}"`, colTab === 'connect' ? letters(c) : t('cat.' + c), found, total) : '';
     }).join('')}</ul>`;
   } else {
     // one category: its lengths (how many found of each), then the words of one length - the found ones written out,
     // the rest a map, one dot per word, green where found (design option A: thousands of "???" would drown the found)
-    const list = colPool(m, colTab, colCat), had = collected(colTab, colLang), f = foundIn(colTab, list);
     const byLen = new Map();
-    for (const i of list) { const n = [...m.words[i]].length; if (!byLen.has(n)) byLen.set(n, []); byLen.get(n).push(i); }
+    let found = 0, total = 0;
+    for (const m of lexicons) {
+      const had = collected(colTab, m.lang);
+      for (const i of colPool(m, colTab, colCat)) {
+        const word = m.words[i], n = [...word].length, got = had.has(word);
+        if (!byLen.has(n)) byLen.set(n, []);
+        byLen.get(n).push({ word, got });
+        found += +got;
+        total++;
+      }
+    }
     const lens = [...byLen.keys()].sort((x, y) => x - y);
     if (!byLen.has(colLen)) colLen = lens[0];
     const range = lens.length ? Array.from({ length: lens.at(-1) - lens[0] + 1 }, (_, k) => lens[0] + k) : [];
-    const words = byLen.get(colLen) ?? [], got = words.filter(i => had.has(m.words[i]));
-    map = words.map(i => had.has(m.words[i]));
+    const words = byLen.get(colLen) ?? [], got = words.filter(w => w.got);
+    map = words.map(w => w.got);
     body = `<button type="button" class="btn btn-ghost co-back" data-cback>← ${t(colTab === 'connect' ? 'col.lengths' : 'col.categories')}</button>
-      <div class="card co-cat"><h2>${colTab === 'connect' ? letters(colCat) : t('cat.' + colCat)}</h2><p class="co-line"><span><b>${num(f)}</b> / ${num(list.length)} · ${pcs(f, list.length)}</span></p>${bar(f, list.length)}</div>
-      ${range.length > 1 ? `<div class="co-lens">${range.map(n => { const ws = byLen.get(n) ?? [], g = ws.filter(i => had.has(m.words[i])).length;
+      <div class="card co-cat"><h2>${colTab === 'connect' ? letters(colCat) : t('cat.' + colCat)}</h2><p class="co-line"><span><b>${num(found)}</b> / ${num(total)} · ${pcs(found, total)}</span></p>${bar(found, total)}</div>
+      ${range.length > 1 ? `<div class="co-lens">${range.map(n => { const ws = byLen.get(n) ?? [], g = ws.filter(w => w.got).length;
         return `<button type="button" class="co-len${n === colLen ? ' on' : ''}${ws.length ? '' : ' empty'}" data-clen="${n}"><span class="num">${n}</span><small class="${g ? 'got' : ''}">${num(g)}</small></button>`; }).join('')}</div>
       <div class="co-lenhead"><strong>${letters(colLen)}</strong><span>${t('col.foundOf', { n: num(got.length), of: num(words.length) })}</span></div>` : ''}
-      ${got.length ? `<div class="co-found">${got.map(i => `<span class="co-w">${esc(m.words[i])}</span>`).join('')}</div>` : ''}
+      ${got.length ? `<div class="co-found">${got.map(w => `<span class="co-w">${esc(w.word)}</span>`).join('')}</div>` : ''}
       ${words.length > got.length ? `<div class="co-map"><div class="co-maphead"><span><b>${num(words.length - got.length)}</b> ${t('col.notYet')}</span><span>${t('col.dotIs')}</span></div>
         <canvas class="co-dots" role="img" aria-label="${t('col.foundOf', { n: num(got.length), of: num(words.length) })}"></canvas><span class="co-dots" hidden><i></i><i class="g"></i></span></div>` : ''}`;
   }

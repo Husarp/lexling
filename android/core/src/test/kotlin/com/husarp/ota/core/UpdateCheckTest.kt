@@ -38,14 +38,17 @@ class UpdateCheckTest {
         }
     }
 
-    @Test fun unpublishedOptionalChannelDoesNotFailOrVerify() {
+    @Test fun unpublishedBuiltInChannelsDoNotFailOrVerify() {
         val transport = Transport { _, _ -> throw HttpStatusException(404) }
         val log = EventLog(temporaryFolder.newFile())
-        val result = verifyUpdateCheck({ true }, { fetchManifest("https://example.com/shell.json", transport, log) }) {
-            it?.let { throw AssertionError("No manifest should be verified") }
+        listOf("channel/manifest.json", "shell-channel/shell.json").forEach { asset ->
+            val url = "https://github.com/Husarp/lexling/releases/download/$asset"
+            val result = verifyUpdateCheck({ true }, { fetchManifest(url, transport, log, allowMissing = true) }) {
+                it?.let { throw AssertionError("No manifest should be verified") }
+            }
+            assertNull(result.first)
+            assertNull(result.second)
         }
-        assertNull(result.first)
-        assertNull(result.second)
         assertEquals(CheckFailure.NOT_FOUND, assertThrows(CheckException::class.java) {
             verifyUpdateCheck({ true }, { fetchManifest("https://example.com/manifest.json", transport, log, allowMissing = false) }, { it })
         }.failure)

@@ -19,6 +19,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
+import android.graphics.Typeface
 import android.view.Gravity
 import android.view.ViewGroup
 import android.view.View
@@ -48,6 +49,7 @@ import org.json.JSONObject
 class MainActivity : BridgeActivity() {
     private val updater get() = (application as OtaApplication).updater
     private val handler = Handler(Looper.getMainLooper())
+    private var started = false
     private var resumed = false
     private var localizedContext: Context? = null
     private val strings: Context get() = localizedContext ?: NativeStrings.context(this).also { localizedContext = it }
@@ -72,7 +74,7 @@ class MainActivity : BridgeActivity() {
     }
     private fun refreshRecovery() {
         handler.removeCallbacks(recoveryTick)
-        if (updater.launching && updater.activation.current != null && updater.watchdog.reason == null) {
+        if (bridge == null || (updater.launching && updater.activation.current != null)) {
             renderStartup()
             return
         }
@@ -95,12 +97,13 @@ class MainActivity : BridgeActivity() {
         val phase = updater.activation.current
         val light = NativeLook.light(this)
         when {
-            !updater.watchdog.showLoading && !updater.launching -> loadingOverlay?.visibility = View.GONE
             updater.launching && phase != null -> {
                 val step = if (phase.step == UpdateActivation.Step.CHECKING_FILES) strings.getString(R.string.ota_checking_files)
                     else strings.getString(R.string.ota_installing_version, phase.version)
-                loadingOverlay?.show(phase.version, step, light)
+                loadingOverlay?.show(phase.version, step, light, phase)
             }
+            bridge == null -> loadingOverlay?.show(updater.launch.version, strings.getString(R.string.ota_loading_app), light)
+            !updater.watchdog.showLoading && !updater.launching -> loadingOverlay?.visibility = View.GONE
             trial -> {
                 val step = strings.getString(if (webCommitted) R.string.ota_starting else R.string.ota_loading_app)
                 loadingOverlay?.show(updater.launch.version, step, light)
@@ -112,9 +115,18 @@ class MainActivity : BridgeActivity() {
     private fun showStartupRecovery(reason: String) {
         updater.engine.log.add("Startup watchdog: ${updater.launch.version} ($reason)")
         val theme = this.theme
-        val box = LinearLayout(theme).apply { orientation = LinearLayout.VERTICAL; setPadding(20.dp,12.dp,20.dp,12.dp) }
+        val box = LinearLayout(theme).apply { orientation = LinearLayout.VERTICAL; setPadding(20.dp,8.dp,20.dp,18.dp) }
         val palette = NativeLook.palette(NativeLook.light(this))
-        val dialog = NativeLook.dialog(theme, strings.getString(R.string.ota_start_failed, strings.getString(R.string.app_name)))
+        val heading = LinearLayout(theme).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(20.dp, 18.dp, 20.dp, 0)
+            addView(NativeLook.noticeMark(theme, "!"), LinearLayout.LayoutParams(32.dp, 32.dp))
+            addView(NativeLook.title(theme, strings.getString(R.string.ota_start_failed, strings.getString(R.string.app_name))).apply {
+                textSize = 28f
+                setPaddingRelative(10.dp, 0, 0, 0)
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        val dialog = NativeLook.dialog(theme).setCustomTitle(heading)
             .setView(ScrollView(theme).apply { addView(box) }).setCancelable(false).create()
         val status = TextView(theme).apply {
             setText(R.string.ota_recovery_help)
@@ -124,8 +136,8 @@ class MainActivity : BridgeActivity() {
         val check = NativeLook.button(theme, primary = true).apply { text = strings.getString(R.string.ota_check_fix) }
         val reset = NativeLook.button(theme).apply { text = strings.getString(R.string.ota_reset_builtin) }
         val wait = NativeLook.button(theme).apply { text = strings.getString(R.string.ota_wait_longer) }
-        val shell = NativeLook.button(theme).apply { setText(R.string.ota_open_maintenance) }
-        val copy = NativeLook.button(theme).apply { text = strings.getString(R.string.ota_copy_logs); setOnClickListener { copyLogs() } }
+        val shell = NativeLook.button(theme, ghost = true).apply { setText(R.string.ota_open_maintenance) }
+        val copy = NativeLook.button(theme, ghost = true).apply { text = strings.getString(R.string.ota_copy_logs); setOnClickListener { copyLogs() } }
         val alternatives = listOf(reset, wait, shell)
         var fix: Updater.StartupFix? = null
         var retryShell = false
@@ -178,15 +190,15 @@ class MainActivity : BridgeActivity() {
             updater.watchdog.waitLonger(SystemClock.elapsedRealtime()); dialog.dismiss(); refreshRecovery()
         }
         shell.setOnClickListener { showSettings(); dialog.dismiss() }
-        box.addView(status); box.addView(check)
+        // Keep recovery actions ahead of the support tools (owner, 2026-11-26).
+        box.addView(status); box.addView(check); box.addView(wait)
         if (updater.launch.version != updater.engine.embedded.version) box.addView(reset)
-        box.addView(wait); box.addView(shell)
-        box.addView(copy)
+        box.addView(actionRow(theme, shell, copy))
         updateBanner?.clear()
         dialog.setOnDismissListener {
             if (recoveryDialog === dialog) { recoveryDialog = null; refreshRecoveryCheck = null }
         }
-        recoveryDialog = dialog; NativeLook.show(dialog)
+        recoveryDialog = dialog; NativeLook.show(dialog, outlined = true)
     }
     private fun startupFailed(reason: String) {
         updater.watchdog.failed(activityLaunchToken, reason)
@@ -201,8 +213,6 @@ class MainActivity : BridgeActivity() {
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         ShellUpdatedNotification.enterForeground(this)
-        updater.prepareLaunch()
-        activityLaunchToken = updater.launch.token
         registerPlugin(OtaPlugin::class.java)
         // Capacitor's own shouldInterceptRequest still injects its bridge into HTML.
         // Route every signed web path independently to the overlay or the APK asset.
@@ -220,6 +230,40 @@ class MainActivity : BridgeActivity() {
         registerPlugin(AppUpdatePlugin::class.java)
         registerPlugin(GameVibrationPlugin::class.java)
         super.onCreate(savedInstanceState)
+    }
+
+    override fun load() {
+        val webFrame = findViewById<FrameLayout>(android.R.id.content)
+        updateBanner = NativeUpdateBanner(webFrame, ::dismissUpdateBanner)
+        loadingOverlay = StartupScreen(this).also {
+            webFrame.addView(it, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        }
+        configureSystemBars()
+        renderStartup()
+        updater.onChange = {
+            if (!isFinishing && !isDestroyed) {
+                refreshRecovery()
+                refreshDebugSettings?.invoke()
+                if (resumed && bridge != null) updater.shell.presentRequestedAndroidUi(this)
+                showNativeMessages()
+            }
+        }
+        updater.onToast = { message ->
+            if (!isFinishing) {
+                transientBanners["message:$message"] = { key ->
+                    UpdateBannerItem(key, strings.getString(message), "")
+                }
+                showNativeMessages()
+            }
+        }
+        updater.prepareLaunch {
+            if (!isFinishing && !isDestroyed) loadPreparedBundle()
+        }
+    }
+
+    private fun loadPreparedBundle() {
+        activityLaunchToken = updater.launch.token
+        super.load()
         val web = bridge.webView
         // Local text notices have no response charset in Capacitor.
         web.settings.defaultTextEncodingName = "UTF-8"
@@ -261,20 +305,14 @@ class MainActivity : BridgeActivity() {
         registerReceiver(screenReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_USER_PRESENT)
         })
-        val webFrame = findViewById<FrameLayout>(android.R.id.content)
-        updateBanner = NativeUpdateBanner(webFrame, ::dismissUpdateBanner)
-        loadingOverlay = StartupScreen(this, strings.getString(R.string.app_name)).also {
-            webFrame.addView(it, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-        }
-        renderStartup(updater.engine.snapshot().trial)
-        updater.onChange = { if (!isFinishing) { refreshRecovery(); refreshDebugSettings?.invoke(); if (resumed) updater.shell.presentRequestedAndroidUi(this); showNativeMessages() } }
-        updater.onToast = { message ->
-            if (!isFinishing) {
-                transientBanners["message:$message"] = { key ->
-                    UpdateBannerItem(key, strings.getString(R.string.ota_please_wait), strings.getString(message))
-                }
-                showNativeMessages()
-            }
+        // Capacitor skips these callbacks while its bridge is still being prepared.
+        if (started) bridge.onStart()
+        if (resumed) {
+            bridge.app.fireStatusChange(true)
+            bridge.onResume()
+            resumeUpdateUi()
+        } else {
+            refreshRecovery()
         }
     }
     private fun setupEdgeToEdge(web: WebView) {
@@ -329,7 +367,7 @@ class MainActivity : BridgeActivity() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         localizedContext = null
-        renderStartup(updater.engine.snapshot().trial)
+        refreshRecovery()
         showNativeMessages()
         ViewCompat.requestApplyInsets(window.decorView)
     }
@@ -346,13 +384,18 @@ class MainActivity : BridgeActivity() {
     }
     override fun onStart() {
         super.onStart()
+        started = true
         ShellUpdatedNotification.enterForeground(this)
         updater.setForeground(true)
 
     }
     override fun onResume() {
         super.onResume()
-        resumed = true; refreshRecovery(); showNativeMessages()
+        resumed = true
+        if (bridge != null) resumeUpdateUi() else renderStartup()
+    }
+    private fun resumeUpdateUi() {
+        refreshRecovery(); showNativeMessages()
         UpdateWorker.once(this,"start")
         updater.shell.returnedFromInstallSettings()
         updater.shell.maybeInstall() // recheck permission on return from unknown-app settings
@@ -363,6 +406,8 @@ class MainActivity : BridgeActivity() {
         super.onPause()
     }
     override fun onStop() {
+        started = false
+        if (bridge == null) activityDepth = 0
         updater.setForeground(false)
         ShellUpdatedNotification.leaveForeground()
 
@@ -402,9 +447,9 @@ class MainActivity : BridgeActivity() {
         try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Updater.RELEASES_URL))); return true }
         catch (e: android.content.ActivityNotFoundException) {
             updater.engine.log.add("Could not open releases: ${e.message}")
-            if (updater.webCheckNotices() != true) {
+            if (updater.webCheckNotices() != true || maintenanceBanner != null) {
                 transientBanners["releases"] = { key ->
-                    UpdateBannerItem(key, strings.getString(R.string.ota_cannot_open_github), strings.getString(R.string.ota_browser_unavailable))
+                    UpdateBannerItem(key, strings.getString(R.string.ota_browser_unavailable), "")
                 }
                 showNativeMessages()
             }
@@ -412,17 +457,40 @@ class MainActivity : BridgeActivity() {
         }
     }
     fun confirmReset(startupRecovery: Boolean = false) {
+        val box = LinearLayout(theme).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(20.dp, 6.dp, 20.dp, 18.dp)
+            addView(TextView(theme).apply { setText(R.string.ota_reset_explanation) })
+            addView(TextView(theme).apply {
+                setText(R.string.ota_reset_saves)
+                setTypeface(typeface, Typeface.BOLD)
+                setPadding(0, 12.dp, 0, 12.dp)
+            })
+        }
+        // Give Cancel the primary action and keep the save assurance separate (owner, 2026-11-26).
         val dialog = NativeLook.dialog(theme, strings.getString(R.string.ota_confirm_reset))
-            .setMessage(strings.getString(R.string.ota_reset_explanation))
-            .setPositiveButton(strings.getString(R.string.ota_reset)) { _, _ ->
+            .setView(box).create()
+        box.addView(NativeLook.button(theme, primary = true).apply {
+            setText(R.string.ota_cancel); setOnClickListener { dialog.cancel() }
+        })
+        box.addView(NativeLook.button(theme).apply {
+            setText(R.string.ota_reset)
+            setOnClickListener {
+                dialog.dismiss()
                 restartBundle(reset = true, startupRecovery = startupRecovery && updater.watchdog.reason != null)
-            }.setNegativeButton(strings.getString(R.string.ota_cancel), null).create()
-        NativeLook.show(dialog, primaryButton = AlertDialog.BUTTON_NEGATIVE, destructiveButton = AlertDialog.BUTTON_POSITIVE)
+            }
+        })
+        NativeLook.show(dialog, outlined = true)
+    }
+    private fun actionRow(context: Context, vararg buttons: Button) = LinearLayout(context).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        for (button in buttons) addView(button, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
     }
     private var debugDialog: AlertDialog? = null
     private var refreshDebugSettings: (() -> Unit)? = null
     fun showSettings() {
         if (debugDialog?.isShowing == true) return
+        val theme = this.theme
+        val palette = NativeLook.palette(NativeLook.light(this))
         val box = LinearLayout(theme).apply { orientation = LinearLayout.VERTICAL; setPadding(20.dp,8.dp,20.dp,8.dp) }
         val versions = TextView(theme).apply { text = strings.getString(R.string.ota_versions, updater.launch.version, BuildConfig.VERSION_NAME) }
         val initial = updater.settingsJson()
@@ -441,36 +509,66 @@ class MainActivity : BridgeActivity() {
                 NativeLook.show(dialog)
             }
         }
-        box.addView(LinearLayout(theme).apply {
+        val checkStatusRow = LinearLayout(theme).apply {
             gravity = Gravity.CENTER_VERTICAL
+            visibility = if (updater.checks.hasError()) View.VISIBLE else View.GONE
             addView(checkStatus, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             addView(checkHelp, LinearLayout.LayoutParams(48.dp, 48.dp))
-        })
+        }
+        box.addView(checkStatusRow)
+        // Group the controls by purpose in maintenance (owner, 2026-11-26).
+        fun heading(label: Int) {
+            box.addView(NativeLook.title(theme, strings.getString(label)).apply {
+                textSize = 20f; setPadding(0, 12.dp, 0, 5.dp)
+            })
+        }
+        fun group(label: Int) = LinearLayout(theme).apply {
+            heading(label)
+            orientation = LinearLayout.VERTICAL
+            background = NativeLook.surface(theme, palette.surface, palette.line)
+            setPadding(12.dp, 4.dp, 12.dp, 4.dp)
+            box.addView(this)
+        }
+        fun divider(group: LinearLayout) {
+            if (group.childCount != 0) group.addView(View(theme).apply {
+                setBackgroundColor(if (NativeLook.light(this@MainActivity)) palette.line else 0xFF2A2A2A.toInt())
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1.dp))
+        }
+        val automatic = group(R.string.ota_automatic_updates)
         listOf("smallFixes" to R.string.ota_small_fixes_auto,
             "majorUpdates" to R.string.ota_major_updates_auto,
             "shellUpdates" to R.string.ota_app_updates_auto,
             "updateNotifications" to R.string.ota_background_notices).forEach { (key,label) ->
-            val control = Switch(theme).apply { setText(label); isChecked = initial.getBoolean(key) }
-            switches[key] = control; box.addView(control)
+            val control = Switch(theme).apply {
+                setText(label); isChecked = initial.getBoolean(key); minHeight = 48.dp
+                setPadding(0, 6.dp, 0, 6.dp)
+            }
+            divider(automatic)
+            switches[key] = control; automatic.addView(control)
         }
+        val downloads = group(R.string.ota_downloads_and_checks)
         fun choice(key: String, label: String, values: List<String>, labels: List<String>) {
-            box.addView(TextView(theme).apply { text = label })
+            divider(downloads)
+            downloads.addView(TextView(theme).apply { text = label; setPadding(0, 8.dp, 0, 0) })
             val control = Spinner(theme).apply {
                 adapter = ArrayAdapter(theme, android.R.layout.simple_spinner_dropdown_item, labels)
                 setSelection(values.indexOf(initial.get(key).toString()))
             }
-            choices[key] = control to values; box.addView(control)
+            choices[key] = control to values
+            downloads.addView(control, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 48.dp))
         }
         choice("wifiLimitMb", strings.getString(R.string.ota_wifi_limit), listOf("5","20","50","100","-1"), listOf(strings.getString(R.string.ota_megabytes, 5),strings.getString(R.string.ota_megabytes, 20),strings.getString(R.string.ota_megabytes, 50),strings.getString(R.string.ota_megabytes, 100),strings.getString(R.string.ota_no_limit)))
         choice("mobileLimitMb", strings.getString(R.string.ota_mobile_limit), listOf("0","5","20","50","-1"), listOf(strings.getString(R.string.ota_never),strings.getString(R.string.ota_megabytes, 5),strings.getString(R.string.ota_megabytes, 20),strings.getString(R.string.ota_megabytes, 50),strings.getString(R.string.ota_no_limit)))
         choice("checkFrequency", strings.getString(R.string.ota_check_updates), listOf("open","1h","6h","24h","manual"),
             listOf(strings.getString(R.string.ota_check_on_open),strings.getString(R.string.ota_check_hourly),strings.getString(R.string.ota_check_six_hours),strings.getString(R.string.ota_check_daily),strings.getString(R.string.ota_check_manual)))
-        box.addView(TextView(theme).apply { text = strings.getString(R.string.ota_check_settings_help) })
+        box.addView(TextView(theme).apply {
+            setText(R.string.ota_check_settings_help); setTextColor(palette.muted); textSize = 13f
+            setPadding(0, 8.dp, 0, 8.dp)
+        })
         val checkButton = NativeLook.button(theme).apply {
             text = strings.getString(R.string.ota_check_updates)
             setOnClickListener { updater.retryChecks() }
         }
-        box.addView(checkButton)
         val shellUpdate = NativeLook.button(theme, primary = true).apply {
             setOnClickListener {
                 if (!updater.safeToInterrupt) return@setOnClickListener
@@ -486,9 +584,11 @@ class MainActivity : BridgeActivity() {
             shellUpdate.isEnabled = updater.safeToInterrupt && !updater.shell.downloading
         }
         refreshShellOffer()
-        box.addView(shellUpdate)
-        box.addView(NativeLook.button(theme).apply { text = strings.getString(R.string.ota_restart); setOnClickListener { restartBundle(startupRecovery = updater.watchdog.reason != null) } })
-        box.addView(NativeLook.button(theme).apply { text = strings.getString(R.string.ota_logs); setOnClickListener { showLogs() } })
+        box.addView(actionRow(theme, checkButton, shellUpdate))
+        val restart = NativeLook.button(theme).apply { text = strings.getString(R.string.ota_restart); setOnClickListener { restartBundle(startupRecovery = updater.watchdog.reason != null) } }
+        val logs = NativeLook.button(theme).apply { text = strings.getString(R.string.ota_logs); setOnClickListener { showLogs() } }
+        box.addView(actionRow(theme, restart, logs))
+        heading(R.string.ota_troubleshooting)
         box.addView(NativeLook.button(theme).apply {
             text = strings.getString(R.string.ota_simulate_start)
             setOnClickListener {
@@ -502,6 +602,10 @@ class MainActivity : BridgeActivity() {
             setOnClickListener { confirmReset(startupRecovery = updater.watchdog.reason != null) }
         }
         box.addView(reset)
+        val save = NativeLook.button(theme, primary = true).apply { setText(R.string.ota_save) }
+        box.addView(save, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = 6.dp
+        })
         val closeShell = NativeLook.button(theme).apply { text = strings.getString(R.string.ota_close); contentDescription = strings.getString(R.string.ota_close_maintenance) }
         val shellHeader = LinearLayout(theme).apply {
             gravity = Gravity.CENTER_VERTICAL
@@ -513,7 +617,7 @@ class MainActivity : BridgeActivity() {
         val maintenance = FrameLayout(theme).apply { addView(ScrollView(theme).apply { addView(box) }) }
         maintenanceBanner = NativeUpdateBanner(maintenance, ::dismissUpdateBanner)
         val dialog = NativeLook.dialog(theme).setCustomTitle(shellHeader).setView(maintenance)
-            .setCancelable(true).setPositiveButton(strings.getString(R.string.ota_save),null).create()
+            .setCancelable(true).create()
         dialog.setCanceledOnTouchOutside(false)
         closeShell.setOnClickListener { dialog.cancel() }
         debugDialog = dialog
@@ -521,6 +625,7 @@ class MainActivity : BridgeActivity() {
             refreshShellOffer()
             checkStatus.text = if (updater.checks.hasError()) strings.getString(R.string.ota_check_failed) else ""
             checkHelp.visibility = if (updater.checks.hasError()) View.VISIBLE else View.GONE
+            checkStatusRow.visibility = checkHelp.visibility
             val latest = updater.settingsJson()
             switches.forEach { (key,control) ->
                 if (control.isChecked == initial.getBoolean(key)) {
@@ -537,7 +642,7 @@ class MainActivity : BridgeActivity() {
             maintenanceBanner?.clear(); maintenanceBanner = null
             debugDialog = null; refreshDebugSettings = null; refreshRecovery(); showNativeMessages()
         }
-        dialog.setOnShowListener { dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+        save.setOnClickListener {
             try {
                 val patch = com.getcapacitor.JSObject().put("setupAnswered",true)
                 switches.forEach { (key,control) -> if (control.isChecked != initial.getBoolean(key)) patch.put(key,control.isChecked) }
@@ -548,8 +653,12 @@ class MainActivity : BridgeActivity() {
                 updater.setUpdateSettings(patch)
                 dialog.dismiss(); showNativeMessages()
             }
-            catch (e: Exception) { updater.engine.log.add("Could not save update settings: ${e.message}"); checkStatus.text = strings.getString(R.string.ota_settings_failed) }
-        } }; NativeLook.show(dialog)
+            catch (e: Exception) {
+                updater.engine.log.add("Could not save update settings: ${e.message}")
+                Toast.makeText(this, R.string.ota_settings_failed, Toast.LENGTH_LONG).show()
+            }
+        }
+        NativeLook.show(dialog, outlined = true)
         maintenance.post { showNativeMessages() }
     }
     private val nativeSeen = mutableSetOf<String>()
@@ -564,11 +673,10 @@ class MainActivity : BridgeActivity() {
     }
 
     private fun dismissUpdateBanner(key: String) {
-        nativeSeen.add(key)
+        if (transientBanners.remove(key) == null) nativeSeen.add(key)
         if (key == activeBannerKey) bannerFlow.clear()
         if (key.startsWith("app-installed:")) getSharedPreferences("native-update-messages", Context.MODE_PRIVATE)
             .edit().putBoolean(key, true).apply()
-        transientBanners.remove(key)
         showNativeMessages()
     }
     private fun showNativeMessages() {
@@ -585,22 +693,32 @@ class MainActivity : BridgeActivity() {
         }
         updater.checks.claim()?.let { notice ->
             transientBanners["check:${SystemClock.elapsedRealtime()}"] = { key ->
-                UpdateBannerItem(key, strings.getString(R.string.ota_check_failed),
-                    strings.checkFailureText(notice.failure), strings.getString(R.string.ota_retry), { updater.retryCheck(notice.channel) })
+                val advice = if (notice.failure == CheckFailure.UNREACHABLE) strings.getString(R.string.ota_reach_server_advice) else ""
+                UpdateBannerItem(key, strings.checkFailureText(notice.failure), advice,
+                    strings.getString(R.string.ota_retry), { updater.retryCheck(notice.channel) })
             }
         }
+        // Use the same notice headings and actions in the native fallback (owner, 2026-11-26).
+        val locale = strings.resources.configuration.locales[0]
         val state = updater.info()
         val items = transientBanners.map { (key, item) -> item(key) }.toMutableList()
         state.optJSONObject("rolledBack")?.let {
-            items.add(UpdateBannerItem("rollback:${it.optString("from")}:${it.optString("to")}", strings.getString(R.string.ota_rollback_title),
-                strings.getString(R.string.ota_rollback_text, it.optString("from"), it.optString("to")), strings.getString(R.string.ota_details), ::showLogs))
+            val from = it.optString("from")
+            val reason = if (it.optString("reason") == "blocked") R.string.ota_rollback_blocked else R.string.ota_rollback_text
+            items.add(UpdateBannerItem("rollback:$from:${it.optString("to")}", strings.getString(R.string.ota_rollback_title, it.optString("to")),
+                strings.getString(reason, from), strings.getString(R.string.ota_details), ::showLogs, symbol = "↶"))
         }
         val installedKey = "app-installed:${BuildConfig.VERSION_CODE}"
-        val appUpdated = updater.shell.installedNotes() != null
-        val webUpdated = state.optJSONObject("updated")?.optString("to")
-        if (webNotices == false && (if (appUpdated) !getSharedPreferences("native-update-messages", Context.MODE_PRIVATE).getBoolean(installedKey, false) else webUpdated != null)) {
-            val version = webUpdated ?: BuildConfig.VERSION_NAME
-            items.add(UpdateBannerItem(if (appUpdated) installedKey else "updated:$version", strings.getString(R.string.ota_updated_to, version), "", brief = true))
+        val appNotes = updater.shell.installedNotes()
+        val appUpdated = appNotes != null &&
+            !getSharedPreferences("native-update-messages", Context.MODE_PRIVATE).getBoolean(installedKey, false)
+        val webUpdated = state.optJSONObject("updated")
+        if (webNotices == false && (appUpdated || webUpdated != null)) {
+            val version = if (appUpdated) BuildConfig.VERSION_NAME else webUpdated!!.optString("to")
+            val notes = if (appUpdated) appNotes else webUpdated?.optString("notes")
+            items.add(UpdateBannerItem(if (appUpdated) installedKey else "updated:$version",
+                strings.getString(R.string.ota_updated_to, version), "", strings.getString(R.string.ota_whats_new_link),
+                { showUpdateNotes(notes) }, brief = true, linkAction = true))
         }
         for ((channel, version, transfer) in listOf(
             Triple("web", state.optString("webDownloadVersion"), state.optJSONObject("webTransfer")),
@@ -608,47 +726,57 @@ class MainActivity : BridgeActivity() {
         )) {
             if (version.isBlank()) continue
             val total = transfer?.optLong("total") ?: 0
-            val progress = if (total > 0) (100.0 * transfer!!.optLong("done") / total).toInt().coerceIn(0, 100) else null
+            val done = transfer?.optLong("done") ?: 0
+            val progress = if (total > 0) (100.0 * done / total).toInt().coerceIn(0, 100) else null
             items.add(UpdateBannerItem("download:$channel:$version",
-                strings.getString(R.string.ota_downloading), strings.getString(R.string.ota_keep_using_app), percent = progress, downloading = true,
-                speed = transfer?.optLong("speed") ?: 0,
+                strings.getString(R.string.ota_downloading, version), strings.getString(R.string.ota_keep_using_app), percent = progress, downloading = true,
+                speed = transfer?.optLong("speed") ?: 0, received = done, total = total,
                 step = UpdateBannerStep("$channel:$version", UpdateBannerPhase.DOWNLOADING)))
         }
         val appReady = state.optJSONObject("shellReady")
         (appReady ?: state.optJSONObject("shellAvailable"))?.let {
             val version = it.optString("version")
-            items.add(if (appReady != null) UpdateBannerItem("app-ready:$version", strings.getString(R.string.ota_app_update_ready), strings.getString(R.string.ota_version_ready, version),
-                strings.getString(R.string.ota_install_update, version), { installWithNotificationPermission { updater.shell.installFromWeb(this) } }, keepOnAction = true,
+            items.add(if (appReady != null) UpdateBannerItem("app-ready:$version", strings.getString(R.string.ota_app_ready_version, version), "",
+                strings.getString(R.string.ota_banner_install_restart), { installWithNotificationPermission { updater.shell.installFromWeb(this) } }, keepOnAction = true,
                 step = UpdateBannerStep("shell:$version", UpdateBannerPhase.READY))
-            else UpdateBannerItem("app-offer:$version", updateOfferTitle(strings.getString(R.string.ota_app_update), version, it.optLong("size", -1)), "",
-                strings.getString(R.string.ota_get_update, version), { updater.shell.downloadOffered() }, keepOnAction = true,
+            else UpdateBannerItem("app-offer:$version", updateOfferTitle(strings.getString(R.string.ota_app_update), version, it.optLong("size", -1), locale), "",
+                strings.getString(R.string.ota_banner_download), { updater.shell.downloadOffered() }, keepOnAction = true,
                 step = UpdateBannerStep("shell:$version", UpdateBannerPhase.AVAILABLE)))
         }
         val staged = state.optJSONObject("staged")
         (staged ?: state.optJSONObject("available"))?.let {
             val version = it.optString("version")
             items.add(when {
-                staged != null -> UpdateBannerItem("ready:$version", strings.getString(R.string.ota_update_ready), strings.getString(R.string.ota_restart_to_update, strings.getString(R.string.app_name)), strings.getString(R.string.ota_install_update, version), { restartBundle(startupRecovery = updater.watchdog.reason != null) }, keepOnAction = true,
+                staged != null -> UpdateBannerItem("ready:$version", strings.getString(R.string.ota_ready_version, version), "",
+                    strings.getString(R.string.ota_banner_install_restart), { restartBundle(startupRecovery = updater.watchdog.reason != null) }, keepOnAction = true,
                     step = UpdateBannerStep("web:$version", UpdateBannerPhase.READY))
-                it.optBoolean("needsShell") -> UpdateBannerItem("app-first:$version", strings.getString(R.string.ota_update_version, version), strings.getString(R.string.ota_app_update_first))
-                else -> UpdateBannerItem("offer:$version", updateOfferTitle(strings.getString(R.string.ota_update), version, it.optLong("size", -1)), "", strings.getString(R.string.ota_get_update, version), { updater.download(installAfterDownload = false) }, keepOnAction = true,
+                it.optBoolean("needsShell") -> UpdateBannerItem("app-first:$version", strings.getString(R.string.ota_app_required),
+                    strings.getString(R.string.ota_app_required_text, version), strings.getString(R.string.ota_updates), ::showSettings, symbol = "↓")
+                else -> UpdateBannerItem("offer:$version", updateOfferTitle(strings.getString(R.string.ota_banner_new_update), version, it.optLong("size", -1), locale), "", strings.getString(R.string.ota_banner_download), { updater.download(installAfterDownload = false) }, keepOnAction = true,
                     step = UpdateBannerStep("web:$version", UpdateBannerPhase.AVAILABLE))
             })
         }
         val error = updateFailure(updater.status, updater.shell.status)
-        if (error != null) items.add(UpdateBannerItem("error:$error", strings.getString(R.string.ota_update_failed), strings.getString(R.string.ota_try_connection_again), strings.getString(R.string.ota_details), ::showLogs))
+        if (error != null) items.add(UpdateBannerItem("error:$error", strings.getString(R.string.ota_update_failed),
+            strings.getString(R.string.ota_retry_from_updates), strings.getString(R.string.ota_updates), ::showSettings))
         val installing = state.optString("installingVersion").takeIf { it.isNotBlank() }
         if (installing != null) {
             val target = "${state.optString("installingChannel")}:$installing"
-            items.add(UpdateBannerItem("installing:$target", strings.getString(R.string.ota_installing), strings.getString(R.string.ota_update_version, installing), installing = true,
+            val work = updater.activation.current?.takeIf { target == "web:${it.version}" && it.total > 0 }
+            items.add(UpdateBannerItem("installing:$target", strings.getString(R.string.ota_installing_version, installing), "",
+                percent = work?.let { it.done * 100 / it.total }, installing = true,
                 step = UpdateBannerStep(target, UpdateBannerPhase.INSTALLING)))
         }
         val queue = items.filter { it.key !in nativeSeen }
         val rolledBackVersion = state.optJSONObject("rolledBack")?.optString("from")
-        val next = bannerFlow.select(queue, failed = { step ->
-            if (step.target.startsWith("shell:")) updateFailure(updater.shell.status) != null
-            else step.target == "web:$rolledBackVersion" || updateFailure(updater.status) != null
-        }, preferred = queue.firstOrNull { it.brief } ?: queue.firstOrNull { it.key == activeBannerKey })
+        val completed = queue.firstOrNull { it.brief }
+        if (completed != null) bannerFlow.clear()
+        val transient = queue.firstOrNull { it.key in transientBanners }
+        val next = if (installing == null && (transient != null || completed != null)) transient ?: completed
+            else bannerFlow.select(queue, failed = { step ->
+                if (step.target.startsWith("shell:")) updateFailure(updater.shell.status) != null
+                else step.target == "web:$rolledBackVersion" || updateFailure(updater.status) != null
+            }, preferred = queue.firstOrNull { it.key == activeBannerKey })
         activeBannerKey = next?.key
         val bandInset = maxOf(safeArea.top, systemTop)
         val bandHeight = if (bandInset > 0) bandInset + 14.dp else 0
@@ -670,28 +798,52 @@ class MainActivity : BridgeActivity() {
     }
     private fun logsText() = "${logEnvironment()}\nUpdate address: ${updater.url}\nApp ${BuildConfig.VERSION_NAME} / API ${BuildConfig.SHELL_API}\n${updater.status} · ${updater.shell.status}\n\n${updater.checks.summary()}\n${updater.checks.snapshot()}\n\nstate.json\n${updater.engine.stateJson()}\n\nNewest first (last 500 lines)\n${updater.engine.log.read()}"
     private fun renderLogs() { logText?.text = logsText() }
+    private fun showUpdateNotes(notes: String?) {
+        if (notes.isNullOrBlank()) { openReleases(); return }
+        val dialog = NativeLook.dialog(theme, strings.getString(R.string.ota_whats_new))
+            .setMessage(notes).setPositiveButton(strings.getString(R.string.ota_close), null).create()
+        NativeLook.show(dialog)
+    }
     private fun copyLogs() {
         (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText(strings.getString(R.string.ota_log_clipboard_label), logsText()))
         Toast.makeText(this, strings.getString(R.string.ota_logs_copied), Toast.LENGTH_SHORT).show()
     }
     fun showLogs() {
         if (logDialog?.isShowing == true) return
-        logText = TextView(theme).apply { textSize = 12f; typeface = android.graphics.Typeface.MONOSPACE; setTextIsSelectable(true); setPadding(20.dp,8.dp,20.dp,8.dp) }
-        val scroll = ScrollView(theme).apply { addView(logText) }
-        logDialog = NativeLook.dialog(theme, strings.getString(R.string.ota_live_logs)).setView(scroll)
-            .setPositiveButton(strings.getString(R.string.ota_close), null).setNeutralButton(strings.getString(R.string.ota_copy),null).setNegativeButton(strings.getString(R.string.ota_clear),null).create()
-        logDialog!!.setOnShowListener {
-            logDialog!!.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener { copyLogs() }
-            logDialog!!.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener { updater.engine.log.clear(); renderLogs() }
+        val theme = this.theme
+        val light = NativeLook.light(this)
+        val palette = NativeLook.palette(light)
+        logText = TextView(theme).apply {
+            textSize = 12f; typeface = Typeface.MONOSPACE; setTextIsSelectable(true)
+            setLineSpacing(2.dp.toFloat(), 1f); setPadding(12.dp, 12.dp, 12.dp, 12.dp)
+        }
+        val scroll = ScrollView(theme).apply {
+            addView(logText)
+            background = NativeLook.surface(theme, if (light) palette.surface2 else 0xFF111111.toInt(), palette.line)
+        }
+        val box = LinearLayout(theme).apply { orientation = LinearLayout.VERTICAL; setPadding(20.dp, 4.dp, 20.dp, 12.dp) }
+        box.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        val dialog = NativeLook.dialog(theme, strings.getString(R.string.ota_live_logs)).setView(box).create()
+        // Copy is the first and primary action in the live log viewer (owner, 2026-11-26).
+        val copy = NativeLook.button(theme, primary = true).apply { setText(R.string.ota_copy); setOnClickListener { copyLogs() } }
+        val clear = NativeLook.button(theme, ghost = true).apply {
+            setText(R.string.ota_clear); setOnClickListener { updater.engine.log.clear(); renderLogs() }
+        }
+        val close = NativeLook.button(theme).apply { setText(R.string.ota_close); setOnClickListener { dialog.dismiss() } }
+        box.addView(actionRow(theme, copy, clear, close), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = 8.dp
+        })
+        logDialog = dialog
+        dialog.setOnShowListener {
             renderLogs(); handler.postDelayed(refreshLogs,1000)
         }
-        logDialog!!.setOnDismissListener { handler.removeCallbacks(refreshLogs); logDialog = null; logText = null; if (!isDestroyed) refreshRecovery() }
-        NativeLook.show(logDialog!!)
+        dialog.setOnDismissListener { handler.removeCallbacks(refreshLogs); logDialog = null; logText = null; if (!isDestroyed) refreshRecovery() }
+        NativeLook.show(dialog, outlined = true)
     }
     override fun onDestroy() {
         handler.removeCallbacks(recoveryTick); recoveryDialog?.dismiss(); updateBanner?.clear()
         debugDialog?.setOnDismissListener(null); debugDialog?.dismiss(); refreshDebugSettings = null
-        unregisterReceiver(screenReceiver)
+        if (bridge != null) unregisterReceiver(screenReceiver)
         handler.removeCallbacks(refreshLogs); logDialog?.setOnDismissListener(null); logDialog?.dismiss()
         updater.onChange = null; updater.onToast = null
         super.onDestroy()

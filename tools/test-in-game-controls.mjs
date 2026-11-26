@@ -39,6 +39,21 @@ function guide(mode, board) {
   $('dialog .gs-guide').click();
   assert.equal(document.querySelectorAll('dialog').length, 1);
   assert.equal($('dialog h2').textContent, t(`howto.${mode}.0`));
+  const dots = $('.chapter-dots'), prev = $('[data-step="-1"]'), next = $('[data-step="1"]');
+  const page = () => dots.style.getPropertyValue('--chapter');
+  assert.equal(page(), '0');
+  assert.ok(prev.disabled);
+  next.click();
+  assert.equal($('.chapter-dots'), dots);
+  assert.equal(page(), '1');
+  assert.ok(!prev.disabled);
+  window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+  assert.equal(page(), '0');
+  for (let i = 1; i < dots.children.length; i++) next.click();
+  assert.equal(page(), String(dots.children.length - 1));
+  assert.ok(next.disabled);
+  for (let i = 1; i < dots.children.length; i++) prev.click();
+  assert.equal(page(), '0');
   if (mode !== 'guess') {
     $('[data-step="1"]').click();
     if (mode === 'connect') {

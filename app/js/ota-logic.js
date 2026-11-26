@@ -65,11 +65,14 @@ export function selectFlow(state, request, previous, version = state.webVersion,
   if (active) return active;
   const items = offers(state, version);
   const downloads = transfers(state, version, items);
-  const ready = items.find(item => item.phase === 'ready' && sameUpdate(item, request));
-  if (request?.phase === 'downloading' && ready) return ready;
-  const transfer = downloads.find(item => sameUpdate(item, request));
-  if (transfer) return { ...transfer, transfer: transfer.transfer || request.transfer };
-  if (request && now < request.until && items.some(item => sameUpdate(item, request))
+  if (request?.phase === 'downloading') {
+    const ready = items.find(item => item.phase === 'ready' && sameUpdate(item, request));
+    if (ready) return ready;
+    const transfer = downloads.find(item => sameUpdate(item, request));
+    // Preserve the last progress across non-atomic native snapshots (owner, 2026-11-26).
+    if (transfer) return { ...request, transfer: transfer.transfer || request.transfer, until: now + 6000 };
+  }
+  if (request && now < request.until && (request.phase === 'downloading' || items.some(item => sameUpdate(item, request)))
     && (!failureStatus(state, request.channel) || request.baseline === failureStatus(state, request.channel))
     && !(request.channel === 'web' && state.rolledBack?.from === request.version)) return request;
   const continuing = downloads.find(item => sameUpdate(item, previous));
@@ -81,14 +84,23 @@ export function noticeKey(type, version, channel, versionCode) {
   return [type, channel, channel === 'shell' && versionCode ? versionCode : version].filter(Boolean).join(':');
 }
 
+const megabytes = bytes => decimal((bytes / 1000000).toFixed(1));
+
 export function sizeText(bytes) {
   if (!Number.isFinite(bytes) || bytes < 0) return '';
-  if (bytes >= 1048576) return t('ota.mib', { n: decimal((bytes / 1048576).toFixed(1)) });
-  if (bytes >= 1024) return t('ota.kib', { n: decimal((bytes / 1024).toFixed(1)) });
+  return t('ota.mb', { n: megabytes(bytes) });
+}
+
+export const amountText = (done, total) => Number.isFinite(total) && total >= 0
+  ? t('ota.transfer', { done: megabytes(done || 0), total: sizeText(total) }) : sizeText(done);
+
+function transferSize(bytes) {
+  if (bytes >= 1000000) return sizeText(bytes);
+  if (bytes >= 1000) return t('ota.kb', { n: decimal((bytes / 1000).toFixed(1)) });
   return t('ota.bytes', { n: Math.round(bytes) });
 }
 
-export const speedText = speed => speed > 0 ? t('ota.perSecond', { size: sizeText(speed) }) : '';
+export const speedText = speed => speed > 0 ? t('ota.perSecond', { size: transferSize(speed) }) : '';
 
 export function failureKind(code, message = '') {
   if (code === 'OFFLINE') return 'offline';
@@ -112,6 +124,6 @@ export function checkStatus(state, requestedAt) {
   if (failure || checks.failed) {
     return { kind: failureKind(failure?.code, failure?.error || checks.summary), last, previousSuccess: lastSuccess > lastAttempt };
   }
-  const found = offers(state).length;
-  return { kind: found ? 'available' : last ? 'upToDate' : 'neverChecked', last };
+  const [found] = offers(state);
+  return found ? { kind: 'available', last, version: found.version } : { kind: last ? 'upToDate' : 'neverChecked', last };
 }

@@ -1,4 +1,4 @@
-// Last games snapshots and read-only result screens (owner, 2026-11-26).
+// Saved games snapshots and read-only result screens (owner, 2026-11-26).
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { JSDOM } from 'jsdom';
@@ -22,7 +22,7 @@ globalThis.fetch = async path => {
 const { stats, settings, newGame, getSave, deleteSave, listFinished, listKept, getFinished, recordMove, recordEnd, recordLettersEnd,
   recordConnectEnd, recordTilesEnd } = await import('../app/js/store.js');
 const { newGame: newTiles, apply } = await import('../app/js/tiles.js');
-const { menu, lastGamesScreen, statsScreen } = await import('../app/js/screens.js');
+const { menu, games, lastGamesScreen, statsScreen } = await import('../app/js/screens.js');
 const { gameScreen } = await import('../app/js/game.js');
 const { lettersGameScreen } = await import('../app/js/letters-game.js');
 const { connectGameScreen } = await import('../app/js/connect-game.js');
@@ -86,7 +86,7 @@ for (const [game, screen, mode, result] of [
   const cleanup = await screen(root, game.id, true);
   assert.ok(root.querySelector(`[data-screen="${mode}"] ${result}`));
   if (game === letters) assert.equal(root.querySelector('.lt-board .lt-row:last-child').textContent, 'stare');
-  assert.ok(root.querySelector('.topbar a[href="#/last-games"]'));
+  assert.equal(root.querySelector('.topbar a[href="#/last-games"]').textContent, '← Saved games');
   assert.equal(root.querySelector('input, #give-up, .tl-play, [href^="#/new"], [data-rematch]'), null);
   assert.equal(root.querySelector('[data-keep]').getAttribute('aria-pressed'), 'false');
   if (game === tiles) {
@@ -162,16 +162,38 @@ for (const [game, screen, mode, result] of [
 assert.deepEqual({ ...localStorage }, before);
 assert.deepEqual(fetches.sort(), ['data/en/tiles-familiar.bin', 'data/en/tiles.bin']);
 
+// A resumable game still has its section heading and card (owner, 2026-11-26).
+const resumable = newGame({ lang: 'en', cat: 'all', diff: 'normal' });
+games(root, 'guess', () => {});
+assert.equal(root.querySelector('h1').textContent, t('games.title'));
+assert.ok(root.querySelector('.save'));
+assert.equal(root.querySelector('.empty'), null);
+deleteSave(resumable.id);
+
 for (const lang of ['en', 'pl']) {
   setLang(lang);
   menu(root, null, () => {});
-  assert.equal(root.querySelector('a[href="#/last-games"]').textContent, t('menu.lastGames'));
+  const label = lang === 'en' ? 'Saved games' : 'Zapisane gry';
+  const nav = root.querySelector('.games + .menu.cards');
+  assert.equal(nav.previousElementSibling.children.length, 4);
+  assert.deepEqual([...nav.children].map(el => el.hash), ['#/last-games', '#/stats', '#/achievements', '#/collection', '#/settings']);
+  assert.equal(nav.firstElementChild.textContent, label);
   assert.deepEqual([...root.querySelectorAll('.g-desc')].map(el => el.textContent),
     ['guess', 'letters', 'connect', 'tiles'].map(mode => t('menu.desc.' + mode)));
   lastGamesScreen(root);
+  assert.equal(root.querySelector('h1').textContent, label);
   assert.deepEqual([...root.querySelectorAll('.last-game')].map(el => el.hash), newest.map(id => '#/result/' + id));
   assert.equal(root.querySelectorAll('.last-game time[datetime]').length, 5);
   assert.ok(root.querySelector('.last-game').textContent.includes(t('tiles.end.wins', { name: '<Ada>' })));
+  lastGamesScreen(root, true);
+  assert.equal(root.querySelector('.topbar a[href="#/last-games"]').textContent, `← ${label}`);
+  for (const mode of ['guess', 'letters', 'connect', 'tiles']) {
+    games(root, mode, () => {});
+    assert.equal(root.querySelector('h1'), null);
+    assert.equal(root.querySelector('.empty .display').textContent, t('games.emptyTitle'));
+    assert.equal(root.querySelector('.empty.card'), null);
+    assert.equal(root.querySelector('.games-actions .btn-primary').textContent.trim(), `${t('games.new')} →`);
+  }
   const hours = lang === 'pl' ? '2 godz. 3 min' : '2 h 3 min';
   assert.deepEqual([null, 0, 57000, 60000, 252000, 7380000].map(duration), [null, '0 s', '57 s', '1 min', '4 min 12 s', hours]);
   stats.timeMs = 7380000;
@@ -262,4 +284,4 @@ assert.ok(root.querySelector('.tl-replay-controls p').textContent.includes(t('ti
 rejectWords(new Error('offline'));
 cleanup();
 window.close();
-console.log('Last games, home cards and statistics duration tests passed');
+console.log('Saved games, home cards, game lists and statistics duration tests passed');

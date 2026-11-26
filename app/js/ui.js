@@ -357,9 +357,15 @@ export function openRules(mode, topicsHtml = null) {
       `<span class="lt ${TILE[colours[i]]}">${esc(ch)}</span>`).join('')}</div></div><p class="help">${t('howto.letters.example.text', { guess, answer })}</p>`;
   }
   const { dlg, close } = openDialog(`${GLYPH[mode]} ${t('mode.' + mode)} · ${t('howto.title')}`,
-    '<div class="chapter-title"><span class="chapter-count"></span><h2 id="rules-chapter"></h2></div><div class="chapter-body"></div><nav class="rules-nav"></nav>');
+    `<div class="chapter-title"><span class="chapter-count"></span><h2 id="rules-chapter"></h2></div><div class="chapter-body"></div>
+    <nav class="rules-nav"><button type="button" data-step="-1" aria-label="${t('howto.prev')}">←</button>
+      <div class="chapter-dots" aria-hidden="true">${chapters.map(() => '<i></i>').join('')}</div>
+      <button type="button" data-step="1" aria-label="${t('howto.next')}">→</button></nav>`);
   dlg.classList.add('rules-window', 'rules-a');
   dlg.setAttribute('aria-label', `${t('mode.' + mode)} · ${t('howto.title')}`);
+  // Keep the same indicator across pages so it can slide between dots (owner, 2026-11-26).
+  const dots = dlg.querySelector('.chapter-dots');
+  const prev = dlg.querySelector('[data-step="-1"]'), next = dlg.querySelector('[data-step="1"]');
   let at = 0, start = null;
   const paint = () => {
     dlg.querySelector('.chapter-count').textContent = `${at + 1} / ${chapters.length}`;
@@ -367,7 +373,9 @@ export function openRules(mode, topicsHtml = null) {
     const body = dlg.querySelector('.chapter-body');
     body.innerHTML = chapters[at].body;
     body.scrollTop = 0;
-    dlg.querySelector('.rules-nav').innerHTML = `<button type="button" data-step="-1" aria-label="${t('howto.prev')}"${at === 0 ? ' disabled' : ''}>←</button><div class="chapter-dots" aria-hidden="true">${chapters.map((_, i) => `<i class="${i === at ? 'active' : ''}"></i>`).join('')}</div><button type="button" data-step="1" aria-label="${t('howto.next')}"${at === chapters.length - 1 ? ' disabled' : ''}>→</button>`;
+    dots.style.setProperty('--chapter', at);
+    prev.disabled = at === 0;
+    next.disabled = at === chapters.length - 1;
   };
   const step = n => { at = Math.max(0, Math.min(chapters.length - 1, at + n)); paint(); };
   dlg.addEventListener('click', e => { const b = e.target.closest('[data-step]'); if (b) step(+b.dataset.step); });

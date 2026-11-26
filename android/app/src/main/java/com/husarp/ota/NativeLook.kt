@@ -18,6 +18,7 @@ import kotlin.math.roundToInt
 internal object NativeLook {
     private const val LIGHT = "light"
     val accent = Color.rgb(219, 81, 38)
+    val updateBlue = 0xFF65A9FF.toInt()
     val danger = Color.rgb(192, 57, 43)
 
     data class Palette(val bg: Int, val surface: Int, val surface2: Int, val line: Int, val text: Int, val muted: Int)
@@ -39,6 +40,22 @@ internal object NativeLook {
 
     private fun palette(context: Context) = palette(light(context))
 
+    // Refined native notices and dialogs use blue status marks (owner, 2026-11-26).
+    fun noticeColor(context: Context) = if (light(context)) 0xFF215B9A.toInt() else updateBlue
+    fun noticeOutline(context: Context) = if (light(context)) 0xFFC6D6E9.toInt() else 0xFF2A3C52.toInt()
+
+    fun noticeMark(context: Context, symbol: String) = TextView(context).apply {
+        text = symbol
+        textSize = 17f
+        typeface = Typeface.DEFAULT_BOLD
+        gravity = android.view.Gravity.CENTER
+        setTextColor(noticeColor(context))
+        background = surface(context, (noticeColor(context) and 0xFFFFFF) or 0x20000000).apply {
+            cornerRadius = context.dp(8).toFloat()
+        }
+        importantForAccessibility = android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO
+    }
+
     private fun theme(context: Context) = if (light(context)) R.style.OtaDialog_Light else R.style.OtaDialog_Dark
 
     fun context(localized: Context) = ContextThemeWrapper(localized, theme(localized))
@@ -52,10 +69,13 @@ internal object NativeLook {
             })
         }
 
-    fun show(dialog: AlertDialog, primaryButton: Int? = AlertDialog.BUTTON_POSITIVE, destructiveButton: Int? = null) {
+    fun show(dialog: AlertDialog, primaryButton: Int? = AlertDialog.BUTTON_POSITIVE, destructiveButton: Int? = null, outlined: Boolean = false) {
         dialog.show()
         val context = dialog.context
-        dialog.window?.setBackgroundDrawable(InsetDrawable(surface(context, palette(context).surface), context.dp(16)))
+        val palette = palette(context)
+        dialog.window?.setBackgroundDrawable(InsetDrawable(
+            surface(context, palette.surface, if (outlined) palette.line else null), context.dp(16)
+        ))
         for (which in listOf(AlertDialog.BUTTON_POSITIVE, AlertDialog.BUTTON_NEGATIVE, AlertDialog.BUTTON_NEUTRAL)) {
             dialog.getButton(which)?.let { styleButton(it, which == primaryButton, which == destructiveButton) }
         }
@@ -76,9 +96,11 @@ internal object NativeLook {
         outline?.let { setStroke(context.dp(1), it) }
     }
 
-    fun button(context: Context, primary: Boolean = false) = Button(context).apply { styleButton(this, primary) }
+    fun button(context: Context, primary: Boolean = false, ghost: Boolean = false) = Button(context).apply {
+        styleButton(this, primary, ghost = ghost)
+    }
 
-    private fun styleButton(button: Button, primary: Boolean, destructive: Boolean = false) = with(button) {
+    private fun styleButton(button: Button, primary: Boolean, destructive: Boolean = false, ghost: Boolean = false) = with(button) {
         val palette = palette(context)
         val enabled = if (primary) accent else palette.surface2
         val disabled = intArrayOf(-android.R.attr.state_enabled)
@@ -86,12 +108,13 @@ internal object NativeLook {
             color = ColorStateList(arrayOf(disabled, intArrayOf()), intArrayOf(palette.surface2, enabled))
         }
         backgroundTintList = null
-        val ripple = RippleDrawable(ColorStateList.valueOf(0x22888888), fill, null)
+        val ripple = if (ghost) RippleDrawable(ColorStateList.valueOf(0x22888888), null, surface(context, Color.WHITE))
+            else RippleDrawable(ColorStateList.valueOf(0x22888888), fill, null)
         background = InsetDrawable(ripple, context.dp(2))
         stateListAnimator = null
         setTextColor(ColorStateList(
             arrayOf(disabled, intArrayOf()),
-            intArrayOf(palette.muted, if (primary) Color.WHITE else if (destructive) danger else palette.text)
+            intArrayOf(palette.muted, if (primary) Color.WHITE else if (destructive) danger else if (ghost) palette.muted else palette.text)
         ))
         if (destructive) fill.setStroke(context.dp(1), danger)
         typeface = Typeface.DEFAULT

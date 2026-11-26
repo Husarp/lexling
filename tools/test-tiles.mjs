@@ -1291,12 +1291,20 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
       check(`${lang}/${kind}: Veto is offered only with other people`, assists.innerHTML.includes('data-rule="veto"'), expected);
       check(`${lang}/${kind}: Veto stays outside the records warning`, root.querySelector('.help-warn').hidden, true);
       check(`${lang}/${kind}: Veto alone does not make own rules`, root.querySelector('.tl-rules .state').textContent, t('tiles.rules.standard'));
-      check(`${lang}/${kind}: the summary names Veto when available and on`, root.querySelector('.summary').innerHTML.includes(`<span>${t('tiles.r.veto')}</span>`), expected);
+      check(`${lang}/${kind}: Start stands alone`, /<div class="cta">\s*<button[^>]+type="submit"><\/button>\s*<\/div>/.test(root.innerHTML), true);
+      check(`${lang}/${kind}: the Look section has a translated heading`, root.innerHTML.includes(`${UI_ICONS.display}${lang === 'pl' ? 'Wygląd' : 'Look'}</summary>`), true);
       if (expected) {
         check(`${lang}/${kind}: Veto has its translated help`, assists.innerHTML.includes(t('tiles.r.vetoHelp')), true);
         assists.fire({ rule: 'veto', v: 'false' });
-        check(`${lang}/${kind}: turning Veto off updates the summary`, root.querySelector('.summary').innerHTML.includes(`<span>${t('tiles.r.veto')}</span>`), false);
+        check(`${lang}/${kind}: turning Veto off hides the threshold`, assists.innerHTML.includes('data-veto-step'), false);
         assists.fire({ rule: 'veto', v: 'true' });
+      }
+      if (kind === 'alone') {
+        const hints = root.querySelector('#hints');
+        hints.fire({ hints: 'true' });
+        check(`${lang}: enabling hints shows the practice warning`, [root.querySelector('.help-warn').hidden, root.querySelector('.help-warn span').textContent], [false, t('help.setupPractice')]);
+        hints.fire({ hints: 'false' });
+        check(`${lang}: disabling hints hides the practice warning`, root.querySelector('.help-warn').hidden, true);
       }
       await root.querySelector('form').listeners.submit({ preventDefault() {} });
       check(`${lang}/${kind}: Start forces Veto off without another person`, ctx.created.rules.veto, expected);

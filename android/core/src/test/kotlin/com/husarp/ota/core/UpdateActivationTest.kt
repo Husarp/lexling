@@ -36,6 +36,34 @@ class UpdateActivationTest {
         assertNull(rebooted.takeUpdatedNotice(restarted.version, restarted.token))
     }
 
+    @Test fun pendingFileChecksAndActivationReportCompletedWork() {
+        val app = Harness()
+        val version = "1.0.1"
+        val pending = bundle(version, listOf(entry("index.html", "changed"), entry("stable.css", "style")))
+        val staging = app.stage(pending)
+        staging.resolve("files").mkdir()
+        staging.resolve("files/index.html").writeText("changed")
+        app.engine.commit(pending, staging)
+
+        val counts = mutableListOf<UpdateActivation.Progress>()
+        val launch = app.engine.coldStart(onProgress = { counts.add(it) })
+
+        assertEquals(version, launch.version)
+        assertEquals((0..2).map { UpdateActivation.Progress(version, UpdateActivation.Step.CHECKING_FILES, it, 2) } +
+            (0..2).map { UpdateActivation.Progress(version, UpdateActivation.Step.APPLYING, it, 2) }, counts)
+    }
+
+    @Test fun missingPendingFileDoesNotAdvanceToActivation() {
+        val app = Harness()
+        val pending = bundle("1.0.1", listOf(entry("index.html", "changed")))
+        app.engine.commit(pending, app.stage(pending))
+
+        val launch = app.engine.coldStart { fail("An incomplete bundle must not activate") }
+
+        assertEquals(app.embedded.version, launch.version)
+        assertNull(app.engine.snapshot().pending)
+    }
+
     @Test fun staleApkOfferCannotReturnWhileReadyInstallingOrAfterRestart() {
         assertTrue(isUpdateOffer(1400, 1300, null, null))
         assertFalse(isUpdateOffer(1400, 1300, 1400, null))

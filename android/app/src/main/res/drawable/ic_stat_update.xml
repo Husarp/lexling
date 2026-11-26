@@ -4,7 +4,9 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Tiles square with a cut-out L for the status bar (owner, 2026-11-26). -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M0,2h5v15h6l-2,5H0zM19,0h5l-9,24h-5z" />
+        android:fillType="evenOdd"
+        android:pathData="M3,0H21Q24,0 24,3V21Q24,24 21,24H3Q0,24 0,21V3Q0,0 3,0Z M7,5H10.5V15.5H17V19H7Z" />
 </vector>

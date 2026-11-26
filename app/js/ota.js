@@ -2,7 +2,7 @@ import { VERSION } from './version.js';
 import { t, esc, dateTime } from './i18n.js';
 import { settings, saveSettings } from './store.js';
 import { newer } from './whatsnew.js';
-import { defaults, isNewShell, offers, selectFlow, failureStatus, noticeKey, sizeText, speedText, failureKind, checkStatus } from './ota-logic.js';
+import { defaults, isNewShell, offers, selectFlow, failureStatus, noticeKey, sizeText, amountText, speedText, failureKind, checkStatus } from './ota-logic.js';
 
 const plugin = () => typeof window !== 'undefined' && window.Capacitor?.getPlatform?.() === 'android'
   ? window.Capacitor.Plugins?.Ota : null;
@@ -18,46 +18,59 @@ const fields = [
 ];
 const button = (action, label, style = 'outline') =>
   `<button type="button" class="btn btn-${style}" data-ota-action="${action}">${label}</button>`;
-const newsLink = () => `<a class="btn btn-outline" href="#/whatsnew">${t('ota.whatsNew')}</a>`;
-const progressMarkup = () => `<div class="ota-progress" hidden><div data-ota-transfer></div>
-  <progress max="100" aria-label="${t('ota.progress')}"></progress><span>${t('ota.keepPlaying')}</span></div>`;
-const actionText = item => t(item.phase === 'ready' ? 'ota.install' : 'ota.get', { v: item.version });
+const icons = {
+  download: '<path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4"/>',
+  ready: '<path d="m5 12 4 4L19 6"/>',
+  installing: '<path d="M20 11a8 8 0 1 0-2 6m2-12v6h-6"/>',
+  rollback: '<path d="M9 5l-5 5 5 5m-5-5h10a5 5 0 0 1 0 10"/>',
+  warning: '<path d="M12 5v9m0 4h.01"/>',
+};
+const progressMarkup = () => `<div class="ota-progress" hidden>
+  <progress max="100" aria-label="${t('ota.progress')}"></progress>
+  <span data-ota-transfer></span><p data-ota-keep-playing>${t('ota.keepPlaying')}</p></div>`;
+const actionText = item => t(item.phase === 'ready' ? (item.channel === 'web' ? 'ota.installRestart' : 'ota.install') : 'ota.get', { v: item.version });
 const route = () => window.location.hash.replace(/^#\/?/, '').split('/')[0];
 const gameOnScreen = () => ['game', 'host', 'join', 'online'].includes(route());
 
 function controlsMarkup() {
-  return fields.map(([key, values]) => {
+  const rows = fields.map(([key, values]) => {
     const label = t('ota.' + key);
-    const controls = values ? `<div class="seg" role="group" aria-label="${label}">${values.map(value => {
+    const controls = values ? `<select class="input">${values.map(value => {
       const title = key === 'checkFrequency' ? t('ota.frequency.' + value)
         : value === -1 ? t('ota.noLimit') : value === 0 ? t('ota.never') : t('ota.mib', { n: value });
-      return `<button type="button" data-ota-value="${value}">${title}</button>`;
-    }).join('')}</div>` : `<button type="button" class="toggle" role="switch" aria-label="${label}"></button>`;
-    return `<div class="row ota-control" data-ota-field="${key}"><div class="row-text"><strong>${label}</strong></div>${controls}</div>`;
-  }).join('') + `<p class="ota-muted">${t('ota.limitNote')}</p>`;
+      return `<option value="${value}">${title}</option>`;
+    }).join('')}</select>` : `<button type="button" class="toggle" role="switch" aria-label="${label}"></button>`;
+    return `<div class="row ota-control" data-ota-field="${key}">${values
+      ? `<label class="ota-select"><span>${label}</span>${controls}</label>`
+      : `<strong class="row-text">${label}</strong>${controls}`}</div>`;
+  });
+  return `${settingsGroup('automatic', rows.slice(0, 4).join(''))}
+    ${settingsGroup('downloads', rows.slice(4).join(''))}<p class="ota-muted">${t('ota.limitNote')}</p>`;
 }
+
+const settingsGroup = (title, contents) => `<section class="ota-group">
+  <h3>${t('ota.group.' + title)}</h3><div class="ota-group-body">${contents}</div></section>`;
 
 function paintControls(container, values, disabled) {
   for (const row of container.querySelectorAll('[data-ota-field]')) {
     const key = row.dataset.otaField;
     row.hidden = key === 'updateNotifications' && typeof values?.[key] !== 'boolean';
-    for (const control of row.querySelectorAll('button')) {
-      const toggle = control.classList.contains('toggle');
-      const on = toggle ? values?.[key] === true : String(values?.[key]) === control.dataset.otaValue;
+    const control = row.querySelector('button, select');
+    if (control.matches('button')) {
+      const on = values?.[key] === true;
       control.classList.toggle('on', on);
-      control.setAttribute(toggle ? 'aria-checked' : 'aria-pressed', on);
-      control.disabled = disabled || !values;
-    }
+      control.setAttribute('aria-checked', on);
+    } else if (control.value !== String(values?.[key] ?? '')) control.value = values?.[key] ?? '';
+    control.disabled = disabled || !values;
   }
 }
 
 function controlChange(target) {
-  const control = target.closest('[data-ota-field] button');
+  const control = target.closest('[data-ota-field] button, [data-ota-field] select');
   if (!control) return null;
   const key = control.closest('[data-ota-field]').dataset.otaField;
-  const value = control.dataset.otaValue;
-  return { [key]: value === undefined ? control.getAttribute('aria-checked') !== 'true'
-    : key === 'checkFrequency' ? value : Number(value) };
+  return { [key]: control.matches('button') ? control.getAttribute('aria-checked') !== 'true'
+    : key === 'checkFrequency' ? control.value : Number(control.value) };
 }
 
 function setText(element, text) {
@@ -70,10 +83,12 @@ function paintProgress(container, item) {
   if (wrap.hidden) return;
   const { done, total, speed } = item.transfer || {};
   const bar = wrap.querySelector('progress');
-  if (total > 0) bar.value = 100 * Math.min(total, Math.max(0, done || 0)) / total;
+  if (total >= 0) bar.value = total === 0 ? 100 : 100 * Math.min(total, Math.max(0, done || 0)) / total;
   else bar.removeAttribute('value');
-  const amount = Number.isFinite(total) ? t('ota.transfer', { done: sizeText(done || 0), total: sizeText(total) }) : sizeText(done);
-  setText(wrap.querySelector('[data-ota-transfer]'), [amount, speedText(speed)].filter(Boolean).join(' · '));
+  const percent = bar.hasAttribute('value') ? Math.floor(bar.value) + '%' : '';
+  setText(wrap.querySelector('[data-ota-transfer]'), [percent, amountText(done, total), speedText(speed)].filter(Boolean).join(' · '));
+  bar.setAttribute('aria-label', t('ota.progress'));
+  setText(wrap.querySelector('[data-ota-keep-playing]'), t('ota.keepPlaying'));
 }
 
 function versionLine(channel, state) {
@@ -282,42 +297,54 @@ function mount(ota) {
     paint();
   }
 
-  function bannerMarkup(item) {
-    let label = '', note = '', action = '';
+  function paintNotice(item) {
+    let label, note = '', action = '', icon = 'warning';
+    const args = { v: item.version };
     if (item.type === 'ready' || item.type === 'available') {
-      label = esc(actionText(item));
-      const size = item.phase === 'available' && sizeText(item.size);
+      icon = item.type === 'ready' ? 'ready' : 'download';
       if (item.needsShell) {
-        label = esc(t('ota.updateVersion', { v: item.version }));
-        note = t('ota.needsApp');
-        action = button('details', t('ota.details'));
+        label = t('ota.appRequired');
+        note = t('ota.needsApp', args);
+        action = button('details', t('ota.details'), 'primary');
       } else {
+        const shell = item.channel === 'shell';
+        label = t(item.type === 'ready' ? (shell ? 'ota.appReady' : 'ota.ready') : (shell ? 'ota.appUpdate' : 'ota.updateVersion'), args);
+        const size = item.type === 'available' && sizeText(item.size);
         if (size) label += ' · ' + size;
-        action = button('offer', label, 'primary');
+        action = button('offer', !shell && item.type === 'available' ? t('ota.download') : esc(actionText(item)), 'primary');
       }
-      if (item.channel === 'shell') note = t('ota.appUpdate');
     } else if (item.type === 'updated') {
-      action = `<a class="ota-notice-link" data-ota-news href="#/whatsnew">${esc(t('ota.updated', { v: item.version }))}</a>`;
+      icon = 'ready';
+      label = t('ota.updated', args);
+      action = `<a class="ota-notice-link" data-ota-news href="#/whatsnew">${t('ota.whatsNew')} <span aria-hidden="true">→</span></a>`;
     } else if (item.type === 'rollback') {
-      label = t('ota.rollback', { from: item.from, to: item.to });
+      icon = 'rollback';
+      label = t('ota.rollback', { v: item.to });
+      note = t('ota.rollbackNote', { v: item.from });
+      action = button('logs', t('ota.rollbackDetails'), 'primary');
     } else if (item.type === 'retry') {
       label = t('ota.check.' + item.kind);
       if (item.kind === 'blocked') note = t('ota.blockedHint');
       action = button('check', t('ota.retry'), 'primary');
     } else if (item.type === 'message') {
       label = t('ota.' + item.kind);
+      if (item.kind === 'finishGame') note = t('ota.finishGameNote');
     } else if (item.type === 'failed') {
-      label = t('ota.actionFailed');
-      action = button('details', t('ota.details'));
+      label = t('ota.failed');
+      note = t('ota.failedNote');
+      action = button('details', t('ota.details'), 'primary');
     } else {
-      label = t('ota.' + item.type, { v: item.version });
+      icon = item.type === 'installing' ? 'installing' : 'download';
+      label = t('ota.' + item.type, args);
     }
-    const close = item.type === 'installing' ? '' : `<button type="button" data-ota-action="dismiss" class="btn btn-ghost ota-dismiss" aria-label="${t('ota.dismiss')}">✕</button>`;
-    // The offer and success text are the actions themselves.
-    const actionOnly = item.type === 'updated' || ((item.type === 'ready' || item.type === 'available') && !item.needsShell);
-    return `<div class="ota-notice-body">${actionOnly ? '' : `<strong role="status">${esc(label)}</strong>`}
-      ${action}${note ? `<p class="ota-muted">${esc(note)}</p>` : ''}
-      ${item.type === 'downloading' ? progressMarkup() : ''}</div>${close}`;
+    banner.querySelector('svg').innerHTML = icons[icon];
+    setText(banner.querySelector('strong'), label);
+    setText(banner.querySelector('[data-ota-note]'), note);
+    const actions = banner.querySelector('[data-ota-notice-action]');
+    if (actions.otaMarkup !== action) { actions.otaMarkup = action; actions.innerHTML = action; }
+    const close = banner.querySelector('.ota-dismiss');
+    close.hidden = item.type === 'installing';
+    close.setAttribute('aria-label', t('ota.dismiss'));
   }
 
   function paintBanner() {
@@ -330,6 +357,11 @@ function mount(ota) {
     if (!banner) {
       banner = doc.createElement('aside');
       banner.className = 'ota-banner';
+      // Keep the banner and progress nodes mounted across phases (owner, 2026-11-26).
+      banner.innerHTML = `<span class="ota-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"></svg></span>
+        <div class="ota-notice-body"><strong role="status"></strong><p class="ota-muted" data-ota-note></p>
+        ${progressMarkup()}<div data-ota-notice-action></div></div>
+        <button type="button" class="btn btn-ghost ota-dismiss" data-ota-action="dismiss">✕</button>`;
       banner.addEventListener('click', event => {
         const action = event.target.closest('button')?.dataset.otaAction;
         if (event.target.closest('[data-ota-news]')) {
@@ -340,18 +372,20 @@ function mount(ota) {
         if (action === 'offer') void activate(shown);
         if (action === 'check') void check();
         if (action === 'details') showSettings();
+        if (action === 'logs') void call('logs').catch(() => say('actionFailed'));
       });
       doc.body.append(banner);
     }
-    const identity = item.key + ':' + html.lang + (item.type === 'available' ? ':' + item.size + ':' + item.needsShell : '');
+    const identity = item.key + ':' + html.lang + ':' + item.version
+      + (item.type === 'available' ? ':' + item.size + ':' + item.needsShell : '');
     if (identity !== bannerKey) {
-      banner.innerHTML = bannerMarkup(item);
+      paintNotice(item);
       banner.dataset.notice = item.type;
       bannerKey = identity;
     }
     shown = item;
     banner.hidden = false;
-    if (item.type === 'downloading') paintProgress(banner, item);
+    paintProgress(banner, item);
     if (item.type === 'rollback') dismiss(item.key);
     if (item.type === 'updated' && !isDismissed(item.key)) {
       dismiss(item.key);
@@ -380,14 +414,16 @@ function mount(ota) {
     if (address.value !== (values?.url || '')) address.value = values?.url || '';
     const status = state && checkStatus(state, requestedAt);
     const label = unavailable ? t('ota.unavailable') : checkBusy ? t('ota.check.checking')
-      : status ? t('ota.check.' + status.kind) : '';
+      : status ? t('ota.check.' + status.kind, { v: status.version }) : '';
     const time = !status?.last ? '' : t(status.previousSuccess ? 'ota.lastSuccess' : 'ota.lastCheck', { d: dateTime(status.last) });
-    setText(find('[data-ota-check]'), [label, time].filter(Boolean).join(' · '));
+    setText(find('[data-ota-check]'), label);
+    setText(find('[data-ota-check-time]'), time);
     setText(find('[data-ota-feedback]'), saveError ? t('ota.saveFailed')
       : actionMessage ? t('ota.' + actionMessage)
       : flow?.phase === 'installing' ? t('ota.installing', { v: flow.version })
         : state && failureStatus(state) ? t('ota.actionFailed') : '');
-    find('[data-ota-needs-app]').hidden = !state || !offers(state).some(offer => offer.needsShell);
+    const requires = state && offers(state).find(offer => offer.needsShell);
+    setText(find('[data-ota-needs-app]'), requires ? t('ota.needsApp', { v: requires.version }) : '');
     paintProgress(panel, flow);
     const versions = find('[data-ota-versions]');
     const markup = state ? versionLine('web', state) + versionLine('shell', state) : '';
@@ -420,23 +456,30 @@ function mount(ota) {
   function renderSettings(container) {
     panel = container;
     panel.classList.add('ota-settings');
-    panel.innerHTML = `<div class="ota-actions">${button('check', t('ota.check'))}${button('offer', '', 'primary')}${newsLink()}
-      <button type="button" class="btn btn-ghost ota-github" data-ota-action="github" aria-label="${t('ota.github')}" title="${t('ota.github')}">${githubIcon}</button></div>
-      <p class="ota-muted" data-ota-check role="status"></p><p class="ota-muted" data-ota-needs-app hidden>${t('ota.needsApp')}</p>
+    panel.innerHTML = `<p class="ota-check-state" data-ota-check role="status"></p>
+      <div class="ota-actions">${button('offer', '', 'primary')}${button('check', t('ota.check'))}</div>
+      <p class="ota-muted" data-ota-check-time></p><p class="ota-muted" data-ota-needs-app></p>
       ${progressMarkup()}<p class="ota-muted" data-ota-feedback role="status"></p>
-      ${controlsMarkup()}<div class="row"><label class="row-text" for="ota-address"><strong>${t('ota.address')}</strong></label>
-      <input id="ota-address" class="input" data-ota-address readonly></div>
-      <div data-ota-versions></div>
+      <div class="ota-actions"><a class="btn btn-ghost" href="#/whatsnew">${t('ota.whatsNew')}</a>
+      <button type="button" class="btn btn-ghost ota-github" data-ota-action="github" aria-label="${t('ota.github')}" title="${t('ota.github')}">${githubIcon}</button></div>
+      ${controlsMarkup()}
+      ${settingsGroup('installed', '<div data-ota-versions></div>')}
+      ${settingsGroup('support', `<div class="row"><label class="ota-select"><span>${t('ota.address')}</span>
+        <input class="input" data-ota-address readonly></label></div>`)}
       <div class="ota-actions">${button('maintenance', t('ota.maintenance'))}${button('logs', t('ota.logs'))}${button('setup', t('ota.finishSetup'))}</div>`;
-    panel.onclick = event => {
+    panel.onchange = event => {
       const patch = controlChange(event.target);
+      if (patch) void savePreferences(patch);
+    };
+    panel.onclick = event => {
+      const patch = event.target.closest('button') && controlChange(event.target);
       if (patch) { void savePreferences(patch); return; }
       const action = event.target.closest('button')?.dataset.otaAction;
       if (action === 'check') void check();
       if (action === 'offer') void activate(panelOffer());
       if (action === 'setup') openSetup();
       const methods = { github: 'openReleases', maintenance: 'settings', logs: 'logs' };
-      if (methods[action]) void call(methods[action]).catch(() => say('actionFailed'));
+      if (methods[action]) void call(methods[action]).catch(() => say(action === 'github' ? 'browserUnavailable' : 'actionFailed'));
     };
     if (openPanel) {
       openPanel = false;
@@ -451,7 +494,7 @@ function mount(ota) {
     saving = patch;
     saveError = false;
     paintPanel();
-    if (setup) setup.querySelectorAll('button').forEach(control => { control.disabled = true; });
+    if (setup) setup.querySelectorAll('button, select').forEach(control => { control.disabled = true; });
     try {
       if (finish) await syncSafety();
       const values = await call('setUpdateSettings', patch);
@@ -470,6 +513,7 @@ function mount(ota) {
   function closeSetup() {
     if (!setup) return;
     const dialog = setup;
+    // Defer the question for this launch only (owner, 2026-11-26).
     setup = null; setupDraft = null; setupLater = true;
     dialog.close();
     dialog.remove();
@@ -477,14 +521,15 @@ function mount(ota) {
   }
 
   function paintSetup(customize) {
-    setup.innerHTML = `<h2 id="ota-setup-title">${t('ota.setupTitle')}</h2>
-      ${customize ? controlsMarkup() : `<p class="ota-muted">${t('ota.recommendedNote')}</p>`}
+    setup.innerHTML = `<h2 id="ota-setup-title" tabindex="-1">${t('ota.setupTitle')}</h2>
+      ${customize ? controlsMarkup() : `<p>${t('ota.recommendedNote')}</p><p class="ota-preface">${t('ota.recommendedLimits')}</p>`}
       ${saveError ? `<p class="ota-muted" role="status">${t('ota.saveFailed')}</p>` : ''}
       <div class="ota-actions">${customize ? button('save', t('ota.save'), 'primary') + button('back', t('ota.back'))
-        : button('recommended', t('ota.recommended'), 'primary') + button('customize', t('ota.customize'))}
+        : button('recommended', `<span aria-hidden="true">✓</span> ${t('ota.recommended')}`, 'selected') + button('customize', t('ota.customize'))}
       ${button('later', t('ota.later'), 'ghost')}</div>`;
     if (customize) paintControls(setup, setupDraft, !!saving);
-    setup.querySelector('[data-ota-action]').focus();
+    // Focus the question so the recommended style is visible without a focus ring (owner, 2026-11-26).
+    setup.querySelector('h2').focus();
   }
 
   function openSetup() {
@@ -495,9 +540,13 @@ function mount(ota) {
     setup.className = 'game-settings ota-setup';
     setup.setAttribute('aria-labelledby', 'ota-setup-title');
     setup.addEventListener('cancel', event => { event.preventDefault(); if (!saving) closeSetup(); });
+    setup.addEventListener('change', event => {
+      const patch = controlChange(event.target);
+      if (!saving && patch) Object.assign(setupDraft, patch);
+    });
     setup.addEventListener('click', event => {
       if (saving) return;
-      const patch = controlChange(event.target);
+      const patch = event.target.closest('button') && controlChange(event.target);
       if (patch) {
         Object.assign(setupDraft, patch);
         paintControls(setup, setupDraft, false);
@@ -525,7 +574,7 @@ function mount(ota) {
   function paint() {
     if (state) {
       flow = selectFlow(state, request, flow);
-      if (request && flow !== request) request = null;
+      if (request) request = flow?.until ? flow : null;
       if (state.updateSettings?.setupAnswered === true) setupLater = false;
     }
     paintPanel();

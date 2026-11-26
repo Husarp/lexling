@@ -3,25 +3,25 @@ package com.husarp.ota
 import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.ColorStateList
-import android.graphics.Color
-import android.text.TextUtils
+import android.graphics.Typeface
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
-import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import com.husarp.ota.core.UpdateBannerStep
+import com.husarp.ota.core.UpdateBannerPhase
 import com.husarp.lexling.R
 
 internal data class UpdateBannerItem(
     val key: String, val title: String, val text: String, val actionLabel: String? = null,
     val action: (() -> Unit)? = null, val percent: Int? = null, val downloading: Boolean = false,
     val keepOnAction: Boolean = false, val installing: Boolean = false, val brief: Boolean = false,
-    val step: UpdateBannerStep? = null, val speed: Long = 0
+    val step: UpdateBannerStep? = null, val speed: Long = 0,
+    val received: Long = 0, val total: Long = 0, val symbol: String? = null, val linkAction: Boolean = false
 )
 
 internal class NativeUpdateBanner(private val host: FrameLayout, private val dismiss: (String) -> Unit) {
@@ -45,7 +45,10 @@ internal class NativeUpdateBanner(private val host: FrameLayout, private val dis
             item.speed > 0 -> context.getString(R.string.ota_speed_bytes, item.speed)
             else -> null
         }
-        return listOfNotNull(item.percent?.let { context.getString(R.string.ota_progress_percent, it) }, speed).joinToString("  ")
+        val amount = item.total.takeIf { it > 0 }?.let {
+            context.getString(R.string.ota_download_amount, item.received / 1_000_000.0, it / 1_000_000.0)
+        }
+        return listOfNotNull(item.percent?.let { context.getString(R.string.ota_progress_percent, it) }, amount, speed).joinToString(" · ")
     }
 
     fun render(item: UpdateBannerItem?, top: Int, left: Int, right: Int) {
@@ -73,12 +76,13 @@ internal class NativeUpdateBanner(private val host: FrameLayout, private val dis
         language = currentLanguage
         val context = NativeLook.context(NativeStrings.context(host.context, currentLanguage))
         val palette = NativeLook.palette(light)
-        val card = NativeLook.surface(context, palette.surface, NativeLook.accent)
+        // The B notice layout uses an even outline and an accent download icon (owner, 2026-11-26).
+        val card = NativeLook.surface(context, palette.surface, NativeLook.noticeOutline(context))
         val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             elevation = 2.dp.toFloat()
             background = card
-            setPadding(13.dp, 12.dp, 8.dp, 12.dp)
+            setPadding(12.dp, 12.dp, 8.dp, 12.dp)
         }
         fun dismissItem() { dismiss(item.key) }
         var down = 0f
@@ -89,42 +93,56 @@ internal class NativeUpdateBanner(private val host: FrameLayout, private val dis
                 else -> true
             }
         }
-        row.addView(ImageView(context).apply {
-            setImageResource(R.drawable.ic_stat_update); setColorFilter(NativeLook.accent)
+        val symbol = item.symbol ?: when (item.step?.phase) {
+            UpdateBannerPhase.AVAILABLE, UpdateBannerPhase.DOWNLOADING -> "↓"
+            UpdateBannerPhase.READY -> "✓"
+            UpdateBannerPhase.INSTALLING -> "↻"
+            null -> if (item.brief) "✓" else "!"
+        }
+        val icon = if (symbol == "↓") ImageView(context).apply {
+            setImageResource(R.drawable.ic_ota_download)
+            setColorFilter(NativeLook.accent)
+            setPadding(5.dp, 5.dp, 5.dp, 5.dp)
+            background = NativeLook.surface(context, palette.surface2)
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        }, LinearLayout.LayoutParams(22.dp, 22.dp).apply { setMargins(0, 6.dp, 10.dp, 0) })
+        } else NativeLook.noticeMark(context, symbol)
+        row.addView(icon, LinearLayout.LayoutParams(30.dp, 30.dp).apply { marginEnd = 10.dp })
         val copy = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         row.addView(copy, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         copy.addView(TextView(context).apply {
-            text = item.title; textSize = 20f; typeface = NativeLook.heading(context); setTextColor(palette.text)
-            maxLines = 2; ellipsize = TextUtils.TruncateAt.END; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            text = item.title; textSize = 15f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            setTextColor(palette.text); accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         })
-        if (item.text.isNotEmpty()) copy.addView(TextView(context).apply { text = item.text; textSize = 14f; setTextColor(palette.text) })
         if (item.downloading || item.installing) {
+            val bar = ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+                max = 100; isIndeterminate = item.percent == null; progress = item.percent ?: 0
+                contentDescription = if (item.installing) context.getString(R.string.ota_installing_update) else context.getString(R.string.ota_download_progress)
+                val tint = ColorStateList.valueOf(if (item.downloading) NativeLook.accent else NativeLook.noticeColor(context))
+                progressTintList = tint
+                indeterminateTintList = tint
+                progressBackgroundTintList = ColorStateList.valueOf(palette.surface2)
+            }
+            progress = bar
+            copy.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 4.dp).apply { topMargin = 7.dp })
             if (item.downloading) progressLabel = TextView(context).apply {
                 text = progressText(context, item); textSize = 12f; setTextColor(palette.muted)
                 fontFeatureSettings = "tnum"
                 visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
-                copy.addView(this)
+                copy.addView(this, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = 4.dp })
             }
-            val bar = ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
-                max = 100; isIndeterminate = item.percent == null; progress = item.percent ?: 0
-                contentDescription = if (item.installing) context.getString(R.string.ota_installing_update) else context.getString(R.string.ota_download_progress)
-                progressTintList = ColorStateList.valueOf(NativeLook.accent)
-                indeterminateTintList = ColorStateList.valueOf(NativeLook.accent)
-                progressBackgroundTintList = ColorStateList.valueOf(palette.line)
-            }
-            progress = bar
-            copy.addView(bar)
         }
-        if (item.actionLabel != null) copy.addView(NativeLook.button(context, primary = item.keepOnAction).apply {
-            text = item.actionLabel
-            setOnClickListener { if (!item.keepOnAction) dismissItem(); item.action?.invoke() }
+        if (item.text.isNotEmpty()) copy.addView(TextView(context).apply {
+            text = item.text; textSize = 13f; setTextColor(if (light) palette.muted else 0xFFBCBCBC.toInt())
+            setPadding(0, 5.dp, 0, 0)
         })
-        if (!item.installing) row.addView(Button(context).apply {
-            text = "✕"; contentDescription = context.getString(R.string.ota_dismiss_notice); setTextColor(palette.text)
-            backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
-            stateListAnimator = null
+        if (item.actionLabel != null) copy.addView(NativeLook.button(context, primary = !item.linkAction, ghost = item.linkAction).apply {
+            text = item.actionLabel
+            if (item.linkAction) setTextColor(NativeLook.noticeColor(context))
+            minHeight = 44.dp; minimumHeight = 44.dp
+            setOnClickListener { if (!item.keepOnAction) dismissItem(); item.action?.invoke() }
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = 5.dp })
+        if (!item.installing) row.addView(NativeLook.button(context, ghost = true).apply {
+            text = "✕"; contentDescription = context.getString(R.string.ota_dismiss_notice)
             setPadding(0, 0, 0, 0)
             setOnClickListener { dismissItem() }
         }, LinearLayout.LayoutParams(44.dp, 44.dp))

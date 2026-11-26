@@ -19,11 +19,11 @@ class UpdateChecks(context: Context, private val log: EventLog, private val chan
 
     fun <Manifest> fetch(channel: CheckChannel, url: String, transport: Transport,
                          manual: Boolean = false, reportFailure: Boolean = true,
-                         verify: (DownloadedManifest) -> Manifest): Pair<DownloadedManifest, Manifest> =
-        checked(channel, manual, reportFailure, { checkNotNull(fetchManifest(url, transport, log, allowMissing = false)) }, verify)
-
-    fun <Manifest> fetchShell(url: String, transport: Transport, manual: Boolean, verify: (DownloadedManifest) -> Manifest): Pair<DownloadedManifest, Manifest>? {
-        val (source, manifest) = checked(CheckChannel.SHELL, manual, true, { fetchManifest(url, transport, log) }) { it?.let(verify) }
+                         verify: (DownloadedManifest) -> Manifest): Pair<DownloadedManifest, Manifest>? {
+        // The built-in channels can be unpublished. A custom address still reports a missing file (owner, 2026-11-26).
+        val allowMissing = channel == CheckChannel.SHELL || url == Updater.DEFAULT_URL
+        val (source, manifest) = checked(channel, manual, reportFailure,
+            { fetchManifest(url, transport, log, allowMissing) }) { it?.let(verify) }
         return if (source != null && manifest != null) source to manifest else null
     }
 

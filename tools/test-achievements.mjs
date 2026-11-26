@@ -207,6 +207,12 @@ globalThis.setTimeout = (fn, ms) => { timers.push({ fn, ms }); };
 const { achievementsScreen, statsScreen } = await import('../app/js/screens.js');
 const { t, setLang, num, dateTime } = await import('../app/js/i18n.js');
 const root = { innerHTML: '', querySelector() { return null; }, querySelectorAll() { return []; } };
+const gameTabLabels = (html, firstLabel) => {
+  const tabs = [...html.matchAll(/<button([^>]*role="tab"[^>]*)>([\s\S]*?)<\/button>/g)];
+  const labels = [firstLabel, ...['guess', 'letters', 'connect', 'tiles'].map(mode => 'mode.' + mode)].map(key => t(key));
+  return [tabs.map(([, attrs, body]) => [attrs.match(/aria-label="([^"]+)"/)?.[1], body.includes('<svg'), body.replace(/<[^>]+>/g, '')]),
+    labels.map(label => [label, true, ''])];
+};
 for (const lang of ['en', 'pl']) {
   setLang(lang);
   for (const d of [...TIERED, ...CHALLENGES]) {
@@ -217,14 +223,10 @@ for (const lang of ['en', 'pl']) {
   check(`${lang}: action language`, t('ach.see'), lang === 'en' ? 'See it' : 'Zobacz');
   achievementsScreen(root);
   const html = root.innerHTML;
-  check(`${lang}: five game tabs`, (html.match(/role="tab"/g) ?? []).length, 5);
-  const tabs = [...html.matchAll(/<button[^>]*role="tab"[^>]*>[\s\S]*?<\/button>/g)].map(m => m[0]);
-  const labels = ['col.all', ...['guess', 'letters', 'connect', 'tiles'].map(mode => 'mode.' + mode)].map(key => t(key));
-  check(`${lang}: game tabs have translated text and accessible names`, tabs.map(tab =>
-    [tab.match(/aria-label="([^"]+)"/)?.[1], tab.match(/class="ach-tab-label">([^<]+)/)?.[1]]), labels.map(label => [label, label]));
+  check(`${lang}: Achievements game tabs have icons and translated accessible names`, ...gameTabLabels(html, 'col.all'));
   check(`${lang}: every summary shape has a visible tier label`,
     [...html.matchAll(/class="ach-count"><svg[^]*?<\/svg><small>([^<]+)<\/small>/g)].map(m => m[1]), TIERS.map(k => t('tier.' + k)));
-  check(`${lang}: selected section has a visible name`, html.includes(`<h2 class="ach-section-title">${t('col.all')}</h2>`), true);
+  check(`${lang}: selected tab name is not repeated as a heading`, html.includes(`>${t('col.all')}</h2>`), false);
   check(`${lang}: nineteen achievement squares`, (html.match(/data-ach="/g) ?? []).length, 19);
   check(`${lang}: earlier awards are collapsed`, html.includes('<details class="earlier-ach"><summary>' + t('ach.earlier')), true);
   check(`${lang}: earlier award keeps its date`, html.includes(t('ach.got', { d: dateTime(now - 1) })), true);
@@ -238,6 +240,7 @@ for (const lang of ['en', 'pl']) {
   check(`${lang}: summary counts only milestone tiers`, html.includes(t('ach.tiers', { a: num(TIERED.reduce((n, d) => n + TIERS.filter((_, i) => gotAt(`${d.id}#${i}`) !== null).length, 0)), b: num(35) })), true);
   for (const key of ['tiers', 'milestones', 'challenges', 'see', 'nice', 'earned', 'detail']) check(`${lang}: translated ${key}`, t('ach.' + key) !== 'ach.' + key, true);
   statsScreen(root, null, () => {});
+  check(`${lang}: Statistics game tabs have icons and translated accessible names`, ...gameTabLabels(root.innerHTML, 'stats.general'));
   check(`${lang}: Statistics has no achievements button`, root.innerHTML.includes('href="#/achievements"'), false);
 }
 setLang('pl');

@@ -132,17 +132,17 @@ test('notice keys include the phase and version, with APK code as its identity',
   assert.notEqual(noticeKey('available', update, 'shell', 9123), noticeKey('available', update, 'shell', 9124));
 });
 
-test('binary size and download speed use the current language', async () => {
+test('decimal download size and speed use the current language', async () => {
   await boot({ hasOta: false });
   assert.equal(sizeText(undefined), '');
-  assert.equal(sizeText(0), '0 B');
-  assert.equal(sizeText(1024), '1.0 KiB');
-  assert.equal(sizeText(1572864), '1.5 MiB');
-  assert.equal(speedText(2560), '2.5 KiB/s');
+  assert.equal(sizeText(0), '0.0 MB');
+  assert.equal(sizeText(3400000), '3.4 MB');
+  assert.equal(sizeText(1572864), '1.6 MB');
+  assert.equal(speedText(2560), '2.6 kB/s');
   assert.equal(speedText(0), '');
   setLang('pl');
   assert.equal(getLang(), 'pl');
-  assert.equal(speedText(1572864), '1,5 MiB/s');
+  assert.equal(speedText(1572864), '1,6 MB/s');
 });
 
 for (const [code, message, kind] of [
@@ -167,6 +167,22 @@ test('check status prefers failure codes and uses attempt timestamps when suppli
   assert.deepEqual(checkStatus({ ...base, updateChecks: { web } }), { kind: 'invalid', last: 10, previousSuccess: true });
   assert.equal(checkStatus({ ...base, status: 'Checking…' }).kind, 'checking');
   assert.equal(checkStatus({ ...base, updateChecks: { web: { lastSuccessAt: 10 } } }).kind, 'upToDate');
+});
+
+test('a successful check with neither manifest available clears the blocked status', async () => {
+  const game = await boot({ snapshot: { updateChecks: { failed: true, web: { code: 'NOT_FOUND', lastAttemptAt: 10 } } } });
+  await game.ready();
+  game.ui.renderOtaSettings(game.get('#root'));
+  const label = game.get('[data-ota-check]');
+  assert.equal(label.textContent, 'Can’t reach the update server');
+  const success = { lastAttemptAt: 20, lastSuccessAt: 20 };
+  game.state.updateChecks = { failed: false, web: success, shell: success };
+  await game.emit();
+  assert.equal(label.textContent, 'Up to date');
+  assert.match(game.get('[data-ota-check-time]').textContent, /^Last checked /);
+  setLang('pl');
+  await game.emit();
+  assert.equal(label.textContent, 'Masz aktualną wersję');
 });
 
 test('Android without Ota preserves the old updater and creates no OTA UI', async () => {
@@ -265,7 +281,8 @@ test('legacy APK prompts and network check are disabled on OTA while cleanup sti
 test('dismissed offers stay hidden through replay and reload but Settings and new versions still offer them', async () => {
   const game = await boot({ snapshot: { available } });
   await game.ready();
-  assert.match(game.get('.ota-banner').textContent, /Get update 9\.1\.0 · 1\.0 MiB/);
+  assert.equal(game.get('.ota-banner strong').textContent, 'New update 9.1.0 · 1.0 MB');
+  assert.equal(game.get('.ota-banner [data-ota-action=offer]').textContent, 'Download update');
   game.click('.ota-banner [data-ota-action=dismiss]');
   const key = 'lx.ota.dismiss:available:web:' + update;
   assert.equal(localStorage.getItem(key), '1');
@@ -285,23 +302,40 @@ test('dismissed offers stay hidden through replay and reload but Settings and ne
 test('web flow preserves progress DOM, uses downloadOnly and holds Installing through handoff', async () => {
   const game = await boot({ snapshot: { available } });
   await game.ready();
+  const banner = game.get('.ota-banner');
+  const title = game.get('.ota-banner strong');
+  const progress = game.get('.ota-banner progress');
+  assert.equal(progress.parentElement.hidden, true);
   game.click('.ota-banner [data-ota-action=offer]');
+  assert.equal(banner.hidden, false);
+  assert.equal(progress.parentElement.hidden, false);
   await flush();
   assert.deepEqual(game.calls('download'), [[{ downloadOnly: true }]]);
-  const progress = game.get('.ota-banner progress');
   Object.assign(game.state, { busy: true, webDownloadVersion: update, webTransfer: { done: 262144, total: 1048576, speed: 1024 } });
   await game.emit();
   assert.equal(game.get('.ota-banner progress'), progress);
   assert.equal(progress.value, 25);
-  assert.match(game.get('.ota-banner').textContent, /256\.0 KiB \/ 1\.0 MiB · 1\.0 KiB\/s/);
+  assert.equal(game.get('.ota-banner [data-ota-transfer]').textContent, '25% · 0.3 / 1.0 MB · 1.0 kB/s');
   assert.match(game.get('.ota-banner').textContent, /You can keep playing/);
+  // Native can report the offer removed and the transfer cleared before staged is visible.
+  Object.assign(game.state, { busy: false, webDownloadVersion: null, webTransfer: null, available: null });
+  await game.emit();
+  assert.equal(banner.hidden, false);
+  assert.equal(banner.dataset.notice, 'downloading');
+  assert.equal(progress.value, 25);
   Object.assign(game.state, { busy: false, staged: readyWeb });
   await game.emit('updateStaged');
-  assert.equal(game.get('.ota-banner [data-ota-action=offer]').textContent, 'Install update ' + update);
+  assert.equal(game.get('.ota-banner'), banner);
+  assert.equal(game.get('.ota-banner strong'), title);
+  assert.equal(title.textContent, 'Update ' + update + ' is ready');
+  assert.equal(progress.parentElement.hidden, true);
+  assert.equal(game.get('.ota-banner [data-ota-action=offer]').textContent, 'Install & restart');
   game.click('.ota-banner [data-ota-action=offer]');
   await flush();
   assert.equal(game.calls('restart').length, 1);
   assert.equal(game.get('.ota-banner').dataset.notice, 'installing');
+  assert.equal(title.textContent, 'Installing update ' + update + '…');
+  assert.equal(progress.parentElement.hidden, true);
   Object.assign(game.state, { token: 'next-token', webVersion: update, staged: null });
   await game.emit('updated');
   assert.equal(game.get('.ota-banner').dataset.notice, 'installing');
@@ -310,7 +344,8 @@ test('web flow preserves progress DOM, uses downloadOnly and holds Installing th
 test('APK offers use native APK methods and a web update explains its app requirement', async () => {
   const game = await boot({ snapshot: { available: { ...available, needsShell: true } } });
   await game.ready();
-  assert.match(game.get('.ota-banner').textContent, /Install the app update first/);
+  assert.equal(game.get('.ota-banner strong').textContent, 'App update required');
+  assert.match(game.get('.ota-banner').textContent, /Update the Android app before installing Lexling 9\.1\.0/);
   assert.equal(game.get('.ota-banner [data-ota-action=offer]'), null);
   game.state.shellAvailable = { ...readyApp, size: 2048 };
   await game.emit();
@@ -330,7 +365,8 @@ test('an accepted updated notice lasts five seconds, advances seenVersion and ig
   store.settings.seenVersion = '0.1.0';
   assert.equal(game.get('.ota-banner'), null);
   await game.ready();
-  assert.equal(game.get('.ota-banner a').textContent, 'Updated to ' + VERSION);
+  assert.equal(game.get('.ota-banner strong').textContent, 'Updated to ' + VERSION);
+  assert.equal(game.get('.ota-banner a').textContent, 'What’s new →');
   assert.equal(game.get('.ota-banner a').getAttribute('href'), '#/whatsnew');
   assert.equal(JSON.parse(localStorage.getItem('wg.settings')).seenVersion, VERSION);
   assert.equal(game.ui.otaReleaseNotes().notes, notes);
@@ -345,7 +381,7 @@ test('APK upgrade is detected from running version code even with an unchanged v
   const key = 'lx.ota.appVersion';
   const game = await boot({ saved: { [key]: JSON.stringify({ version: VERSION, versionCode: 7200 }) } });
   await game.ready();
-  assert.equal(game.get('.ota-banner a').textContent, 'Updated to ' + VERSION);
+  assert.equal(game.get('.ota-banner strong').textContent, 'Updated to ' + VERSION);
   assert.equal(JSON.parse(localStorage.getItem(key)).versionCode, 7201);
   game.click('.ota-banner a');
   assert.equal(game.window.location.hash, '#/whatsnew');
@@ -370,7 +406,7 @@ test('check failures are claimed once while visible and Retry checks again', asy
   await game.frame();
   await game.frame();
   assert.deepEqual(game.calls('claimCheckNotice'), [[{ token: base.token }]]);
-  assert.match(game.get('.ota-banner').textContent, /sign in first or try mobile data/);
+  assert.match(game.get('.ota-banner').textContent, /Sign in to public Wi-Fi or try mobile data/);
   game.click('.ota-banner [data-ota-action=check]');
   await game.emit();
   assert.equal(game.calls('claimCheckNotice').length, 1);
@@ -406,26 +442,30 @@ test('Settings renders native fields and sends partials without losing an in-fli
   const host = game.get('#root');
   game.ui.renderOtaSettings(host);
   const get = selector => game.get('.ota-settings ' + selector);
-  assert.deepEqual([...host.firstElementChild.children].map(control => control.textContent), ['Check', 'Install update ' + update, 'What’s new', '']);
+  assert.deepEqual([...host.querySelector('.ota-actions').children].map(control => control.textContent), ['Install & restart', 'Check']);
   assert.ok(get('[data-ota-action=github] svg'));
   assert.equal(get('[data-ota-address]').value, prefs.url);
   assert.equal(get('[data-ota-address]').readOnly, true);
   assert.equal(host.querySelectorAll('.toggle').length, 4);
   assert.equal(get('[data-ota-field=updateNotifications]').hidden, false);
-  assert.equal(host.querySelectorAll('.seg').length, 3);
-  assert.match(get('[data-ota-check]').textContent, /No internet connection.*Last checked/);
+  assert.deepEqual([...host.querySelectorAll('h3')].map(heading => heading.textContent),
+    ['Automatic updates', 'Downloads and checks', 'Installed versions', 'Support']);
+  assert.equal(host.querySelectorAll('select').length, 3);
+  assert.equal(get('[data-ota-check]').textContent, 'No internet connection');
+  assert.match(get('[data-ota-check-time]').textContent, /^Last checked /);
   assert.match(get('[data-ota-versions]').textContent, /Published.*Available on this phone.*Downloaded.*Installed/);
-  const never = get('[data-ota-field=mobileLimitMb] [data-ota-value="0"]');
-  never.click();
+  const mobile = get('[data-ota-field=mobileLimitMb] select');
+  mobile.value = '0';
+  mobile.dispatchEvent(new game.window.Event('change', { bubbles: true }));
   await flush();
   assert.deepEqual(game.calls('setUpdateSettings'), [[{ mobileLimitMb: 0 }]]);
   await game.emit('updateSettingsChanged', { mobileLimitMb: 5 });
-  assert.equal(never.getAttribute('aria-pressed'), 'true');
-  assert.equal(never.disabled, true);
+  assert.equal(mobile.value, '0');
+  assert.equal(mobile.disabled, true);
   game.state.updateSettings.mobileLimitMb = 0;
   save.resolve(game.state.updateSettings);
   await flush();
-  assert.equal(never.disabled, false);
+  assert.equal(mobile.disabled, false);
   for (const action of ['github', 'maintenance', 'logs']) get('[data-ota-action=' + action + ']').click();
   await flush();
   for (const method of ['openReleases', 'settings', 'logs']) assert.equal(game.calls(method).length, 1);
@@ -434,7 +474,10 @@ test('Settings renders native fields and sends partials without losing an in-fli
 test('setup makes interruption unsafe, Recommended saves defaults, and reset asks again', async () => {
   const game = await boot({ snapshot: { updateSettings: { ...prefs, setupAnswered: false, mobileLimitMb: 0 } } });
   await game.ready();
-  assert.equal(game.get('dialog h2').textContent, 'How should updates work?');
+  const title = game.get('dialog h2');
+  assert.equal(title.textContent, 'How should updates work?');
+  assert.equal(game.window.document.activeElement, title);
+  assert.ok(game.get('dialog [data-ota-action=recommended]').classList.contains('btn-selected'));
   assert.deepEqual(game.calls('setSafeToInterrupt'), [[{ safe: false }]]);
   game.click('dialog [data-ota-action=recommended]');
   await flush();
@@ -454,18 +497,38 @@ test('Later leaves setup unanswered and Customize keeps its draft through a snap
   assert.equal(game.calls('setUpdateSettings').length, 0);
   assert.equal(game.get('dialog'), null);
   await game.navigate('#/settings');
+  await game.navigate('#/');
+  assert.equal(game.get('dialog'), null);
+  await game.navigate('#/settings');
   game.ui.renderOtaSettings(game.get('#root'));
   assert.equal(game.get('[data-ota-field=updateNotifications]').hidden, true);
   game.click('.ota-settings [data-ota-action=setup]');
   game.click('dialog [data-ota-action=customize]');
-  const manual = game.get('dialog [data-ota-value=manual]');
-  manual.click();
+  const frequency = game.get('dialog [data-ota-field=checkFrequency] select');
+  frequency.value = 'manual';
+  frequency.dispatchEvent(new game.window.Event('change', { bubbles: true }));
   await game.emit('updateSettingsChanged');
-  assert.equal(manual.getAttribute('aria-pressed'), 'true');
+  assert.equal(frequency.value, 'manual');
   game.click('dialog [data-ota-action=save]');
   await flush();
   assert.deepEqual(game.calls('setUpdateSettings'), [[{ ...defaults, checkFrequency: 'manual', setupAnswered: true }]]);
   assert.equal(game.get('dialog'), null);
+});
+
+test('an unanswered setup returns on the next app launch after Later', async () => {
+  const updateSettings = { ...prefs, setupAnswered: false };
+  const first = await boot({ snapshot: { updateSettings, available } });
+  await first.ready();
+  first.click('dialog [data-ota-action=later]');
+  await first.emit();
+  assert.equal(first.get('dialog'), null);
+  assert.equal(first.get('.ota-banner [data-ota-action=offer]').textContent, 'Download update');
+  assert.equal(first.calls('download').length, 0);
+  assert.equal(first.calls('downloadShell').length, 0);
+  first.window.close();
+  const next = await boot({ snapshot: { updateSettings, token: 'next-launch' } });
+  await next.ready();
+  assert.equal(next.get('dialog[open] h2').textContent, 'How should updates work?');
 });
 
 test('effective theme and language are forwarded after readiness and on change', async () => {
@@ -478,7 +541,8 @@ test('effective theme and language are forwarded after readiness and on change',
   await flush();
   assert.deepEqual(game.calls('setUiTheme').at(-1), [{ theme: 'light', lang: 'pl' }]);
   await game.emit();
-  assert.match(game.get('.ota-banner').textContent, /Pobierz aktualizację 9\.1\.0 · 1,0 MiB/);
+  assert.equal(game.get('.ota-banner strong').textContent, 'Nowa aktualizacja 9.1.0 · 1,0 MB');
+  assert.equal(game.get('.ota-banner [data-ota-action=offer]').textContent, 'Pobierz aktualizację');
 });
 
 let passed = 0;

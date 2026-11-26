@@ -1653,14 +1653,10 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* End the card at its content; only the device safe area follows it (owner, 2026-11-20). */
 [data-screen=stats] .main{container-type:inline-size;gap:var(--space-4);padding-bottom:var(--safe-b)}
 
-/* ── Tabs: five across at every width ──
-   The glyph sits above the name, names are Barlow Condensed, and each tab is only as wide as its name (flex auto),
-   so "ZNACZENIE" takes the room "OGÓLNE" doesn't need. At 320 the five fit with ~20px to spare.
-   From a 600px column the glyph moves beside the name. */
-:is([data-screen=stats],[data-screen=achievements]) .seg.st-tabs{position:sticky;top:0;z-index:4;display:flex;gap:2px;padding:3px}
-:is([data-screen=stats],[data-screen=achievements]) .seg.st-tabs button{flex:1 1 auto;min-width:0;min-height:52px;padding:7px 4px 6px;display:grid;justify-items:center;align-content:center;gap:7px;border-radius:11px;font:700 14px/1 var(--font-display);letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
-:is([data-screen=stats],[data-screen=achievements]) .st-tabs .tg{height:22px;display:grid;place-items:center}
-@container (min-width:600px){:is([data-screen=stats],[data-screen=achievements]) .seg.st-tabs button{grid-auto-flow:column;gap:9px;min-height:46px;padding:0 10px;font-size:16px}}
+/* Centre the game glyphs in equal-width tabs (owner, 2026-11-26). */
+.seg.st-tabs{position:sticky;top:0;z-index:4;display:flex;gap:2px;padding:3px}
+.seg.st-tabs button{min-height:52px;padding:8px;display:flex;align-items:center;justify-content:center;border-radius:11px}
+.st-tabs .tg{height:22px;display:grid;place-items:center}
 /* General's glyph: one square per game, in the colours the "games by mode" chart uses */
 .glyph.all{display:grid;grid-template-columns:repeat(2,6px);grid-auto-rows:6px;gap:2px}
 .glyph.all i{border-radius:1.5px}
@@ -1744,11 +1740,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-screen=stats] .none .help{margin:0}
 [data-screen=stats] .none.nothing{justify-items:start;gap:var(--space-3)}
 [data-screen=stats] .none.nothing .btn{margin-left:calc(var(--space-3) * -1)}
-/* the Collection's tabs in the Statistics style (0.61.0) */
-[data-screen=collection] .seg.st-tabs{display:flex;gap:2px;padding:3px}
-[data-screen=collection] .seg.st-tabs button{flex:1 1 auto;min-width:0;min-height:52px;padding:7px 4px 6px;display:grid;justify-items:center;align-content:center;gap:7px;border-radius:11px;font:700 14px/1 var(--font-display);letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
-[data-screen=collection] .st-tabs .tg{height:22px;display:grid;place-items:center}
-@container (min-width:600px){[data-screen=collection] .seg.st-tabs button{grid-auto-flow:column;gap:9px;min-height:46px;padding:0 10px;font-size:16px}}
 
 /* ═══ LEXLING · THE MENU AND TIME (design v7, 2026-09-28) — goes below app.css ═══ */
 
@@ -1788,7 +1779,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-theme=light] .menu.cards a[href="#/collection"]{--icon-ink:#227869}
 [data-theme=light] .menu.cards a[href="#/settings"]{--icon-ink:#764E9F}
 .menu-badge svg{width:18px;height:18px}
-.menu-badge svg:not(.app-icon){fill:currentColor}
+/* Keep the original outline shapes in their own colours (owner, 2026-11-26). */
+.menu-badge svg:not(.app-icon){fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 
 /* Finished games (owner, 2026-11-26). */
 [data-screen=last-games] .saves{display:grid;gap:var(--space-3)}
@@ -1817,7 +1809,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
    Tabs are Statistics' (.seg.st-tabs). ═══ */
 [data-screen=collection] .main{container-type:inline-size;gap:var(--space-4)}
 [data-screen=collection] .section{display:grid;gap:var(--space-3)}
-[data-screen=collection] .seg.st-tabs{position:sticky;top:0;z-index:4}
 [data-screen=collection] .co-lang{max-width:360px}
 [data-screen=collection] .co-lang button{min-height:40px}
 
@@ -2267,7 +2258,7 @@ svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.al
 .ach-notice-icon .ach-icon{position:absolute;right:-1px;bottom:0;width:23px;height:23px;padding:3px;background:var(--surface);border-radius:50%}
 /* Selected Rules A: a centred card, one stable chapter area, dots and arrows. */
 [data-screen=new] button.howto{display:flex;align-items:center;justify-content:space-between;min-height:48px;width:100%;color:var(--text);text-align:left;cursor:pointer}
-.rules-window.game-settings{display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:0;padding:20px;margin:auto;width:min(380px,calc(100% - 32px));height:min(650px,calc(100dvh - 40px));max-height:calc(100dvh - 40px);background:var(--surface);color:var(--text);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:20px;overflow:hidden;box-shadow:0 18px 90px #0006}
+.rules-window.game-settings{display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:0;padding:20px;margin:auto;width:min(380px,calc(100% - 32px));height:min(650px,calc(100dvh - 40px));max-height:calc(100dvh - 40px);background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 18px 90px #0006}
 .rules-window::backdrop{background:#0009}
 .rules-window .gs-head{border-bottom:1px solid var(--line-soft);padding-bottom:14px;margin:0;gap:8px}
 .rules-window .gs-head>.eyebrow{display:flex;align-items:center;gap:7px;font-size:11px}
@@ -2286,27 +2277,15 @@ svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.al
 .rules-nav{display:flex;align-items:center;justify-content:space-between;margin-top:24px;gap:10px}
 .rules-nav button{border:1px solid var(--line);border-radius:10px;width:48px;height:48px;font-size:24px;flex:none;color:var(--text);cursor:pointer}
 .rules-nav button:disabled{opacity:.25;cursor:default}
-.chapter-dots{display:flex;justify-content:center;gap:6px}
+.chapter-dots{position:relative;display:flex;gap:6px;margin:0 4px}
 .chapter-dots i{width:6px;height:6px;background:var(--line);border-radius:50%}
-.chapter-dots i.active{background:var(--accent);width:18px;border-radius:5px}
+.chapter-dots::after{content:'';position:absolute;top:0;left:-4px;width:14px;height:6px;background:var(--accent);border-radius:5px;transform:translateX(calc(var(--chapter) * 12px));transition:transform 160ms ease-out}
 .rules-window .tl-looks{display:grid;gap:12px}
 .rules-window .tl-looks .t{width:32px;height:32px}
 .achievement-notice{position:fixed;z-index:1000;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-md);font-size:12px}
 .achievement-notice strong{font-size:13px}
 .achievement-notice>span:nth-child(2)>span{line-height:1.4}
 
-/* Keep icon and label together and vertically centred on the text tabs. */
-:is([data-screen=stats],[data-screen=collection]) .seg.st-tabs button{display:flex;align-items:center;justify-content:center;gap:5px;white-space:normal;line-height:1.15}
-:is([data-screen=stats],[data-screen=collection]) .st-tabs .tg{flex:none}
-[data-screen=achievements] .seg.st-tabs button{display:flex;align-items:center;justify-content:center;padding:8px;gap:0}
-/* Show the achievement tab names when the column has room (owner, 2026-11-26). */
-[data-screen=achievements] .main{container-type:inline-size}
-.ach-tab-label{display:none}
-@container (min-width:600px){
-  [data-screen=achievements] .seg.st-tabs button{gap:6px}
-  .ach-tab-label{display:inline}
-}
-.ach-section-title{font:700 24px/1.1 var(--font-display);margin:4px 0 0}
 .tl-find:disabled{opacity:.3;cursor:default}
 
 /* Keep the original game colours readable on a neutral selected marker in either theme. */
@@ -2368,25 +2347,27 @@ svg.app-icon{display:inline-block;flex:none;width:20px;height:20px;vertical-alig
 [data-screen=new] :is(.howto .eyebrow,.friend strong,#only-new strong){display:flex;align-items:center;gap:8px}
 [data-screen=new] .app-icon{color:var(--accent)}
 /* Tiles setup uses plain card borders (owner, 2026-11-26). */
-[data-screen=new]:not([data-game=tiles]) :is(.friend,.polish,.howto),
-[data-screen=games] .empty{border-inline-start:3px solid var(--game-colour)}
+[data-screen=new]:not([data-game=tiles]) :is(.friend,.polish,.howto){border-inline-start:3px solid var(--game-colour)}
 [data-screen=stats] .scell .lbl .app-icon{width:18px;height:18px;margin-right:6px}
 [data-screen=letters] .stat .eyebrow{letter-spacing:.06em}
 
-/* Android update notices sit clear of the status bar and camera cutout. */
+/* Android update notices and settings (owner, 2026-11-26). */
 .ota-banner{position:fixed;z-index:1100;left:var(--space-3);right:var(--space-3);
   top:calc(var(--space-2) + var(--safe-area-inset-top, 0px));top:calc(var(--space-2) + max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px)));
   left:calc(var(--space-3) + var(--safe-area-inset-left, 0px));right:calc(var(--space-3) + var(--safe-area-inset-right, 0px));
   left:calc(var(--space-3) + max(env(safe-area-inset-left), var(--safe-area-inset-left, 0px)));
   right:calc(var(--space-3) + max(env(safe-area-inset-right), var(--safe-area-inset-right, 0px)));
-  max-width:520px;margin:0 auto;display:flex;gap:var(--space-2);align-items:flex-start;padding:var(--space-3);background:var(--surface);color:var(--text);
-  border:1px solid var(--accent);border-top-width:3px;border-radius:var(--radius-md);box-shadow:var(--shadow-md);animation:ota-slide 180ms var(--ease)}
-@keyframes ota-slide{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
-@media (prefers-reduced-motion:reduce){.ota-banner{animation:none}}
-.ota-notice-body{flex:1;min-width:0;display:grid;justify-items:start;gap:var(--space-2)}
-.ota-notice-body .btn,.ota-actions .btn{white-space:normal;text-align:center;font-variant-numeric:tabular-nums}
-.ota-notice-link{font-weight:600;color:var(--text);text-decoration:underline;text-underline-offset:3px}
-.ota-dismiss.btn{flex:none;min-width:40px;padding:0 var(--space-2)}
+  max-width:520px;margin:0 auto;display:flex;gap:10px;align-items:flex-start;padding:var(--space-3);background:var(--surface);color:var(--text);
+  border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:var(--shadow-md)}
+.ota-symbol{flex:none;width:30px;height:30px;display:grid;place-items:center;border-radius:8px;background:var(--accent-soft);color:var(--accent)}
+.ota-symbol svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ota-notice-body{flex:1;min-width:0;display:grid;justify-items:start;gap:7px}
+.ota-notice-body strong{font:600 15px/1.35 var(--font-body)}
+.ota-notice-body .btn,.ota-actions .btn{white-space:normal;text-align:center;line-height:1.2;text-transform:none;letter-spacing:0;font-variant-numeric:tabular-nums}
+.ota-notice-body .btn{min-height:38px}
+.ota-notice-body [data-ota-notice-action]{max-width:100%}
+.ota-notice-link{display:inline-block;font-weight:600;color:var(--accent)}
+.ota-dismiss.btn{flex:none;min-width:36px;min-height:36px;padding:0;border-color:transparent}
 .ota-muted,.ota-progress{font-size:13px;color:var(--text-muted)}
 .ota-progress{width:100%;display:grid;gap:4px}
 .ota-progress progress{width:100%;height:6px;display:block;border:0;border-radius:var(--radius-pill);overflow:hidden;background:var(--surface-2);appearance:none;-webkit-appearance:none}
@@ -2396,15 +2377,27 @@ svg.app-icon{display:inline-block;flex:none;width:20px;height:20px;vertical-alig
 .ota-banner,.ota-settings,.ota-setup{font-variant-numeric:tabular-nums}
 .ota-settings{display:grid;gap:var(--space-2);scroll-margin-top:var(--topbar-h, 64px)}
 .ota-actions{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-2)}
-.ota-settings > .ota-actions:last-child{margin-top:var(--space-2)}
+.ota-actions .btn-ghost{border-color:transparent}
+.ota-check-state,.ota-preface{background:var(--surface-2);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px}
+.ota-preface{border:1px solid var(--line);color:var(--text-muted)}
 .ota-github svg{width:20px;height:20px}
-.ota-control .seg{flex-wrap:wrap}
-.ota-control .seg button{flex:1 0 auto;max-width:100%;padding:4px 8px;line-height:1.2;text-transform:none;letter-spacing:0}
-.ota-control .row-text{flex:1 1 130px}
-.ota-settings input[readonly]{min-width:0;flex:1 1 220px}
+.ota-group{margin-top:var(--space-2)}
+.ota-group h3{font:700 20px/1.1 var(--font-display);margin-bottom:var(--space-2)}
+.ota-group-body{padding:0 var(--space-3);background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-md)}
+.ota-group-body .row{padding:var(--space-3) 0;font-size:14px}
+.ota-group-body .row:last-child{border-bottom:0}
+.ota-control .row-text{flex:1}
+.ota-select{width:100%;min-width:0;display:grid;gap:var(--space-2);font-weight:600}
+.ota-select .input{min-height:40px;font-size:13px;background:var(--surface-2)}
 .ota-setup{width:calc(100vw - 24px);max-width:460px;max-height:calc(100vh - 24px);overflow:auto}
 .ota-setup{max-height:calc(100vh - 24px - max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px)) - max(env(safe-area-inset-bottom), var(--safe-area-inset-bottom, 0px)))}
 .ota-setup h2{font:700 28px/1.15 var(--font-display);margin-bottom:var(--space-3)}
-.ota-setup .ota-actions,.ota-setup .ota-muted{margin-top:var(--space-3)}
+.ota-setup h2:focus{outline:none}
+.ota-setup :is(button,select):focus-visible{outline:2px solid var(--text-muted);outline-offset:2px;box-shadow:none}
+.ota-setup .ota-actions,.ota-setup p,.ota-setup .ota-group{margin-top:var(--space-3)}
+.ota-setup .ota-actions .btn:first-child{flex-basis:100%}
+.ota-setup .ota-actions .btn:last-child{margin-inline-start:auto}
+.ota-setup .btn-selected{background:var(--accent-soft);color:var(--accent)}
 .ota-release-notes{white-space:pre-wrap;overflow-wrap:break-word}
-.ota-banner[hidden],.ota-progress[hidden],.ota-settings [hidden],.ota-setup [hidden],.ota-muted:empty{display:none}
+.ota-banner[hidden],.ota-banner [hidden],.ota-settings [hidden],.ota-setup [hidden],.ota-muted:empty,
+.ota-check-state:empty,.ota-notice-body [data-ota-notice-action]:empty{display:none}

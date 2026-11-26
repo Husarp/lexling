@@ -47,6 +47,7 @@ class Updater(private val context: Context, val engine: Engine, private val veri
     @Volatile var launching = true
         private set
     private var prepared = false
+    private val launchCallbacks = mutableListOf<() -> Unit>()
     @Volatile var foreground = false
         private set
     @Volatile var safeToInterrupt = true
@@ -62,13 +63,18 @@ class Updater(private val context: Context, val engine: Engine, private val veri
     fun simulateBrokenStart() = prefs.edit().putBoolean("simulateBrokenStart", true).commit()
 
     private fun selectLaunch() {
-        val next = engine.coldStart { version ->
+        engine.snapshot().pending?.let(activation::begin)
+        if (activation.current != null) changed()
+        val next = engine.coldStart(onProgress = { progress ->
+            if (activation.count(progress)) changed()
+        }) { version ->
             if (activation.advance(version)) changed()
         }
         val simulate = prefs.getBoolean("simulateBrokenStart", false) &&
             prefs.edit().remove("simulateBrokenStart").commit()
         watchdog.launch(next.token, SystemClock.elapsedRealtime(), simulate)
         launch = next
+        activation.current?.let { if (it.version != next.version) activation.clear() }
         if (simulate) engine.log.add("Ignoring ready for this launch (debug simulation)")
     }
     private var shellEventVersion: Long? = null
@@ -195,10 +201,16 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         if (value) shell.maybeInstall()
         changed()
     }
-    // Workers never call coldStart: a background process must not consume a trial.
-    fun prepareLaunch() {
-        if (prepared) return
+    // Only an activity initiates coldStart. Keep its UI free to draw progress (owner, 2026-11-26).
+    fun prepareLaunch(complete: () -> Unit) {
+        if (prepared) { complete(); return }
+        launchCallbacks.add(complete)
+        if (launchCallbacks.size > 1) return
         safeToInterrupt = false
+        Thread(::prepareColdLaunch, "lexling-startup").start()
+    }
+
+    private fun prepareColdLaunch() {
         val start = SystemClock.elapsedRealtime()
         engine.log.add("Quick apply start: launch held at most ${QUICK_APPLY_MS} ms")
         val pending = engine.snapshot().pending != null
@@ -207,9 +219,15 @@ class Updater(private val context: Context, val engine: Engine, private val veri
             val result=awaitQuickApply(check,SystemClock.elapsedRealtime()-start,false)
             engine.log.add("Quick apply $result; timeout/error keeps current and lets background work continue",SystemClock.elapsedRealtime()-start)
         }
-        selectLaunch(); prepared = true; launching = false
+        selectLaunch(); launching = false
         if(launch.notice!=null) status="Ready · ${launch.version}"
         engine.log.add("Quick apply finished: ${launch.version}; existing staged=$pending", SystemClock.elapsedRealtime()-start)
+        main.post {
+            prepared = true
+            val callbacks = launchCallbacks.toList()
+            launchCallbacks.clear()
+            callbacks.forEach { it() }
+        }
         changed()
     }
     fun info(): JSObject = JSObject().apply {
@@ -273,8 +291,15 @@ class Updater(private val context: Context, val engine: Engine, private val veri
                 message("Checking…")
                 val sigStart = System.nanoTime()
                 val waiting = if (manual) null else eligibleWaiting()
-                val (downloaded, m) = if (waiting != null) waiting to verifier.verify(waiting.bytes, System.currentTimeMillis())
+                val release = if (waiting != null) waiting to verifier.verify(waiting.bytes, System.currentTimeMillis())
                 else checks.fetch(CheckChannel.WEB, url, transport, manual) { verifier.verify(it.bytes, System.currentTimeMillis()) }
+                if (release == null) {
+                    offer = null
+                    lastCheckSucceeded = true
+                    message("No web update published")
+                    return@submit
+                }
+                val (downloaded, m) = release
                 engine.log.add("Signature OK (Ed25519); expiry/release/file inventory OK", (System.nanoTime()-sigStart)/1_000_000)
                 if (compareVersions(m.version, engine.snapshot().current) > 0)
                     engine.dates.record("web", m.version, m.releasedAt, available = true)
@@ -343,18 +368,20 @@ class Updater(private val context: Context, val engine: Engine, private val veri
             var fix: StartupFix? = null
             var failedCheck = false
             val result = try {
-                val (source, manifest) = checks.fetch(CheckChannel.WEB, url, transport, reportFailure = false) {
+                val release = checks.fetch(CheckChannel.WEB, url, transport, reportFailure = false) {
                     verifier.verify(it.bytes, System.currentTimeMillis())
                 }
-                val selected = startupOffer(source, manifest)
-                if (selected.decision.action != Action.PROMPT) {
+                val selected = release?.let { (source, manifest) -> startupOffer(source, manifest) }
+                if (selected == null) {
+                    strings.getString(R.string.ota_no_startup_fix)
+                } else if (selected.decision.action != Action.PROMPT) {
                     engine.log.add("Startup fix unavailable: ${selected.decision.reason}")
                     strings.getString(if (selected.decision.action == Action.FULL_APP)
                         R.string.ota_app_update_first else R.string.ota_no_startup_fix)
                 } else {
                     val staged = isStagedFix(selected.manifest)
                     val bytes = if (staged) 0 else selected.decision.delta
-                    fix = StartupFix(token, staged, source)
+                    fix = StartupFix(token, staged, selected.source)
                     if (staged) strings.getString(R.string.ota_startup_fix_ready, selected.manifest.version)
                     else strings.getString(R.string.ota_startup_fix_offer, selected.manifest.version, formatSize(bytes))
                 }
@@ -381,12 +408,13 @@ class Updater(private val context: Context, val engine: Engine, private val veri
                 check(staged || (install(selected, true, fix.token) && isStagedFix(selected.manifest))) {
                     "Fix was not staged"
                 }
+                launching = true
                 restartLaunch()
                 null
             } catch (e: Exception) {
                 engine.log.add("Startup fix failed: ${e.message}")
                 strings.getString(R.string.ota_startup_fix_apply_failed)
-            } finally { busy.set(false); changed() }
+            } finally { busy.set(false); launching = false; changed() }
             main.post { complete(error) }
         }
     }
@@ -436,7 +464,6 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         if (!startupRecovery && !safeToInterrupt) { toast(R.string.ota_wait_before_restart); return false }
         if (!busy.compareAndSet(false, true)) { toast(R.string.ota_wait_for_download); return false }
         launching = true
-        if (!reset) engine.snapshot().pending?.let(activation::begin)
         changed()
         worker.execute {
             try {
@@ -453,7 +480,6 @@ class Updater(private val context: Context, val engine: Engine, private val veri
     }
     private fun restartLaunch() {
         selectLaunch(); offer = null; laterVersion = null
-        activation.current?.let { if (it.version != launch.version) activation.clear() }
         status = "Ready · ${launch.version}"; autoRestartPending = false; safeToInterrupt = true
         updated = null; rolledBack = null
     }
