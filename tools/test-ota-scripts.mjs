@@ -51,9 +51,11 @@ function rejects(run, error) {
 
 try {
   const fixtureConfig = JSON.parse(fs.readFileSync(path.join(root, 'ota.config.json')));
+  fixtureConfig.build = { shellApi: 1, minShellApi: 1 };
   fixtureConfig.signing.privateKey = privateFile;
   fixtureConfig.bundle.baselineVersion = '0.73.0';
   fixtureConfig.bundle.baselineDir = '.local/ota-baseline/0.73.0';
+  fixtureConfig.bundle.baselineMinShellApi = 1;
   write(configFile, JSON.stringify(fixtureConfig));
   write(versionFile, "export const VERSION = '0.73.1';\n");
   write(privateFile, privateKey.export({ type: 'pkcs8', format: 'pem' }));

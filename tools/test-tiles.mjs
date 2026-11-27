@@ -1168,7 +1168,9 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     check(`${lang} screen: the shared-device rack is hidden and tools are off during voting`, [(c.rackEl.innerHTML.match(/visibility:hidden/g) ?? []).length, /data-slot|rt used/.test(c.rackEl.innerHTML), c.dock.innerHTML], [7, false, '']);
     const boardHtml = c.boardInner(c.S);
     check(`${lang} screen: proposed board tiles have their own look`, [(boardHtml.match(/class="t voting/g) ?? []).length, /class="t (new|hint|last)/.test(boardHtml)], [3, false]);
-    check(`${lang} screen: shared vote shows only the other person's two choices`, [c.voteEl.hidden, (c.voteEl.innerHTML.match(/data-voter="1"/g) ?? []).length, c.voteEl.innerHTML.includes(t('tiles.vote.choosing')), c.voteEl.innerHTML.includes('aria-valuenow="20"')], [false, 2, true, true]);
+    check(`${lang} screen: shared vote shows both choices without a pending spinner`,
+      [c.voteEl.hidden, (c.voteEl.innerHTML.match(/data-voter="1"/g) ?? []).length,
+        c.voteEl.innerHTML.includes('tl-vote-state choosing'), c.voteEl.innerHTML.includes('aria-valuenow="20"')], [false, 2, false, true]);
     c.advance(5000); c.paintVote();
     check(`${lang} screen: repaint preserves first-seen time and shrinks the countdown`, [c.voteEl.innerHTML.includes('aria-valuenow="15"'), c.voteEl.innerHTML.includes('width:75%'), c.turnTime(), c.totalTime(0)], [true, true, 5120, 5120]);
     c.game.turnMs = 999;   // vote ms must never be overwritten by the mover's old accumulator
@@ -1282,7 +1284,7 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
       const root = new Element(), ctx = { root, UI_ICONS, setupPractice, STANDARD, BOARDS, LABEL: { d: 'l2', t: 'l3', D: 'w2', T: 'w3' }, LEVEL_ORDER: T.LEVEL_ORDER, PLAYERS_MAX: T.PLAYERS_MAX,
         t, esc, LANG_NAMES, playerIcon: () => '<svg></svg>', botLevelIcon, TILE_SETUP_ICONS: { dice: '<svg></svg>', addPlayer: '<svg></svg>' }, levelKey: T.levelKey, fullBag, settings: { lang, newGame: {}, tilesRate: false }, on: b => b ? 'on' : '', DOT: ' · ', LIST_OF: { tiles: '' },
         remembered: () => ({ board: kind === 'friends' ? 'bonus' : 'classic', players: cpus.map((cpu, p) => ({ name: kind === 'friends' ? `Player ${p + 1}` : '', cpu })), first: 0, rules: { rating: false, veto: true } }),
-        nameOf: (_, p) => `P${p + 1}`, topbar: () => '', modeTag: () => '', howTo: () => '', nameField: () => '',
+        nameOf: (_, p) => `P${p + 1}`, topbar: () => '', modeTag: () => '', screenTitle: () => '', howTo: () => '', nameField: () => '',
         tileSeg: () => '', bonusSeg: () => '', boardStyleSeg: () => '', fitAll() {}, saveSettings() {}, remember() {},
         loadTileWords: async () => ({ tag: 1 }), tilesGame: o => { ctx.created = o; return newGame(o); }, newGame: o => ({ ...o, id: 'new' }),
         typedName: () => '', netKinds: () => ['web'], location: { replace() {} }, hostKind: kind === 'online' ? 'web' : null };

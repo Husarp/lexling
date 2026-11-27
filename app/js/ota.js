@@ -1,5 +1,5 @@
 import { VERSION } from './version.js';
-import { t, esc, dateTime } from './i18n.js';
+import { t, esc, dateTime, checkTime } from './i18n.js';
 import { settings, saveSettings } from './store.js';
 import { newer } from './whatsnew.js';
 import { defaults, isNewShell, offers, selectFlow, failureStatus, noticeKey, sizeText, amountText, speedText, failureKind, checkStatus } from './ota-logic.js';
@@ -14,7 +14,7 @@ const fields = [
   ['smallFixes'], ['majorUpdates'], ['shellUpdates'], ['updateNotifications'],
   ['wifiLimitMb', [5, 20, 50, 100, -1]],
   ['mobileLimitMb', [0, 5, 20, 50, -1]],
-  ['checkFrequency', ['open', '1h', '6h', '24h', 'manual']],
+  ['checkFrequency', ['1h', '6h', '24h']],
 ];
 const button = (action, label, style = 'outline') =>
   `<button type="button" class="btn btn-${style}" data-ota-action="${action}">${label}</button>`;
@@ -28,7 +28,12 @@ const icons = {
 const progressMarkup = () => `<div class="ota-progress" hidden>
   <progress max="100" aria-label="${t('ota.progress')}"></progress>
   <span data-ota-transfer></span><p data-ota-keep-playing>${t('ota.keepPlaying')}</p></div>`;
-const actionText = item => t(item.phase === 'ready' ? (item.channel === 'web' ? 'ota.installRestart' : 'ota.install') : 'ota.get', { v: item.version });
+const updateName = item => t(
+  item.channel === 'combined' ? 'ota.combinedName' : item.channel === 'shell' ? 'ota.shellName' : 'ota.webName',
+  { v: item.version, web: item.webVersion },
+);
+const actionText = item => item.phase === 'ready' ? t('ota.installRestart') : t('ota.get', { v: updateName(item) });
+const frequencyValue = value => ['open', 'manual'].includes(value) ? defaults.checkFrequency : value;
 const route = () => window.location.hash.replace(/^#\/?/, '').split('/')[0];
 const gameOnScreen = () => ['game', 'host', 'join', 'online'].includes(route());
 
@@ -45,7 +50,7 @@ function controlsMarkup() {
       : `<strong class="row-text">${label}</strong>${controls}`}</div>`;
   });
   return `${settingsGroup('automatic', rows.slice(0, 4).join(''))}
-    ${settingsGroup('downloads', rows.slice(4).join(''))}<p class="ota-muted">${t('ota.limitNote')}</p>`;
+    ${settingsGroup('downloads', rows.slice(4).join(''))}<p class="ota-muted">${t('ota.frequencyNote')}</p><p class="ota-muted">${t('ota.limitNote')}</p>`;
 }
 
 const settingsGroup = (title, contents) => `<section class="ota-group">
@@ -60,7 +65,10 @@ function paintControls(container, values, disabled) {
       const on = values?.[key] === true;
       control.classList.toggle('on', on);
       control.setAttribute('aria-checked', on);
-    } else if (control.value !== String(values?.[key] ?? '')) control.value = values?.[key] ?? '';
+    } else {
+      const value = key === 'checkFrequency' ? frequencyValue(values?.[key]) : values?.[key];
+      if (control.value !== String(value ?? '')) control.value = value ?? '';
+    }
     control.disabled = disabled || !values;
   }
 }
@@ -107,7 +115,7 @@ function mount(ota) {
   let launch, state, unavailable = false, pendingRefresh, refreshAgain = false;
   let flow, request, actionBusy = false, actionMessage = '', messageTimer, updatedTimer;
   let requestedAt = 0, retryNotice, claiming = false, claimAttempted = false, checkBusy = false;
-  let updateNotice, rollbackNotice, releaseNotes, firstSnapshot = true;
+  let updateNotice, rollbackNotice, releaseNotes, shellUpgrade, firstSnapshot = true;
   let savedTheme, themeTask, safeSent, safeTask;
   let saving, policyRevision = 0, saveError = false;
 
@@ -170,20 +178,23 @@ function mount(ota) {
     if (item.phase === 'ready' && !canInterrupt()) return say('finishGame');
     actionBusy = true;
     request = {
-      channel: item.channel, version: item.version, versionCode: item.versionCode,
+      channel: item.channel, version: item.version, versionCode: item.versionCode, webVersion: item.webVersion,
       phase: item.phase === 'ready' ? 'installing' : 'downloading',
-      transfer: { done: 0, total: item.size },
+      transfer: { done: 0, total: item.estimatedSize ? undefined : item.size },
       baseline: failureStatus(state, item.channel), until: Date.now() + (item.phase === 'ready' ? 60000 : 6000),
     };
     paint();
+    const combined = { versionCode: item.versionCode, webVersion: item.webVersion };
     try {
       if (item.phase === 'ready') {
         await syncSafety();
         if (!canInterrupt()) { request = null; return say('finishGame'); }
-        await call(item.channel === 'web' ? 'restart' : 'installShell', undefined, item.channel === 'shell' ? 60000 : 3000);
+        if (item.channel === 'combined') await call('installCombined', combined, 60000);
+        else await call(item.channel === 'web' ? 'restart' : 'installShell', undefined, item.channel === 'shell' ? 60000 : 3000);
         if (request) request.until = Date.now() + 6000;
       } else {
-        await call(item.channel === 'web' ? 'download' : 'downloadShell', { downloadOnly: true });
+        if (item.channel === 'combined') await call('downloadCombined', combined);
+        else await call(item.channel === 'web' ? 'download' : 'downloadShell', { downloadOnly: true });
       }
     } catch { request = null; say('actionFailed'); }
     finally { actionBusy = false; void refresh(); }
@@ -223,22 +234,28 @@ function mount(ota) {
     }
     const update = current.updated?.to === VERSION ? current.updated : null;
     const { shellVersion, runningShellVersionCode: versionCode } = current;
-    let shellUpgrade, legacyUpgrade;
+    let webUpgrade = !!update;
     if (firstSnapshot) {
       let oldShell;
       try { oldShell = JSON.parse(read('lx.ota.appVersion')); } catch { /* old entry */ }
       shellUpgrade = oldShell && isNewShell({
         shellVersion: oldShell.version, runningShellVersionCode: oldShell.versionCode,
       }, shellVersion, versionCode);
-      legacyUpgrade = !oldShell && settings.seenVersion && newer(VERSION, settings.seenVersion);
+      webUpgrade ||= !!settings.seenVersion && newer(VERSION, settings.seenVersion);
       if (shellVersion) write('lx.ota.appVersion', JSON.stringify({ version: shellVersion, versionCode }));
       firstSnapshot = false;
     }
-    const version = update?.to || (shellUpgrade && shellVersion) || (legacyUpgrade && VERSION);
-    if (!version || rolled?.to === version) return;
-    const key = update || legacyUpgrade ? noticeKey('updated', version) : noticeKey('updated', version, 'shell', versionCode);
-    if (!isDismissed(key)) updateNotice = { type: 'updated', version, key };
-    const notes = update?.notes || (version === shellVersion && current.shellNotes);
+    webUpgrade &&= rolled?.to !== VERSION;
+    const key = webUpgrade ? noticeKey('updated', VERSION) : noticeKey('updated', shellVersion, 'shell', versionCode);
+    if ((webUpgrade || shellUpgrade) && !isDismissed(key)) {
+      updateNotice = {
+        type: 'updated', key, channel: webUpgrade ? (shellUpgrade ? 'combined' : 'web') : 'shell',
+        version: shellUpgrade ? shellVersion : VERSION, webVersion: VERSION, versionCode,
+      };
+      if (webUpgrade && shellUpgrade) dismiss(noticeKey('updated', shellVersion, 'shell', versionCode));
+    }
+    const notes = update?.notes || (shellUpgrade && current.shellNotes);
+    const version = update ? VERSION : shellVersion;
     if (notes && (releaseNotes?.version !== version || releaseNotes.notes !== notes)) {
       releaseNotes = { version, notes };
       write('lx.ota.releaseNotes', JSON.stringify(releaseNotes));
@@ -280,7 +297,7 @@ function mount(ota) {
     for (const item of queued) {
       if (!item) continue;
       const subtype = item.type === 'message' || item.type === 'retry' ? ':' + item.kind : '';
-      item.key ||= noticeKey(item.type + subtype, item.version, item.channel, item.versionCode);
+      item.key ||= noticeKey(item.type + subtype, item.version, item.channel, item.versionCode, item.webVersion);
       if (item.key === shown?.key || !isDismissed(item.key)) return item;
     }
     return null;
@@ -299,19 +316,18 @@ function mount(ota) {
 
   function paintNotice(item) {
     let label, note = '', action = '', icon = 'warning';
-    const args = { v: item.version };
+    const args = { v: updateName(item) };
     if (item.type === 'ready' || item.type === 'available') {
       icon = item.type === 'ready' ? 'ready' : 'download';
       if (item.needsShell) {
         label = t('ota.appRequired');
-        note = t('ota.needsApp', args);
+        note = t('ota.needsApp', { v: item.version });
         action = button('details', t('ota.details'), 'primary');
       } else {
-        const shell = item.channel === 'shell';
-        label = t(item.type === 'ready' ? (shell ? 'ota.appReady' : 'ota.ready') : (shell ? 'ota.appUpdate' : 'ota.updateVersion'), args);
-        const size = item.type === 'available' && sizeText(item.size);
+        label = t(item.type === 'ready' ? 'ota.ready' : 'ota.updateVersion', args);
+        const size = item.type === 'available' && !item.estimatedSize && sizeText(item.size);
         if (size) label += ' · ' + size;
-        action = button('offer', !shell && item.type === 'available' ? t('ota.download') : esc(actionText(item)), 'primary');
+        action = button('offer', t(item.type === 'available' ? 'ota.download' : 'ota.installRestart'), 'primary');
       }
     } else if (item.type === 'updated') {
       icon = 'ready';
@@ -410,17 +426,15 @@ function mount(ota) {
     if (item) setText(get, actionText(item));
     else get.textContent = '';
     find('[data-ota-action="setup"]').hidden = values?.setupAnswered !== false;
-    const address = find('[data-ota-address]');
-    if (address.value !== (values?.url || '')) address.value = values?.url || '';
     const status = state && checkStatus(state, requestedAt);
     const label = unavailable ? t('ota.unavailable') : checkBusy ? t('ota.check.checking')
-      : status ? t('ota.check.' + status.kind, { v: status.version }) : '';
-    const time = !status?.last ? '' : t(status.previousSuccess ? 'ota.lastSuccess' : 'ota.lastCheck', { d: dateTime(status.last) });
+      : status ? t('ota.check.' + status.kind, { v: status.item ? updateName(status.item) : '' }) : '';
+    const time = !status?.last ? '' : status.previousSuccess ? t('ota.lastSuccess', { d: checkTime(status.last) }) : checkTime(status.last, 'ota.lastCheck');
     setText(find('[data-ota-check]'), label);
     setText(find('[data-ota-check-time]'), time);
     setText(find('[data-ota-feedback]'), saveError ? t('ota.saveFailed')
       : actionMessage ? t('ota.' + actionMessage)
-      : flow?.phase === 'installing' ? t('ota.installing', { v: flow.version })
+      : flow?.phase === 'installing' ? t('ota.installing', { v: updateName(flow) })
         : state && failureStatus(state) ? t('ota.actionFailed') : '');
     const requires = state && offers(state).find(offer => offer.needsShell);
     setText(find('[data-ota-needs-app]'), requires ? t('ota.needsApp', { v: requires.version }) : '');
@@ -464,9 +478,7 @@ function mount(ota) {
       <button type="button" class="btn btn-ghost ota-github" data-ota-action="github" aria-label="${t('ota.github')}" title="${t('ota.github')}">${githubIcon}</button></div>
       ${controlsMarkup()}
       ${settingsGroup('installed', '<div data-ota-versions></div>')}
-      ${settingsGroup('support', `<div class="row"><label class="ota-select"><span>${t('ota.address')}</span>
-        <input class="input" data-ota-address readonly></label></div>`)}
-      <div class="ota-actions">${button('maintenance', t('ota.maintenance'))}${button('logs', t('ota.logs'))}${button('setup', t('ota.finishSetup'))}</div>`;
+      ${settingsGroup('support', `<div class="row ota-actions">${button('maintenance', t('ota.maintenance'))}${button('logs', t('ota.logs'))}${button('setup', t('ota.finishSetup'))}</div>`)}`;
     panel.onchange = event => {
       const patch = controlChange(event.target);
       if (patch) void savePreferences(patch);
@@ -559,6 +571,7 @@ function mount(ota) {
         for (const [key] of fields) {
           if (state.updateSettings[key] !== undefined) setupDraft[key] = state.updateSettings[key];
         }
+        setupDraft.checkFrequency = frequencyValue(setupDraft.checkFrequency);
         paintSetup(true);
       }
       if (action === 'later') closeSetup();

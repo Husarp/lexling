@@ -13,19 +13,22 @@ data class UpdateSettings(
     val checkFrequency: String = "6h"
 ) {
     fun validate(): UpdateSettings {
-        require(checkFrequency in listOf("open","1h","6h","24h","manual")) { "Invalid check frequency" }
+        require(checkFrequency in listOf("1h","6h","24h")) { "Invalid check frequency" }
         require(wifiLimitMb in listOf(5,20,50,100,-1)) { "Invalid Wi-Fi limit" }
         require(mobileLimitMb in listOf(0,5,20,50,-1)) { "Invalid mobile limit" }
         return this
     }
-    val automaticChecks get() = checkFrequency != "manual"
-    val checksOnOpen get() = checkFrequency == "open"
-    val periodicHours: Long? get() = when(checkFrequency) { "1h" -> 1L; "6h" -> 6L; "24h" -> 24L; else -> null }
+    val periodicHours: Long get() = checkFrequency.removeSuffix("h").toLong()
     fun allowsBytes(bytes: Long, unmetered: Boolean): Boolean {
         val limit = if(unmetered) wifiLimitMb else mobileLimitMb
         return limit == -1 || (limit > 0 && bytes <= limit * MIB)
     }
 }
+fun migrateCheckFrequency(value: String) = when (value) {
+    "open", "manual" -> UpdateSettings().checkFrequency
+    else -> value
+}
+
 fun migrateUpdateSettings(oldAutomatic: Boolean?) = UpdateSettings(
     smallFixes = oldAutomatic != false, majorUpdates = false
 )

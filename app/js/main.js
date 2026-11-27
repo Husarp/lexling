@@ -1,6 +1,6 @@
 import { settings, getSave, getFinished } from './store.js';
 import { setLang } from './i18n.js';
-import { applyTheme, applyAccent, applyButtonSize, applyLettersContrast } from './ui.js';
+import { applyTheme, applyAccent, applyButtonSize, applyTextSize, applyLettersContrast } from './ui.js';
 import { fitAll, watchResize } from './fit.js';
 import { watchScrollFades } from './scroll-fades.js';
 import { menu, chooseFirstLanguage, games, lastGamesScreen, newGameScreen, lettersNewScreen, connectNewScreen, tilesNewScreen, tilesJoinScreen, tilesOnlineScreen, statsScreen, achievementsScreen, whatsnewScreen, settingsScreen, collectionScreen } from './screens.js';
@@ -17,19 +17,19 @@ import { startPlaytime, paintClock } from './playtime.js';
 // and #/game/<id> takes the mode from the save itself.
 // Tiles online: #/online (the connection, then host or join), #/host/<bt|lan> (New game, online), #/join/<bt|lan>
 const gameView = mode => ({ letters: lettersGameScreen, connect: connectGameScreen, tiles: tilesGameScreen }[mode] ?? gameScreen);
-const ROUTES = { '': menu, games, 'last-games': root => lastGamesScreen(root), 'kept-games': root => lastGamesScreen(root, true),
+const ROUTES = { '': menu, games, 'last-games': lastGamesScreen, 'kept-games': () => { location.replace('#/last-games'); },
   stats: statsScreen, achievements: achievementsScreen, settings: settingsScreen, whatsnew: whatsnewScreen, collection: collectionScreen, online: tilesOnlineScreen, join: tilesJoinScreen,
   host: (root, kind, refresh) => tilesNewScreen(root, 'tiles', refresh, kind),
   new: (root, mode, refresh) => ({ letters: lettersNewScreen, connect: connectNewScreen, tiles: tilesNewScreen }[mode] ?? newGameScreen)(root, mode, refresh),
   game: (root, id) => gameView(getSave(id)?.mode)(root, id),
   // Finished results have their own back destination (owner, 2026-11-26).
   result: (root, id) => resultScreen(root, id),
-  'kept-result': (root, id) => resultScreen(root, id, true),
+  'kept-result': (_, id) => { location.replace('#/result/' + id); },
 };
-function resultScreen(root, id, kept = false) {
+function resultScreen(root, id) {
   const game = getFinished(id);
-  if (!game) { location.replace(kept ? '#/kept-games' : '#/last-games'); return; }
-  return gameView(game.mode)(root, id, true, kept);
+  if (!game) { location.replace('#/last-games'); return; }
+  return gameView(game.mode)(root, id, true);
 }
 const root = document.getElementById('root');
 let cleanup, shown, latest = 0;
@@ -48,7 +48,7 @@ async function render(navigated = true) {
   paintClock();
   fitAll(root);
   if (navigated && shown !== location.hash) {
-    window.scrollTo(0, 0);
+    root.scrollTo(0, 0);
     root.firstElementChild?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' });
   }
   shown = location.hash;
@@ -58,6 +58,7 @@ setLang(settings.lang);
 applyTheme();
 applyTileLook();
 applyButtonSize();
+applyTextSize();
 applyLettersContrast();
 applyAccent();
 
@@ -69,12 +70,12 @@ const KEYBOARD_BELOW = 560;
 function keyboardCheck() {
   const height = window.visualViewport?.height ?? window.innerHeight;
   const typing = document.activeElement?.matches?.('input, textarea') ?? false;
-  document.documentElement.toggleAttribute('data-kb', typing && height < KEYBOARD_BELOW);
-  // the visible height, for the Letters screen: with the keyboard open it becomes exactly this tall
-  document.documentElement.style.setProperty('--vvh', height + 'px');
-  // the height with no keyboard: Tiles keeps its layout at that while one is open - the keyboard covers the rack instead
-  // of squeezing the board away (owner, 2026-09-27: checking a word squashed everything)
-  if (!typing) document.documentElement.style.setProperty('--vvh-full', height + 'px');
+  const keyboard = typing && height < KEYBOARD_BELOW;
+  const html = document.documentElement;
+  html.toggleAttribute('data-kb', keyboard);
+  // Dynamic viewport units handle normal resizes. Some keyboards only shrink the visual viewport.
+  if (keyboard && height < window.innerHeight) html.style.setProperty('--vvh', height + 'px');
+  else html.style.removeProperty('--vvh');
 }
 keyboardCheck();
 for (const event of ['focusin', 'focusout', 'resize', 'orientationchange']) window.addEventListener(event, keyboardCheck);
@@ -127,7 +128,7 @@ async function start() {
   document.documentElement.dataset.ready = VERSION;
   window.LXStartup?.finish();
   watchResize(root);
-  watchScrollFades();
+  watchScrollFades(root);
   window.addEventListener('hashchange', () => render());
   // a newer version: looked for on opening, and on coming back to the app (update.js - not more than every few minutes)
   cleanUpdate();

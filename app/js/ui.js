@@ -1,4 +1,3 @@
-import { achievementIcon } from './achievement-icons.js';
 import { achievementDetail } from './achievement-view.js';
 import { settings, saveSettings, gameName, counts, isKept, toggleKept } from './store.js';
 import { t, esc } from './i18n.js';
@@ -6,10 +5,15 @@ import { TIERS } from './achievements.js';
 import { playCue, queueTap, syncSound } from './sound.js';
 import { btStillOn, btLetBe, btSettings } from './net.js';
 import { feedback } from './letters.js';
+import { BUTTON_SCALES, TEXT_SCALES } from './fit.js';
 import { botLevelIcon } from './bot-level-icons.js';
 
 // Owner-picked icons from notes/icon-places/index.html; geometry stays with its proposal.
 export const UI_ICONS = {
+  bluetooth: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 4V3l5 4L7 17"/></svg>',
+  // Drawn in the style of Lucide's wifi-off.
+  wifiOff: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 18 18M2 9a15 15 0 0 1 4-2.4m4-1.1A15 15 0 0 1 22 9M5 13a10 10 0 0 1 6-2.5m4.5.6A10 10 0 0 1 19 13M8.5 16.5a5.5 5.5 0 0 1 6-.7M12 20h.01"/></svg>',
+  trash: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg>',
   general: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>',
   display: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/></svg>',
   playTime: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
@@ -53,7 +57,7 @@ function showAchievement() {
   const notice = achievementNotice = document.createElement('div');
   notice.className = 'achievement-notice';
   notice.setAttribute('role', 'status');
-  notice.innerHTML = `<span class="ach-notice-icon"><img src="img/achievement.webp" alt="">${achievementIcon(id)}</span><span><strong>${t('ach.unlocked')}</strong><b>${tier === undefined ? t('ach.earned') : t('tier.' + TIERS[+tier])}</b><span>${esc(name)}</span></span><span class="ach-notice-actions"><button data-see>${t('ach.see')}</button><button data-close>${t('ach.nice')}</button></span>`;
+  notice.innerHTML = `<span class="ach-notice-icon"><img src="img/achievement.webp" alt=""></span><span><strong>${t('ach.unlocked')}</strong><b>${tier === undefined ? t('ach.earned') : t('tier.' + TIERS[+tier])}</b><span>${esc(name)}</span></span><span class="ach-notice-actions"><button data-see>${t('ach.see')}</button><button data-close>${t('ach.nice')}</button></span>`;
   let closed = false;
   const close = () => { if (closed) return; closed = true; notice.remove(); achievementNotice = null; showAchievement(); };
   notice.querySelector?.('[data-close]')?.addEventListener('click', close);
@@ -73,16 +77,15 @@ document.addEventListener('lexling:save-evicted', () => {
   const notice = document.createElement('div');
   notice.className = 'meaning-notice save-notice';
   notice.setAttribute('role', 'status');
-  notice.textContent = t('games.limitRemoved');
+  notice.innerHTML = `${UI_ICONS.trash}<span>${t('games.limitRemoved')}</span>`;
   document.body.append(notice);
   setTimeout(() => notice.remove(), 4000);
 });
 
 // A game's name in its top bar (owner, 2026-09-26: "Name (Game 12)"): a long name gives way, its number always shows.
 export const practiceBadge = (g, archived = false) => (archived ? !g.practice : counts(g)) ? '' : `<span class="practice-badge">${t('practice')}</span>`;
-export const gameTitle = (g, archived = false) => (g.name
-  ? `<span class="eyebrow gname"><span class="nm">${esc(g.name)}</span><span class="no">(${t('games.defaultName', { n: g.auto ?? 1 })})</span></span>`
-  : `<span class="eyebrow">${esc(gameName(g))}</span>`) + practiceBadge(g, archived);
+export const gameTitle = (g, archived = false) => `<span class="eyebrow gname">${GLYPH[g.mode ?? 'guess']}<span class="nm">${esc(g.name || gameName(g))}</span>${
+  g.name ? `<span class="no">(${t('games.defaultName', { n: g.auto ?? 1 })})</span>` : ''}</span>` + practiceBadge(g, archived);
 
 // A word's meaning (owner, 2026-09-26: no dictionary inside the app - too big - "open the browser with the word"): sjp.pl
 // for Polish (it knows every form, and says which word it comes from), Wiktionary for English. In the phone's own
@@ -148,12 +151,12 @@ export function wireGear(root, mode, extra = [], onChange = () => {}) {
     if (e.target.closest('.gs-open')) openSettings();
   });
 }
-// A small window over the screen: a head with the title and ✕; Esc, ✕ or a tap outside closes it. (Tiles' Options is
-// one too, with more in it - owner, 2026-09-26.) Returns the dialog and its close().
-export function openDialog(title, body) {
+// Esc and the backdrop can dismiss the dialog even when its actions replace the close button.
+export function openDialog(title, body, { icon = '', showClose = true } = {}) {
   const dlg = document.createElement('dialog');
   dlg.className = 'card game-settings';
-  dlg.innerHTML = `<div class="gs-head"><span class="eyebrow">${title}</span><button class="btn btn-ghost gs-close" type="button" aria-label="${t('tiles.close')}">✕</button></div>${body}`;
+  dlg.innerHTML = `<div class="gs-head"><span class="eyebrow">${icon}${title}</span>${showClose
+    ? `<button class="btn btn-ghost gs-close" type="button" aria-label="${t('tiles.close')}">✕</button>` : ''}</div>${body}`;
   const keys = e => {
     e.stopPropagation();
     if (e.key === 'Escape') { e.preventDefault(); close(); }
@@ -172,15 +175,25 @@ export function remindBt() {
   setTimeout(async () => {
     if (/^#\/(game|join)\//.test(location.hash) || !settings.btRemind || !(await btStillOn())) return;
     const { dlg, close } = openDialog(t('net.remind.title'), `<p class="help">${t('net.remind.text')}</p><div class="gs-acts"><button class="btn btn-ghost" type="button" data-ok>${
-      t('net.remind.ok')}</button><button class="btn btn-primary" type="button" data-off>${t('net.remind.off')}</button></div>`);
+      t('net.remind.ok')}</button><button class="btn btn-primary" type="button" data-off>${t('net.remind.off')}</button></div>`,
+    { icon: UI_ICONS.bluetooth, showClose: false });
     dlg.querySelector('[data-ok]').addEventListener('click', () => { btLetBe(); close(); });
     dlg.querySelector('[data-off]').addEventListener('click', () => { btLetBe(); btSettings(); close(); });
   }, 400);
 }
 // Larger game tools share one preference in both Look controls (owner, 2026-11-20).
+function applySize(property, value, steps, fallback) {
+  const scale = Number(value) / 100;
+  document.documentElement.style.setProperty(property, steps.includes(scale) ? scale : fallback);
+  window.dispatchEvent(new window.Event('lexling:size'));
+}
+
 export function applyButtonSize() {
-  const size = String(settings.buttonSize);
-  document.documentElement.style.setProperty('--button-scale', ['100', '115', '130', '150', '175'].includes(size) ? Number(size) / 100 : 1.3);
+  applySize('--button-scale', settings.buttonSize, BUTTON_SCALES, 1.3);
+}
+
+export function applyTextSize() {
+  applySize('--text-scale', settings.textSize, TEXT_SCALES, 1);
 }
 
 // One Letters display preference for Settings, the gear and the guide example (owner, 2026-11-26).
@@ -220,10 +233,10 @@ export function wireSettingRows(el, onChange = () => {}) {
 // screen's own note on the right. The side slots are equal columns, so the brand stays centred.
 export const topbar = ({ left = '', right = '' } = {}) =>
   `<header class="topbar"><span class="side">${left}</span><a class="brand" href="#/">Lex<b>/</b>ling<small class="tb-clock" aria-live="off"></small></a><span class="side end">${right}</span></header>`;
-export const resultHref = (id, kept) => `#/${kept ? 'kept-result' : 'result'}/${id}`;
-export const backToResults = kept => `<a class="btn btn-ghost" href="#/${kept ? 'kept-games' : 'last-games'}">${t(kept ? 'back.keptGames' : 'back.lastGames')}</a>`;
+export const resultHref = id => `#/result/${id}`;
+export const backToResults = () => `<a class="btn btn-ghost" href="#/last-games">${t('back.lastGames')}</a>`;
 
-// Both finished lists and their results use the same star (owner, 2026-11-26).
+// Saved games and individual results use the same star.
 export const keepButton = (game, on = game && isKept(game.id)) => game ? `<span class="keep-game">
   <button class="btn btn-outline" type="button" data-keep aria-pressed="${on}" aria-label="${t('lastGames.keep')}" title="${t('lastGames.keep')}"><span aria-hidden="true">${on ? '★' : '☆'}</span></button>
   <span class="keep-status help" role="status"></span>

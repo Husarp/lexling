@@ -95,22 +95,21 @@ class MainActivity : BridgeActivity() {
     }
     private fun renderStartup(trial: Boolean = false) {
         val phase = updater.activation.current
-        val light = NativeLook.light(this)
         when {
             updater.launching && phase != null -> {
                 val step = if (phase.step == UpdateActivation.Step.CHECKING_FILES) strings.getString(R.string.ota_checking_files)
-                    else strings.getString(R.string.ota_installing_version, phase.version)
-                loadingOverlay?.show(phase.version, step, light, phase)
+                    else strings.getString(R.string.ota_installing_version, versionLabel("web", phase.version))
+                loadingOverlay?.show(phase.version, step, phase)
             }
-            bridge == null -> loadingOverlay?.show(updater.launch.version, strings.getString(R.string.ota_loading_app), light)
+            bridge == null -> loadingOverlay?.show(updater.launch.version, strings.getString(R.string.ota_loading_app))
             !updater.watchdog.showLoading && !updater.launching -> loadingOverlay?.visibility = View.GONE
             trial -> {
                 val step = strings.getString(if (webCommitted) R.string.ota_starting else R.string.ota_loading_app)
-                loadingOverlay?.show(updater.launch.version, step, light)
+                loadingOverlay?.show(updater.launch.version, step)
             }
             else -> loadingOverlay?.visibility = View.GONE
         }
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = light
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = lightStatusBars()
     }
     private fun showStartupRecovery(reason: String) {
         updater.engine.log.add("Startup watchdog: ${updater.launch.version} ($reason)")
@@ -375,9 +374,11 @@ class MainActivity : BridgeActivity() {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) configureSystemBars()
     }
+    private fun lightStatusBars() = loadingOverlay?.visibility != View.VISIBLE && NativeLook.light(this)
+
     private fun configureSystemBars() {
         val controller = WindowCompat.getInsetsController(window, window.decorView)
-        controller.isAppearanceLightStatusBars = NativeLook.light(this)
+        controller.isAppearanceLightStatusBars = lightStatusBars()
         controller.isAppearanceLightNavigationBars = false
         controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         controller.hide(WindowInsetsCompat.Type.systemBars())
@@ -387,7 +388,6 @@ class MainActivity : BridgeActivity() {
         started = true
         ShellUpdatedNotification.enterForeground(this)
         updater.setForeground(true)
-
     }
     override fun onResume() {
         super.onResume()
@@ -396,7 +396,6 @@ class MainActivity : BridgeActivity() {
     }
     private fun resumeUpdateUi() {
         refreshRecovery(); showNativeMessages()
-        UpdateWorker.once(this,"start")
         updater.shell.returnedFromInstallSettings()
         updater.shell.maybeInstall() // recheck permission on return from unknown-app settings
         updater.shell.presentRequestedAndroidUi(this)
@@ -473,7 +472,7 @@ class MainActivity : BridgeActivity() {
             setText(R.string.ota_cancel); setOnClickListener { dialog.cancel() }
         })
         box.addView(NativeLook.button(theme).apply {
-            setText(R.string.ota_reset)
+            setText(R.string.ota_reset_builtin)
             setOnClickListener {
                 dialog.dismiss()
                 restartBundle(reset = true, startupRecovery = startupRecovery && updater.watchdog.reason != null)
@@ -497,7 +496,7 @@ class MainActivity : BridgeActivity() {
         val switches = linkedMapOf<String, Switch>()
         val choices = linkedMapOf<String, Pair<Spinner, List<String>>>()
         box.addView(versions)
-        val checkStatus = TextView(theme).apply { text = if (updater.checks.hasError()) strings.getString(R.string.ota_check_failed) else "" }
+        val checkStatus = TextView(theme).apply { text = updater.checks.displayStatus(strings) }
         val checkHelp = NativeLook.button(theme).apply {
             text = "ⓘ"
             contentDescription = strings.getString(R.string.ota_connection_help)
@@ -511,7 +510,7 @@ class MainActivity : BridgeActivity() {
         }
         val checkStatusRow = LinearLayout(theme).apply {
             gravity = Gravity.CENTER_VERTICAL
-            visibility = if (updater.checks.hasError()) View.VISIBLE else View.GONE
+            visibility = View.VISIBLE
             addView(checkStatus, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             addView(checkHelp, LinearLayout.LayoutParams(48.dp, 48.dp))
         }
@@ -559,8 +558,8 @@ class MainActivity : BridgeActivity() {
         }
         choice("wifiLimitMb", strings.getString(R.string.ota_wifi_limit), listOf("5","20","50","100","-1"), listOf(strings.getString(R.string.ota_megabytes, 5),strings.getString(R.string.ota_megabytes, 20),strings.getString(R.string.ota_megabytes, 50),strings.getString(R.string.ota_megabytes, 100),strings.getString(R.string.ota_no_limit)))
         choice("mobileLimitMb", strings.getString(R.string.ota_mobile_limit), listOf("0","5","20","50","-1"), listOf(strings.getString(R.string.ota_never),strings.getString(R.string.ota_megabytes, 5),strings.getString(R.string.ota_megabytes, 20),strings.getString(R.string.ota_megabytes, 50),strings.getString(R.string.ota_no_limit)))
-        choice("checkFrequency", strings.getString(R.string.ota_check_updates), listOf("open","1h","6h","24h","manual"),
-            listOf(strings.getString(R.string.ota_check_on_open),strings.getString(R.string.ota_check_hourly),strings.getString(R.string.ota_check_six_hours),strings.getString(R.string.ota_check_daily),strings.getString(R.string.ota_check_manual)))
+        choice("checkFrequency", strings.getString(R.string.ota_check_frequency), listOf("1h","6h","24h"),
+            listOf(strings.getString(R.string.ota_check_hourly),strings.getString(R.string.ota_check_six_hours),strings.getString(R.string.ota_check_daily)))
         box.addView(TextView(theme).apply {
             setText(R.string.ota_check_settings_help); setTextColor(palette.muted); textSize = 13f
             setPadding(0, 8.dp, 0, 8.dp)
@@ -569,19 +568,27 @@ class MainActivity : BridgeActivity() {
             text = strings.getString(R.string.ota_check_updates)
             setOnClickListener { updater.retryChecks() }
         }
-        val shellUpdate = NativeLook.button(theme, primary = true).apply {
-            setOnClickListener {
-                if (!updater.safeToInterrupt) return@setOnClickListener
-                if (updater.shell.isReady()) installWithNotificationPermission { updater.shell.installFromWeb(this@MainActivity) }
-                else updater.shell.downloadOffered()
-            }
-        }
+        val shellUpdate = NativeLook.button(theme, primary = true)
         fun refreshShellOffer() {
-            val ready = updater.shell.manifest()?.takeIf { updater.shell.isReady() }?.versionName
-            val available = updater.shell.availableState()?.optString("version")
-            shellUpdate.text = if (ready != null) strings.getString(R.string.ota_install_update, ready) else strings.getString(R.string.ota_get_update, available)
-            shellUpdate.visibility = if (ready != null || !available.isNullOrEmpty()) View.VISIBLE else View.GONE
-            shellUpdate.isEnabled = updater.safeToInterrupt && !updater.shell.downloading
+            val state = updater.info()
+            val combined = state.optJSONObject("combined")
+            val ready = state.optJSONObject("shellReady")
+            val available = state.optJSONObject("shellAvailable")
+            val phase = combined?.optString("phase")
+            val versions = combined?.let(::combinedVersions)
+                ?: (ready ?: available)?.optString("version")?.let { strings.getString(R.string.ota_android_version, it) }
+            val canInstall = phase == "ready" || ready != null
+            shellUpdate.text = versions?.let { strings.getString(if (canInstall) R.string.ota_install_update else R.string.ota_get_update, it) }
+            shellUpdate.visibility = if (versions == null) View.GONE else View.VISIBLE
+            shellUpdate.isEnabled = updater.safeToInterrupt && (phase == null || phase in listOf("available", "ready")) &&
+                !updater.shell.downloading
+            shellUpdate.setOnClickListener {
+                when {
+                    combined != null -> actOnCombined(combined, canInstall)
+                    canInstall -> installWithNotificationPermission { updater.shell.installFromWeb(this) }
+                    else -> updater.shell.downloadOffered()
+                }
+            }
         }
         refreshShellOffer()
         box.addView(actionRow(theme, checkButton, shellUpdate))
@@ -592,9 +599,8 @@ class MainActivity : BridgeActivity() {
         box.addView(NativeLook.button(theme).apply {
             text = strings.getString(R.string.ota_simulate_start)
             setOnClickListener {
-                val message = if (updater.simulateBrokenStart()) strings.getString(R.string.ota_simulation_armed)
-                    else strings.getString(R.string.ota_simulation_failed)
-                Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                val message = if (updater.simulateBrokenStart()) R.string.ota_simulation_armed else R.string.ota_simulation_failed
+                showLogoToast(message, Toast.LENGTH_LONG)
             }
         })
         val reset = NativeLook.button(theme).apply {
@@ -623,9 +629,9 @@ class MainActivity : BridgeActivity() {
         debugDialog = dialog
         refreshDebugSettings = {
             refreshShellOffer()
-            checkStatus.text = if (updater.checks.hasError()) strings.getString(R.string.ota_check_failed) else ""
+            checkStatus.text = updater.checks.displayStatus(strings)
             checkHelp.visibility = if (updater.checks.hasError()) View.VISIBLE else View.GONE
-            checkStatusRow.visibility = checkHelp.visibility
+            checkStatusRow.visibility = if (checkStatus.text.isNotEmpty()) View.VISIBLE else View.GONE
             val latest = updater.settingsJson()
             switches.forEach { (key,control) ->
                 if (control.isChecked == initial.getBoolean(key)) {
@@ -655,7 +661,7 @@ class MainActivity : BridgeActivity() {
             }
             catch (e: Exception) {
                 updater.engine.log.add("Could not save update settings: ${e.message}")
-                Toast.makeText(this, R.string.ota_settings_failed, Toast.LENGTH_LONG).show()
+                showLogoToast(R.string.ota_settings_failed, Toast.LENGTH_LONG)
             }
         }
         NativeLook.show(dialog, outlined = true)
@@ -675,8 +681,6 @@ class MainActivity : BridgeActivity() {
     private fun dismissUpdateBanner(key: String) {
         if (transientBanners.remove(key) == null) nativeSeen.add(key)
         if (key == activeBannerKey) bannerFlow.clear()
-        if (key.startsWith("app-installed:")) getSharedPreferences("native-update-messages", Context.MODE_PRIVATE)
-            .edit().putBoolean(key, true).apply()
         showNativeMessages()
     }
     private fun showNativeMessages() {
@@ -695,7 +699,7 @@ class MainActivity : BridgeActivity() {
             transientBanners["check:${SystemClock.elapsedRealtime()}"] = { key ->
                 val advice = if (notice.failure == CheckFailure.UNREACHABLE) strings.getString(R.string.ota_reach_server_advice) else ""
                 UpdateBannerItem(key, strings.checkFailureText(notice.failure), advice,
-                    strings.getString(R.string.ota_retry), { updater.retryCheck(notice.channel) })
+                    strings.getString(R.string.ota_retry), updater::retryChecks, spacedAction = true)
             }
         }
         // Use the same notice headings and actions in the native fallback (owner, 2026-11-26).
@@ -708,73 +712,64 @@ class MainActivity : BridgeActivity() {
             items.add(UpdateBannerItem("rollback:$from:${it.optString("to")}", strings.getString(R.string.ota_rollback_title, it.optString("to")),
                 strings.getString(reason, from), strings.getString(R.string.ota_details), ::showLogs, symbol = "↶"))
         }
-        val installedKey = "app-installed:${BuildConfig.VERSION_CODE}"
-        val appNotes = updater.shell.installedNotes()
-        val appUpdated = appNotes != null &&
-            !getSharedPreferences("native-update-messages", Context.MODE_PRIVATE).getBoolean(installedKey, false)
-        val webUpdated = state.optJSONObject("updated")
-        if (webNotices == false && (appUpdated || webUpdated != null)) {
-            val version = if (appUpdated) BuildConfig.VERSION_NAME else webUpdated!!.optString("to")
-            val notes = if (appUpdated) appNotes else webUpdated?.optString("notes")
-            items.add(UpdateBannerItem(if (appUpdated) installedKey else "updated:$version",
-                strings.getString(R.string.ota_updated_to, version), "", strings.getString(R.string.ota_whats_new_link),
-                { showUpdateNotes(notes) }, brief = true, linkAction = true))
-        }
-        for ((channel, version, transfer) in listOf(
-            Triple("web", state.optString("webDownloadVersion"), state.optJSONObject("webTransfer")),
-            Triple("shell", state.optString("shellDownloadVersion"), state.optJSONObject("shellTransfer"))
-        )) {
-            if (version.isBlank()) continue
-            val total = transfer?.optLong("total") ?: 0
-            val done = transfer?.optLong("done") ?: 0
-            val progress = if (total > 0) (100.0 * done / total).toInt().coerceIn(0, 100) else null
-            items.add(UpdateBannerItem("download:$channel:$version",
-                strings.getString(R.string.ota_downloading, version), strings.getString(R.string.ota_keep_using_app), percent = progress, downloading = true,
-                speed = transfer?.optLong("speed") ?: 0, received = done, total = total,
-                step = UpdateBannerStep("$channel:$version", UpdateBannerPhase.DOWNLOADING)))
-        }
-        val appReady = state.optJSONObject("shellReady")
-        (appReady ?: state.optJSONObject("shellAvailable"))?.let {
-            val version = it.optString("version")
-            items.add(if (appReady != null) UpdateBannerItem("app-ready:$version", strings.getString(R.string.ota_app_ready_version, version), "",
-                strings.getString(R.string.ota_banner_install_restart), { installWithNotificationPermission { updater.shell.installFromWeb(this) } }, keepOnAction = true,
-                step = UpdateBannerStep("shell:$version", UpdateBannerPhase.READY))
-            else UpdateBannerItem("app-offer:$version", updateOfferTitle(strings.getString(R.string.ota_app_update), version, it.optLong("size", -1), locale), "",
-                strings.getString(R.string.ota_banner_download), { updater.shell.downloadOffered() }, keepOnAction = true,
-                step = UpdateBannerStep("shell:$version", UpdateBannerPhase.AVAILABLE)))
-        }
-        val staged = state.optJSONObject("staged")
-        (staged ?: state.optJSONObject("available"))?.let {
-            val version = it.optString("version")
-            items.add(when {
-                staged != null -> UpdateBannerItem("ready:$version", strings.getString(R.string.ota_ready_version, version), "",
-                    strings.getString(R.string.ota_banner_install_restart), { restartBundle(startupRecovery = updater.watchdog.reason != null) }, keepOnAction = true,
-                    step = UpdateBannerStep("web:$version", UpdateBannerPhase.READY))
-                it.optBoolean("needsShell") -> UpdateBannerItem("app-first:$version", strings.getString(R.string.ota_app_required),
-                    strings.getString(R.string.ota_app_required_text, version), strings.getString(R.string.ota_updates), ::showSettings, symbol = "↓")
-                else -> UpdateBannerItem("offer:$version", updateOfferTitle(strings.getString(R.string.ota_banner_new_update), version, it.optLong("size", -1), locale), "", strings.getString(R.string.ota_banner_download), { updater.download(installAfterDownload = false) }, keepOnAction = true,
-                    step = UpdateBannerStep("web:$version", UpdateBannerPhase.AVAILABLE))
-            })
+        val combined = state.optJSONObject("combined")
+        if (combined != null) items.add(combinedBanner(combined, locale))
+        if (combined == null) {
+            for ((channel, version, transfer) in listOf(
+                Triple("web", state.optString("webDownloadVersion"), state.optJSONObject("webTransfer")),
+                Triple("shell", state.optString("shellDownloadVersion"), state.optJSONObject("shellTransfer"))
+            )) {
+                if (version.isBlank()) continue
+                val total = transfer?.optLong("total") ?: 0
+                val done = transfer?.optLong("done") ?: 0
+                val progress = if (total > 0) (100.0 * done / total).toInt().coerceIn(0, 100) else null
+                items.add(UpdateBannerItem("download:$channel:$version",
+                    strings.getString(R.string.ota_downloading, versionLabel(channel, version)), strings.getString(R.string.ota_keep_using_app), percent = progress, downloading = true,
+                    speed = transfer?.optLong("speed") ?: 0, received = done, total = total,
+                    step = UpdateBannerStep("$channel:$version", UpdateBannerPhase.DOWNLOADING)))
+            }
+            val appReady = state.optJSONObject("shellReady")
+            (appReady ?: state.optJSONObject("shellAvailable"))?.let {
+                val version = it.optString("version")
+                items.add(if (appReady != null) UpdateBannerItem("app-ready:$version", strings.getString(R.string.ota_app_ready_version, version), "",
+                    strings.getString(R.string.ota_banner_install_restart), { installWithNotificationPermission { updater.shell.installFromWeb(this) } }, keepOnAction = true,
+                    step = UpdateBannerStep("shell:$version", UpdateBannerPhase.READY))
+                else UpdateBannerItem("app-offer:$version", updateOfferTitle(strings.getString(R.string.ota_app_update), version, it.optLong("size", -1), locale), "",
+                    strings.getString(R.string.ota_banner_download), { updater.shell.downloadOffered() }, keepOnAction = true,
+                    step = UpdateBannerStep("shell:$version", UpdateBannerPhase.AVAILABLE)))
+            }
+            val staged = state.optJSONObject("staged")
+            (staged ?: state.optJSONObject("available"))?.let {
+                val version = it.optString("version")
+                items.add(when {
+                    staged != null -> UpdateBannerItem("ready:$version", strings.getString(R.string.ota_ready_version, version), "",
+                        strings.getString(R.string.ota_banner_install_restart), { restartBundle(startupRecovery = updater.watchdog.reason != null) }, keepOnAction = true,
+                        step = UpdateBannerStep("web:$version", UpdateBannerPhase.READY))
+                    it.optBoolean("needsShell") -> UpdateBannerItem("app-first:$version", strings.getString(R.string.ota_app_required),
+                        strings.getString(R.string.ota_app_required_text, version), strings.getString(R.string.ota_updates), ::showSettings, symbol = "↓")
+                    else -> UpdateBannerItem("offer:$version", updateOfferTitle(strings.getString(R.string.ota_banner_new_update), versionLabel("web", version), it.optLong("size", -1), locale), "", strings.getString(R.string.ota_banner_download), { updater.download(installAfterDownload = false) }, keepOnAction = true,
+                        step = UpdateBannerStep("web:$version", UpdateBannerPhase.AVAILABLE))
+                })
+            }
+            val installing = state.optString("installingVersion").takeIf { it.isNotBlank() }
+            if (installing != null) {
+                val target = "${state.optString("installingChannel")}:$installing"
+                val work = updater.activation.current?.takeIf { target == "web:${it.version}" && it.total > 0 }
+                items.add(UpdateBannerItem("installing:$target", strings.getString(R.string.ota_installing_version, versionLabel(state.optString("installingChannel"), installing)), "",
+                    percent = work?.let { it.done * 100 / it.total }, installing = true,
+                    step = UpdateBannerStep(target, UpdateBannerPhase.INSTALLING)))
+            }
         }
         val error = updateFailure(updater.status, updater.shell.status)
         if (error != null) items.add(UpdateBannerItem("error:$error", strings.getString(R.string.ota_update_failed),
             strings.getString(R.string.ota_retry_from_updates), strings.getString(R.string.ota_updates), ::showSettings))
-        val installing = state.optString("installingVersion").takeIf { it.isNotBlank() }
-        if (installing != null) {
-            val target = "${state.optString("installingChannel")}:$installing"
-            val work = updater.activation.current?.takeIf { target == "web:${it.version}" && it.total > 0 }
-            items.add(UpdateBannerItem("installing:$target", strings.getString(R.string.ota_installing_version, installing), "",
-                percent = work?.let { it.done * 100 / it.total }, installing = true,
-                step = UpdateBannerStep(target, UpdateBannerPhase.INSTALLING)))
-        }
         val queue = items.filter { it.key !in nativeSeen }
         val rolledBackVersion = state.optJSONObject("rolledBack")?.optString("from")
-        val completed = queue.firstOrNull { it.brief }
-        if (completed != null) bannerFlow.clear()
         val transient = queue.firstOrNull { it.key in transientBanners }
-        val next = if (installing == null && (transient != null || completed != null)) transient ?: completed
+        val next = if (transient != null && queue.none { it.installing || it.downloading }) transient
             else bannerFlow.select(queue, failed = { step ->
-                if (step.target.startsWith("shell:")) updateFailure(updater.shell.status) != null
+                if (step.target.startsWith("combined:")) error != null
+                else if (step.target.startsWith("shell:")) updateFailure(updater.shell.status) != null
                 else step.target == "web:$rolledBackVersion" || updateFailure(updater.status) != null
             }, preferred = queue.firstOrNull { it.key == activeBannerKey })
         activeBannerKey = next?.key
@@ -783,9 +778,53 @@ class MainActivity : BridgeActivity() {
         if (maintenance == null) banner.render(next, bandHeight + 8.dp, safeArea.left, safeArea.right)
         else banner.render(next, 0, 0, 0)
     }
+    private fun versionLabel(channel: String, version: String) =
+        strings.getString(if (channel == "shell") R.string.ota_android_version else R.string.ota_lexling_version, version)
+
+    private fun combinedVersions(update: org.json.JSONObject) =
+        strings.getString(R.string.ota_combined_versions, update.optString("version"), update.optString("webVersion"))
+
+    private fun actOnCombined(update: org.json.JSONObject, install: Boolean) {
+        if (install) installWithNotificationPermission {
+            if (updater.combinedReady(update.optLong("versionCode"), update.optString("webVersion")))
+                updater.shell.installFromWeb(this)
+        }
+        else updater.downloadCombined(update.optLong("versionCode"), update.optString("webVersion"))
+    }
+
+    private fun combinedBanner(update: org.json.JSONObject, locale: java.util.Locale): UpdateBannerItem {
+        val target = "combined:${update.optLong("versionCode")}:${update.optString("webVersion")}"
+        val versions = combinedVersions(update)
+        val phase = UpdateBannerPhase.valueOf(update.optString("phase").uppercase(java.util.Locale.ROOT))
+        val progress = update.optJSONObject("transfer")
+        val done = progress?.optLong("done") ?: 0
+        val total = progress?.optLong("total") ?: 0
+        val downloading = phase == UpdateBannerPhase.DOWNLOADING
+        val installing = phase == UpdateBannerPhase.INSTALLING
+        val ready = phase == UpdateBannerPhase.READY
+        val available = phase == UpdateBannerPhase.AVAILABLE
+        val title = when (phase) {
+            UpdateBannerPhase.AVAILABLE -> {
+                val size = update.optLong("size", -1).takeUnless { update.optBoolean("estimatedSize") }
+                updateOfferTitle(strings.getString(R.string.ota_banner_new_update), versions, size, locale)
+            }
+            UpdateBannerPhase.DOWNLOADING -> strings.getString(R.string.ota_downloading, versions)
+            UpdateBannerPhase.READY -> strings.getString(R.string.ota_ready_combined, versions)
+            UpdateBannerPhase.INSTALLING -> strings.getString(R.string.ota_installing_version, versions)
+        }
+        return UpdateBannerItem("$target:$phase:$title", title, if (downloading) strings.getString(R.string.ota_keep_using_app) else "",
+            actionLabel = when {
+                available -> strings.getString(R.string.ota_banner_download)
+                ready -> strings.getString(R.string.ota_banner_install_restart)
+                else -> null
+            }, action = { actOnCombined(update, ready) }, keepOnAction = true,
+            percent = if (total > 0) (100.0 * done / total).toInt().coerceIn(0, 100) else null,
+            downloading = downloading, installing = installing, step = UpdateBannerStep(target, phase),
+            speed = progress?.optLong("speed") ?: 0, received = done, total = total)
+    }
     private fun updateFailure(vararg states: String) = states.firstOrNull {
-        it.startsWith("Download failed") || it.startsWith("Install failed") || it.startsWith("App install failed") ||
-            it.startsWith("Shell update processing failed") || it.startsWith("Update processing failed") || it.startsWith("Restart failed") ||
+        it.startsWith("Download failed") || it.startsWith("Install failed") || it.startsWith("Android app install failed") ||
+            it.startsWith("Android app update processing failed") || it.startsWith("Update processing failed") || it.startsWith("Restart failed") ||
             it.contains("Not enough storage")
     }
     internal fun logWebDiagnostic(level: String, message: String) {
@@ -796,17 +835,39 @@ class MainActivity : BridgeActivity() {
         val version = webView?.let { "${it.packageName} ${it.versionName}" } ?: "unknown"
         return "WebView: $version\nAndroid: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})\nDevice: ${Build.MANUFACTURER} ${Build.MODEL}"
     }
-    private fun logsText() = "${logEnvironment()}\nUpdate address: ${updater.url}\nApp ${BuildConfig.VERSION_NAME} / API ${BuildConfig.SHELL_API}\n${updater.status} · ${updater.shell.status}\n\n${updater.checks.summary()}\n${updater.checks.snapshot()}\n\nstate.json\n${updater.engine.stateJson()}\n\nNewest first (last 500 lines)\n${updater.engine.log.read()}"
+    private fun logsText() = "${logEnvironment()}\nUpdate address: ${Updater.DEFAULT_URL}\n${strings.getString(R.string.ota_versions, updater.launch.version, BuildConfig.VERSION_NAME)} / API ${BuildConfig.SHELL_API}\n${updater.status} · ${updater.shell.status}\n\n${updater.checks.summary()}\n${updater.checks.snapshot()}\n\nstate.json\n${updater.engine.stateJson()}\n\nNewest first (last 500 lines)\n${updater.engine.log.read()}"
     private fun renderLogs() { logText?.text = logsText() }
-    private fun showUpdateNotes(notes: String?) {
-        if (notes.isNullOrBlank()) { openReleases(); return }
-        val dialog = NativeLook.dialog(theme, strings.getString(R.string.ota_whats_new))
-            .setMessage(notes).setPositiveButton(strings.getString(R.string.ota_close), null).create()
-        NativeLook.show(dialog)
+    @Suppress("DEPRECATION")
+    private fun showLogoToast(message: Int, duration: Int) {
+        val theme = this.theme
+        val palette = NativeLook.palette(NativeLook.light(this))
+        val row = LinearLayout(theme).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            background = NativeLook.surface(theme, palette.surface, palette.line)
+            setPadding(12.dp, 8.dp, 14.dp, 8.dp)
+            addView(ImageView(theme).apply {
+                setBackgroundResource(R.drawable.ic_ota_logo)
+                clipToOutline = true
+                setImageResource(R.mipmap.ic_launcher_foreground)
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }, LinearLayout.LayoutParams(28.dp, 28.dp))
+            addView(TextView(theme).apply {
+                text = strings.getString(message)
+                setTextColor(palette.text)
+                maxWidth = 220.dp
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                marginStart = 8.dp
+            })
+        }
+        Toast(this).apply {
+            view = row
+            this.duration = duration
+            show()
+        }
     }
     private fun copyLogs() {
         (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText(strings.getString(R.string.ota_log_clipboard_label), logsText()))
-        Toast.makeText(this, strings.getString(R.string.ota_logs_copied), Toast.LENGTH_SHORT).show()
+        showLogoToast(R.string.ota_logs_copied, Toast.LENGTH_SHORT)
     }
     fun showLogs() {
         if (logDialog?.isShowing == true) return

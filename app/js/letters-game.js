@@ -19,10 +19,10 @@ const LEFT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-
 const RIGHT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>';
 const BACKSPACE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"></path><path d="m12 9 6 6"></path><path d="m18 9-6 6"></path></svg>';
 
-export async function lettersGameScreen(root, id, archived = false, kept = false) {
+export async function lettersGameScreen(root, id, archived = false) {
   const game = archived ? getFinished(id) : getSave(id);
   const m = !archived && game && await loadWords(game.lang);
-  if (location.hash !== (archived ? resultHref(id, kept) : '#/game/' + id)) return;
+  if (location.hash !== (archived ? resultHref(id) : '#/game/' + id)) return;
   if (!archived && !m) { location.replace('#/games/letters'); return; }
   const n = game.len;
   const tries = game.tries || '∞';           // 0 = unlimited
@@ -37,7 +37,7 @@ export async function lettersGameScreen(root, id, archived = false, kept = false
   // stuck). Saves from 0.28.2-0.33.3 may still carry `hinted`; it is ignored.
 
   root.innerHTML = `<div class="app" data-screen="letters">
-  ${topbar({ left: archived ? backToResults(kept) : modeTag('letters'), right: gameTitle(game, archived) })}
+  ${topbar({ left: archived ? backToResults() : modeTag('letters'), right: gameTitle(game, archived) })}
   <main class="main"></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main');
@@ -360,7 +360,7 @@ export async function lettersGameScreen(root, id, archived = false, kept = false
     wireKeep(main, saved);
     board = $('.lt-board');
     paintBoard();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    root.scrollTo({ top: 0, behavior: 'smooth' });
     refit();
   }
 

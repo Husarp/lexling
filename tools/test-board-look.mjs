@@ -10,7 +10,7 @@ const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8'
 const stored = new Map([['wg.settings', JSON.stringify({ lang: 'en', rememberSetupOn: true })]]);
 globalThis.localStorage = { getItem: k => stored.get(k) ?? null, setItem: (k, v) => stored.set(k, v) };
 globalThis.matchMedia = () => ({ matches: false, addEventListener() {} });
-globalThis.window = { addEventListener() {} };
+globalThis.window = Object.assign(new EventTarget(), { Event });
 globalThis.document = { documentElement: { style: { setProperty(k, v) { this[k] = v; } } }, addEventListener() {}, createRange: () => ({}) };
 const { settings } = await import('../app/js/store.js');
 const { t, setLang, plural } = await import('../app/js/i18n.js');

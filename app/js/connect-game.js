@@ -27,10 +27,10 @@ const DOT = '<span class="dot">·</span>';
 const SHUFFLE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 14 4 4-4 4"></path><path d="m18 2 4 4-4 4"></path><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-7.6a4 4 0 0 1 3.3-1.7H22"></path><path d="M2 6h1.972a4 4 0 0 1 3.6 2.2"></path><path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"></path></svg>';
 const BULB = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path></svg>';
 
-export async function connectGameScreen(root, id, archived = false, kept = false) {
+export async function connectGameScreen(root, id, archived = false) {
   const game = archived ? getFinished(id) : getSave(id);
   const m = !archived && game && await loadWords(game.lang);
-  if (location.hash !== (archived ? resultHref(id, kept) : '#/game/' + id)) return;
+  if (location.hash !== (archived ? resultHref(id) : '#/game/' + id)) return;
   if (!archived && !m) { location.replace('#/games/connect'); return; }
   const { board } = game;
   const letters = [...game.ring], n = letters.length;
@@ -59,7 +59,7 @@ export async function connectGameScreen(root, id, archived = false, kept = false
   }
 
   root.innerHTML = `<div class="app" data-screen="connect">
-  ${topbar({ left: archived ? backToResults(kept) : modeTag('connect'), right: gameTitle(game, archived) })}
+  ${topbar({ left: archived ? backToResults() : modeTag('connect'), right: gameTitle(game, archived) })}
   <main class="main"></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main');
@@ -325,6 +325,7 @@ export async function connectGameScreen(root, id, archived = false, kept = false
       <p class="help">${t('cn.bonusHelp')}</p>
     </div>`);
     bonusBtn.classList.add('open');
+    refit();
   }
   const closePop = () => { dock?.querySelector('.cn-pop')?.remove(); bonusBtn?.classList.remove('open'); };
   const onDocClick = e => { if (!e.target.closest?.('.cn-pop, .cn-bonus')) closePop(); };
@@ -484,7 +485,7 @@ export async function connectGameScreen(root, id, archived = false, kept = false
     pick = null;
     collectCells();
     paintCells(!won);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    root.scrollTo({ top: 0, behavior: 'smooth' });
     refit();
   }
 

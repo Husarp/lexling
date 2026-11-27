@@ -1,7 +1,18 @@
 // Recent releases in player language (owner, 2026-11-14). Keep the last three at release.
-import { t } from './i18n.js';
-
 export const whatsnew = [
+  { version: '0.74.0', date: '2026-11-27', en: [
+    'Tiles: tap a tile you just placed to return it to the rack. Valid words show in green and invalid words in red.',
+    'Screens fit around camera cutouts and shrink to fit when needed. You can change text size in Settings.',
+    'Saved games are all in one list, where you can delete them.',
+    'Android has new artwork on the start screen and a new notification icon.',
+    'Android checks for updates every time you open Lexling. App and game updates can download together, with clearer notices.',
+  ], pl: [
+    'Kafelki: dotknij właśnie położonej płytki, by wróciła na ławkę. Poprawne słowa są zielone, a błędne czerwone.',
+    'Ekrany omijają wycięcie na aparat i w razie potrzeby zmniejszają się, by wszystko się zmieściło. Rozmiar tekstu zmienisz w Ustawieniach.',
+    'Zapisane gry są na jednej liście, z której możesz je usuwać.',
+    'Na Androidzie pojawiły się nowa grafika na ekranie startowym i nowa ikona powiadomień.',
+    'Android sprawdza aktualizacje przy każdym otwarciu gry. Aktualizacje aplikacji i gry można pobrać razem, a komunikaty są czytelniejsze.',
+  ] },
   { version: '0.73.2', date: '2026-11-27', en: [
     'A new What\'s new page, a choice of language when you first open the app, and the language switch now lives only in Settings.',
     'Statistics in clearer panels, bigger tier icons in Achievements and new icons for Bonus hunter, Rare find, Hard board and Photo finish.',
@@ -21,19 +32,6 @@ export const whatsnew = [
     'Ostatnie gry to teraz Zapisane gry, tuż pod czterema grami w menu. Puste listy gier są prostsze.',
     'Do menu wróciły konturowe ikony, a zakładki gier pokazują same ikony. Kolekcja może pokazać oba języki naraz.',
     'Łatwiej przeglądać poradnik „Jak grać”, a wykres długości słów działa poprawnie przy szybkiej zmianie ustawień.',
-  ] },
-  { version: '0.73.0', date: '2026-11-26', en: [
-    'Android: updates now download only what changed, so most updates take seconds - see Settings → Updates. Lexling now needs Android 8 or newer.',
-    t('wn.073.savedGames', undefined, 'en'),
-    'Tiles: fairer move ratings when only rare words score more, a word checker, tap two of your new tiles to swap them, Cancel gives your word back, and computer levels have their own colours and faces.',
-    'Sounds and vibration for your turn, moves, wins and losses, with a volume slider; tap letters in Connect; a High contrast option for Letters.',
-    'How to play is rewritten and opens from every game; clearer statistics times, labels in Achievements, coloured section icons, and online clocks that run live.',
-  ], pl: [
-    'Android: aktualizacje pobierają tylko to, co się zmieniło, więc zwykle trwają kilka sekund - zobacz Ustawienia → Aktualizacje. Lexling wymaga teraz Androida 8 lub nowszego.',
-    t('wn.073.savedGames', undefined, 'pl'),
-    'Kafelki: uczciwsza ocena ruchów, gdy więcej punktów dają tylko rzadkie słowa, sprawdzanie słów, zamiana dwóch nowych płytek dotknięciem, Anuluj oddaje ułożone słowo, a poziomy komputera mają własne kolory i miny.',
-    'Dźwięki i wibracje przy twojej turze, ruchach, wygranej i przegranej, z suwakiem głośności; dotykanie liter w Połącz; opcja Wysoki kontrast w Literach.',
-    'Jak grać napisane od nowa i dostępne z każdej gry; czytelniejsze czasy w statystykach, podpisy w Osiągnięciach, kolorowe ikony sekcji i zegary online na żywo.',
   ] },
 ];
 

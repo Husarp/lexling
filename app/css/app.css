@@ -13,7 +13,6 @@
   --text:#FFFFFF; --text-muted:#9E9E9E; --text-dim:#5C5C5C;
   --accent:#DB5126; --accent-hover:#B33D18; --accent-soft:rgba(219,81,38,.16); --on-accent:#FFFFFF;
   --error:#C0392B; --success:#27AE60;
-  --game-guess:#FF8271; --game-letters:#79B851; --game-connect:#70B7F2; --game-tiles:#F3C237;
   --notice-update:#65A9FF; --notice-success:var(--success);
   /* Base-word rarity tiers, in both themes (owner, 2026-11-14). */
   --rare-purple-bg:#30223D; --rare-purple-ink:#DDB5FF; --rare-gold-bg:#382E18; --rare-gold-ink:#F3CE75;
@@ -22,9 +21,10 @@
      livelier hues, and .78 opacity instead of .55 so they read as colour rather than as tinted grey.
      White text keeps its legibility with the small shadow added at the bottom of this file. */
   --fill-cold:#FF3B30; --fill-warm:#FF7A18; --fill-mid:#FFC531; --fill-hot:#2BD96B; --fill-alpha:.78;
-  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px; --space-6:24px; --space-8:32px; --space-10:40px; --space-12:48px;
+  --spacing:1;
   --radius-sm:10px; --radius-md:12px; --radius-lg:16px; --radius-pill:9999px;
   --font-display:"Barlow Condensed","Arial Narrow","Roboto Condensed","Helvetica Neue",sans-serif;
+  --text-scale:1;
   --font-body:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
   --shadow-md:0 4px 12px rgba(0,0,0,.35); --focus:0 0 0 3px rgba(219,81,38,.35);
   --dur:250ms; --ease:cubic-bezier(.25,0,0,1);
@@ -34,7 +34,6 @@
   --bg:#F5F5F5; --surface:#FFFFFF; --surface-2:#EEEEEE; --line:#E0E0E0; --line-soft:#EEEEEE;
   --text:#000000; --text-muted:#4A4A4A; --text-dim:#9E9E9E; --accent-soft:#F2E8E4; --fill-alpha:.55;
   --shadow-md:0 4px 12px rgba(0,0,0,.10);
-  --game-guess:#B74334; --game-letters:#47762A; --game-connect:#2F6EA8; --game-tiles:#896500;
   --notice-update:#2868AE; --notice-success:#247A49;
   --rare-purple-bg:#F1E6FC; --rare-purple-ink:#69359B; --rare-gold-bg:#FFF1CE; --rare-gold-ink:#795400;
   --rare-blue-bg:#E4F0FF; --rare-blue-ink:#245B96; --rare-grey-bg:#ECEEF1; --rare-grey-ink:#4B5260;
@@ -46,7 +45,12 @@ a{color:var(--text);text-decoration:none}a:hover{color:var(--accent)}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
 button:focus-visible,input:focus-visible,summary:focus-visible{outline:none;box-shadow:var(--focus)}
 /* shell */
-.app{min-height:100dvh;display:flex;flex-direction:column;background:var(--bg)}
+:root,.app,dialog,.ota-banner{
+  --space-1:calc(4px * var(--spacing)); --space-2:calc(8px * var(--spacing)); --space-3:calc(12px * var(--spacing));
+  --space-4:calc(16px * var(--spacing)); --space-5:calc(20px * var(--spacing)); --space-6:calc(24px * var(--spacing));
+  --space-8:calc(32px * var(--spacing)); --space-10:calc(40px * var(--spacing)); --space-12:calc(48px * var(--spacing));
+}
+.app{min-height:100%;display:flex;flex-direction:column;background:var(--bg)}
 .topbar{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--space-3);min-height:56px;padding:var(--space-2) var(--gutter);background:var(--bg);border-bottom:1px solid var(--line-soft)}   /* no accent line along the top (owner, 2026-09-25) */
 .brand{font:800 clamp(22px,3vw,26px)/1 var(--font-display);letter-spacing:-.02em;text-transform:uppercase;white-space:nowrap}
 .brand b{color:var(--accent);font-weight:800}
@@ -65,18 +69,11 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:none;box-
 /* type */
 .eyebrow{font:600 12px/1.2 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted)}
 .title{display:flex;align-items:center;gap:var(--space-3);font:700 clamp(24px,4.5vw,30px)/1.05 var(--font-display);letter-spacing:-.02em;text-transform:uppercase}
-[data-game=guess],[data-screen=game]{--game-colour:var(--game-guess)}
-[data-game=letters],[data-screen=letters]{--game-colour:var(--game-letters)}
-[data-game=connect],[data-screen=connect]{--game-colour:var(--game-connect)}
-[data-game=tiles],[data-screen=tiles]{--game-colour:var(--game-tiles)}
-/* the small accent mark before screen titles stays (owner's pick 5B; the only allowed bar - owner, 2026-11-26) */
-.title::before,.game-title::before{content:"";display:inline-block;flex:none;width:4px;height:.9em;background:var(--game-colour,var(--accent))}
-.game-title:not(.gname)::before{margin-inline-end:.45em;vertical-align:-.05em}
 .display{font:800 clamp(40px,10vw,72px)/.95 var(--font-display);letter-spacing:-.02em;text-transform:uppercase}
 .num{font:800 1em/1 var(--font-display);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .muted{color:var(--text-muted)}
 .dot,.arrow{color:var(--accent)}
-.help{font-size:14px;color:var(--text-muted)}
+.help{font-size:calc(14px * var(--text-scale));color:var(--text-muted)}
 /* buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-height:44px;padding:0 var(--space-5);border-radius:var(--radius-sm);border:1.5px solid transparent;font:600 13px/1 var(--font-body);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;transition:background var(--dur) var(--ease),color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
 .btn-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}.btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
@@ -107,7 +104,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3) var(--space-4);padding:var(--space-4) 0;border-bottom:1px solid var(--line-soft)}
 .row-text{flex:1 1 220px;min-width:0}
 .row-text strong{display:block;font-weight:600}
-.row-text span{display:block;font-size:14px;color:var(--text-muted)}
+.row-text span{display:block;font-size:calc(14px * var(--text-scale));color:var(--text-muted)}
 
 /* ═══ PER-SCREEN BLOCKS — ported verbatim, only prefixed with the screen scope because the six
    design files reuse a few class names (.empty, .bar, .form) with different rules ═══ */
@@ -120,7 +117,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 @media (min-aspect-ratio:1/1){
   [data-theme=dark] [data-screen=menu]::before{background-image:url('../img/wallpaper-pc.webp')}
 }
-[data-screen=menu] .hero{flex:1;position:relative;overflow:hidden;display:grid;align-content:center;gap:var(--space-8);padding:clamp(32px,8vh,96px) var(--gutter)}
+[data-screen=menu] .hero{flex:1;position:relative;display:grid;align-content:center;gap:var(--space-8);padding:clamp(32px,8vh,96px) var(--gutter)}
 [data-screen=menu] .hero-inner{width:100%;max-width:var(--col);margin:0 auto;display:grid;gap:var(--space-6);position:relative}
 [data-screen=menu] .tagline{max-width:44ch;font-size:clamp(16px,2.2vw,19px);color:var(--text-muted)}
 [data-screen=menu] .menu{display:grid;gap:var(--space-3);max-width:420px;width:100%}
@@ -136,8 +133,8 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=games] .save-best,[data-screen=games] .save-last{flex:1 1 100%}
 [data-screen=games] .save:hover{transform:translateY(-3px);border-color:var(--line)}
 [data-screen=games] .save-name{font:700 clamp(20px,4vw,24px)/1.1 var(--font-display);letter-spacing:-.01em;overflow-wrap:anywhere}
-[data-screen=games] .save-meta{display:flex;flex-wrap:wrap;gap:0 var(--space-2);font-size:13px;color:var(--text-muted);margin-top:var(--space-1)}
-[data-screen=games] .save-best{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--space-3);font-size:13px;color:var(--text-muted)}
+[data-screen=games] .save-meta{display:flex;flex-wrap:wrap;gap:0 var(--space-2);font-size:calc(13px * var(--text-scale));color:var(--text-muted);margin-top:var(--space-1)}
+[data-screen=games] .save-best{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--space-3);font-size:calc(13px * var(--text-scale));color:var(--text-muted)}
 [data-screen=games] .bar{height:4px;background:var(--surface-2);border-radius:var(--radius-sm);overflow:hidden}
 [data-screen=games] .bar i{display:block;height:100%;width:var(--pct);background:var(--fill)}
 [data-screen=games] .save-actions{display:grid;gap:var(--space-2);align-self:start}
@@ -192,7 +189,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=game] .guess .fill{position:absolute;top:0;bottom:0;left:0;width:var(--pct);background:var(--fill);opacity:var(--fill-alpha);transition:width 600ms var(--ease),background 600ms var(--ease)}
 [data-screen=game] .guess>*{position:relative}
 [data-screen=game] .guess .word{font:700 clamp(20px,5vw,26px)/1 var(--font-display);letter-spacing:-.01em;overflow-wrap:anywhere}
-[data-screen=game] .guess .form{display:block;margin-top:4px;font:400 12px/1.2 var(--font-body);color:var(--text);opacity:.75}
+[data-screen=game] .guess .form{display:block;margin-top:4px;font:400 calc(12px * var(--text-scale))/1.2 var(--font-body);color:var(--text);opacity:.75}
 [data-screen=game] .guess .rank{text-align:right;font:800 clamp(24px,6vw,32px)/1 var(--font-display);font-variant-numeric:tabular-nums;white-space:nowrap}
 [data-screen=game] .guess .rank small{display:block;margin-top:2px;font:600 10px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;opacity:.7}
 [data-screen=game] .guess.new{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
@@ -204,7 +201,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=game] .history summary::-webkit-details-marker{display:none}
 [data-screen=game] .history summary .arrow{display:inline-block;transition:transform var(--dur) var(--ease)}
 [data-screen=game] .history[open] summary .arrow{transform:rotate(90deg)}
-[data-screen=game] .hist{display:grid;grid-template-columns:3ch minmax(0,1fr) minmax(64px,120px) auto;align-items:center;gap:var(--space-2) var(--space-3);font-size:14px;padding-top:var(--space-2)}
+[data-screen=game] .hist{display:grid;grid-template-columns:3ch minmax(0,1fr) minmax(64px,120px) auto;align-items:center;gap:var(--space-2) var(--space-3);font-size:calc(14px * var(--text-scale));padding-top:var(--space-2)}
 [data-screen=game] .hist>span{padding:var(--space-1) 0;border-bottom:1px solid var(--line-soft);min-height:32px;display:flex;align-items:center}
 [data-screen=game] .hist .i{color:var(--text-dim);font-variant-numeric:tabular-nums}
 [data-screen=game] .hist .r{justify-content:flex-end;font:700 16px/1 var(--font-display);font-variant-numeric:tabular-nums}
@@ -224,7 +221,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 /* Check for updates, and beside it Check manually - the releases page (owner, 2026-09-25) */
 [data-screen=settings] .row-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--space-2)}
 @media (max-width:480px){[data-screen=settings] .row .seg{max-width:none}}
-[data-screen=settings] .about{display:grid;gap:var(--space-3);padding:var(--space-5);font-size:14px;color:var(--text-muted)}
+[data-screen=settings] .about{display:grid;gap:var(--space-3);padding:var(--space-5);font-size:calc(14px * var(--text-scale));color:var(--text-muted)}
 [data-screen=settings] .about strong{color:var(--text)}
 [data-screen=settings] .kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--space-1) var(--space-4)}
 [data-screen=settings] .kv dt{color:var(--text-dim)}[data-screen=settings] .kv dd{overflow-wrap:anywhere}
@@ -232,17 +229,24 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 /* ═══ APP ADDITIONS — behaviour the static design files could not express ═══ */
 [hidden]{display:none!important}
 
-/* Safe areas. An app targeting SDK 35 is edge-to-edge on Android 15: the page is drawn UNDER the
-   status bar, the camera notch and the gesture bar unless it reserves that space itself. index.html
-   already asks for the whole screen (viewport-fit=cover), so these four numbers are what the system
-   reports; they are 0 everywhere else, which is why the desktop layout is unchanged. Sides matter too:
-   in landscape the notch takes a strip off one edge. */
-:root{--safe-t:env(safe-area-inset-top,0px);--safe-r:env(safe-area-inset-right,0px);
-  --safe-b:env(safe-area-inset-bottom,0px);--safe-l:env(safe-area-inset-left,0px)}
-.topbar{padding:calc(var(--space-2) + var(--safe-t)) calc(var(--gutter) + var(--safe-r)) var(--space-2) calc(var(--gutter) + var(--safe-l))}
-.main{padding:var(--space-6) calc(var(--gutter) + var(--safe-r)) calc(var(--space-12) + var(--safe-b)) calc(var(--gutter) + var(--safe-l))}
-.footer{padding:var(--space-3) calc(var(--gutter) + var(--safe-r)) calc(var(--space-3) + var(--safe-b)) calc(var(--gutter) + var(--safe-l))}
-[data-screen=menu] .hero{padding-left:calc(var(--gutter) + var(--safe-l));padding-right:calc(var(--gutter) + var(--safe-r))}
+/* The app scrolls inside one safe viewport, including on headerless screens. Native WebViews
+   can inject the insets before env() reports them. Use the larger value for each edge. */
+:root{
+  --safe-t:var(--safe-area-inset-top,0px);--safe-r:var(--safe-area-inset-right,0px);
+  --safe-b:var(--safe-area-inset-bottom,0px);--safe-l:var(--safe-area-inset-left,0px);
+  --viewport-height:100vh;
+  --safe-height:calc(var(--vvh,var(--viewport-height)) - var(--safe-t) - var(--safe-b));
+}
+@supports (height:100dvh){:root{--viewport-height:100dvh}}
+@supports (width:max(1px,2px)){
+  :root{
+    --safe-t:max(env(safe-area-inset-top,0px),var(--safe-area-inset-top,0px));
+    --safe-r:max(env(safe-area-inset-right,0px),var(--safe-area-inset-right,0px));
+    --safe-b:max(env(safe-area-inset-bottom,0px),var(--safe-area-inset-bottom,0px));
+    --safe-l:max(env(safe-area-inset-left,0px),var(--safe-area-inset-left,0px));
+  }
+}
+#root{position:fixed;top:var(--safe-t);right:var(--safe-r);left:var(--safe-l);height:var(--safe-height);overflow:auto;overscroll-behavior:contain}
 /* text-fit (js/fit.js) needs a bounded box to measure against */
 .btn{max-width:100%;min-width:0}
 /* v2's segmented control no longer wraps, so the min-content width of its four buttons would push the
@@ -297,7 +301,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-kb] [data-screen=game] .topbar{display:none}
 [data-kb] [data-screen=game] .status{display:none}
 /* the top bar is gone here, so the field itself is what has to clear the status bar / notch */
-[data-kb] [data-screen=game] .main{padding-top:calc(var(--space-2) + var(--safe-t));padding-bottom:calc(var(--space-4) + var(--safe-b));gap:var(--space-3)}
+[data-kb] [data-screen=game] .main{padding-top:var(--space-2);padding-bottom:var(--space-4);gap:var(--space-3)}
 [data-kb] [data-screen=game] #entry{position:sticky;top:0;z-index:4;padding:var(--space-2) 0;background:var(--bg)}
 [data-kb] [data-screen=game] .entry-actions{padding-top:var(--space-1)}
 [data-kb] [data-screen=game] .guess-input .input{min-height:48px}
@@ -307,7 +311,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-kb] [data-screen=game] .divider{padding:0}
 /* other screens: just give the little height back */
 [data-kb] .topbar{position:static;min-height:44px}
-[data-kb] .main{padding-top:calc(var(--space-3) + var(--safe-t));padding-bottom:calc(var(--space-6) + var(--safe-b))}
+[data-kb] .main{padding-top:var(--space-3);padding-bottom:var(--space-6)}
 
 /* what the chosen category covers - sits under the chips on the new-game screen */
 [data-screen=new] .cat-about{margin:0;padding-top:var(--space-2);line-height:1.45}
@@ -399,7 +403,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
    stays on top, the grid scrolls in the middle (kept scrolled to the current row), and the entry bar
    with Guess sits at the bottom — directly above the keyboard, next to the keyboard's own Enter.
    Empty future rows are dropped: they are the one thing that would push the current row out of view. */
-[data-kb] [data-screen=letters].app{height:var(--vvh,100dvh);min-height:0}
+[data-kb] [data-screen=letters].app{height:100%;min-height:0}
 [data-kb] [data-screen=letters] .topbar,[data-kb] [data-screen=letters] .status{display:none}
 [data-kb] [data-screen=letters] .main{min-height:0;padding-top:var(--space-2);padding-bottom:var(--space-2);gap:var(--space-2)}
 [data-kb] [data-screen=letters] .play{flex:1;min-height:0;grid-template-rows:auto minmax(0,1fr) auto auto;gap:var(--space-2)}
@@ -407,14 +411,14 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-kb] [data-screen=letters] .lt-row{--max:48px}
 /* game-letters-end.html */
 /* game-picker.html */
-[data-screen=games] .save-last{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-2) var(--space-3);font-size:13px;color:var(--text-muted)}
-[data-screen=games] .save-last .num{color:var(--text);font-size:15px}
+[data-screen=games] .save-last{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-2) var(--space-3);font-size:calc(13px * var(--text-scale));color:var(--text-muted)}
+[data-screen=games] .save-last .num{color:var(--text);font-size:calc(15px * var(--text-scale))}
 /* achievements.html */
 /* Letters' wins at each word length: one cell per length 3–13 */
 
 /* ═══ LETTERS — APP ADDITIONS ═══ */
 /* keyboard open: the top bar is gone, so the message line itself has to clear the status bar / notch */
-[data-kb] [data-screen=letters] .main{padding-top:calc(var(--space-2) + var(--safe-t))}
+[data-kb] [data-screen=letters] .main{padding-top:var(--space-2)}
 /* The design's 1×1 px field leaves no room for a text cursor: Chrome then keeps it at the start, so
    Backspace deletes nothing and new letters go in front (measured, both hold at 1px, neither at 4em).
    A real size, still invisible, fixes it. It sits at the top of the play area so that focusing it
@@ -444,10 +448,10 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
    status row stays at the top, Guess stays right under the grid, and only the grid scrolls once it
    outgrows the room - kept at the newest row. With the keyboard open the design's layout above still
    applies (Guess at the bottom, next to the keyboard). The end screen is an ordinary page again. */
-[data-screen=letters].app.fit{height:var(--vvh,100dvh);min-height:0}
+[data-screen=letters].app.fit{height:100%;min-height:0}
 [data-screen=letters].fit .main{min-height:0}
 html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;grid-template-rows:auto minmax(0,1fr) auto auto}
-[data-screen=letters].fit .lt-board{overflow-y:auto;align-content:start;overscroll-behavior:contain;padding:4px 0}   /* room for the 4px lift of the reveal */
+[data-screen=letters].fit .lt-board{min-height:46px;overflow-y:auto;align-content:start;overscroll-behavior:contain;padding:4px 0}   /* room for the 4px lift of the reveal */
 /* a new row grows in, tile by tile from the left - quick: a 5-letter row is done in under a third of a
    second, a 13-letter one in under half */
 @keyframes lt-grow{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
@@ -563,7 +567,7 @@ html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;g
    current row), the keyboard at the bottom. The Guess button goes: Enter on the keyboard is the one
    way to send (and the computer's Enter). With the phone-keyboard setting on the keys stay too; tapping
    the tiles also opens the phone's keyboard (owner, 2026-09-25). ── */
-[data-screen=letters].kbon .main{padding-top:var(--space-3);padding-bottom:calc(var(--space-2) + var(--safe-b));gap:var(--space-2)}
+[data-screen=letters].kbon .main{padding-top:var(--space-3);padding-bottom:var(--space-2);gap:var(--space-2)}
 /* the keyboard takes ~210px, so the status row tightens to give the grid its height back
    (320 × 640, Polish row on: ~120px of grid — the current row and the one before it at 5 letters,
    ~6 rows at 13 letters; the grid is kept scrolled to the current row) */
@@ -644,12 +648,12 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
 /* ── the screen fits the window while playing (as Letters' .fit): status on top, circle at the
    bottom within thumb reach, and the crossword takes whatever height is left — its tiles are sized
    by width AND height, so 10 words still fit a 320 × 640 phone without scrolling ── */
-[data-screen=connect].app.fit{height:var(--vvh,100dvh);min-height:0}
-[data-screen=connect].fit .main{min-height:0;padding-top:var(--space-3);padding-bottom:calc(var(--space-3) + var(--safe-b));gap:var(--space-3)}
+[data-screen=connect].app.fit{height:100%;min-height:0}
+[data-screen=connect].fit .main{min-height:0;padding-top:var(--space-3);padding-bottom:var(--space-3);gap:var(--space-3)}
 [data-screen=connect] .play{flex:1;min-height:0;display:flex;flex-direction:column;gap:var(--space-2)}
 
 /* ── crossword ── */
-[data-screen=connect] .cw-wrap{flex:1 1 0;min-height:96px;container-type:size;display:grid;place-items:center}
+[data-screen=connect] .cw-wrap{flex:1 1 0;min-height:calc(76px + 20px * var(--spacing));container-type:size;display:grid;place-items:center}
 .cw{--g:3px;--box:min(var(--max,46px),calc((100cqw - (var(--cols) - 1) * var(--g)) / var(--cols)),calc((100cqh - (var(--rows) - 1) * var(--g)) / var(--rows)));display:grid;grid-template-columns:repeat(var(--cols),var(--box));grid-template-rows:repeat(var(--rows),var(--box));gap:var(--g)}
 .cw-flow{container-type:inline-size;display:grid;justify-items:center}
 .cw-flow .cw{--box:min(var(--max,46px),calc((100cqi - (var(--cols) - 1) * var(--g)) / var(--cols)))}
@@ -699,7 +703,7 @@ html:not([data-kb]) [data-screen=letters].fit.kbon .play{flex:1 1 auto;min-heigh
 
 /* ── the dock: circle in the middle, Shuffle bottom-left, Hint bottom-right, bonus top-right ── */
 [data-screen=connect] .dock{flex:none;position:relative;container-type:inline-size;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-rows:1fr 1fr;align-items:end}
-.cn-ring{--d:min(276px,calc(100cqi - 104px));grid-column:2;grid-row:1/3;position:relative;width:var(--d);height:var(--d);border-radius:50%;background:var(--surface);border:1px solid var(--line-soft);touch-action:none;user-select:none;-webkit-user-select:none}
+.cn-ring{--d:clamp(110px,calc(100cqi - 104px - 64px * (1 - var(--spacing))),276px);grid-column:2;grid-row:1/3;position:relative;width:var(--d);height:var(--d);border-radius:50%;background:var(--surface);border:1px solid var(--line-soft);touch-action:none;user-select:none;-webkit-user-select:none}
 [data-theme=light] .cn-ring{border-color:var(--lt-edge)}
 .cn-ring.n4{--k:calc(var(--d) * .28)}.cn-ring.n5{--k:calc(var(--d) * .26)}.cn-ring.n6{--k:calc(var(--d) * .24)}.cn-ring.n7{--k:calc(var(--d) * .215)}
 /* 8-10 letters (owner, 2026-09-25): smaller letters on the same ring, with room between neighbours */
@@ -797,11 +801,11 @@ input,textarea{-webkit-user-select:text;user-select:text}
 
 /* ── the screen fits the window while playing (as Letters / Connect .fit) ── */
 [data-screen=tiles].app{container-type:inline-size}
-[data-screen=tiles].app.fit{height:var(--vvh-full,100dvh);min-height:0}
-[data-screen=tiles].fit .main{min-height:0;padding-top:var(--space-3);padding-bottom:calc(var(--space-3) + var(--safe-b));gap:var(--space-2)}
+[data-screen=tiles].app.fit{height:100%;min-height:0}
+[data-screen=tiles].fit .main{min-height:0;padding-top:var(--space-3);padding-bottom:var(--space-3);gap:var(--space-2)}
 /* one grid, two layouts: phone = a column (status, board, message, rack, buttons);
    from 900px the board on the left and everything else in a 360px column beside it */
-[data-screen=tiles] .tl-play{flex:1;min-height:0;position:relative;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto auto;grid-template-areas:"status" "board" "say" "rack" "dock";gap:var(--space-2)}
+[data-screen=tiles] .tl-play{flex:1;min-height:0;position:relative;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(min(56cqi,180px),1fr) auto auto auto;grid-template-areas:"status" "board" "say" "rack" "dock";gap:var(--space-2)}
 @container (min-width:900px){
   [data-screen=tiles] .main{max-width:1180px}
   [data-screen=tiles].fit .main{padding-top:var(--space-6);padding-bottom:var(--space-6)}
@@ -872,13 +876,12 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* Only the last move outlined until the next one (owner, 2026-11-14). Tile ink stays legible on every tile colour;
    the inset ring follows raised faces and fades with peek. Hint previews keep their own dashed look. */
 .t.last{--ring:#388DB5;--rw:1px;background:color-mix(in srgb,var(--tl-tile) 78%,#77CDED)}
-/* this turn's tiles: a theme-colour ring; red when the move can't be played */
-.t.new{--ring:var(--accent);--rw:1px}
-.tb .t.bad{--ring:var(--error);--rw:1px;outline:none}
-.tb .t.selected{--rw:max(3px,calc(var(--cs) * .12))}
 /* a hint: the look every Lexling hint has — no fill, dashed edge, muted letter */
 .t.hint{background:var(--surface);color:var(--text-muted);box-shadow:none;outline:calc(var(--cs) * .06) dashed var(--text-muted);outline-offset:calc(var(--cs) * -.07)}
 .t.hint .p{color:var(--text-muted)}
+/* Draft tiles have green faces. Rejected letters have red faces and rings. */
+.t.new{--ring:#3d9829;--rw:2px;background:#a5cf82}
+:is(.tb,.tl-looks) .t.bad{--ring:var(--error);--rw:2px;outline:none;background:#efa39b}
 /* Proposed tiles keep an opaque face and raised look, with a dashed voting ring (owner, 2026-11-14). */
 .t.voting{background:var(--tl-tile);color:var(--tl-ink);outline:calc(var(--cs) * .06) dashed var(--accent);outline-offset:calc(var(--cs) * -.09)}
 /* dragging: the square under the finger */
@@ -909,7 +912,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* A reserved message row never moves or covers the rack, including lifted tiles.
    Long dictionary explanations scroll within the same space. */
 .tl-rack-area{grid-area:rack;min-width:0;display:grid;grid-template-rows:42px auto;row-gap:18px}
-.tl-move-error{height:42px;min-width:0;overflow:auto;margin:0;padding:0 4px;color:var(--error);font:500 12px/14px var(--font-body);text-align:center;overflow-wrap:anywhere;visibility:hidden;opacity:0;transition:opacity 160ms var(--ease)}
+.tl-move-error{height:42px;min-width:0;overflow:auto;margin:0;padding:0 4px;color:var(--error);font:500 calc(12px * var(--text-scale))/1.17 var(--font-body);text-align:center;overflow-wrap:anywhere;visibility:hidden;opacity:0;transition:opacity 160ms var(--ease)}
 .tl-move-error.visible{visibility:visible;opacity:1}
 .tl-rack{container-type:inline-size;display:flex;justify-content:center;gap:6px;padding-top:6px}
 .rt{--rs:min(50px,calc((100cqi - 36px) / 7));flex:none;position:relative;width:var(--rs);height:var(--rs);display:grid;place-items:center;border-radius:calc(var(--rs) * .16);background:var(--tl-tile);color:var(--tl-ink);box-shadow:inset 0 calc(var(--rs) * -.07) 0 rgba(0,0,0,.2);font:700 calc(var(--rs) * .56)/1 var(--font-body);text-transform:uppercase;touch-action:none;cursor:grab;transition:transform 120ms var(--ease),opacity 120ms var(--ease)}
@@ -951,7 +954,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-x svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 @container (min-width:900px){.tl-panel{grid-area:panel;align-self:stretch;box-shadow:none;border-color:var(--line-soft)}.tl-x{display:none}}
 .tl-hist{list-style:none;padding:0;display:grid;grid-template-columns:2.5ch minmax(0,1fr) auto auto;column-gap:8px}
-.tl-hist li{display:grid;grid-column:1 / -1;grid-template-columns:subgrid;align-items:center;gap:var(--space-3);min-height:40px;padding:var(--space-1) 0;border-bottom:1px solid var(--line-soft);font-size:14px}
+.tl-hist li{display:grid;grid-column:1 / -1;grid-template-columns:subgrid;align-items:center;gap:var(--space-3);min-height:40px;padding:var(--space-1) 0;border-bottom:1px solid var(--line-soft);font-size:calc(14px * var(--text-scale))}
 .tl-hist .i{color:var(--text-dim);font-variant-numeric:tabular-nums}
 :is(.tl-hist,.tl-look) .who{max-width:13ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;font:600 11px/1.2 var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--pt)}
 [data-theme=light] :is(.tl-hist,.tl-look) .who{color:var(--pc)}
@@ -1050,6 +1053,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-end-history .seg button{overflow-wrap:anywhere}
 .tl-end-moves .tl-hist,.tl-end-moves>.help{margin:0}
 .tl-share-status{margin:0}
+.word-meaning,.tl-calculation p,.tl-replay-controls p{font-size:calc(16px * var(--text-scale))}
 .tl-share-status:empty{position:absolute}
 /* saved-game card: the score line */
 [data-screen=games] .save-last .vs{display:inline-flex;align-items:center;gap:6px}
@@ -1059,8 +1063,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* ── a phone: every pixel of height goes to the board (target: board ≥ 280px at 320 × 640) ── */
 @container (max-width:480px){
   [data-screen=tiles].fit .main{padding-top:var(--space-2);gap:6px}
-  [data-screen=tiles] .tl-play{gap:6px}
-  [data-screen=tiles] .status{padding-bottom:var(--space-2);gap:6px}
+  [data-screen=tiles] .tl-play{gap:calc(6px * var(--spacing))}
+  [data-screen=tiles] .status{padding-bottom:var(--space-2);gap:calc(6px * var(--spacing))}
   [data-screen=tiles] .status-actions .btn{min-height:36px}
   .tl-side{padding:4px 7px 5px}
   .tl-bag{padding:4px 20px 5px 9px}
@@ -1193,7 +1197,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-assists.used{border-color:color-mix(in srgb,var(--warn,#e0a800) 55%,transparent)}
 .tl-assists.used .state{color:var(--warn,#e0a800)}
 .tl-assists>.help{margin:0 0 var(--space-3)}
-.tl-assists{scroll-margin-top:calc(72px + var(--safe-t))}
+.tl-assists{scroll-margin-top:72px}
 .tl-assists .tl-hints{padding:0 0 var(--space-2)}
 .help-warn .btn-link{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--accent);text-decoration:underline;cursor:pointer}
 /* the end: several people - one line per player, in place order */
@@ -1286,15 +1290,17 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .first-language h2 span{display:block}
 .first-language .language-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-3);margin-top:var(--space-5)}
 .first-language .btn{padding:0 var(--space-2);text-transform:none;letter-spacing:0}
-.first-language .btn:focus{outline:2px solid var(--accent);outline-offset:3px}
+.first-language h2:focus{outline:none}
+.first-language .btn:focus-visible{outline:2px solid var(--text-muted);outline-offset:3px;box-shadow:none}
 .gs-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-2)}
+.gs-head>.eyebrow:has(.app-icon){display:flex;align-items:center;gap:8px}
 .gs-close{min-width:40px;padding:0}
 .gs-guide{justify-content:space-between;width:100%;min-height:48px;padding:0 12px;margin-bottom:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--text)}
 .gs-guide:hover,.gs-guide:focus-visible{border-color:var(--accent)}
 .gs-row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);padding:var(--space-3) 0;border-top:1px solid var(--line-soft)}
 .gs-row .row-text{display:grid;gap:4px}
 .gs-row strong{font-weight:600}
-.gs-row .row-text span{font-size:13px;line-height:1.4;color:var(--text-muted)}
+.gs-row .row-text span{font-size:calc(13px * var(--text-scale));line-height:1.4;color:var(--text-muted)}
 /* on a narrow phone the game's name gives way to the gear (and Tiles' "?") - it is on the saved-games list anyway */
 .topbar .gs-open{flex:none}
 @media (max-width:374px){.topbar .side.end:has(.gs-open)>.eyebrow{display:none}}
@@ -1451,7 +1457,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
   :is(.tl-hist,.tl-look) .who{font-size:10px;letter-spacing:.03em}
 }
 /* a named game in the top bar: the name gives way ("…"), its number stays (owner, 2026-09-26) */
-.topbar .eyebrow.gname{display:flex;gap:.45em}
+.topbar .eyebrow.gname{display:flex;align-items:center;gap:.45em}
+.topbar .gname svg.glyph{width:1em;height:1em;transform:none}
 .topbar .gname .nm{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .topbar .gname .no{flex:none}
 /* the board's frame (owner, 2026-09-26: "grey is boring"): warm wood, lit along its inner edge */
@@ -1528,9 +1535,9 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-moves .hlv{font:600 11px/1 var(--font-body);color:var(--text-muted);white-space:nowrap}
 .tl-moves .bw{grid-column:2 / -1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text-muted)}
 .tl-moves .bw b{font:700 14px/1 var(--font-display);color:var(--text)}
-.tl-moves .msg{grid-column:2 / -1;min-width:0;font-size:14px;line-height:1.3;color:var(--text-muted)}
+.tl-moves .msg{grid-column:2 / -1;min-width:0;font-size:calc(14px * var(--text-scale));line-height:1.3;color:var(--text-muted)}
 .tl-moves .msg b{color:var(--text);font-weight:600;text-transform:uppercase}
-.tl-moves .msg .pts{font:800 18px/1 var(--font-display);color:var(--accent)}
+.tl-moves .msg .pts{font:800 calc(18px * var(--text-scale))/1 var(--font-display);color:var(--accent)}
 .tl-moves .hi{display:inline-flex;vertical-align:-2px;margin-right:4px;color:var(--text-muted)}
 .tl-moves .hi svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tl-moves .mc-bag{margin:0;min-height:16px;font-size:12px;line-height:16px;text-align:center;color:var(--text-muted)}
@@ -1570,7 +1577,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-screen=games] .head-acts{display:flex;flex-wrap:wrap;gap:var(--space-2)}
 .tl-join{display:grid;gap:var(--space-3);padding:var(--space-5)}
 /* help on (0.60.0): those games leave the statistics' records and averages - said where it is switched on */
-.help-warn{margin:0 0 var(--space-3);padding:var(--space-3) var(--space-4);border-radius:var(--radius-sm);border:1px solid color-mix(in srgb,var(--warn,#e0a800) 55%,transparent);background:color-mix(in srgb,var(--warn,#e0a800) 12%,transparent);color:var(--text);font-size:14px;line-height:1.45}
+.help-warn{margin:0 0 var(--space-3);padding:var(--space-3) var(--space-4);border-radius:var(--radius-sm);border:1px solid color-mix(in srgb,var(--warn,#e0a800) 55%,transparent);background:color-mix(in srgb,var(--warn,#e0a800) 12%,transparent);color:var(--text);font-size:calc(14px * var(--text-scale));line-height:1.45}
 .help-warn::before{content:'⚠ ';color:var(--warn,#e0a800)}
 /* Internet (0.59.0): the game's code - typed in on Join, shown big on the host's card */
 .tl-coderow{display:flex;flex-wrap:wrap;gap:8px}
@@ -1631,11 +1638,13 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tl-toast.joined{pointer-events:none;border-top-color:var(--notice-success)}
 /* a newer version at the bottom of the menu (0.55.1): Download or ✕. The buttons beside the text while both fit, else on
    their own line below it (0.58.0: a failed download has three - the text was squeezed to a word a line) */
-.upd{position:sticky;bottom:calc(8px + var(--safe-b, 0px));z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:var(--space-4);max-width:520px;padding:var(--space-3) var(--space-4);background:var(--surface);border:1px solid var(--notice-update);border-radius:var(--radius-md)}
-.upd-text{flex:1 1 200px;min-width:0;font-weight:600;color:var(--text)}
+.upd{position:sticky;bottom:8px;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:var(--space-4);max-width:520px;padding:var(--space-3) var(--space-4);background:var(--surface);border:1px solid var(--notice-update);border-radius:var(--radius-md)}
+.upd-text{font-size:calc(1em * var(--text-scale));flex:1 1 200px;min-width:0;font-weight:600;color:var(--text)}
 .upd-acts{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px;margin-left:auto}
+.upd-release .upd-text{flex-basis:100%}
+.upd-release .upd-acts{flex:1 1 100%;justify-content:space-between;margin-left:0}
 .upd-pair{display:flex;gap:6px}   /* GitHub and ✕ wrap together, never ✕ alone */
-.upd-note{flex:1 1 100%;font-size:13px;line-height:1.4;color:var(--text-muted)}
+.upd-note{flex:1 1 100%;font-size:calc(13px * var(--text-scale));line-height:1.4;color:var(--text-muted)}
 /* the update downloading (0.57.0): its progress */
 .upd-bar{flex:1 1 100%;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
 .upd-bar i{display:block;height:100%;background:var(--notice-update);transition:width 300ms var(--ease)}
@@ -1650,7 +1659,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
    .scell / .vdist / .tl-filters additions. Reuses .seg, .chip, .card, .none, .best, .mt, .mtl, .tl-best.
    Everything sizes off .main as a container (cqi / @container), so it is the same in the app and on the design page. ═══ */
 /* End the card at its content; only the device safe area follows it (owner, 2026-11-20). */
-[data-screen=stats] .main{container-type:inline-size;gap:var(--space-4);padding-bottom:var(--safe-b)}
+[data-screen=stats] .main{container-type:inline-size;gap:var(--space-4);padding-bottom:0}
 
 /* Centre the game glyphs in equal-width tabs (owner, 2026-11-26). */
 .seg.st-tabs{display:flex;gap:2px;padding:3px}
@@ -1678,19 +1687,19 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* Each stat has its own panel. The mode breakdown uses the existing full-width rows. */
 [data-screen=stats] .section{display:grid;gap:var(--space-3)}
 [data-screen=stats] .st-mode{display:flex;align-items:center;gap:8px;padding:10px}
-[data-screen=stats] .st-mode .lbl{display:flex;align-items:center;gap:8px;font-weight:600}
+[data-screen=stats] .st-mode .lbl{font-size:calc(16px * var(--text-scale));display:flex;align-items:center;gap:8px;font-weight:600}
 [data-screen=stats] .st-mode .num{margin-inline-start:auto;font-size:25px}
 .st-panels{display:grid;gap:var(--space-4);margin-bottom:var(--space-1)}
 .st-panel{min-width:0}
 .st-panel h2{margin-bottom:8px;color:var(--text-muted);font-size:12px;font-weight:600;line-height:1.3;letter-spacing:.07em;text-transform:uppercase}
 .st-panel .scells{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .st-panel .scell{display:grid;grid-template-rows:1fr auto;align-items:start;gap:7px;min-width:0;min-height:76px;padding:10px 12px;background:var(--surface);border:1px solid var(--line-soft);border-radius:10px}
-.st-panel .lbl{display:flex;align-items:flex-start;gap:8px;min-width:0;color:var(--text-muted);font-size:13px;line-height:1.35;overflow-wrap:anywhere}
+.st-panel .lbl{display:flex;align-items:flex-start;gap:8px;min-width:0;color:var(--text-muted);font-size:calc(13px * var(--text-scale));line-height:1.35;overflow-wrap:anywhere}
 .st-panel .lbl svg:is(.app-icon,.glyph){flex:none;width:16px;height:16px;margin-top:1px}
 .st-panel dd{min-width:0;padding-inline-start:24px}
 .st-panel .num{display:block;font-size:24px;overflow-wrap:anywhere}
 .st-panel .word .num{text-transform:uppercase}
-.st-panel .sub{display:block;margin-top:4px;font-size:11px;line-height:1.35;color:var(--text-muted);overflow-wrap:anywhere}
+.st-panel .sub{display:block;margin-top:4px;font-size:calc(11px * var(--text-scale));line-height:1.35;color:var(--text-muted);overflow-wrap:anywhere}
 
 /* ── Charts: one style, columns standing up ──
    Count on top, label under the base line, the tallest column in the mode's colour (--tone), the rest --surface-2.
@@ -1728,9 +1737,10 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* ── The menu ──
    The game rows a little tighter (~76px) and one bar of three: on a 360×740 phone everything is on the first screen
    (the hero is a little tighter too: tagline 15px, 12px between its parts). */
-[data-screen=menu] .hero.tight{align-content:start;gap:0;padding-top:clamp(16px,3vh,48px);padding-bottom:var(--space-4)}
+[data-screen=menu] .hero.tight{align-content:start;gap:0;padding-top:calc(clamp(16px,3vh,48px) * var(--spacing));padding-bottom:var(--space-4)}
 [data-screen=menu] .hero.tight .hero-inner{container-type:inline-size;gap:var(--space-3)}
-[data-screen=menu] .hero.tight .display{font-size:clamp(38px,11.5cqi,64px)}
+[data-screen=menu] .hero.tight .display{font-size:calc(clamp(38px,11.5cqi,64px) * var(--text-scale));overflow-wrap:anywhere}
+[data-screen=menu] .upd-slot:empty{display:none}
 [data-screen=menu] .hero.tight .tagline{font-size:15px;line-height:1.5}
 [data-screen=menu] .games.tight{display:grid;gap:var(--space-2);margin-top:var(--space-1)}
 [data-screen=menu] .games.tight .game{min-height:72px;gap:var(--space-3);padding:var(--space-2) var(--space-4) var(--space-2) var(--space-2)}
@@ -1745,30 +1755,54 @@ input,textarea{-webkit-user-select:text;user-select:text}
 }
 /* Main menu: equal option-C cards with palette-aware outline badges. */
 [data-screen=menu] .menu.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-width:none;margin-top:var(--space-1)}
-[data-screen=menu] .menu.cards a{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-width:0;height:94px;padding:10px 6px;border:1px solid var(--line-soft);border-radius:12px;background:var(--surface);box-shadow:var(--shadow-md);color:var(--text);font:700 17px/1.1 var(--font-display);letter-spacing:.025em;text-transform:uppercase;text-align:center;overflow-wrap:anywhere;transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+[data-screen=menu] .menu.cards a{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-width:0;min-height:max(44px,calc(var(--menu-link-height,94px) + 16px * (var(--button-scale) - 1.3)));padding:var(--space-2) 6px;border:1px solid var(--line-soft);border-radius:12px;background:var(--surface);box-shadow:var(--shadow-md);color:var(--text);font:700 calc(17px * var(--text-scale))/1.1 var(--font-display);letter-spacing:.025em;text-transform:uppercase;text-align:center;overflow-wrap:anywhere;transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease)}
 [data-screen=menu] .menu.cards a:hover{background:var(--accent-soft);border-color:var(--accent)}
 [data-screen=menu] .menu.cards a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .menu-badge{width:32px;height:32px;border-radius:50%}
-.menu.cards a[href="#/stats"]{--icon-ink:#8AB5FF}
-.menu.cards a[href="#/achievements"]{--icon-ink:var(--rare-gold-ink)}
-.menu.cards a[href="#/collection"]{--icon-ink:#61CFBA}
-.menu.cards a[href="#/settings"]{--icon-ink:#D0AEF5}
-[data-screen=menu] .menu.cards a[href="#/last-games"]{grid-column:1/-1;flex-direction:row;gap:8px;--icon-ink:var(--accent)}
-[data-theme=light] .menu.cards a[href="#/stats"]{--icon-ink:#4168AD}
-[data-theme=light] .menu.cards a[href="#/collection"]{--icon-ink:#227869}
-[data-theme=light] .menu.cards a[href="#/settings"]{--icon-ink:#764E9F}
+[data-icon=stats]{--icon-ink:#8AB5FF}
+[data-icon=achievements]{--icon-ink:var(--rare-gold-ink)}
+[data-icon=collection],[data-icon=online]{--icon-ink:#61CFBA}
+[data-icon=settings]{--icon-ink:#D0AEF5}
+[data-icon=last-games],[data-icon=home],[data-icon=join]{--icon-ink:var(--accent)}
+[data-icon=whatsnew]{--icon-ink:var(--notice-update)}
+[data-icon=guess]{--icon-ink:#8E6CF0}
+[data-icon=letters]{--icon-ink:#58B747}
+[data-icon=connect]{--icon-ink:#009E99}
+[data-icon=tiles]{--icon-ink:#E9AF25}
+[data-theme=light] [data-icon=stats]{--icon-ink:#4168AD}
+[data-theme=light] :is([data-icon=collection],[data-icon=online]){--icon-ink:#227869}
+[data-theme=light] [data-icon=settings]{--icon-ink:#764E9F}
+[data-screen=menu] .menu.cards a[href="#/last-games"]{grid-column:1/-1;flex-direction:row;gap:var(--space-2);--menu-link-height:66px}
 .menu-badge svg{width:18px;height:18px}
-/* Keep the original outline shapes in their own colours (owner, 2026-11-26). */
-.menu-badge svg:not(.app-icon){fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.menu-badge svg.glyph{background:none;transform:none}
+.menu-badge svg:not(.app-icon,.glyph){fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+h1>.menu-badge{width:1.3em;height:1.3em}
+h1>.menu-badge :is(svg,svg.glyph){width:.9em;height:.9em}
+[data-screen=menu] h1{display:flex;align-items:center;gap:10px}
+[data-screen=menu] h1>.menu-badge{width:1em;height:1em}
+[data-screen=menu] h1>.menu-badge :is(svg,svg.glyph){width:.65em;height:.65em}
 
 /* Finished games (owner, 2026-11-26). */
-[data-screen=last-games] .saves{display:grid;gap:var(--space-3)}
-.last-game-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px}
-.last-game{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:4px;color:var(--text)}
-.last-game>span{display:grid;gap:3px;overflow-wrap:anywhere}
-.last-game>span>span,.last-game time{color:var(--text-muted);font-size:12px}
-.last-game time{text-align:end}
-.last-game-row:hover,.last-game-row:focus-within{border-color:var(--accent)}
+[data-screen=last-games] .empty{flex:1;display:grid;place-content:center;justify-items:center;gap:12px;text-align:center}
+[data-screen=last-games] .empty .menu-badge{width:52px;height:52px}
+[data-screen=last-games] .empty .menu-badge svg{width:30px;height:30px}
+[data-screen=last-games] .saves{display:grid;gap:8px}
+.last-game-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px;padding:6px}
+.last-game{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px;padding:8px;color:var(--text);border-radius:var(--radius-sm)}
+.last-game:hover{background:var(--surface-2)}
+.last-game:focus-visible{outline:2px solid var(--text-muted);outline-offset:-2px}
+.last-game>svg.glyph{width:32px;height:32px}
+.last-game-info{display:grid;gap:3px;overflow-wrap:anywhere;font-size:calc(14px * var(--text-scale));line-height:1.2}
+.last-game-info strong{font-size:calc(16px * var(--text-scale))}
+.last-game time{color:var(--text-muted);font-size:calc(12px * var(--text-scale));font-variant-numeric:tabular-nums}
+.last-game-actions{display:flex;align-items:center}
+.last-game-actions .btn,.last-game-actions [data-keep]{width:44px;padding:0;color:var(--text-muted);border-color:transparent}
+.last-game-actions .btn:hover{background:var(--surface-2);color:var(--text)}
+.last-game-actions [data-keep][aria-pressed=true]{color:var(--accent);border-color:transparent}
+.last-game-actions [data-keep]:hover{background:var(--surface-2)}
+.last-game-actions [data-delete-result]:hover{color:var(--error)}
+.delete-result-status:empty{display:none}
+.delete-result-status{margin-top:var(--space-2);color:var(--error)}
 .keep-game{position:relative;display:inline-flex;justify-content:center}
 .keep-game [data-keep]{min-width:44px;font-size:1.35em;line-height:1;padding-inline:12px}
 .keep-game [aria-pressed=true]{color:var(--accent);border-color:var(--accent)}
@@ -1777,11 +1811,8 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* ── Time: the clock beside the name, the reminder ── (.tb-clock and .rm-every are in app.css)
    The clock is 12px, --text-dim, tabular, right of LEX/LING. */
 .tb-clock{font-variant-numeric:tabular-nums}
-.remind{display:grid;gap:var(--space-3)}
-.remind .num{font-size:44px;line-height:.95;color:var(--text)}
-.remind p{margin:0;font-size:14px;line-height:1.5;color:var(--text-muted)}
+.remind p{margin:0;font-size:calc(14px * var(--text-scale));line-height:1.5;color:var(--text-muted)}
 .remind p b{color:var(--text);font-weight:600}
-.remind .btn{justify-self:end;min-width:96px}
 
 /* ═══ LEXLING · COLLECTION v2 (2026-09-28) — new CSS, goes below app.css.
    Replaces app.css's "Collection (0.61.0)" block (.col-total, .col-big, .col-bar, .col-cats, .col-lens, .col-words, .cw).
@@ -1802,7 +1833,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .co-hero .eyebrow{margin:0}
 .co-pct{display:flex;align-items:baseline;gap:4px;font:800 clamp(64px,22cqi,96px)/.86 var(--font-display);letter-spacing:-.02em;color:var(--text)}
 .co-pct small{font:800 .42em/1 var(--font-display);color:var(--text-muted)}
-.co-line{margin:0;font-size:14px;color:var(--text-muted)}
+.co-line{margin:0;font-size:calc(14px * var(--text-scale));color:var(--text-muted)}
 .co-line b{font-weight:600;color:var(--text)}
 .co-hero .co-bar{height:6px;border-radius:3px;margin-top:var(--space-1)}
 
@@ -1813,9 +1844,9 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .co-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px var(--space-2);width:100%;padding:var(--space-3) var(--space-3) var(--space-3) var(--space-4);background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-md);text-align:left;transition:border-color var(--dur) var(--ease),transform var(--dur) var(--ease)}
 .co-row:hover{border-color:var(--line);transform:translateY(-2px)}
 .co-row .co-top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px var(--space-3);min-width:0}
-.co-row .co-name{display:inline-flex;align-items:center;gap:6px;min-width:0;font:600 16px/1.25 var(--font-body);color:var(--text)}
+.co-row .co-name{display:inline-flex;align-items:center;gap:6px;min-width:0;font:600 calc(16px * var(--text-scale))/1.25 var(--font-body);color:var(--text)}
 .co-row .co-name .glyph{transform:none}
-.co-row .co-count{margin-left:auto;font-size:13px;color:var(--text-muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.co-row .co-count{margin-left:auto;font-size:calc(13px * var(--text-scale));color:var(--text-muted);white-space:nowrap;font-variant-numeric:tabular-nums}
 .co-row .co-count b{font-weight:700;color:var(--text)}
 .co-row .co-count .pc{color:var(--text)}
 .co-row .chev{grid-row:1 / span 2;grid-column:2;font:500 22px/1 var(--font-body);color:var(--text-dim);transition:transform var(--dur) var(--ease),color var(--dur) var(--ease)}
@@ -1823,9 +1854,9 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .co-row .co-bar{grid-column:1}
 .co-row.none .co-count b{color:var(--text-dim)}
 .co-row.none .co-name{color:var(--text-muted)}
-.co-lead{margin:var(--space-1) 0 0;font-size:13px;color:var(--text-muted)}
+.co-lead{margin:var(--space-1) 0 0;font-size:calc(13px * var(--text-scale));color:var(--text-muted)}
 /* the help line, at the foot: Statistics' honesty note */
-.co-help{display:flex;gap:8px;margin:var(--space-2) 0 0;padding-top:var(--space-3);border-top:1px solid var(--line-soft);font-size:12.5px;line-height:1.45;color:var(--text-muted)}
+.co-help{display:flex;gap:8px;margin:var(--space-2) 0 0;padding-top:var(--space-3);border-top:1px solid var(--line-soft);font-size:calc(12.5px * var(--text-scale));line-height:1.45;color:var(--text-muted)}
 
 /* ── A category ── */
 .co-back{justify-self:start}
@@ -1845,14 +1876,14 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .co-len.empty{opacity:.35;pointer-events:none}
 .co-lenhead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px var(--space-3);margin-top:var(--space-2)}
 .co-lenhead strong{font:700 20px/1 var(--font-display);text-transform:uppercase;letter-spacing:-.01em}
-.co-lenhead span{font-size:13px;color:var(--text-muted)}
+.co-lenhead span{font-size:calc(13px * var(--text-scale));color:var(--text-muted)}
 /* the words found: green, written out, first */
 .co-found{display:flex;flex-wrap:wrap;gap:6px}
 .co-w{display:inline-flex;align-items:center;min-height:32px;padding:0 10px;border:1.5px solid var(--lt-hit);border-radius:8px;background:color-mix(in srgb,var(--lt-hit) 18%,transparent);font:600 15px/1 var(--font-body);color:var(--text)}
 /* A · the rest as a map: one dot per word, in the list's order, green where found. 2 300 words are a 300px block
    that reads at a glance - how much is left and where. In the app draw it on one <canvas> (thousands of nodes otherwise). */
 .co-map{display:grid;gap:var(--space-2);padding:var(--space-4);background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-md)}
-.co-map .co-maphead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px var(--space-3);font-size:12.5px;color:var(--text-muted)}
+.co-map .co-maphead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px var(--space-3);font-size:calc(12.5px * var(--text-scale));color:var(--text-muted)}
 .co-map .co-maphead b{font-weight:600;color:var(--text)}
 .co-dots{display:grid;grid-template-columns:repeat(auto-fill,6px);gap:2px;justify-content:space-between}
 .co-dots i{width:6px;height:6px;border-radius:1.5px;background:var(--palette-edge,#2E2E2E)}
@@ -1866,7 +1897,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .co-more{justify-self:center}
 /* loading (~1 s): the rows as quiet placeholders, the line above them */
 .co-loading{display:grid;gap:var(--space-2)}
-.co-loading p{margin:0;font-size:14px;color:var(--text-muted)}
+.co-loading p{margin:0;font-size:calc(14px * var(--text-scale));color:var(--text-muted)}
 .co-loading i{display:block;height:58px;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--line-soft)}
 .co-loading i:nth-child(n+4){opacity:.6}.co-loading i:nth-child(n+6){opacity:.3}
 
@@ -1961,7 +1992,7 @@ canvas.co-dots{display:block;width:100%}
 .ach-tile>.lock{position:absolute;right:5px;top:5px;width:12px;height:12px}
 .lock{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .ach-tile>.ach-bar{width:70%;flex:none}
-.achievement-detail{margin:auto;width:min(360px,calc(100% - 24px));max-height:85dvh;box-sizing:border-box;overflow:auto;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:20px;padding:24px;box-shadow:var(--shadow-md)}
+.achievement-detail{margin:auto;width:min(360px,calc(100% - 24px));box-sizing:border-box;overflow:auto;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:20px;padding:var(--space-6);box-shadow:var(--shadow-md)}
 .achievement-detail::backdrop{background:#0008}
 @media (hover:hover) and (pointer:fine){
   .achievement-detail{scrollbar-width:thin;scrollbar-color:var(--text-muted) var(--surface)}
@@ -1973,8 +2004,9 @@ canvas.co-dots{display:block;width:100%}
 .ach-hero{text-align:center;clear:both}
 .ach-hero>.ach-icon{width:60px;height:60px;margin-bottom:12px}
 .ach-hero h2{font:700 26px/1.1 var(--font-display);margin:12px 0}
+.ach-hero p{font-size:calc(16px * var(--text-scale))}
 .ach-hero .num{display:block;margin:16px 0;font-size:32px}
-.ach-step{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line-soft);padding:14px 0;font-size:12px}
+.ach-step{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line-soft);padding:14px 0;font-size:calc(12px * var(--text-scale))}
 .ach-step>div{flex:1}
 .ach-step small{display:block;color:var(--text-muted);margin-top:5px}
 .ach-step .ach-bar{margin-top:8px}
@@ -1994,7 +2026,7 @@ canvas.co-dots{display:block;width:100%}
 
 .word-meaning{max-height:60vh;overflow:auto;line-height:1.6}
 .word-meaning ol{padding-left:24px}.word-meaning li+li{margin-top:8px}
-.meaning-notice{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:1000;max-width:90vw;padding:12px 18px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:0 4px 20px #0003}
+.meaning-notice{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:1000;max-width:90vw;padding:12px 18px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:0 4px 20px #0003;display:flex;align-items:center;gap:8px}
 
 /* Tiles: keep the board's controls outside the playable squares. */
 [data-screen=tiles] .tl-moves{min-height:0}
@@ -2036,31 +2068,26 @@ canvas.co-dots{display:block;width:100%}
 }
 
 [data-screen=tiles] .tl-messages .tl-moves{grid-area:auto}
-.tb .t.bad.hint{outline:none;box-shadow:inset 0 0 0 1px var(--error)}
+.tb .t.bad.hint{outline:none;box-shadow:inset 0 0 0 var(--rw) var(--ring)}
 
 /* Reserve changing messages and controls so the squares stay where they were. */
-html{scrollbar-gutter:stable}
-[data-screen=game] #msg{display:block;height:5.6em;overflow:auto;margin:0 0 var(--space-2)}
+[data-screen=game] #msg{display:block;height:4.9rem;overflow:auto;margin:0 0 var(--space-2)}
 [data-screen=game] #msg[hidden]{display:block!important;visibility:hidden}
 [data-screen=letters] .status{display:grid;grid-template-columns:1fr 1fr 1.2fr minmax(82px,1fr);gap:8px}
 [data-screen=letters] .stat{min-width:0}
 [data-screen=letters] .stat .num{font-variant-numeric:tabular-nums;font-size:clamp(20px,5vw,28px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 [data-screen=letters] .status-actions{grid-column:1/-1;min-height:40px}
-[data-screen=letters] .msg{height:3.2em;min-height:3.2em;overflow:auto}
-.cat-about{height:8em;overflow:auto}
+[data-screen=letters] .msg{height:2.8rem;min-height:2.8rem;overflow:auto}
+.cat-about{height:7rem;overflow:auto}
 #level-help{height:3.2em;overflow:auto}
 #check{min-width:150px}
 [data-screen=tiles] .tl-messages{height:152px;overflow:auto;position:relative;align-content:start}
 [data-screen=tiles] .tl-vote{position:absolute;inset:0;overflow:auto;z-index:5}
-[data-screen=tiles] .tl-dock{height:106px;min-height:106px;align-content:stretch;overflow:auto}
+[data-screen=tiles] .tl-dock{min-height:106px;align-content:stretch}
 [data-screen=tiles] .tl-dock .lvl~.btn-ghost.wide{min-height:48px}
 .ps .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}
 .ps-row.many .ps{flex-basis:calc((100% - 24px) / 2.2)}
 @media(max-height:780px) and (max-width:480px){
-  [data-screen=menu] .hero.four{padding-top:12px;padding-bottom:12px}
-  [data-screen=menu] .hero-inner{gap:12px}
-  [data-screen=menu] .menu.cards a{min-height:48px;padding:8px;flex-direction:row;gap:8px}
-  [data-screen=menu] .menu-badge{width:24px;height:24px}
   [data-screen=tiles] .tl-messages{height:116px}
 }
 
@@ -2070,13 +2097,10 @@ html{scrollbar-gutter:stable}
   [data-screen=tiles] .tl-rack-area{grid-template-rows:14px auto;row-gap:18px}
   [data-screen=tiles] .tl-move-error{height:14px}
 }
-/* On phones keep the width-sized board, and give all remaining height to the
-   cards. Replace the old 116px box / 60px padding combination; only the moves
-   scroll when the available height really is too small. */
+/* The phone board and move list share the available space. Keep a playable board
+   and a visible part of the scrollable move list even at large settings. */
 @container (max-width:480px){
-  [data-screen=tiles] .tl-play{grid-template-rows:auto auto minmax(0,1fr) auto auto}
-  [data-screen=tiles] .tl-bwrap{width:100%;aspect-ratio:1;align-self:start}
-  [data-screen=tiles] .tl-messages{height:auto;min-height:0;overflow:hidden;grid-template-rows:minmax(0,1fr)}
+  [data-screen=tiles] .tl-messages{height:clamp(48px,calc(var(--safe-height) - 560px),116px);min-height:0;overflow:hidden;grid-template-rows:minmax(0,1fr)}
   [data-screen=tiles] .tl-messages .tl-moves{min-height:0;overflow:auto}
 }
 
@@ -2087,8 +2111,6 @@ html{scrollbar-gutter:stable}
 :root[data-tileframe=frameless] .tl-board{background:var(--tb-sq);box-shadow:none;border-radius:2px}
 :root[data-tileframe=frameless] .tb{--fr:1px;box-shadow:none}
 :root[data-tileframe=orange] .tl-board{background:var(--surface);box-shadow:inset 0 0 0 2px var(--accent)}
-/* Keep pending faces in the selected tile colour (owner, 2026-11-20). */
-.t.new{--ring:#3d9829;--rw:2px;background:var(--tl-tile)}
 .t.new.hint{color:var(--tl-ink);outline-color:var(--ring);box-shadow:inset 0 0 0 var(--rw) var(--ring),inset 0 calc(var(--cs) * -.07) 0 rgba(0,0,0,.2)}
 .t.new.hint .p{color:inherit}
 .t.last{--ring:#9461c9;--rw:2px;background:color-mix(in srgb,var(--tl-tile) 78%,#b99ae4)}
@@ -2138,7 +2160,7 @@ html{scrollbar-gutter:stable}
 .tl-mini .l2{background:#8cc8ea}.tl-mini .l3{background:#2f6fbf}.tl-mini .w2{background:#f29b55}.tl-mini .w3{background:#d23b35}
 .tl-bcard .meta{color:var(--accent)}
 /* Options V1: text tabs, a scrolling body, and Give up outside the scroll area. */
-.tl-options{display:flex;flex-direction:column;height:min(720px,calc(100dvh - 40px));max-height:calc(100dvh - 40px);overflow:hidden}
+.tl-options{display:flex;flex-direction:column;height:min(720px,calc(var(--safe-height) - 24px));overflow:auto}
 .tl-options .gs-head{flex:none}
 .op-tabs{display:flex;gap:3px;padding:4px;background:var(--bg);border-radius:12px;flex:none}
 .op-tabs button{flex:1;min-width:0;min-height:44px;border-radius:8px;font:600 12px/1.3 var(--font-body);color:var(--text-muted)}
@@ -2157,8 +2179,8 @@ html{scrollbar-gutter:stable}
 .op-foot .btn{width:auto;min-width:0;flex:0 1 auto;margin:0;min-height:42px;padding:8px 12px;white-space:normal;overflow-wrap:anywhere}
 .op-foot .op-quit{border-color:var(--error)}
 .tl-options .gs-row{border:0;padding:10px 0;gap:12px}
-.tl-options .gs-row strong{font-size:12px}
-.tl-options .gs-row .row-text span{font-size:11px}
+.tl-options .gs-row strong{font-size:calc(12px * var(--text-scale))}
+.tl-options .gs-row .row-text span{font-size:calc(11px * var(--text-scale))}
 .tl-options #op-look .row-text span{display:none}
 .tl-options .seg{border:0;padding:0;background:transparent;gap:4px;flex-wrap:wrap}
 .tl-options .seg button{min-height:34px;padding:7px 6px;border-radius:7px;background:var(--surface-2);font-size:11px;letter-spacing:0;text-transform:none;line-height:1.3}
@@ -2184,7 +2206,7 @@ html{scrollbar-gutter:stable}
 .tl-panel .seg{border-radius:4px}
 .tl-panel .seg button.on{background:var(--text);color:var(--bg);border-radius:3px}
 .tl-panel-head{box-shadow:0 2px var(--line)}
-.tl-hist .w{color:var(--accent);font-size:15px}
+.tl-hist .w{color:var(--accent);font-size:calc(15px * var(--text-scale))}
 .tl-hist .who{font-size:10px;letter-spacing:0}
 .tl-hist .rate{border-radius:3px}
 .tl-hist .hi{display:inline-flex;vertical-align:-2px;color:var(--text-muted)}
@@ -2224,7 +2246,7 @@ details>summary :is(.arrow,.category-arrow){display:none}
 .settings-section .row:last-child{border-bottom:0}
 .settings-section .row-text{flex:1 1 160px;min-width:0}
 .settings-section .row-text strong{font-size:14px}
-.settings-section .row-text span{font-size:11px;line-height:1.5}
+.settings-section .row-text span{font-size:calc(11px * var(--text-scale));line-height:1.5}
 .settings-section .row>.seg,.settings-section .palette-swatches{width:100%;flex:none}
 #sound-volume{width:min(150px,38%);margin:0}
 .settings-section .input{max-width:100%}
@@ -2232,32 +2254,48 @@ details>summary :is(.arrow,.category-arrow){display:none}
 svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.all{display:inline-block;position:static;flex:none;width:22px;height:22px;background:none;border-radius:0;vertical-align:middle;overflow:visible}
 /* Keep the artwork at card height and fade its dark background into the card. */
 [data-screen=menu] .games.tight{grid-template-columns:minmax(0,max-content) minmax(0,1fr) auto}
-[data-screen=menu] .games.tight .game{grid-column:1/-1;grid-template-columns:7rem minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);height:104px;min-height:104px;padding:0 18px;background:#110d0c;border-color:#352b27;overflow:hidden;isolation:isolate}
+[data-screen=menu] .games.tight .game{grid-column:1/-1;grid-template-columns:minmax(7rem,auto) minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);min-height:calc(var(--game-card-height,104px) + 16px * (var(--button-scale) - 1.3));padding:0 var(--space-4);background:#110d0c;border-color:#352b27;overflow:hidden;isolation:isolate}
 @supports (grid-template-columns:subgrid){
   [data-screen=menu] .games.tight .game{grid-template-columns:subgrid}
 }
 [data-screen=menu] .menu-art{
   display:block;grid-column:2;grid-row:1;justify-self:center;
-  width:184px;max-width:none;height:102px;
+  width:184px;max-width:none;height:calc(var(--game-card-height,104px) - 8px);
   object-fit:cover;object-position:var(--art-position,71%) center;
   mix-blend-mode:lighten;
   mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent),
-    linear-gradient(transparent,#000 var(--art-fade,5px),#000 calc(100% - var(--art-fade,5px)),transparent);
+    linear-gradient(transparent,#000 5px,#000 calc(100% - 5px),transparent);
   mask-composite:intersect;
 }
 /* Center each illustration inside its wider source image. */
 [data-screen=menu] .game[href="#/games/guess"] .menu-art{--art-position:67%}
 [data-screen=menu] .game[href="#/games/letters"] .menu-art{--art-position:75%}
-[data-screen=menu] .game[href="#/games/tiles"] .menu-art{--art-position:53%;--art-fade:2px;height:92px}
-[data-screen=menu] .games.tight .g-name{grid-column:1;grid-row:1;z-index:1;font:600 22px/1 var(--font-body);letter-spacing:0;text-transform:none;color:#fff3e9;text-shadow:0 2px 8px #000}
+[data-screen=menu] .game[href="#/games/tiles"] .menu-art{--art-position:53%;mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);height:calc(var(--game-card-height,104px) - 18px);width:clamp(128px,40cqi,184px)}
+[data-screen=menu] .games.tight .g-name{grid-column:1;grid-row:1;z-index:1;font:600 calc(22px * var(--text-scale))/1.1 var(--font-body);letter-spacing:0;text-transform:none;color:#fff3e9;text-shadow:0 2px 8px #000}
 [data-screen=menu] .game>.arrow{grid-column:3;grid-row:1;z-index:1;color:#ED754C;text-shadow:0 2px 8px #000;font-size:22px}
+@media(max-width:480px){
+  [data-screen=menu]{--game-card-height:88px}
+  [data-screen=menu] .hero.tight{padding-block:calc(14px * var(--spacing))}
+  [data-screen=menu] .hero.tight .hero-inner{gap:calc(10px * var(--spacing))}
+  [data-screen=menu] :is(.games.tight,.menu.cards){margin-top:0}
+  [data-screen=menu] .menu.cards{gap:var(--space-2)}
+  [data-screen=menu] .menu.cards a{--menu-link-height:56px;flex-direction:row;gap:calc(7px * var(--spacing));padding:calc(6px * var(--spacing))}
+  [data-screen=menu] .menu.cards .menu-badge{width:27px;height:27px}
+  [data-screen=menu] .footer{padding-block:6px 6px}
+}
+@media(max-width:480px) and (max-height:680px){
+  [data-screen=menu]{--game-card-height:72px}
+  [data-screen=menu] .hero.tight{padding-block:var(--space-2)}
+  [data-screen=menu] .hero.tight .hero-inner{gap:var(--space-2)}
+  [data-screen=menu] .menu.cards a,.menu.cards a[href="#/last-games"]{--menu-link-height:44px}
+}
+
 .empty-art{display:block;width:120px;max-width:65%;height:auto;max-height:140px;object-fit:contain;margin:0 auto 16px}
 .ach-notice-icon{position:relative;width:58px;height:60px;background:none}
 .ach-notice-icon img{width:58px;height:58px;object-fit:contain;border-radius:10px}
-.ach-notice-icon .ach-icon{position:absolute;right:-1px;bottom:0;width:23px;height:23px;padding:3px;background:var(--surface);border-radius:50%}
 /* Selected Rules A: a centred card, one stable chapter area, dots and arrows. */
 [data-screen=new] button.howto{display:flex;align-items:center;justify-content:space-between;min-height:48px;width:100%;color:var(--text);text-align:left;cursor:pointer}
-.rules-window.game-settings{display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:0;padding:20px;margin:auto;width:min(380px,calc(100% - 32px));height:min(650px,calc(100dvh - 40px));max-height:calc(100dvh - 40px);background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 18px 90px #0006}
+.rules-window.game-settings{display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:0;padding:var(--space-5);margin:auto;width:min(380px,calc(100% - 32px));height:min(650px,calc(var(--safe-height) - 24px));background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:20px;overflow:auto;box-shadow:0 18px 90px #0006}
 .rules-window::backdrop{background:#0009}
 .rules-window .gs-head{border-bottom:1px solid var(--line-soft);padding-bottom:14px;margin:0;gap:8px}
 .rules-window .gs-head>.eyebrow{display:flex;align-items:center;gap:7px;font-size:11px}
@@ -2266,10 +2304,10 @@ svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.al
 .chapter-count{font-size:12px;letter-spacing:.12em;color:var(--accent);font-weight:600}
 .chapter-title h2{font:700 30px/1.08 var(--font-display);text-transform:uppercase;margin-top:8px}
 .chapter-body{overflow:auto;overscroll-behavior:contain}
-.chapter-body .help{font-size:16px;line-height:1.7;color:var(--text)}
-.chapter-body :is(ol,ul.help){padding-inline-start:1.4em;font-size:16px;line-height:1.7;color:var(--text)}
+.chapter-body .help{font-size:calc(16px * var(--text-scale));line-height:1.7;color:var(--text)}
+.chapter-body :is(ol,ul.help){padding-inline-start:1.4em;font-size:calc(16px * var(--text-scale));line-height:1.7;color:var(--text)}
 .chapter-body :is(ol,ul.help) li+li,.chapter-body p.help+p.help{margin-top:8px}
-.chapter-body .rule-status{margin-bottom:12px;color:var(--text-muted);font-size:13px;font-weight:600}
+.chapter-body .rule-status{margin-bottom:12px;color:var(--text-muted);font-size:calc(13px * var(--text-scale));font-weight:600}
 .chapter-body .lt-board{margin:12px 0}
 .chapter-body .lt-row{justify-content:start}
 .chapter-body .tl-legend{margin:24px 0;justify-content:space-around}
@@ -2283,7 +2321,7 @@ svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.al
 .rules-window .tl-looks .t{width:32px;height:32px}
 .achievement-notice{position:fixed;z-index:1000;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-md);font-size:12px}
 .achievement-notice strong{font-size:13px}
-.achievement-notice>span:nth-child(2)>span{line-height:1.4}
+.achievement-notice>span:nth-child(2)>span{font-size:calc(12px * var(--text-scale));line-height:1.4}
 
 .tl-find:disabled{opacity:.3;cursor:default}
 
@@ -2293,25 +2331,29 @@ svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.al
 .st-tabs svg.glyph.all [stroke]{stroke:var(--text)}.st-tabs svg.glyph.all path[stroke]{opacity:.55}
 
 /* Owner, 2026-11-20: keep actions still while only the saved games scroll. */
-[data-screen=games].app{height:100dvh;min-height:0;overflow:hidden}
+[data-screen=games].app{height:100%;min-height:0}
 [data-screen=games] .topbar{flex:none}
-[data-screen=games] .main{min-height:0;gap:16px;padding-top:20px;padding-bottom:calc(12px + var(--safe-b))}
+[data-screen=games] .main{min-height:0;gap:16px;padding-top:20px;padding-bottom:12px}
 [data-screen=games] .head{flex:none}
-[data-screen=games] .games-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:4px 0 8px}
+[data-screen=games] .games-scroll{flex:1;min-height:64px;overflow:auto;overscroll-behavior:contain;padding:4px 0 8px}
 [data-screen=games] .games-actions{flex:none;display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap}
 [data-screen=games] .games-actions .btn{flex:1}
+[data-screen=games] .games-actions .new-game-action{min-height:66px}
 [data-screen=games] .empty{padding:20px 16px;gap:12px}
 [data-screen=games] .empty-art{width:150px;max-height:175px;margin-bottom:4px}
 .scroll-fade{position:fixed;z-index:6;height:28px;pointer-events:none;background:linear-gradient(transparent,var(--fade-surface,var(--surface)))}
 
-/* Owner, 2026-11-20: headerless screens and top-layer windows need their own insets. */
-[data-screen=tiles] .main{padding-top:calc(var(--space-6) + var(--safe-t))}
-[data-screen=tiles].fit .main{padding-top:calc(var(--space-3) + var(--safe-t));padding-bottom:calc(var(--space-3) + var(--safe-b))}
-[data-kb] [data-screen=game] #entry{top:var(--safe-t)}
-[data-kb] [data-screen=letters] .main{padding-top:calc(var(--space-2) + var(--safe-t));padding-bottom:calc(var(--space-2) + var(--safe-b))}
-:is(.game-settings,.achievement-detail){inset:var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);max-width:calc(100vw - var(--safe-l) - var(--safe-r) - 24px);max-height:calc(100dvh - var(--safe-t) - var(--safe-b) - 24px);overflow:auto}
-.game-settings.tl-options,.rules-window.game-settings{max-height:calc(100dvh - var(--safe-t) - var(--safe-b) - 24px);overflow:hidden}
-:is(.meaning-notice,.achievement-notice){left:calc(var(--safe-l) + (100% - var(--safe-l) - var(--safe-r))/2);bottom:calc(16px + var(--safe-b));max-width:calc(100vw - var(--safe-l) - var(--safe-r) - 24px);max-height:calc(100dvh - var(--safe-t) - var(--safe-b) - 32px);overflow:auto}
+/* Top-layer windows and body-level banners share the same viewport bounds as the app. */
+dialog{position:fixed;top:var(--safe-t);right:var(--safe-r);left:var(--safe-l);
+  bottom:calc(100% - var(--safe-t) - var(--safe-height));margin:auto;
+  max-width:calc(100vw - var(--safe-l) - var(--safe-r) - 24px);
+  max-height:calc(var(--safe-height) - 24px);overflow:auto}
+
+:is(.meaning-notice,.achievement-notice){left:calc(var(--safe-l) + (100% - var(--safe-l) - var(--safe-r))/2);
+  bottom:auto;top:calc(var(--safe-t) + var(--safe-height) - 16px);transform:translate(-50%,-100%);
+  width:max-content;max-width:calc(100vw - var(--safe-l) - var(--safe-r) - 24px);
+  max-height:calc(var(--safe-height) - 32px);overflow:auto;overflow-wrap:anywhere}
+.achievement-notice{flex-wrap:wrap}
 @media (max-height:680px){
   [data-screen=games] .main{padding-top:12px;gap:12px}
   [data-screen=games] .empty{padding:12px;gap:8px}
@@ -2319,7 +2361,7 @@ svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.al
 }
 /* Board-contained overlays inherit the play area's safe bounds; long content scrolls inside. */
 :is(.tl-hand,.tl-pick,.tl-toast){min-height:0;max-height:100%;overflow:auto}
-.cn-pop{max-height:calc(100dvh - var(--safe-t) - var(--safe-b) - 32px);overflow:auto}
+.cn-pop{max-height:calc(var(--safe-height) - 32px);overflow:auto}
 /* Larger top tools need real tap area and wrapping, not a visual transform (owner, 2026-11-20). */
 :root{--button-scale:1.3}
 #root :is([data-screen=game],[data-screen=letters]) .status-actions{--tool-height:44px}
@@ -2327,12 +2369,10 @@ svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.al
 #root [data-screen=letters].kbon .status-actions{--tool-height:36px}
 @container (max-width:480px){#root [data-screen=tiles] .status-actions{--tool-height:36px}}
 #root :is([data-screen=game],[data-screen=letters],[data-screen=connect],[data-screen=tiles]) .status-actions{display:flex;flex-wrap:wrap;align-items:center;gap:4px;min-width:0;max-width:100%}
-#root :is([data-screen=game],[data-screen=letters],[data-screen=connect],[data-screen=tiles]) .status-actions .btn{min-height:calc(var(--tool-height) * var(--button-scale));min-width:calc(40px * var(--button-scale));max-width:100%;padding:0 calc(8px * var(--button-scale));font-size:calc(13px * var(--button-scale));white-space:normal;overflow-wrap:anywhere}
-/* Four fixed icon targets leave the exit label a bounded box for fit.js to
-   shrink. At 130% the basis plus targets/gaps fits even a 360px phone; only
-   the larger preferences need to wrap the tools. */
+#root :is([data-screen=game],[data-screen=letters],[data-screen=connect],[data-screen=tiles]) .status-actions .btn{min-height:calc(var(--tool-height) * var(--button-scale));min-width:calc(40px * var(--button-scale));max-width:100%;padding:0 calc(8px * var(--button-scale));font-size:calc(13px * var(--text-scale));white-space:normal;overflow-wrap:anywhere}
+/* The exit label can wrap inside its share of the toolbar. */
 #root [data-screen=tiles] .status-actions .btn{padding:0 3px;min-height:max(40px,calc(var(--tool-height) * var(--button-scale)))}
-#root [data-screen=tiles] .status-actions .tl-exit{flex:1 1 calc(90px * var(--button-scale));min-width:40px;font-size:calc(12px * var(--button-scale));padding:0 3px;gap:3px;white-space:nowrap;overflow-wrap:normal}
+#root [data-screen=tiles] .status-actions .tl-exit{flex:1 1 calc(90px * var(--button-scale));min-width:40px;font-size:calc(12px * var(--text-scale));padding:0 3px;gap:3px;white-space:nowrap;overflow-wrap:normal}
 #root [data-screen=tiles] .status-actions .tl-exit span{min-width:0}
 #root [data-screen=tiles] .status-actions :is(.tl-find,.tl-opts){width:max(40px,calc(30px * var(--button-scale)));min-width:max(40px,calc(30px * var(--button-scale)));padding:0}
 #root .status-actions :is(.gs-open,.tl-find) svg{width:calc(20px * var(--button-scale));height:calc(20px * var(--button-scale));flex:none}
@@ -2348,11 +2388,9 @@ svg.app-icon{display:inline-block;flex:none;width:20px;height:20px;vertical-alig
 [data-screen=letters] .stat .eyebrow{letter-spacing:.06em}
 
 /* Android update notices and settings (owner, 2026-11-26). */
-.ota-banner{position:fixed;z-index:1100;left:var(--space-3);right:var(--space-3);
-  top:calc(var(--space-2) + var(--safe-area-inset-top, 0px));top:calc(var(--space-2) + max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px)));
-  left:calc(var(--space-3) + var(--safe-area-inset-left, 0px));right:calc(var(--space-3) + var(--safe-area-inset-right, 0px));
-  left:calc(var(--space-3) + max(env(safe-area-inset-left), var(--safe-area-inset-left, 0px)));
-  right:calc(var(--space-3) + max(env(safe-area-inset-right), var(--safe-area-inset-right, 0px)));
+.ota-banner{position:fixed;z-index:1100;
+  top:calc(var(--space-2) + var(--safe-t));left:calc(var(--space-3) + var(--safe-l));right:calc(var(--space-3) + var(--safe-r));
+  max-height:calc(var(--safe-height) - 2 * var(--space-2));overflow:auto;overflow-wrap:anywhere;
   max-width:520px;margin:0 auto;display:flex;gap:10px;align-items:flex-start;padding:var(--space-3);background:var(--surface);color:var(--text);
   border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:var(--shadow-md)}
 .ota-symbol{flex:none;width:30px;height:30px;display:grid;place-items:center;border-radius:8px;background:var(--accent-soft);color:var(--accent)}
@@ -2385,8 +2423,7 @@ svg.app-icon{display:inline-block;flex:none;width:20px;height:20px;vertical-alig
 .ota-control .row-text{flex:1}
 .ota-select{width:100%;min-width:0;display:grid;gap:var(--space-2);font-weight:600}
 .ota-select .input{min-height:40px;font-size:13px;background:var(--surface-2)}
-.ota-setup{width:calc(100vw - 24px);max-width:460px;max-height:calc(100vh - 24px);overflow:auto}
-.ota-setup{max-height:calc(100vh - 24px - max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px)) - max(env(safe-area-inset-bottom), var(--safe-area-inset-bottom, 0px)))}
+.ota-setup{width:min(460px,calc(100vw - 24px))}
 .ota-setup h2{font:700 28px/1.15 var(--font-display);margin-bottom:var(--space-3)}
 .ota-setup h2:focus{outline:none}
 .ota-setup :is(button,select):focus-visible{outline:2px solid var(--text-muted);outline-offset:2px;box-shadow:none}
@@ -2401,7 +2438,7 @@ svg.app-icon{display:inline-block;flex:none;width:20px;height:20px;vertical-alig
 .wn-meta{display:flex;align-items:center;gap:8px;margin:7px 0 12px}
 .wn-version{font:700 25px/1 var(--font-display);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .wn-panel time{color:var(--text-muted);font-size:12px;font-variant-numeric:tabular-nums}
-.wn-changes{padding-inline-start:18px;font-size:14px}
+.wn-changes{padding-inline-start:18px;font-size:calc(14px * var(--text-scale))}
 .wn-changes li+li{margin-top:6px}
 .wn-changes li::marker{color:var(--text-muted)}
 .wn-past{display:grid;gap:8px}
@@ -2409,8 +2446,20 @@ svg.app-icon{display:inline-block;flex:none;width:20px;height:20px;vertical-alig
 .wn-fold summary{min-height:44px}
 .wn-fold summary::after{color:var(--text-muted)}
 .wn-details{padding-bottom:14px}
-.wn-panel .ota-release-notes{font-size:14px}
+.wn-panel .ota-release-notes{font-size:calc(14px * var(--text-scale))}
 .wn-changes+.ota-release-notes{margin-top:12px}
 .ota-release-notes{white-space:pre-wrap;overflow-wrap:break-word}
 .ota-banner[hidden],.ota-banner [hidden],.ota-settings [hidden],.ota-setup [hidden],.ota-muted:empty,
 .ota-check-state:empty,.ota-notice-body [data-ota-notice-action]:empty{display:none}
+
+.tight-label{letter-spacing:0!important}
+.btn.wrapped,.seg button.wrapped,.chip.wrapped,.topbar .mode-tag.wrapped{
+  white-space:normal;overflow-wrap:anywhere;
+}
+#root [data-screen=tiles] .status-actions .tl-exit.wrapped{white-space:normal;overflow-wrap:anywhere}
+[data-screen=menu] .games.tight .game{position:relative}
+[data-screen=menu] .game .menu-art{position:absolute;inset-block:0;margin:auto;max-height:100%}
+.gs-row strong,.settings-section .row-text strong{font-size:calc(14px * var(--text-scale))}
+
+.ota-banner[data-notice="installing"]{align-items:center}
+.ota-banner[data-notice="retry"] [data-ota-notice-action]{justify-self:end;margin-top:5px}

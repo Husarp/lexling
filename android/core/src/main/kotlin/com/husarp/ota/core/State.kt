@@ -2,6 +2,8 @@ package com.husarp.ota.core
 
 import java.io.File
 import java.time.Instant
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.util.UUID
 
 data class State(
@@ -9,7 +11,8 @@ data class State(
     var pending: String? = null, var trial: Boolean = false, var trialStarts: Int = 0,
     var notifiedVersion: String? = null,
     var rolledBack: RollbackNotice? = null,
-    var failed: MutableList<String> = mutableListOf(), var blocked: MutableList<String> = mutableListOf()
+    var failed: MutableList<String> = mutableListOf(), var blocked: MutableList<String> = mutableListOf(),
+    var pendingShellCode: Long? = null
 )
 class EventLog(private val file: File) {
     private var lines = runCatching { if (file.isFile) file.readLines().takeLast(500).toMutableList() else mutableListOf<String>() }.getOrDefault(mutableListOf())
@@ -26,7 +29,7 @@ class EventLog(private val file: File) {
 data class RollbackNotice(val from: String, val to: String, val reason: String)
 data class UpdatedNotice(val from: String, val to: String, val notes: String)
 data class Launch(val version: String, val token: String, val notice: String?)
-class Engine(val root: File, val embedded: Manifest, private val shellApi: Int, val log: EventLog) {
+class Engine(val root: File, val embedded: Manifest, private val shellApi: Int, val log: EventLog, private val shellCode: Long = 0) {
     val dates = UpdateDateStore(File(root, "update-dates.json"))
     private val stateFile = File(root, "state.json")
     val bundles = File(root, "bundles")
@@ -66,7 +69,8 @@ class Engine(val root: File, val embedded: Manifest, private val shellApi: Int, 
         log.add("Rollback: $notice"); return notice
     }
     @Synchronized fun reconcileShell() {
-        if (state.shell == fingerprint) return
+        val paired = state.pendingShellCode
+        if (state.shell == fingerprint && (paired == null || paired > shellCode)) return
         val started = System.nanoTime()
         fun usable(v: String?) = v != null && v !in state.blocked && v !in state.failed &&
             compareVersions(v, embedded.version) > 0 && runCatching {
@@ -74,16 +78,20 @@ class Engine(val root: File, val embedded: Manifest, private val shellApi: Int, 
                     File(bundles, "$v/files/${f.path}").let { it.isFile && it.length() == f.size && hash(it) == f.sha256 }
                 }
             }.getOrDefault(false)
-        if (!usable(state.current)) {
+        if (state.shell != fingerprint && !usable(state.current)) {
             state.current = embedded.version; state.trial = false; state.trialStarts = 0
         }
-        if (!usable(state.previous)) state.previous = null
-        if (!usable(state.pending) || compareVersions(state.pending!!, state.current) <= 0) state.pending = null
+        if (state.shell != fingerprint && !usable(state.previous)) state.previous = null
+        if (paired == null || paired <= shellCode) {
+            if (!usable(state.pending) || compareVersions(state.pending!!, state.current) <= 0) state.pending = null
+            state.pendingShellCode = null
+        }
         state.shell = fingerprint; save(); cleanup()
         File(root, "staging").deleteRecursively()
         log.add("New APK: selected newer compatible web; embedded ${embedded.version}, current ${state.current}, pending ${state.pending}; lists retained", (System.nanoTime()-started)/1_000_000)
     }
     @Synchronized fun coldStart(
+        deferPending: Boolean = false,
         onProgress: (UpdateActivation.Progress) -> Unit = {},
         onApplying: (String) -> Unit = {}
     ): Launch {
@@ -93,7 +101,7 @@ class Engine(val root: File, val embedded: Manifest, private val shellApi: Int, 
         if (runCatching { manifest(state.current) }.isFailure) notice = rollback(false)
         if (state.current in state.blocked && state.current != embedded.version) notice = rollback(true)
         if (state.trial && state.trialStarts >= 2) notice = rollback(false)
-        state.pending?.let { next ->
+        state.pending?.takeIf { !deferPending && state.pendingShellCode == null }?.let { next ->
             val pending = if (next in state.failed || next in state.blocked) null else runCatching { manifest(next) }.getOrNull()
             if (pending == null || (!state.trial && !checkPendingFiles(pending, onProgress))) {
                 log.add("Pending bundle unavailable/blocked; discard $next"); state.pending = null
@@ -104,7 +112,7 @@ class Engine(val root: File, val embedded: Manifest, private val shellApi: Int, 
                 state.previous = state.current; state.current = next; state.pending = null
                 state.trial = true; state.trialStarts = 0
                 activated = true
-                notice = "Updated to $next · ${pending.message}"
+                notice = "Lexling updated to $next"
                 log.add("Staging → switch on start: ${state.previous} → $next")
             }
         }
@@ -182,9 +190,11 @@ class Engine(val root: File, val embedded: Manifest, private val shellApi: Int, 
         try { save() } catch (e: Exception) { state.rolledBack = notice; throw e }
         return notice
     }
-    @Synchronized fun commit(m: Manifest, staging: File, recoveryToken: String? = null) {
+    @Synchronized fun commit(m: Manifest, staging: File, recoveryToken: String? = null, targetShell: ShellManifest? = null) {
         validateManifest(m)
-        require(m.minShellApi <= shellApi) { "Incompatible shell" }
+        require(m.minShellApi <= (targetShell?.shellApi ?: shellApi)) { "Incompatible Android app" }
+        require(targetShell == null || targetShell.versionCode > shellCode)
+        require(targetShell != null || state.pendingShellCode == null) { "Combined update already staged" }
         require(m.version !in state.failed && m.version !in state.blocked)
         require(compareVersions(m.version, state.current) > 0)
         require(recoveryToken == null || (recoveryToken == token && loaded == state.current && m.kind == "fix"))
@@ -192,20 +202,36 @@ class Engine(val root: File, val embedded: Manifest, private val shellApi: Int, 
         val destination = File(bundles, m.version)
         // Unreferenced destination can exist if power failed after rename but before state write.
         require(m.version != state.current && m.version != state.previous)
-        if (destination.exists()) destination.deleteRecursively()
-        check(staging.renameTo(destination)) { "Staging rename failed" }
+        if (state.pending == m.version) {
+            // Keep a usable pending bundle if the process stops while adding files for the new APK baseline.
+            require(manifest(m.version) == m) { "Pending manifest changed" }
+            val stagedFiles = File(staging, "files")
+            for (file in m.files) {
+                val staged = File(stagedFiles, file.path)
+                if (!staged.isFile) continue
+                val installed = File(destination, "files/${file.path}")
+                installed.parentFile!!.mkdirs()
+                Files.move(staged.toPath(), installed.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+                syncDirectory(installed.parentFile!!)
+            }
+            staging.deleteRecursively()
+        } else {
+            if (destination.exists()) destination.deleteRecursively()
+            check(staging.renameTo(destination)) { "Staging rename failed" }
+        }
         syncDirectory(bundles); syncDirectory(staging.parentFile!!)
         dates.record("web", m.version, m.releasedAt, downloaded = true)
         state.pending = m.version
+        state.pendingShellCode = targetShell?.versionCode
         if (state.trial) rollback(false, "startup-repair", notify = false) else save()
         cleanup()
         log.add("Staging → bundles/${m.version}; atomic state.json pending pointer committed")
     }
-    @Synchronized fun reset() {
+    @Synchronized fun reset(label: String = "Go back to stable version") {
         state = State(shell = fingerprint, current = embedded.version); save()
         // The caller replaces the WebView immediately after this operation.
         bundles.deleteRecursively(); bundles.mkdirs(); File(root, "staging").deleteRecursively()
-        log.add("Reset to embedded ${embedded.version}; downloaded bundles wiped")
+        log.add("$label: Lexling ${embedded.version}; downloaded bundles wiped")
     }
     private fun cleanup() {
         val keep = setOf(state.current, state.previous, state.pending)

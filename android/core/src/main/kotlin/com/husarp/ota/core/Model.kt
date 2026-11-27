@@ -100,7 +100,7 @@ fun decide(m: Manifest, current: Manifest, embedded: Manifest, shellApi: Int, se
         val comparison = compareVersions(m.version, pending)
         if (comparison < 0 || (comparison == 0 && !startupRecovery)) return Decision(Action.WAIT, "Update already staged")
     }
-    if (m.minShellApi > shellApi) return Decision(Action.FULL_APP, "This update needs the full app update (shellApi ${m.minShellApi})")
+    if (m.minShellApi > shellApi) return Decision(Action.FULL_APP, "Lexling needs an Android app update (API ${m.minShellApi})")
     if (startupRecovery && m.kind != "fix") return Decision(Action.REJECT, "No startup fix published")
     if (trial && !startupRecovery) return Decision(Action.WAIT, "Waiting for current trial to signal ready")
     val currentHashes = current.files.associate { it.path to it.sha256 }

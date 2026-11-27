@@ -215,7 +215,7 @@ function wireCheck(box, lang, rules, dict) {
 // squares are the grid's background). `draft` = this turn's tiles. No points on the board, ever (owner, 2026-09-26) - the
 // message line and Play show them.
 // `hinted` = squares of tiles already down that belong to a hinted word: they take the hint look too.
-export function boardInner(S, { draft = [], bad = false, badWords = [], cursor = null, drop = -1, hinted = new Set(), peek = -1, selected = null, highlight } = {}) {
+export function boardInner(S, { draft = [], bad = false, badWords = [], cursor = null, drop = -1, hinted = new Set(), peek = -1, highlight } = {}) {
   const n = sizeOf(S.board), prem = premiums(S.board), mid = centre(S.board);
   const fresh = new Map((S.vote?.placed ?? draft).map(d => [d.r * n + d.c, d]));
   // Mark the whole rejected word, including letters already on the board. Shared letters
@@ -248,7 +248,7 @@ export function boardInner(S, { draft = [], bad = false, badWords = [], cursor =
   // each row above the one before it, so a raised tile's face goes over the tile above (css .tb.raised)
   const tile = (i, ch, blank, cls) => `<b class="t ${cls}${blank ? ' bl' : ''}" data-i="${i}" style="${at(i)};z-index:${2 + Math.floor(i / n)}">${esc(ch)}<i class="p">${blank || !ch ? '' : valueOf(S.lang, ch)}</i></b>`;
   S.cells.forEach((x, i) => { if (x) html += tile(i, x.ch, x.blank, (hinted.has(i) ? 'hint' : 'p' + x.by + (x.hint ? ' hinted' : '')) + (last.has(i) ? ' last' : '') + (i === peek ? ' peek' : '') + (rejected.has(i) ? ' bad' : '')); });
-  for (const [i, d] of fresh) html += tile(i, d.ch, d.blank, (S.vote ? 'voting' : d.hint ? 'new hint' : 'new') + (bad || rejected.has(i) ? ' bad' : '') + (i === drop ? ' drop' : '') + (d === selected ? ' selected' : ''));
+  for (const [i, d] of fresh) html += tile(i, d.ch, d.blank, (S.vote ? 'voting' : d.hint ? 'new hint' : 'new') + (bad || rejected.has(i) ? ' bad' : '') + (i === drop ? ' drop' : ''));
   return html;
 }
 
@@ -297,7 +297,7 @@ function wireReplay(main, state, board) {
   }));
 }
 
-export async function tilesGameScreen(root, id, archived = false, kept = false) {
+export async function tilesGameScreen(root, id, archived = false) {
   let game = archived ? getFinished(id) : getSave(id);
   let dict = null, lex = null, spoken = null, familiar = null;
   let wordsReady;
@@ -314,7 +314,7 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
     // Archived results and replay open while the optional analysis loads (owner, 2026-11-26).
     if (!archived) await wordsReady;
   }
-  if (location.hash !== (archived ? resultHref(id, kept) : '#/game/' + id)) return;
+  if (location.hash !== (archived ? resultHref(id) : '#/game/' + id)) return;
   if (!archived && !dict) { location.replace('#/games/tiles'); return; }
 
   let S = game.state;
@@ -355,7 +355,6 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
   let draft = [];             // this turn's tiles: { slot (in the rack), r, c, ch, blank, hint }
   let stashedDraft = null;    // Pass or Exchange is open
   let sel = -1;               // a rack tile lifted by a tap, to be tapped onto a square
-  let selectedTile = null;    // a tile this turn, lifted by a tap to swap with another on the board
   let mode = 'play';          // 'play', 'exchange' (picking tiles to swap), 'pass' (asking first) or 'hint' (which one)
   let picks = new Set();      // exchange: the rack tiles picked
   let levels = null;          // the three hints for this turn, { small, big, master } (tiles-moves.js hintLevels)
@@ -376,7 +375,7 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
   const touches = new Map();
 
   root.innerHTML = `<div class="app fit" data-screen="tiles">
-  ${archived ? topbar({ left: backToResults(kept), right: gameTitle(game, archived) }) : ''}
+  ${archived ? topbar({ left: backToResults(), right: gameTitle(game, archived) }) : ''}
   <main class="main"><div class="tl-play">
     <div class="status"></div>
     <div class="tl-bwrap"><div class="tl-board"><div class="tb"></div></div></div>
@@ -488,7 +487,7 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
     const res = judge(), lifted = press?.drag && press.kind === 'tile' ? press.di : -1;
     const shownDraft = draft.filter((_, i) => i !== lifted);
     tb.className = `tb n${n}${zoom.z > 1 ? ' zoom' : ''}${looks()}`;
-    tb.innerHTML = boardInner(S, { draft: shownDraft, bad: !!res?.error && res.error !== 'word', badWords: res?.bad ?? [], cursor: myTurn() && mode === 'play' ? cursor : null, drop: dropAt, hinted: hintedCells(), peek: peekAt, selected: myTurn() ? selectedTile : null });
+    tb.innerHTML = boardInner(S, { draft: shownDraft, bad: !!res?.error && res.error !== 'word', badWords: res?.bad ?? [], cursor: myTurn() && mode === 'play' ? cursor : null, drop: dropAt, hinted: hintedCells(), peek: peekAt });
     applyZoom(!!(pinch || press?.drag));
     // tiles that just came down settle in, 150 ms each, 60 apart (design: motion)
     landing?.forEach((i, k) => tb.querySelector(`[data-i="${i}"]`)?.animate([{ transform: 'translateY(-35%) scale(1.15)', opacity: 0 }, { transform: 'none', opacity: 1 }],
@@ -563,7 +562,8 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
     } catch {
       if (!app.isConnected) return;
       const notice = document.createElement('div');
-      notice.className = 'meaning-notice'; notice.setAttribute('role', 'status'); notice.textContent = t('def.offline');
+      notice.className = 'meaning-notice'; notice.setAttribute('role', 'status');
+      notice.innerHTML = `${UI_ICONS.wifiOff}<span>${t('def.offline')}</span>`;
       document.body.append(notice); setTimeout(() => notice.remove(), 3000);
     } finally { meaningBusy = false; }
   });
@@ -753,7 +753,8 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
       const disconnected = linked && !done && gone().includes(p);
       const label = disconnected ? t('net.noConnection', { name: nameOf(S, p) }) : voted ? t(v.approval ? agreed ? 'tiles.approval.allow' : 'tiles.approval.reject' : agreed ? 'tiles.veto.accept' : 'tiles.veto.veto') : t('tiles.vote.choosing');
       const canVote = !done && !voted && (!linked || p === linkMe && sentVote !== v.at);
-      return `<div class="tl-voter pc${p}"><span>${esc(nameOf(S, p))}${disconnected ? `<small class="help"> · ${t('net.noConnectionShort')}</small>` : ''}</span><i class="tl-vote-state ${voted ? agreed ? 'yes' : 'no' : done || disconnected ? '' : 'choosing'}" role="img" aria-label="${esc(label)}" title="${esc(label)}">${voted ? agreed ? '✓' : '✕' : done || disconnected ? '–' : '◌'}</i>${canVote ? buttons(p) : ''}</div>`;
+      const status = `<i class="tl-vote-state ${voted ? agreed ? 'yes' : 'no' : done || disconnected ? '' : 'choosing'}" role="img" aria-label="${esc(label)}" title="${esc(label)}">${voted ? agreed ? '✓' : '✕' : done || disconnected ? '–' : '◌'}</i>`;
+      return `<div class="tl-voter pc${p}"><span>${esc(nameOf(S, p))}${disconnected ? `<small class="help"> · ${t('net.noConnectionShort')}</small>` : ''}</span>${canVote ? buttons(p) : status}</div>`;
     };
     voteEl.innerHTML = `<div class="tl-vote-head"><strong>${t(v.approval ? 'tiles.approval.title' : 'tiles.veto.title', { name: esc(nameOf(S, v.p)) })}</strong>${done ? '' : `<span class="num">${t('tiles.sec', { n: Math.ceil(remaining / 1000) })}</span>`}</div>
       <p class="tl-vote-words">${cardWords(v.words, v.bingo)} <b>· ${v.score}</b></p>
@@ -915,7 +916,7 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
 
   // ── turns ──
   function resetTurn(keepHints = false) {
-    draft = []; sel = -1; selectedTile = null; mode = 'play'; picks = new Set(); levels = null; cursor = null; blankFor = -1;
+    draft = []; sel = -1; mode = 'play'; picks = new Set(); levels = null; cursor = null; blankFor = -1;
     stashedDraft = null;
     if (!keepHints) turnHints = [];
     zoomOut();
@@ -1060,10 +1061,10 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
   }
 
   // ── the tools ──
-  const quiet = () => { draft = []; sel = -1; selectedTile = null; cursor = null; blankFor = -1; zoomOut(); };
+  const quiet = () => { draft = []; sel = -1; cursor = null; blankFor = -1; zoomOut(); };
   // Pass and Exchange set the word and its view aside until the player decides (owner, 2026-11-26).
   function setAside(nextMode) {
-    stashedDraft = draft.length ? { draft, sel, selectedTile, cursor, blankFor, zoom: { ...zoom }, manualOverview } : null;
+    stashedDraft = draft.length ? { draft, sel, cursor, blankFor, zoom: { ...zoom }, manualOverview } : null;
     quiet();
     mode = nextMode;
     picks = new Set();
@@ -1151,7 +1152,7 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
     },
     cancel() {
       if (stashedDraft) {
-        ({ draft, sel, selectedTile, cursor, blankFor, zoom, manualOverview } = stashedDraft);
+        ({ draft, sel, cursor, blankFor, zoom, manualOverview } = stashedDraft);
         stashedDraft = null;
       }
       mode = 'play'; picks = new Set(); levels = null; msg = null;
@@ -1283,7 +1284,7 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
     if (draft[0]?.hint) draft = [];     // the hint's word makes way for the player's own
     const x = rackOf(shown)[slot];
     draft.push({ slot, r, c, ch: x === BLANK ? typed : x, blank: x === BLANK });
-    sel = -1; selectedTile = null; msg = null;
+    sel = -1; msg = null;
     playCue('tile');
     follow();
     if (x === BLANK && !typed) openPicker(draft.length - 1);
@@ -1296,7 +1297,6 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
   app.addEventListener('click', e => {
     if (Date.now() - pickOpened < 600 && e.target.closest('.tl-scrim, .tl-pick')) { e.stopPropagation(); e.preventDefault(); }
   }, true);
-  function unplace(di) { draft.splice(di, 1); paintTurn(); }
   function locateTile(slot) {
     const d = draft.find(d => d.slot === slot);
     if (!d) return;
@@ -1362,28 +1362,20 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
     const gap = press.kind === 'rack' && overRack(x, y) ? gapAt(x) : -1;
     if (gap !== rackGap) { rackGap = gap; paintRack(); }
   }
-  function tap(p) {
+  function tap(p, heldMs) {
     if (p.kind === 'rack') {
       if (mode === 'exchange') { if (picks.has(p.slot)) picks.delete(p.slot); else picks.add(p.slot); return; }
-      if (mode === 'play') { sel = sel === p.slot ? -1 : p.slot; selectedTile = null; cursor = null; }
+      if (mode === 'play') { sel = sel === p.slot ? -1 : p.slot; cursor = null; }
       return;
     }
     if (p.kind === 'tile') {
       const d = draft[p.di];
       if (!myTurn() || mode !== 'play' || !d || d.hint) return;
-      // Two different tiles trade squares. Tap the same one again to recall it or edit its blank (owner, 2026-11-26).
-      const from = draft.indexOf(selectedTile), target = swapTarget({ kind: 'tile', di: from }, d);
       sel = -1; cursor = null;
-      if (from === p.di) {
-        selectedTile = null;
-        if (d.blank) openPicker(p.di); else unplace(p.di);
-      } else if (target >= 0) {
-        selectedTile = null;
-        swapDraft(from, target);
-      } else selectedTile = d;
+      if (d.blank && heldMs >= 500) openPicker(p.di);
+      else draft.splice(p.di, 1);
       return;
     }
-    selectedTile = null;
     const sq = p.cell;
     if (sq && S.cells[sq.r * n + sq.c]) return peek(sq.r * n + sq.c);
     if (!sq || !myTurn() || mode !== 'play' || !free(sq.r, sq.c)) return;
@@ -1443,7 +1435,7 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
     if (!e.isPrimary || (!onBoard && !rt) || rt?.classList.contains('used')) return;
     const cell = onBoard ? squareAt(e.clientX, e.clientY) : null;
     const di = cell ? draft.findIndex(d => d.r === cell.r && d.c === cell.c) : -1;
-    press = { id: e.pointerId, x: e.clientX, y: e.clientY, drag: false, cell, di, slot: rt ? +rt.dataset.slot : -1, pan: { ...zoom },
+    press = { id: e.pointerId, x: e.clientX, y: e.clientY, at: e.timeStamp, drag: false, cell, di, slot: rt ? +rt.dataset.slot : -1, pan: { ...zoom },
       kind: rt ? 'rack' : di >= 0 && myTurn() && !draft[di].hint ? 'tile' : 'board' };
     if (rt && fresh) { fresh = null; clearTimeout(freshTimer); }
     try { play.setPointerCapture(e.pointerId); } catch { /* not a real pointer (tests) */ }
@@ -1467,7 +1459,6 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
     if (!press.drag) {
       press.drag = true;
       sel = -1;
-      selectedTile = null;
       if (press.kind === 'rack' && draft[0]?.hint) draft = [];
       startDrag();
       paintTurn();
@@ -1480,7 +1471,7 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
     if (!press || e.pointerId !== press.id) return;
     const p = press;
     if (!cancelled) {
-      if (!p.drag) tap(p);
+      if (!p.drag) tap(p, e.timeStamp - p.at);
       else if (p.kind !== 'board') drop(p, e.clientX, e.clientY);
     }
     press = null;
@@ -1569,7 +1560,6 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
     if (e.key === 'Backspace' && draft.length) {
       e.preventDefault();
       const d = draft.pop();
-      selectedTile = null;
       cursor = { r: d.r, c: d.c, down: cursor?.down ?? false };
       return paintTurn();
     }
@@ -1703,7 +1693,7 @@ export async function tilesGameScreen(root, id, archived = false, kept = false) 
         share.disabled = false;
       }
     });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    root.scrollTo({ top: 0, behavior: 'smooth' });
     cells.observe(finalBoard);
     refit();
     // The end review replays the moves and reuses the saved benchmarks where available.

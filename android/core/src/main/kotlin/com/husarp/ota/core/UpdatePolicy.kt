@@ -36,3 +36,11 @@ fun awaitQuickApply(check: java.util.concurrent.Future<*>?, elapsedMs: Long, pen
     } catch(_: java.util.concurrent.TimeoutException) { QuickApplyResult.TIMED_OUT }
       catch(_: Exception) { QuickApplyResult.FAILED }
 }
+
+enum class PairedWebUpdate { EMBEDDED, OVERLAY, UNSUPPORTED }
+
+fun pairedWebUpdate(version: String, minShellApi: Int, shell: ShellManifest): PairedWebUpdate = when {
+    compareVersions(shell.embeddedWebVersion, version) >= 0 -> PairedWebUpdate.EMBEDDED
+    minShellApi <= shell.shellApi -> PairedWebUpdate.OVERLAY
+    else -> PairedWebUpdate.UNSUPPORTED
+}

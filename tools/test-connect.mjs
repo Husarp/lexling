@@ -227,6 +227,7 @@ class Element extends EventTarget {
   setAttribute(name, value) { this.attrs[name] = value; }
   getBoundingClientRect() { return { left: 0, right: 200, top: 0, width: 200, height: 100 }; }
   click() { this.dispatchEvent(new Event('click')); }
+  scrollTo({ top }) { this.scrollTop = top; }
 }
 
 const storage = new Map();
@@ -236,7 +237,7 @@ globalThis.document = Object.assign(new EventTarget(), {
   documentElement: {},
   createRange: () => ({ selectNodeContents() {}, getBoundingClientRect: () => ({ left: 0, right: 100 }) }),
 });
-globalThis.window = Object.assign(new EventTarget(), { scrollTo() {} });
+globalThis.window = new EventTarget();
 globalThis.getComputedStyle = () => ({ paddingLeft: '0', paddingRight: '0', borderLeftWidth: '0', borderRightWidth: '0' });
 globalThis.matchMedia = () => ({ matches: true, addEventListener() {} });
 globalThis.location = {};

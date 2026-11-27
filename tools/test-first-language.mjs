@@ -22,7 +22,7 @@ const dialog = document.querySelector('dialog[open]');
 assert.deepEqual([...dialog.querySelectorAll('h2 span')].map(span => span.textContent),
   ['Choose your language', 'Wybierz język']);
 assert.deepEqual([...dialog.querySelectorAll('button')].map(button => button.textContent), ['Polski', 'English']);
-assert.equal(dialog.querySelector('[autofocus]').lang, 'pl');
+assert.equal(dialog.querySelector('[autofocus]').id, 'first-language-title');
 assert.equal(dialog.dispatchEvent(new window.Event('cancel', { cancelable: true })), false);
 assert.equal(dialog.querySelector('[autofocus]').dispatchEvent(new window.KeyboardEvent('keydown', {
   key: 'Escape', bubbles: true, cancelable: true,

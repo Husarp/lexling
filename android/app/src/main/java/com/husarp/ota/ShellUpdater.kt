@@ -21,13 +21,14 @@ import java.util.zip.ZipFile
 /** The APK path is independent of web checks, downloads and trial/consent state. */
 class ShellUpdater(private val context: Context, private val engine: Engine,
                    private val verifier: ManifestVerifier, private val checks: UpdateChecks, private val mayInterrupt: () -> Boolean,
-                   private val changed: () -> Unit, private val settings: () -> UpdateSettings, private val unmetered: () -> Boolean) {
+                   private val changed: () -> Unit, private val settings: () -> UpdateSettings, private val unmetered: () -> Boolean,
+                   private val mayInstall: (ShellManifest) -> Boolean) {
     private val executor = Executors.newSingleThreadExecutor()
     private val transport = HttpsTransport()
     private val dir = File(engine.root,"shell").apply { mkdirs() }
     private val envelope = File(dir,"shell.json")
     private val prefs = context.getSharedPreferences("shell-install",Context.MODE_PRIVATE)
-    @Volatile var status = "No shell update"
+    @Volatile var status = "No Android app update"
         private set
     @Volatile var lastCheckSucceeded = true
         private set
@@ -48,6 +49,14 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
     private var permissionOpened = false
     fun isReady() = ready != null && (!installing || confirmation != null)
     fun manifest() = ready
+    fun candidate() = (listOfNotNull(available, ready).maxByOrNull { it.versionCode })
+        ?.takeIf { it.versionCode > installedCode() }
+    fun readyFor(target: ShellManifest) = ready?.versionCode == target.versionCode && ready?.sha256 == target.sha256
+
+    fun embeddedFor(target: ShellManifest): Manifest {
+        require(readyFor(target))
+        return verifyApk(File(dir, target.apk), target)
+    }
     private fun log(text: String, start: Long = System.nanoTime()) {
         engine.log.add("Shell: $text",(System.nanoTime()-start)/1_000_000); changed()
     }
@@ -72,13 +81,13 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
         if (downloadTarget() != null || !isUpdateOffer(offered.versionCode, installedCode(), ready?.versionCode, preparingInstall?.versionCode)) return false
         requestedDownload = offered
         transfer = null
-        status = "Preparing app download ${offered.versionName}"
+        status = "Preparing Android app download ${offered.versionName}"
         changed()
         check(consent = true, downloadOnly = true)
         return true
     }
-    fun check(consent: Boolean = false, manual: Boolean = false, downloadOnly: Boolean = false): Future<*> = executor.submit {
-        if (!consent && !manual && !settings().automaticChecks) return@submit
+    fun check(consent: Boolean = false, manual: Boolean = false, downloadOnly: Boolean = false,
+              metadataOnly: Boolean = false, expected: ShellManifest? = null): Future<*> = executor.submit {
         val start = System.nanoTime()
         lastCheckSucceeded = false
         try {
@@ -91,10 +100,15 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
             }
             recordInstalledIfNeeded()
             // Recover a ready APK and a pending system confirmation after process death.
-            ready = verifyStored()?.takeIf { File(dir,it.apk).isFile }
-            if (ready != null) {
-                verifyApk(File(dir,ready!!.apk),ready!!)
-                engine.dates.record("shell",ready!!.versionCode.toString(),ready!!.releasedAt,downloaded=true)
+            val stored = verifyStored()?.takeIf { File(dir, it.apk).isFile }
+            ready = try {
+                stored?.also { verifyApk(File(dir, it.apk), it) }
+            } catch (e: Exception) {
+                ready = null
+                throw e
+            }
+            if (stored != null) {
+                engine.dates.record("shell", stored.versionCode.toString(), stored.releasedAt, downloaded = true)
                 val id=prefs.getInt("session",-1)
                 val installer=context.packageManager.packageInstaller
                 val lostConfirmation=prefs.getBoolean("awaitingConfirmation",false) && confirmation==null
@@ -105,7 +119,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
                 // A retained APK may ask Android at the next app start. A background
                 // worker cannot open Android UI; foreground resume handles that part.
                 if (firstCheck && automaticShellInstall(settings())) { installRequested = true; prefs.edit().putBoolean("failed",false).apply() }
-                maybeInstallOnExecutor()
+                if (!metadataOnly) maybeInstallOnExecutor()
             } else {
                 confirmation=null
                 val old = prefs.getInt("session",-1)
@@ -119,7 +133,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
             if (release == null) {
                 available = null
                 lastCheckSucceeded = true
-                if (ready == null) status = "No app update published"
+                if (ready == null) status = "No Android app update published"
                 return@submit
             }
             val (source, m) = release
@@ -129,36 +143,42 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
             if(m.versionCode<=installedCode()) {
                 available = null
                 log("decision: equal/older shell ${m.versionCode}; skip")
-                if(ready==null) status="Shell is current"
+                if(ready==null) status="Android app is current"
                 return@submit
             }
             log("signature OK; versionCode ${m.versionCode}, API ${m.shellApi}, embedded ${m.embeddedWebVersion}")
+            if (expected != null && (m.versionCode != expected.versionCode || m.sha256 != expected.sha256)) {
+                lastCheckSucceeded = false
+                status = "Download failed: the Android app update changed"
+                available = m
+                return@submit
+            }
             if (ready?.sha256 == m.sha256 && ready?.versionCode == m.versionCode) { log("already ready/session pending"); return@submit }
             // Do not replace an APK while a committed installer session is using it.
             if (installing) { log("existing session pending; defer new shell download"); return@submit }
             available = m
             if (consent && downloadOnly && requestedDownload?.versionCode?.let { it != m.versionCode } == true) {
-                status = "The app update changed; check the new version before downloading"
+                status = "The Android app update changed; check the new version before downloading"
                 return@submit
             }
-            if (!consent && !automaticDownload(settings(),"shell",m.size,unmetered())) {
-                status="App update ${m.versionName} · ${m.size} bytes · Later / Update"; changed(); return@submit
+            if (metadataOnly || (!consent && !automaticDownload(settings(),"shell",m.size,unmetered()))) {
+                status="Android app update ${m.versionName} · ${m.size} bytes · Later / Update"; changed(); return@submit
             }
-            transfer=TransferState(0,m.size,0); downloadingTarget=m; downloading=true; status="Downloading app ${m.versionName}"; changed()
+            transfer=TransferState(0,m.size,0); downloadingTarget=m; downloading=true; status="Downloading Android app ${m.versionName}"; changed()
             val apk=download(m,consent)
             verifyApk(apk,m)
             engine.dates.record("shell",m.versionCode.toString(),m.releasedAt,downloaded=true)
             val installNow = consent && !downloadOnly
-            if (downloadOnly) kotlin.check(prefs.edit().putLong("awaitingInstallTap",m.versionCode).commit()) { "Could not save install preference" }
+            if (downloadOnly && consent) requireInstallTap(m)
             atomicWrite(envelope,source.bytes); ready=m; available=null
             installRequested=!downloadOnly && (installNow || automaticShellInstall(settings())); explicitInstallRequested=installNow
             if (installNow) prefs.edit().putInt("notifyTarget",m.versionCode.toInt()).commit()
             dir.listFiles()?.filter { it.name.endsWith(".apk") && it.name != m.apk }?.forEach { it.delete() }
-            status="App update ${ready?.versionName ?: BuildConfig.VERSION_NAME} ready · Install"; log("APK staged ${m.apk}",start)
+            status="Android app update ${ready?.versionName ?: BuildConfig.VERSION_NAME} ready · Install"; log("APK staged ${m.apk}",start)
             maybeInstallOnExecutor()
         } catch(e: Exception) {
             lastCheckSucceeded=false
-            status=if (e is CheckException) e.failure.message else "Shell update processing failed: ${e.message}"
+            status=if (e is CheckException) e.failure.message else "Android app update processing failed: ${e.message}"
             log("failed: ${e.javaClass.simpleName}: ${e.message}",start)
         } finally {
             val requested = requestedDownload
@@ -193,7 +213,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
                     val ms=(System.nanoTime()-start)/1_000_000
                     if(ms-last>=500) {
                         transfer=TransferState(offset+received,m.size,downloadSpeed.sample(received, ms))
-                        status="Downloading app ${m.versionName}"; changed(); last=ms
+                        status="Downloading Android app ${m.versionName}"; changed(); last=ms
                     }
                 }
                 out.fd.sync()
@@ -217,29 +237,31 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
         (if(Build.VERSION.SDK_INT>=28) info.signingInfo?.apkContentsSigners else info.signatures)
             ?.map { hash(it.toByteArray()) }?.toSet()?.takeIf { it.isNotEmpty() } ?: error("APK missing signer")
     @Suppress("DEPRECATION")
-    private fun verifyApk(apk: File, m: ShellManifest) {
+    private fun verifyApk(apk: File, m: ShellManifest): Manifest {
         val start=System.nanoTime()
         require(apk.length()==m.size && hash(apk)==m.sha256) { "APK SHA-256/size mismatch" }
         val archive=packageInfo(apk.absolutePath)
         val code=if(Build.VERSION.SDK_INT>=28) archive.longVersionCode else archive.versionCode.toLong()
         require(archive.packageName==context.packageName && code==m.versionCode && archive.versionName==m.versionName) { "APK identity/version mismatch" }
         require(certs(archive)==certs(packageInfo(null))) { "APK signing certificate differs from running app" }
-        ZipFile(apk).use { zip ->
+        val embedded = ZipFile(apk).use { zip ->
             val entry=zip.getEntry("assets/embedded-manifest.json") ?: error("APK lacks embedded manifest")
             val embedded=zip.getInputStream(entry).use { json.fromJson(it.readBytesLimited(2*1024*1024).toString(Charsets.UTF_8),Manifest::class.java) }
             validateManifest(embedded); require(embedded.version==m.embeddedWebVersion) { "APK embedded version mismatch" }
+            embedded
         }
         log("APK SHA-256, package/version, signing certificate and embedded version verified",start)
+        return embedded
     }
     fun maybeInstall() { executor.execute { runCatching { maybeInstallOnExecutor() }.onFailure { failInstall(it.message ?: "Could not start Android installer") } } }
     private fun maybeInstallOnExecutor() {
         val m=ready ?: return
-        if (prefs.getLong("awaitingInstallTap",-1) == m.versionCode) return
+        if (!mayInstall(m) || prefs.getLong("awaitingInstallTap",-1) == m.versionCode) return
         if (!explicitInstallRequested && !automaticShellInstall(settings())) { log("automatic shell installation disabled"); return }
         if (!mayInterrupt()) { log("install deferred: app is busy"); return }
         if (prefs.getBoolean("failed",false)) return
         if (installing || confirmation!=null) { changed(); return }
-        if (!canInstallPackages()) { status="App update ${m.versionName} ready · allow Install unknown apps"; log("unknown-app permission needed"); return }
+        if (!canInstallPackages()) { status="Android app update ${m.versionName} ready · allow Install unknown apps"; log("unknown-app permission needed"); return }
         preparingInstall = m
         changed()
         try { commitInstall(m) } finally { preparingInstall = null; changed() }
@@ -260,12 +282,12 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
                 val intent=Intent(context,InstallStatusReceiver::class.java).setAction("${context.packageName}.INSTALL_RESULT").putExtra("sessionId",id)
                 val flags=PendingIntent.FLAG_UPDATE_CURRENT or (if(Build.VERSION.SDK_INT>=31) PendingIntent.FLAG_MUTABLE else 0)
                 val receiver=PendingIntent.getBroadcast(context,id,intent,flags)
-                if(!mayInterrupt() || (!explicitInstallRequested && !automaticShellInstall(settings()))) {
+                if(!mayInterrupt() || !mayInstall(m) || (!explicitInstallRequested && !automaticShellInstall(settings()))) {
                     installer.abandonSession(id); log("session deferred before commit: app is busy"); return
                 }
                 // Durable before commit: package replacement can terminate this process immediately.
                 kotlin.check(prefs.edit().putInt("session",id).putInt("targetCode",m.versionCode.toInt()).putBoolean("confirmationShown",false).putBoolean("awaitingConfirmation",false).putBoolean("failed",false).commit())
-                installing=true; status="Installing app ${m.versionName}"
+                installing=true; status="Installing Android app ${m.versionName}"
                 session.commit(receiver.intentSender)
                 log("session $id committed; user action not required requested (platform decides)",start)
             }
@@ -273,7 +295,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
     }
     fun presentRequestedAndroidUi(activity: MainActivity) {
         if (prefs.getLong("awaitingInstallTap",-1) == ready?.versionCode) return
-        if (!installRequested || (!explicitInstallRequested && !automaticShellInstall(settings())) || !mayInterrupt() || !isReady()) return
+        if (ready?.let(mayInstall) != true || !installRequested || (!explicitInstallRequested && !automaticShellInstall(settings())) || !mayInterrupt() || !isReady()) return
         if (!canInstallPackages() && !permissionOpened) {
             permissionOpened = true
             activity.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,Uri.parse("package:${context.packageName}")))
@@ -282,7 +304,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
         }
     }
     fun installFromWeb(activity: MainActivity, userInitiated: Boolean = true): Boolean {
-        if (!mayInterrupt() || !isReady()) return false
+        if (!mayInterrupt() || !isReady() || ready?.let(mayInstall) != true) return false
         installRequested = true
         if(userInitiated) {
             explicitInstallRequested = true
@@ -290,7 +312,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
         }
         permissionOpened = false
         prefs.edit().putBoolean("failed",false).apply()
-        status = "Installing app ${ready?.versionName}"
+        status = "Installing Android app ${ready?.versionName}"
         if(!canInstallPackages()) {
             permissionOpened = true
             log("opening Android Install unknown apps settings")
@@ -303,6 +325,17 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
         } ?: maybeInstall()
         changed()
         return true
+    }
+    fun requireInstallTap(target: ShellManifest) {
+        kotlin.check(prefs.edit().putLong("awaitingInstallTap", target.versionCode).commit()) { "Could not save install preference" }
+    }
+
+    fun allowAutomaticInstall(target: ShellManifest) {
+        executor.execute {
+            if (!readyFor(target)) return@execute
+            installRequested = true
+            runCatching { maybeInstallOnExecutor() }.onFailure { failInstall(it.message ?: "Could not start Android installer") }
+        }
     }
     fun returnedFromInstallSettings() {
         if (!permissionOpened) return
@@ -319,7 +352,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
                 prefs.edit().putInt("notesCode", BuildConfig.VERSION_CODE).putString("notes", installed.notes).apply()
             }
         }
-        status="App updated (${BuildConfig.VERSION_NAME})"; log("install success ($path); observed installed code ${BuildConfig.VERSION_CODE}")
+        status="Android app updated (${BuildConfig.VERSION_NAME})"; log("install success ($path); observed installed code ${BuildConfig.VERSION_CODE}")
         clearSession(); ready=null; envelope.delete(); return true
     }
     fun installedNotes(): String? = prefs.getString("notes",null).takeIf { prefs.getInt("notesCode",-1) == BuildConfig.VERSION_CODE }
@@ -336,7 +369,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
                 if(next==null) { failInstall("Android did not provide an install confirmation"); return }
                 confirmation=next
                 prefs.edit().putBoolean("awaitingConfirmation",true).apply()
-                status="App update ${ready?.versionName ?: BuildConfig.VERSION_NAME} ready · Install"; log("user confirmation required by Android; wait for web Install action or next start")
+                status="Android app update ${ready?.versionName ?: BuildConfig.VERSION_NAME} ready · Install"; log("user confirmation required by Android; wait for web Install action or next start")
             }
             PackageInstaller.STATUS_SUCCESS -> {
                 val path=if(prefs.getBoolean("confirmationShown",false)) "user confirmation" else "silent"
@@ -347,7 +380,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
                     prefs.edit().putInt("notesCode", target.versionCode.toInt()).putString("notes", target.notes).commit()
                 }
                 available = null; ready = null
-                status="App updated (${signed?.versionName ?: BuildConfig.VERSION_NAME})"
+                status="Android app updated (${signed?.versionName ?: BuildConfig.VERSION_NAME})"
                 clearSession(); envelope.delete(); log("install success ($path)")
             }
             else -> failInstall("$code: ${intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)}")
@@ -357,7 +390,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
     private fun failInstall(reason: String) {
         prefs.edit().remove("notifyTarget").putBoolean("failed",true).apply()
         installRequested = false; explicitInstallRequested = false
-        status = "App install failed: $reason"
+        status = "Android app install failed: $reason"
         clearSession(); log(status)
     }
     private fun clearSession() { installing=false; confirmation=null; prefs.edit().remove("session").remove("targetCode").putBoolean("awaitingConfirmation",false).apply() }

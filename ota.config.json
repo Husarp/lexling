@@ -5,7 +5,7 @@
   "channels": { "bundle": "channel", "shell": "shell-channel" },
   "artifacts": { "manifest": "manifest.json", "shellManifest": "shell.json", "apk": "LexlingShell-{code}.apk", "asset": "f-{sha256}.bin" },
   "updateUrls": { "bundle": null, "shell": null, "releases": null },
-  "build": { "shellApi": 1, "minShellApi": 1 },
+  "build": { "shellApi": 2, "minShellApi": 2 },
   "signing": {
     "privateKey": "~/.keystores/lexling-ota/ota-private.pem",
     "publicKey": "keys/public-key.b64",

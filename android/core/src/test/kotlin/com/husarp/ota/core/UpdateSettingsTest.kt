@@ -47,7 +47,6 @@ class UpdateSettingsTest {
     }
     @Test fun unansweredSetupOnlyChecksForUpdates() {
         val unanswered = UpdateSettings()
-        assertTrue(unanswered.automaticChecks)
         for (wifi in listOf(true, false)) {
             assertFalse(automaticDownload(unanswered,"fix",SMALL_FIX_LIMIT,wifi))
             assertFalse(automaticDownload(unanswered,"fix",SMALL_FIX_LIMIT+1,wifi,true))
@@ -80,13 +79,12 @@ class UpdateSettingsTest {
         assertEquals("6h",migrateUpdateSettings(false).checkFrequency)
         for ((frequency,hours) in listOf("1h" to 1L,"6h" to 6L,"24h" to 24L)) {
             val s=defaults.copy(checkFrequency=frequency).validate()
-            assertTrue(s.automaticChecks); assertFalse(s.checksOnOpen); assertEquals(hours,s.periodicHours)
+            assertEquals(hours, s.periodicHours)
         }
-        val open=defaults.copy(checkFrequency="open").validate()
-        assertTrue(open.automaticChecks); assertTrue(open.checksOnOpen); assertNull(open.periodicHours)
-        val manual=defaults.copy(checkFrequency="manual").validate()
-        assertFalse(manual.automaticChecks); assertFalse(manual.checksOnOpen); assertNull(manual.periodicHours)
-        for(value in listOf("", "15m", "0", "6H"))
+        assertEquals("6h", migrateCheckFrequency("open"))
+        assertEquals("6h", migrateCheckFrequency("manual"))
+        assertEquals("24h", migrateCheckFrequency("24h"))
+        for (value in listOf("", "15m", "0", "6H", "open", "manual"))
             assertThrows(IllegalArgumentException::class.java) { defaults.copy(checkFrequency=value).validate() }
     }
     @Test fun completionNoticeRequiresExactUserRequestedReplacement() {

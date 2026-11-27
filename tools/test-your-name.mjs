@@ -38,7 +38,6 @@ class Element {
     this.children = []; this.listeners = {}; this.style = {};
     const classes = new Set((this.attrs.class ?? '').split(/\s+/));
     this.classList = { contains: k => classes.has(k), add: k => classes.add(k), remove: k => classes.delete(k), toggle: (k, on) => on ? classes.add(k) : classes.delete(k) };
-    this.scrollWidth = this.clientWidth = 200;
   }
   set innerHTML(html) {
     this.html = html; this.children = [];

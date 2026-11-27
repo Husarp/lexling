@@ -260,7 +260,8 @@ const announce = keys => listeners.get('lexling:achievement')[0]({ detail: { key
 announce(['tiles.bingo', 'guess.finished#0']);
 check('only one notice visible at once', notices.length, 1);
 check('notice has challenge name and accessible status', [notices[0].innerHTML.includes(t('ach.tiles.bingo')), notices[0].attrs.role], [true, 'status']);
-check('notice uses the same SVG medal as the screen', notices[0].innerHTML.includes(achievementIcon('tiles.bingo')), true);
+check('notice shows the artwork without the achievement overlay',
+  [notices[0].innerHTML.includes('img/achievement.webp'), notices[0].innerHTML.includes('<svg')], [true, false]);
 check('notice lasts three seconds', timers[0].ms, 3000);
 announce(['tiles.len10']);
 check('later unlock joins the queue', notices.length, 1);

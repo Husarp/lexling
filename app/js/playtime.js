@@ -4,7 +4,7 @@
 // Both are Settings switches, off by default.
 import { settings } from './store.js';
 import { t, getLang } from './i18n.js';
-import { openDialog } from './ui.js';
+import { openDialog, UI_ICONS } from './ui.js';
 
 let played = 0, sinceLast = 0, last = Date.now();
 const now = () => new Date().toLocaleTimeString(getLang() === 'pl' ? 'pl-PL' : 'en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -25,10 +25,8 @@ function remindIfDue() {
   if (!settings.playRemind || sinceLast < every || document.visibilityState !== 'visible' || document.querySelector('dialog[open]')) return;
   const text = played - sinceLast < 60000 ? t('remind.first', { total: span(played), time: now() })
     : t('remind.text', { total: span(played), since: span(sinceLast), time: now() });
-  // the time played large, one line, OK (design "Lexling Menu Five Games": the game-settings window)
-  const { dlg, close } = openDialog(t('remind.title'), `<span class="num">${span(played)}</span><p>${text}</p><button class="btn btn-primary" type="button" data-ok>${t('remind.ok')}</button>`);
+  const { dlg } = openDialog(t('remind.title'), `<p>${text}</p>`, { icon: UI_ICONS.time });
   dlg.classList.add('remind');
-  dlg.querySelector('[data-ok]').addEventListener('click', close);
   sinceLast = 0;
 }
 export function startPlaytime() {

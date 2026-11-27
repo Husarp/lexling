@@ -18,13 +18,12 @@ class Element {
 }
 for (const [height, total, scroll, expected] of [[100,100,0,false],[100,300,0,true],[100,300,150,true],[100,300,199,false],[100,300,200,false],[100,300,210,false]])
   check(hasMoreBelow({ clientHeight:height, scrollHeight:total, scrollTop:scroll }), expected);
-const body = new Element(), page = new Element({ height: 640, total: 1000 }), list = new Element({ total: 300, top: 150 });
+const body = new Element(), page = new Element({ height: 584, total: 1000, top: 32, left: 9, width: 336 }), list = new Element({ total: 300, top: 150 });
 const dialog = new Element(), options = new Element({ total: 500, top: 100 }); options.dialog = dialog;
 const topbar = new Element({ height: 80 });
 let candidates = [list, options], scheduled, mutation, resized;
 const events = new Map(), windowEvents = new Map(), observed = new Set();
-globalThis.innerWidth = 360; globalThis.innerHeight = 640;
-globalThis.document = { body, scrollingElement: page, documentElement: { style: { setProperty: (_, value) => { topbar.measured = value; } } },
+globalThis.document = { body, documentElement: { style: { setProperty: (_, value) => { topbar.measured = value; } } },
   createElement: () => new Element(), querySelectorAll: () => candidates, querySelector: () => topbar,
   addEventListener: (type, fn) => events.set(type, fn), removeEventListener: type => events.delete(type) };
 globalThis.window = { addEventListener: (type, fn) => windowEvents.set(type, fn), removeEventListener: type => windowEvents.delete(type) };
@@ -34,9 +33,10 @@ globalThis.cancelAnimationFrame = () => { scheduled = null; };
 globalThis.ResizeObserver = class { constructor(fn) { resized = fn; } observe(el) { observed.add(el); } unobserve(el) { observed.delete(el); } disconnect() { observed.clear(); } };
 globalThis.MutationObserver = class { constructor(fn) { mutation = fn; } observe() {} disconnect() {} };
 const flush = () => { const fn = scheduled; scheduled = null; fn?.(); };
-const stop = watchScrollFades(); flush();
+const stop = watchScrollFades(page); flush();
 check(topbar.measured, '80px');
 check(body.children.length, 2); // page and saved-list fades
+check(body.children[0].style.cssText.includes('left:9px;top:588px;width:336px'), true);
 check(dialog.children.length, 1); // options fade is in the modal's layer
 const fade = dialog.children[0];
 check(fade.style.cssText.includes('top:172px'), true);

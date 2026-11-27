@@ -15,7 +15,7 @@ class OtaApplication : Application() {
         validateManifest(embedded)
         val root = File(filesDir, "ota")
         val log = EventLog(File(root, "updater.log"))
-        updater = Updater(this, Engine(root, embedded, BuildConfig.SHELL_API, log), ManifestVerifier(key))
+        updater = Updater(this, Engine(root, embedded, BuildConfig.SHELL_API, log, BuildConfig.VERSION_CODE.toLong()), ManifestVerifier(key))
         UpdateWorker.schedule(this)
         log.add("Automatic check frequency: ${updater.updateSettings().checkFrequency}; network constraint follows update settings")
     }

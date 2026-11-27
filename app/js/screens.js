@@ -2,8 +2,8 @@ import { achievementIcon, achievementLock, tierShape } from './achievement-icons
 import { achievementInk, achievementState, achievementPips, achievementBar, achievementDetail } from './achievement-view.js';
 // Menu, game picker, new game, statistics, settings. Markup is the design handoff's
 // (design/handoff/*.html), with the dummy text replaced by t(...) and live data.
-import { t, plural, esc, num, duration, ago, dateTime, setLang, getLang, LANG_NAMES } from './i18n.js';
-import { deviceLanguage, settings, saveSettings, stats, listSaves, listFinished, listKept, getSave, putSave, deleteSave, newGame, gameName, collected, totals, setupPractice } from './store.js';
+import { t, plural, esc, num, duration, ago, dateTime, checkTime, setLang, getLang, LANG_NAMES } from './i18n.js';
+import { deviceLanguage, settings, saveSettings, stats, listSaves, listSavedResults, deleteFinished, getSave, putSave, deleteSave, newGame, gameName, collected, totals, setupPractice } from './store.js';
 import { net, netKinds, netReady, nearbyHere, openLocation } from './net.js';
 import { createGuest } from './session.js';
 import { has } from './dawg.js';
@@ -14,7 +14,7 @@ import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js'
 import { makePuzzle, RANGE, RING_MIN, RING_MAX, WORD_MIN, visible, isDone } from './connect.js';
 import { BOARDS, STANDARD, LEVEL_ORDER, levelKey, PLAYERS_MAX, newGame as tilesGame, apply as tilesApply, loadTileWords, valueOf, fullBag } from './tiles.js';
 import { nameOf, topics, LABEL, bonusSeg, bonusOf, boardStyleSeg, tileSeg, applyTileLook } from './tiles-game.js';
-import { UI_ICONS, playerIcon, TILE_SETUP_ICONS, topbar, fillColor, confirmClick, applyTheme, applyAccent, applyButtonSize, applyLettersContrast, ACCENTS, PALETTES, GLYPH, modeTag, TILE, squares, remindBt, practiceBadge, openRules, keepButton, wireKeep, resultHref, backToResults } from './ui.js';
+import { UI_ICONS, playerIcon, TILE_SETUP_ICONS, topbar, fillColor, confirmClick, applyTheme, applyAccent, applyButtonSize, applyTextSize, applyLettersContrast, ACCENTS, PALETTES, GLYPH, modeTag, TILE, squares, remindBt, practiceBadge, openDialog, openRules, keepButton, wireKeep, resultHref } from './ui.js';
 import { fitAll } from './fit.js';
 import { soundVolume, syncSound } from './sound.js';
 import { VERSION, REPO } from './version.js';
@@ -51,6 +51,20 @@ const READY = new Set(['guess', 'letters', 'connect', 'tiles']);
 const NEW_OF = { guess: '#/new', letters: '#/new/letters', connect: '#/new/connect', tiles: '#/new/tiles' };
 const LIST_OF = { guess: '#/games/guess', letters: '#/games/letters', connect: '#/games/connect', tiles: '#/games/tiles' };
 
+const SCREEN_ICONS = {
+  stats: '<svg viewBox="0 0 24 24"><rect x="4" y="13" width="3" height="7" rx=".5"/><rect x="10.5" y="4" width="3" height="16" rx=".5"/><rect x="17" y="9" width="3" height="11" rx=".5"/></svg>',
+  achievements: '<svg viewBox="0 0 24 24"><path d="m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg>',
+  collection: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="4" height="15" rx=".5"/><rect x="10" y="3" width="4" height="17" rx=".5"/><path d="m16 6 3-1 3 14-3 1z"/></svg>',
+  settings: '<svg viewBox="0 0 24 24"><path d="m9.5 3-.5 2a7.5 7.5 0 0 0-2 1.2l-2-.6-2 3.4L4.5 10a7.5 7.5 0 0 0 0 4L3 15l2 3.4 2-.6A7.5 7.5 0 0 0 9 19l.5 2h5l.5-2a7.5 7.5 0 0 0 2-1.2l2 .6 2-3.4-1.5-1a7.5 7.5 0 0 0 0-4L21 9l-2-3.4-2 .6A7.5 7.5 0 0 0 15 5l-.5-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+  'last-games': UI_ICONS.time,
+  whatsnew: UI_ICONS.about,
+  online: UI_ICONS.online,
+  join: UI_ICONS.enter,
+  home: UI_ICONS.menu,
+};
+const screenIcon = key => `<span class="menu-badge" data-icon="${key}" aria-hidden="true">${SCREEN_ICONS[key] ?? GLYPH[key]}</span>`;
+const screenTitle = (key, label) => `<h1 class="title">${screenIcon(key)}<span>${t(label)}</span></h1>`;
+
 // the menu's update banner, painted again when a check brings news (update.js)
 let menuUpdate = null;
 window.addEventListener('lexling:update', () => menuUpdate?.());
@@ -69,15 +83,14 @@ export function menu(root, _, refresh) {
   ${topbar({})}
   <section class="hero four tight">
     <div class="hero-inner">
-      <p class="eyebrow">${t('menu.eyebrow')} ${DOT} ${t('menu.offline')}</p>
       <h1 class="display">${t('menu.h1')}</h1>
       <nav class="games tight" aria-label="${t('menu.modesAria')}">${GAMES.map(row).join('')}</nav>
       <nav class="menu cards" aria-label="${t('menu.nav')}">
-        <a href="#/stats"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="13" width="3" height="7" rx=".5"/><rect x="10.5" y="4" width="3" height="16" rx=".5"/><rect x="17" y="9" width="3" height="11" rx=".5"/></svg></span><span>${t('menu.stats')}</span></a>
-        <a href="#/achievements"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg></span><span>${t('menu.ach')}</span></a>
-        <a href="#/collection"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="4" height="15" rx=".5"/><rect x="10" y="3" width="4" height="17" rx=".5"/><path d="m16 6 3-1 3 14-3 1z"/></svg></span><span>${t('menu.collection')}</span></a>
-        <a href="#/settings"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9.5 3-.5 2a7.5 7.5 0 0 0-2 1.2l-2-.6-2 3.4L4.5 10a7.5 7.5 0 0 0 0 4L3 15l2 3.4 2-.6A7.5 7.5 0 0 0 9 19l.5 2h5l.5-2a7.5 7.5 0 0 0 2-1.2l2 .6 2-3.4-1.5-1a7.5 7.5 0 0 0 0-4L21 9l-2-3.4-2 .6A7.5 7.5 0 0 0 15 5l-.5-2z"/><circle cx="12" cy="12" r="3"/></svg></span><span>${t('menu.settings')}</span></a>
-        <a href="#/last-games"><span class="menu-badge" aria-hidden="true">${UI_ICONS.time}</span><span>${t('menu.lastGames')}</span></a>
+        <a href="#/stats">${screenIcon('stats')}<span>${t('menu.stats')}</span></a>
+        <a href="#/achievements">${screenIcon('achievements')}<span>${t('menu.ach')}</span></a>
+        <a href="#/collection">${screenIcon('collection')}<span>${t('menu.collection')}</span></a>
+        <a href="#/settings">${screenIcon('settings')}<span>${t('menu.settings')}</span></a>
+        <a href="#/last-games">${screenIcon('last-games')}<span>${t('menu.lastGames')}</span></a>
       </nav>
       <div class="upd-slot"></div>
     </div>
@@ -102,9 +115,10 @@ export function menu(root, _, refresh) {
       : d.phase === 'done' ? `<div class="upd" role="status"><span class="upd-text">${t(d.asked === 'allow' ? 'upd.allow' : d.asked === 'notAllowed' ? 'upd.notAllowed' : 'upd.confirm', { v })}</span><div class="upd-acts">${btn('upd-install', 'upd.install')}</div></div>`
       : d.phase === 'starting' ? `<div class="upd" role="status"><span class="upd-text">${t('upd.starting', { v })}</span></div>`
       : d.phase === 'failed' ? `<div class="upd" role="status"><span class="upd-text">${t(d.why === 'offline' ? 'upd.offline' : 'upd.failed')}</span><div class="upd-acts">${btn('upd-get', 'upd.again')}<span class="upd-pair"><button class="btn btn-outline upd-gh" type="button">GitHub</button>${x}</span></div></div>`
-      : `<div class="upd" role="status"><span class="upd-text">${t('upd.available', { v })}</span><div class="upd-acts">${btn('upd-get', 'upd.get')}${x}</div>${
+      : `<div class="upd upd-release" role="status"><span class="upd-text">${t('upd.available', { v })}</span><div class="upd-acts">${btn('upd-get', 'upd.get')}${x}</div>${
         handed ? `<span class="upd-note">${t(navigator.onLine === false ? 'upd.offline' : 'upd.opened')}</span>` : ''}</div>`;
-    if (recentUpdateShown()) slot.innerHTML += `<div class="upd" role="status"><a class="upd-text" href="#/whatsnew">${t('wn.updated', { v: VERSION })}</a><button class="btn btn-ghost wn-close" type="button" aria-label="${t('upd.close')}">✕</button></div>`;
+    if (recentUpdateShown()) slot.innerHTML += `<div class="upd" role="status"><a class="upd-text" href="#/whatsnew">${t('wn.updated', { v: VERSION })}</a><button class="btn btn-ghost wn-close" type="button" aria-label="${t('upd.close')}">✕</button>${settings.lastCheck
+      ? `<time class="upd-note" datetime="${new Date(settings.lastCheck).toISOString()}">${checkTime(settings.lastCheck, 'ota.lastCheck')}</time>` : ''}</div>`;
   };
   menuUpdate();
   slot.addEventListener('click', async e => {
@@ -119,50 +133,67 @@ export function menu(root, _, refresh) {
   });
 }
 
-// The main menu opens the shared result list (owner, 2026-11-26).
-export function lastGamesScreen(root, kept = false) {
-  const allKept = listKept(), games = kept ? allKept : listFinished();
-  const keptIds = new Set(allKept.map(g => g.id));
-  const cards = games.map(g => {
+export function lastGamesScreen(root) {
+  const games = listSavedResults();
+  const cards = games.map(({ game: g, kept }) => {
     const mode = g.mode ?? 'guess';
     const { winner } = g.state?.over ?? {};
     const result = mode === 'tiles' ? (winner < 0 ? t('tiles.end.draw') : t('tiles.end.wins', { name: esc(nameOf(g.state, winner)) }))
       : t(g.status === 'won' ? mode === 'connect' ? 'cn.solved' : 'end.won' : g.status === 'lost' ? 'end.lost' : 'end.gaveUp');
-    return `<div class="card last-game-row"><a class="last-game" href="${resultHref(esc(g.id), kept)}">${GLYPH[mode]}
-      <span><strong>${t('mode.' + mode)}</strong><span>${result}</span></span>
-      <time datetime="${new Date(g.endedAt).toISOString()}">${dateTime(g.endedAt)}</time></a>
-      ${keepButton(g, keptIds.has(g.id))}</div>`;
+    return `<div class="card last-game-row">
+      <a class="last-game" href="${resultHref(esc(g.id))}">${GLYPH[mode]}
+        <span class="last-game-info"><strong>${t('mode.' + mode)}</strong><span>${result}</span>
+          <time datetime="${new Date(g.endedAt).toISOString()}">${dateTime(g.endedAt)}</time></span></a>
+      <div class="last-game-actions">${keepButton(g, kept)}
+        <button class="btn btn-ghost" type="button" data-delete-result aria-label="${t('games.delete')}" title="${t('games.delete')}">${UI_ICONS.trash}</button></div>
+    </div>`;
   });
   root.innerHTML = `<div class="app" data-screen="last-games">
-    ${topbar({ left: kept ? backToResults(false) : `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
-    <main class="main"><h1 class="title">${t(kept ? 'menu.keptGames' : 'menu.lastGames')}</h1>
-      ${kept ? '' : `<a class="btn btn-outline" href="#/kept-games">${t('menu.keptGames')}</a>`}
-      ${cards.length ? `<div class="saves">${cards.join('')}</div>` : `<p class="card empty">${t(kept ? 'keptGames.empty' : 'lastGames.empty')}</p>`}
+    ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
+    <main class="main">${screenTitle('last-games', 'menu.lastGames')}
+      ${cards.length ? `<div class="saves">${cards.join('')}</div>` : `<div class="empty">${screenIcon('last-games')}<p class="help">${t('lastGames.empty')}</p></div>`}
     </main></div>`;
-  root.querySelectorAll('.last-game-row').forEach((row, i) => wireKeep(row, games[i], on => {
-    if (!kept || on) return;
-    const next = row.nextElementSibling ?? row.previousElementSibling;
-    if (next) {
-      row.remove();
-      next.querySelector('[data-keep]').focus();
-    } else {
-      lastGamesScreen(root, true);
-      root.querySelector('.topbar a').focus();
-    }
-  }));
+  root.querySelectorAll('.last-game-row').forEach((row, i) => {
+    const game = games[i].game;
+    const href = row.querySelector('.last-game').hash;
+    const refresh = selector => {
+      lastGamesScreen(root);
+      const rows = [...root.querySelectorAll('.last-game-row')];
+      const next = rows.find(item => item.querySelector('.last-game').hash === href) ?? rows[Math.min(i, rows.length - 1)];
+      (next?.querySelector(selector) ?? root.querySelector('.topbar a')).focus();
+    };
+    wireKeep(row, game, () => refresh('[data-keep]'));
+    row.querySelector('[data-delete-result]').addEventListener('click', () => {
+      const { dlg, close } = openDialog(t('games.delete'), `<p class="help" id="delete-result-confirm">${t('lastGames.deleteConfirm')}</p>
+        <p class="help delete-result-status" role="status"></p>
+        <div class="gs-acts"><button class="btn btn-ghost" type="button" data-cancel autofocus>${t('tiles.cancel')}</button>
+          <button class="btn btn-outline btn-danger" type="button" data-confirm>${t('games.delete')}</button></div>`,
+      { icon: UI_ICONS.trash, showClose: false });
+      dlg.setAttribute('aria-label', t('games.delete'));
+      dlg.setAttribute('aria-describedby', 'delete-result-confirm');
+      dlg.querySelector('[data-cancel]').addEventListener('click', close);
+      dlg.querySelector('[data-confirm]').addEventListener('click', () => {
+        if (!deleteFinished(game.id)) {
+          dlg.querySelector('.delete-result-status').textContent = t('lastGames.deleteFailed');
+          return;
+        }
+        close();
+        refresh('.last-game');
+      });
+    });
+  });
 }
 
 export function chooseFirstLanguage(refresh) {
   if (settings.langChosen) return;
 
   const dialog = document.createElement('dialog');
-  const preferred = deviceLanguage();
   dialog.className = 'game-settings first-language';
   dialog.setAttribute('aria-labelledby', 'first-language-title');
-  dialog.innerHTML = `<h2 id="first-language-title"><span lang="en">${t('lang.choose', {}, 'en')}</span>
+  dialog.innerHTML = `<h2 id="first-language-title" tabindex="-1" autofocus><span lang="en">${t('lang.choose', {}, 'en')}</span>
       <span lang="pl">${t('lang.choose', {}, 'pl')}</span></h2>
     <div class="language-choices">${['pl', 'en'].map(lang =>
-      `<button type="button" class="btn btn-outline btn-lg" lang="${lang}" data-lang="${lang}" ${lang === preferred ? 'autofocus' : ''}>${LANG_NAMES[lang]}</button>`
+      `<button type="button" class="btn btn-outline btn-lg" lang="${lang}" data-lang="${lang}">${LANG_NAMES[lang]}</button>`
     ).join('')}</div>`;
   dialog.addEventListener('cancel', e => e.preventDefault());
   dialog.addEventListener('keydown', e => {
@@ -231,7 +262,7 @@ export function games(root, mode, refresh) {
   const actions = g => `<div class="save-actions">
     <a class="btn btn-primary" href="#/game/${g.id}">${UI_ICONS.resume}${t('games.resume')}</a>
     <div class="save-tools">
-      <button class="btn btn-ghost btn-danger save-icon" type="button" data-act="delete" aria-label="${t('games.delete')}" title="${t('games.delete')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg></button>
+      <button class="btn btn-ghost btn-danger save-icon" type="button" data-act="delete" aria-label="${t('games.delete')}" title="${t('games.delete')}">${UI_ICONS.trash}</button>
       <button class="btn btn-ghost save-icon" type="button" data-act="rename" aria-label="${t('games.rename')}" title="${t('games.rename')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-5-5L4 14Z"/></svg></button>
     </div>
   </div>`;
@@ -297,12 +328,12 @@ export function games(root, mode, refresh) {
   const card = { guess: guessCard, letters: lettersCard, connect: connectCard, tiles: tilesCard }[mode];
   // Tiles online (several phones): hosting and joining both start here - only where there is Bluetooth or Wi-Fi to do it
   const join = mode === 'tiles' && netKinds().length ? `<a class="btn btn-outline" href="#/online">${t('net.online')}</a>` : '';
-  const start = () => `<a class="btn btn-primary" href="${NEW_OF[mode]}">${t('games.new')} <span class="arrow">→</span></a>`;
+  const start = () => `<a class="btn btn-primary new-game-action" href="${NEW_OF[mode]}">${t('games.new')} <span class="arrow">→</span></a>`;
   // The section heading is for saved rows; the empty message sits on the page (owner, 2026-11-26).
   root.innerHTML = `<div class="app" data-screen="games" data-game="${mode}">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>`, right: modeTag(mode) })}
   <main class="main">
-    ${saves.length ? `<div class="head"><h1 class="title">${t('games.title')}</h1></div>` : ''}
+    ${saves.length ? `<div class="head">${screenTitle(mode, 'games.title')}</div>` : ''}
     <div class="games-scroll">${saves.length ? `<div class="saves">${saves.map(card).join('')}</div>` : `<div class="empty">
       <img class="empty-art" src="img/empty.webp" alt=""><p class="display">${t('games.emptyTitle')}</p>
       <p class="help" style="max-width:36ch">${t('games.emptyText')}</p>
@@ -373,7 +404,7 @@ export function newGameScreen(root, _, refresh) {
   root.innerHTML = `<div class="app" data-screen="new" data-game="guess">
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.guess}">${t('back.games')}</a>`, right: modeTag('guess') })}
   <main class="main">
-    <h1 class="title">${t('new.title')}</h1>
+    ${screenTitle('guess', 'new.title')}
     ${howTo('guess')}
     <form class="form" novalidate>
       <div class="field">
@@ -504,7 +535,7 @@ export function lettersNewScreen(root, _, refresh) {
   root.innerHTML = `<div class="app" data-screen="new" data-game="letters">
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.letters}">${t('back.games')}</a>`, right: modeTag('letters') })}
   <main class="main">
-    <h1 class="title">${t('new.title')}</h1>
+    ${screenTitle('letters', 'new.title')}
     ${howTo('letters')}
     <form class="form" novalidate>
       <div class="field">
@@ -688,7 +719,7 @@ export function connectNewScreen(root, _, refresh) {
   root.innerHTML = `<div class="app" data-screen="new" data-game="connect">
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.connect}">${t('back.games')}</a>`, right: modeTag('connect') })}
   <main class="main">
-    <h1 class="title">${t('new.title')}</h1>
+    ${screenTitle('connect', 'new.title')}
     ${howTo('connect')}
     <form class="form" novalidate>
       <div class="field">
@@ -846,7 +877,7 @@ export function tilesNewScreen(root, _, refresh, hostKind = null) {
   root.innerHTML = `<div class="app" data-screen="new" data-game="tiles">
   ${topbar({ left: `<a class="btn btn-ghost" href="${hostKind ? '#/online' : LIST_OF.tiles}">${t('back.games')}</a>`, right: modeTag('tiles') })}
   <main class="main">
-    <h1 class="title">${t(hostKind ? 'net.newTitle' : 'new.title')}</h1>
+    ${screenTitle('tiles', hostKind ? 'net.newTitle' : 'new.title')}
     ${hostKind ? `<p class="help tl-online-kind"><span class="eyebrow">${t('net.step.kind')}</span> ${t('net.kind.' + hostKind)}</p>${hostInfo()}` : ''}
     ${howTo('tiles')}
     <form class="form" novalidate>
@@ -1098,7 +1129,7 @@ export function tilesOnlineScreen(root) {
   root.innerHTML = `<div class="app" data-screen="new" data-game="tiles">
   ${topbar({ left: `<a class="btn btn-ghost" href="${LIST_OF.tiles}">${t('back.games')}</a>`, right: modeTag('tiles') })}
   <main class="main">
-    <h1 class="title">${t('net.online')}</h1>
+    ${screenTitle('online', 'net.online')}
     ${devicesInfo(kinds)}
     <div class="field">
       <span class="eyebrow">${t('net.step.kind')}</span>
@@ -1154,7 +1185,7 @@ export function tilesJoinScreen(root, chosen) {
   root.innerHTML = `<div class="app" data-screen="new" data-game="tiles">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/online">${t('back.games')}</a>`, right: modeTag('tiles') })}
   <main class="main">
-    <h1 class="title">${t('net.join')}</h1>
+    ${screenTitle('join', 'net.join')}
     <p class="help tl-online-kind"><span class="eyebrow">${t('net.step.kind')}</span> ${t('net.kind.' + kind)}</p>
     <p class="help" id="join-help"></p>
     ${settings.myName ? `<p>${t('net.joinAs', { name: `<strong>${esc(settings.myName)}</strong>` })} <a class="btn-link" href="#/settings">${t('net.joinAsChange')}</a></p>` : `<div class="field"><label class="eyebrow" for="my-name">${t('set.myName')}</label>${myNameInput()}</div>`}
@@ -1326,7 +1357,7 @@ export function achievementsScreen(root) {
   };
   root.innerHTML = `<div class="app" data-screen="achievements">
     ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
-    <main class="main"><h1 class="title">${t('ach.title')}</h1>
+    <main class="main">${screenTitle('achievements', 'ach.title')}
       <div class="ach-summary"><div class="ach-total"><b class="num">${num(reached)}</b><small>${t('ach.tiers', { a: num(reached), b: num(TIERED.length * TIERS.length) })}</small></div>
         <div class="ach-counts">${TIERS.map((tier, i) => {
           const count = TIERED.filter(d => gotAt(`${d.id}#${i}`) !== null).length;
@@ -1358,8 +1389,8 @@ const STAT_ICONS = {
   star: statIcon('<path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/>'),
   longest: statIcon('<rect x="2.5" y="7" width="19" height="10" rx="2"/><path d="M7 7v5m5-5v3m5-3v5"/>'),
   bonus: statIcon('<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9l6 6m0-6-6 6"/>'),
-  letters: GLYPH.letters,
-  tiles: GLYPH.tiles,
+  letters: statIcon('<path d="m3 18 5-12 5 12M5 14h6m4-4h5l-5 8h5"/>'),
+  count: statIcon('<path d="m10 3-3 18m10-18-3 18M4 9h17M3 15h17"/>'),
 };
 
 // Participation includes practice; quality figures use only unassisted records (owner, 2026-11-20).
@@ -1406,13 +1437,13 @@ export function statsScreen(root, _, refresh) {
       case 'tiles': {
         const best = value.bestWord, longest = value.longest;
         panel = games(played + finished)
-          + words(cell('stats.tiles.moves', value.words, 'words') + cell('stats.tilesPlaced', value.tiles, 'tiles')
+          + words(cell('stats.tiles.moves', value.words, 'words') + cell('stats.tilesPlaced', value.tiles, 'count')
             + cell('stats.tiles.wordsFormed', value.wordsFormed, 'words')
             + cell('stats.tiles.avgWordPoints', decimal(value.avgWordPoints), 'star')
             + cell('stats.tiles.bestWord', best ? esc(best.w) : null, 'star',
               best ? `${t('stats.wordPoints', { n: num(best.score) })} · ${dateTime(best.at)}` : '', 'word')
             + cell('stats.longest', longest ? esc(longest.w) : null, 'longest', longest ? dateTime(longest.at) : '', 'word')
-            + cell('stats.tiles.seven', value.seven, 'tiles'))
+            + cell('stats.tiles.seven', value.seven, 'count'))
           + group('stats.tiles.bonuses', ['d', 't', 'D', 'T'].map(k => cell('stats.tiles.bonus.' + k, value.bonuses[k], 'bonus')).join(''));
         break;
       }
@@ -1421,7 +1452,7 @@ export function statsScreen(root, _, refresh) {
   }
   root.innerHTML = `<div class="app" data-screen="stats">
     ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
-    <main class="main"><h1 class="title">${t('stats.title')}</h1>
+    <main class="main">${screenTitle('stats', 'stats.title')}
       ${gameTabs(STAT_TABS, statsTab, 'tab', 'stats.general')}
       ${statsTab === 'general' ? '' : `<div class="st-filters"><div class="seg" role="radiogroup">${['all', 'pl', 'en'].map(l => `<button type="button" data-f-lang="${l}" class="${on(f.lang === l)}">${l === 'all' ? t('lang.both') : LANG_NAMES[l]}</button>`).join('')}</div></div>`}
       <div class="section" role="tabpanel">
@@ -1457,7 +1488,7 @@ export async function collectionScreen(root, _, refresh) {
   const shell = body => `<div class="app" data-screen="collection">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
   <main class="main">
-    <h1 class="title">${t('col.title')}</h1>
+    ${screenTitle('collection', 'col.title')}
     ${tabs}
     <section class="section">${body}<p class="co-help">${t('col.help')}</p></section>
   </main>
@@ -1575,17 +1606,17 @@ let dataIndex;
 const settingsSections = new Set(['general']);
 export async function settingsScreen(root, _, refresh) {
   dataIndex ??= await fetch('data/index.json').then(r => r.json());
-  const seg = (key, values, label) => `<div class="seg">${values.map(v => `<button type="button" data-k="${key}" data-v="${v}" class="${on(settings[key] === v)}">${label(v)}</button>`).join('')}</div>`;
+  const seg = (key, values, label, labelId) => `<div class="seg"${labelId ? ` role="group" aria-labelledby="${labelId}"` : ''}>${values.map(v => `<button type="button" data-k="${key}" data-v="${v}" class="${on(settings[key] === v)}"${labelId ? ` aria-pressed="${settings[key] === v}"` : ''}>${label(v)}</button>`).join('')}</div>`;
   const rareTiers = cleanTiers(settings.tilesRareTiers);
   const ota = otaActive();
   const waiting = updateWaiting();
   const updateLine = !REPO ? t('set.noRepo')
     : waiting ? t('set.available', { v: settings.latest })
-      : settings.lastCheck ? `${t('set.upToDate')} ${DOT} ${t('set.checked', { d: dateTime(settings.lastCheck) })}` : t('set.never');
+      : settings.lastCheck ? `${t('set.upToDate')} ${DOT} ${checkTime(settings.lastCheck, 'ota.lastCheck')}` : t('set.never');
   root.innerHTML = `<div class="app" data-screen="settings">
   ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
   <main class="main">
-    <h1 class="title">${t('set.title')}</h1>
+    ${screenTitle('settings', 'set.title')}
     <details class="settings-section" data-section="general"${settingsSections.has('general') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">${UI_ICONS.general}</span><span>${t('set.section.general')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
 <div class="row"><div class="row-text"><strong>${t('set.lang')}</strong><span>${t('set.langDesc')}</span></div>${seg('lang', ['pl', 'en'], l => LANG_NAMES[l])}</div><div class="row"><div class="row-text"><strong>${t('set.fuzzy')}</strong><span>${t('set.fuzzyDesc')}</span></div><button type="button" class="toggle ${on(settings.fuzzy)}" data-toggle="fuzzy" role="switch" aria-checked="${settings.fuzzy}" aria-label="${t('set.fuzzy')}"></button></div>
     </div></details>
@@ -1601,6 +1632,7 @@ export async function settingsScreen(root, _, refresh) {
     </div></details>
     <details class="settings-section" data-section="display"${settingsSections.has('display') ? ' open' : ''}><summary><span class="category-icon" aria-hidden="true">${UI_ICONS.display}</span><span>${t('set.section.display')}</span><span class="category-arrow" aria-hidden="true">⌄</span></summary><div class="section-content">
 <div class="row"><div class="row-text"><strong>${t('set.buttonSize')}</strong></div>${seg('buttonSize', ['100', '115', '130', '150', '175'], v => t('set.buttonSizePercent', { n: v }))}</div>
+<div class="row"><div class="row-text"><strong id="text-size-label">${t('set.textSize')}</strong></div>${seg('textSize', ['100', '115', '130'], v => t('set.textSize.' + v), 'text-size-label')}</div>
 <div class="row"><div class="row-text"><strong>${t('set.theme')}</strong></div>${seg('theme', ['dark', 'light', 'system'], v => t('theme.' + v))}</div><div class="row"><div class="row-text"><strong>${t('set.palette')}</strong><span>${t('set.paletteDesc')}</span></div>
         <div class="palette-swatches">${Object.keys(PALETTES).map(id => `<button type="button" data-palette-choice="${id}" class="${on((settings.palette ?? 'classic') === id)}" aria-label="${t('palette.' + id)}" aria-pressed="${(settings.palette ?? 'classic') === id}"><span class="palette-preview" data-preview="${id}" aria-hidden="true"><i>Aa</i></span><span>${t('palette.' + id)}</span></button>`).join('')}</div></div><div class="row"><div class="row-text"><strong>${t('set.accent')}</strong><span>${t('set.accentDesc')}</span></div>
         <div class="swatches">${Object.entries(ACCENTS).map(([name, hex]) =>
@@ -1631,7 +1663,7 @@ export async function settingsScreen(root, _, refresh) {
         <div class="row-actions">${waiting ? `<button type="button" class="btn btn-primary" id="get">${t('set.get')} <span class="arrow">→</span></button>` : ''}
         <button type="button" class="btn btn-outline" id="check" ${REPO ? '' : 'disabled'}>${t('set.check')}</button>
         <button type="button" class="btn btn-ghost" id="manual" ${REPO ? '' : 'disabled'}>${t('set.manual')}</button></div></div>
-      <div class="row"><a class="btn btn-outline" href="#/whatsnew">${t('wn.title')} <span class="arrow">→</span></a></div>
+      <div class="row"><a class="btn btn-outline" href="#/whatsnew">${screenIcon('whatsnew')}${t('wn.title')} <span class="arrow">→</span></a></div>
       `}
 
       <h2 class="title">${t('set.about')}</h2>
@@ -1669,6 +1701,14 @@ export async function settingsScreen(root, _, refresh) {
     saveSettings();
     if (b.dataset.k === 'theme') applyTheme();
     if (b.dataset.k === 'buttonSize') applyButtonSize();
+    if (b.dataset.k === 'textSize') {
+      applyTextSize();
+      b.parentElement.querySelectorAll('button').forEach(option => {
+        option.classList.toggle('on', option === b);
+        option.setAttribute('aria-pressed', option === b);
+      });
+      return;
+    }
     refresh();
   }));
   // Apply the slider during a drag and keep the level across launches (owner, 2026-11-26).
@@ -1754,7 +1794,7 @@ export function whatsnewScreen(root) {
   };
   root.innerHTML = `<div class="app" data-screen="whatsnew">
     ${topbar({ left: `<a class="btn btn-ghost" href="#/settings">${t('wn.back')}</a>` })}
-    <main class="main"><h1 class="title">${t('wn.title')}</h1>
+    <main class="main">${screenTitle('whatsnew', 'wn.title')}
       <section class="wn-panel wn-feature">
         <p class="wn-kicker">${t('wn.latest')}</p>
         <div class="wn-meta">${meta(latest, 'h2')}</div>

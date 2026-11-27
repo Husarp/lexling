@@ -19,9 +19,9 @@ import com.husarp.lexling.R
 internal data class UpdateBannerItem(
     val key: String, val title: String, val text: String, val actionLabel: String? = null,
     val action: (() -> Unit)? = null, val percent: Int? = null, val downloading: Boolean = false,
-    val keepOnAction: Boolean = false, val installing: Boolean = false, val brief: Boolean = false,
+    val keepOnAction: Boolean = false, val installing: Boolean = false,
     val step: UpdateBannerStep? = null, val speed: Long = 0,
-    val received: Long = 0, val total: Long = 0, val symbol: String? = null, val linkAction: Boolean = false
+    val received: Long = 0, val total: Long = 0, val symbol: String? = null, val spacedAction: Boolean = false
 )
 
 internal class NativeUpdateBanner(private val host: FrameLayout, private val dismiss: (String) -> Unit) {
@@ -45,8 +45,10 @@ internal class NativeUpdateBanner(private val host: FrameLayout, private val dis
             item.speed > 0 -> context.getString(R.string.ota_speed_bytes, item.speed)
             else -> null
         }
-        val amount = item.total.takeIf { it > 0 }?.let {
-            context.getString(R.string.ota_download_amount, item.received / 1_000_000.0, it / 1_000_000.0)
+        val amount = when {
+            item.total > 0 -> context.getString(R.string.ota_download_amount, item.received / 1_000_000.0, item.total / 1_000_000.0)
+            item.received > 0 -> context.getString(R.string.ota_amount_mb, item.received / 1_000_000.0)
+            else -> null
         }
         return listOfNotNull(item.percent?.let { context.getString(R.string.ota_progress_percent, it) }, amount, speed).joinToString(" · ")
     }
@@ -80,6 +82,7 @@ internal class NativeUpdateBanner(private val host: FrameLayout, private val dis
         val card = NativeLook.surface(context, palette.surface, NativeLook.noticeOutline(context))
         val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
+            if (item.installing) gravity = Gravity.CENTER_VERTICAL
             elevation = 2.dp.toFloat()
             background = card
             setPadding(12.dp, 12.dp, 8.dp, 12.dp)
@@ -97,7 +100,7 @@ internal class NativeUpdateBanner(private val host: FrameLayout, private val dis
             UpdateBannerPhase.AVAILABLE, UpdateBannerPhase.DOWNLOADING -> "↓"
             UpdateBannerPhase.READY -> "✓"
             UpdateBannerPhase.INSTALLING -> "↻"
-            null -> if (item.brief) "✓" else "!"
+            null -> "!"
         }
         val icon = if (symbol == "↓") ImageView(context).apply {
             setImageResource(R.drawable.ic_ota_download)
@@ -135,12 +138,14 @@ internal class NativeUpdateBanner(private val host: FrameLayout, private val dis
             text = item.text; textSize = 13f; setTextColor(if (light) palette.muted else 0xFFBCBCBC.toInt())
             setPadding(0, 5.dp, 0, 0)
         })
-        if (item.actionLabel != null) copy.addView(NativeLook.button(context, primary = !item.linkAction, ghost = item.linkAction).apply {
+        if (item.actionLabel != null) copy.addView(NativeLook.button(context, primary = true).apply {
             text = item.actionLabel
-            if (item.linkAction) setTextColor(NativeLook.noticeColor(context))
             minHeight = 44.dp; minimumHeight = 44.dp
             setOnClickListener { if (!item.keepOnAction) dismissItem(); item.action?.invoke() }
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = 5.dp })
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = if (item.spacedAction) 12.dp else 5.dp
+            if (item.spacedAction) gravity = Gravity.END
+        })
         if (!item.installing) row.addView(NativeLook.button(context, ghost = true).apply {
             text = "✕"; contentDescription = context.getString(R.string.ota_dismiss_notice)
             setPadding(0, 0, 0, 0)
@@ -155,6 +160,5 @@ internal class NativeUpdateBanner(private val host: FrameLayout, private val dis
                 row.animate().translationY(0f).alpha(1f).setDuration(220).start()
             }
         }
-        if (item.brief) row.postDelayed({ if (panel === row) dismissItem() }, 5000)
     }
 }

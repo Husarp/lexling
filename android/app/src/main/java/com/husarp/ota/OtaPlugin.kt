@@ -23,10 +23,25 @@ class OtaPlugin : Plugin() {
     }
     @PluginMethod fun downloadShell(call: PluginCall) {
         if (call.getBoolean("downloadOnly") == true) {
-            if (updater.shell.downloadOffered()) call.resolve() else call.reject("App download is not available")
+            if (updater.shell.downloadOffered()) call.resolve() else call.reject("Android app download is not available")
         } else {
             activity.runOnUiThread { (activity as MainActivity).installWithNotificationPermission { updater.shell.check(true) } }
             call.resolve()
+        }
+    }
+    @PluginMethod fun downloadCombined(call: PluginCall) {
+        if (updater.downloadCombined(call.getInt("versionCode")?.toLong() ?: -1, call.getString("webVersion") ?: ""))
+            call.resolve()
+        else call.reject("Combined download is not available")
+    }
+    @PluginMethod fun installCombined(call: PluginCall) {
+        activity.runOnUiThread {
+            val screen = activity as MainActivity
+            screen.installWithNotificationPermission {
+                if (updater.combinedReady(call.getInt("versionCode")?.toLong() ?: -1, call.getString("webVersion") ?: "") &&
+                    updater.shell.installFromWeb(screen)) call.resolve()
+                else call.reject("Combined install is not available")
+            }
         }
     }
     @PluginMethod fun info(call: PluginCall) { call.resolve(updater.info()) }
@@ -35,7 +50,7 @@ class OtaPlugin : Plugin() {
         activity.runOnUiThread {
             val screen = activity as MainActivity
             screen.installWithNotificationPermission {
-                if (updater.shell.installFromWeb(screen)) call.resolve() else call.reject("App install is not available")
+                if (updater.shell.installFromWeb(screen)) call.resolve() else call.reject("Android app install is not available")
             }
         }
     }

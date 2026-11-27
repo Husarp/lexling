@@ -7,6 +7,10 @@ import com.husarp.lexling.R
 import com.husarp.ota.core.*
 import java.text.DateFormat
 import java.util.Date
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 class UpdateChecks(context: Context, private val log: EventLog, private val changed: () -> Unit) {
     private val prefs = context.getSharedPreferences("ota-checks", Context.MODE_PRIVATE)
@@ -20,10 +24,9 @@ class UpdateChecks(context: Context, private val log: EventLog, private val chan
     fun <Manifest> fetch(channel: CheckChannel, url: String, transport: Transport,
                          manual: Boolean = false, reportFailure: Boolean = true,
                          verify: (DownloadedManifest) -> Manifest): Pair<DownloadedManifest, Manifest>? {
-        // The built-in channels can be unpublished. A custom address still reports a missing file (owner, 2026-11-26).
-        val allowMissing = channel == CheckChannel.SHELL || url == Updater.DEFAULT_URL
+        // The signed release channels can be unpublished.
         val (source, manifest) = checked(channel, manual, reportFailure,
-            { fetchManifest(url, transport, log, allowMissing) }) { it?.let(verify) }
+            { fetchManifest(url, transport, log, allowMissing = true) }) { it?.let(verify) }
         return if (source != null && manifest != null) source to manifest else null
     }
 
@@ -71,6 +74,18 @@ class UpdateChecks(context: Context, private val log: EventLog, private val chan
 
     private fun error(channel: CheckChannel) = prefs.getString("$channel.error", null)?.let { name ->
         CheckFailure.entries.find { it.name == name }
+    }
+
+    fun displayStatus(strings: Context): String {
+        if (hasError()) return strings.getString(R.string.ota_check_failed)
+        val last = CheckChannel.entries.maxOf { prefs.getLong("$it.success", 0) }
+        if (last == 0L) return ""
+        val time = Instant.ofEpochMilli(last).atZone(ZoneId.systemDefault())
+        val locale = strings.resources.configuration.locales[0]
+        return if (time.toLocalDate() == LocalDate.now())
+            strings.getString(R.string.ota_last_checked_today, time.format(DateTimeFormatter.ofPattern("HH:mm", locale)))
+        else strings.getString(R.string.ota_last_checked,
+            time.format(DateTimeFormatter.ofPattern("d MMM yyyy HH:mm", locale)))
     }
 
     fun summary(): String = (error(CheckChannel.WEB) ?: error(CheckChannel.SHELL))?.message ?: run {

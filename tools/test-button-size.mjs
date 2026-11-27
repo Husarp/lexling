@@ -34,7 +34,7 @@ class Element {
 const stored = new Map([['wg.settings', JSON.stringify({ lang: 'en', rememberSetupOn: true })]]);
 globalThis.localStorage = { getItem: k => stored.get(k) ?? null, setItem: (k, v) => stored.set(k, v) };
 globalThis.matchMedia = () => ({ matches: false, addEventListener() {} });
-globalThis.window = { addEventListener() {} };
+globalThis.window = Object.assign(new EventTarget(), { Event });
 const html = new Element();
 globalThis.document = { documentElement: html, addEventListener() {}, createRange: () => ({}) };
 globalThis.fetch = async () => ({ json: async () => ({ counts: { pl: 60000, en: 41158 }, dims: 1 }) });

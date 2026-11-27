@@ -7,7 +7,10 @@ const { window } = new JSDOM('<div id="root"></div>', { url: 'https://lexling.te
 for (const key of ['window', 'document', 'location', 'navigator', 'localStorage', 'getComputedStyle']) {
   Object.defineProperty(globalThis, key, { configurable: true, value: window[key] });
 }
+window.Element.prototype.scrollTo = function ({ top }) { this.scrollTop = top; };
 window.scrollTo = () => {};
+window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+window.HTMLDialogElement.prototype.close = function () { this.open = false; };
 window.Range.prototype.getBoundingClientRect = () => ({ left: 0, right: 0 });
 globalThis.matchMedia = () => ({ matches: false, addEventListener() {} });
 globalThis.ResizeObserver = class { observe() {} disconnect() {} };
@@ -184,8 +187,7 @@ for (const lang of ['en', 'pl']) {
   assert.deepEqual([...root.querySelectorAll('.last-game')].map(el => el.hash), newest.map(id => '#/result/' + id));
   assert.equal(root.querySelectorAll('.last-game time[datetime]').length, 5);
   assert.ok(root.querySelector('.last-game').textContent.includes(t('tiles.end.wins', { name: '<Ada>' })));
-  lastGamesScreen(root, true);
-  assert.equal(root.querySelector('.topbar a[href="#/last-games"]').textContent, `← ${label}`);
+  assert.equal(root.querySelector('a[href="#/kept-games"]'), null);
   for (const mode of ['guess', 'letters', 'connect', 'tiles']) {
     games(root, mode, () => {});
     assert.equal(root.querySelector('h1'), null);
@@ -213,9 +215,12 @@ for (const lang of ['en', 'pl']) {
 // Keep all four modes, then reopen them after eviction and a fresh store load (owner, 2026-11-26).
 setLang('en');
 lastGamesScreen(root);
-const recent = root.querySelectorAll('.last-game-row');
-recent[1].querySelector('[data-keep]').click();
-recent[0].querySelector('[data-keep]').click();
+const toggleResult = id => root.querySelector(`.last-game[href="#/result/${id}"]`).parentElement.querySelector('[data-keep]').click();
+toggleResult(connect.id);
+toggleResult(tiles.id);
+assert.equal(root.querySelectorAll('.last-game-row').length, 6);
+assert.deepEqual([...root.querySelectorAll('[data-keep]')].map(b => b.getAttribute('aria-pressed')),
+  ['true', 'true', 'false', 'false', 'false', 'false']);
 for (const [game, screen] of [[guess, gameScreen], [letters, lettersGameScreen]]) {
   location.hash = '#/result/' + game.id;
   await screen(root, game.id, true);
@@ -232,12 +237,13 @@ assert.deepEqual(archive.listKept().map(g => g.id), keptOrder);
 const keptTiles = archive.getFinished(tiles.id);
 for (const key of ['racks', 'bag', 'pending', 'seed', 'turn']) assert.ok(!(key in keptTiles.state));
 assert.deepEqual(keptTiles.state.moves, state.moves);
-lastGamesScreen(root, true);
-assert.deepEqual([...root.querySelectorAll('.last-game')].map(el => el.hash), keptOrder.map(id => '#/kept-result/' + id));
+lastGamesScreen(root);
+assert.deepEqual([...root.querySelectorAll('.last-game')].map(el => el.hash),
+  [...keptOrder, ...listFinished().map(g => g.id)].map(id => '#/result/' + id));
 for (const [game, screen] of [[tiles, tilesGameScreen], [connect, connectGameScreen], [letters, lettersGameScreen], [guess, gameScreen]]) {
-  location.hash = '#/kept-result/' + game.id;
-  const cleanup = await screen(root, game.id, true, true);
-  assert.ok(root.querySelector('.topbar a[href="#/kept-games"]'));
+  location.hash = '#/result/' + game.id;
+  const cleanup = await screen(root, game.id, true);
+  assert.ok(root.querySelector('.topbar a[href="#/last-games"]'));
   assert.equal(root.querySelector('[data-keep]').getAttribute('aria-pressed'), 'true');
   if (game === tiles) {
     root.querySelector('[data-replay]').click();
@@ -249,13 +255,15 @@ for (const [game, screen] of [[tiles, tilesGameScreen], [connect, connectGameScr
   assert.equal(getFinished(game.id), undefined);
   cleanup?.();
 }
-lastGamesScreen(root, true);
-assert.equal(root.querySelector('.empty').textContent, t('keptGames.empty'));
 lastGamesScreen(root);
-root.querySelector('[data-keep]').click();
-lastGamesScreen(root, true);
-root.querySelector('[data-keep]').click();
-assert.equal(root.querySelector('.empty').textContent, t('keptGames.empty'));
+assert.equal(root.querySelectorAll('.last-game').length, 5);
+const newestId = listFinished()[0].id;
+toggleResult(newestId);
+assert.equal(root.querySelectorAll('.last-game').length, 6);
+assert.equal(root.querySelector('[data-keep]').getAttribute('aria-pressed'), 'true');
+toggleResult(newestId);
+assert.equal(root.querySelectorAll('.last-game').length, 5);
+assert.equal(root.querySelector('[data-keep]').getAttribute('aria-pressed'), 'false');
 
 // The board is available even if the optional end-rating dictionary has not loaded (owner, 2026-11-26).
 let rejectWords, requests = 0;
@@ -282,5 +290,20 @@ assert.equal(root.querySelectorAll('.tl-final .t').length, 0);
 assert.ok(root.querySelector('.tl-replay-controls p').textContent.includes(t('tiles.hist.challengeWon')));
 rejectWords(new Error('offline'));
 cleanup();
+
+lastGamesScreen(root);
+toggleResult(newestId);
+const resultRow = () => root.querySelector(`.last-game[href="#/result/${newestId}"]`)?.parentElement;
+resultRow().querySelector('[data-delete-result]').click();
+assert.ok(document.querySelector('dialog[open]').textContent.includes(t('lastGames.deleteConfirm')));
+document.querySelector('dialog [data-cancel]').click();
+assert.ok(resultRow());
+resultRow().querySelector('[data-delete-result]').click();
+document.querySelector('dialog [data-confirm]').click();
+assert.equal(resultRow(), undefined);
+const afterDelete = await import('../app/js/store.js?after-delete');
+assert.equal(afterDelete.getFinished(newestId), undefined);
+assert.equal(afterDelete.stats.rec[newestId].end, 'won');
+
 window.close();
 console.log('Saved games, home cards, game lists and statistics duration tests passed');

@@ -9,16 +9,16 @@ import { bump, recordAchievementEnd } from './achievements.js';
 
 const FORM_EXAMPLE = { pl: { a: 'psami', b: 'pies' }, en: { a: 'mice', b: 'mouse' } };
 
-export async function gameScreen(root, id, archived = false, kept = false) {
+export async function gameScreen(root, id, archived = false) {
   const game = archived ? getFinished(id) : getSave(id);
   const m = !archived && game && await load(game.lang);
-  if (location.hash !== (archived ? resultHref(id, kept) : '#/game/' + id)) return;
+  if (location.hash !== (archived ? resultHref(id) : '#/game/' + id)) return;
   const secretIdx = m ? m.words.indexOf(game.secret) : -1;
   if (!archived && secretIdx < 0) { location.replace('#/games/guess'); return; }
   const rank = m && rankAll(m, secretIdx);
 
   root.innerHTML = `<div class="app" data-screen="game">
-  ${topbar({ left: archived ? backToResults(kept) : `<a class="btn btn-ghost" href="#/games/guess">${t('back.games')}</a>`, right: gameTitle(game, archived) })}
+  ${topbar({ left: archived ? backToResults() : `<a class="btn btn-ghost" href="#/games/guess">${t('back.games')}</a>`, right: gameTitle(game, archived) })}
   <main class="main">
     <div class="status"></div>
     <div id="entry"></div>
@@ -138,7 +138,8 @@ export async function gameScreen(root, id, archived = false, kept = false) {
     if (!found) return say(t(bestRank() && bestRank() <= HINT_FLOOR ? 'game.hintNone' : 'game.hintFail'));
     if (!counts(game)) return giveHint(found);
     const { dlg, close } = openDialog(t('game.hint'), `<p class="help">${t('game.hintConfirm')}</p>
-      <div class="gs-acts"><button class="btn btn-ghost" type="button" data-keep autofocus>${t('game.keepPlaying')}</button><button class="btn btn-primary" type="button" data-use>${t('game.useHint')}</button></div>`);
+      <div class="gs-acts"><button class="btn btn-ghost" type="button" data-keep autofocus>${t('game.keepPlaying')}</button><button class="btn btn-primary" type="button" data-use>${t('game.useHint')}</button></div>`,
+    { icon: UI_ICONS.hint, showClose: false });
     dlg.querySelector('[data-keep]').addEventListener('click', close);
     dlg.querySelector('[data-use]').addEventListener('click', () => { close(); giveHint(found); });
   }
@@ -212,7 +213,7 @@ export async function gameScreen(root, id, archived = false, kept = false) {
     paintEntry();
     paintBoard();
     refit();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    root.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   const box = (g, { latest = false, fresh = false } = {}) => {

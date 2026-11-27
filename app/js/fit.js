@@ -1,49 +1,104 @@
-// Text-fit guarantee: a label that is longer in one language must never overflow or clip its box.
-// Single-line controls first shrink their font (down to 72 %), then drop letter-spacing, and only
-// as a last resort wrap onto two lines.
-const SELECTOR = '.btn, .seg button, .chip, .brand, .topbar .mode-tag';
-// scrollWidth only grows once text passes the padding too, so the content is measured against the
-// content box: a label may not even eat into its button's padding.
-const range = document.createRange();
-function overflows(el) {
-  if (el.scrollWidth > el.clientWidth + 0.5) return true;
+const LABELS = '.btn, .seg button, .chip, .topbar .mode-tag';
+export const BUTTON_SCALES = [1, 1.15, 1.3, 1.5, 1.75];
+export const TEXT_SCALES = [1, 1.15, 1.3];
+let range;
+
+function labelOverflows(el) {
   const css = getComputedStyle(el), box = el.getBoundingClientRect();
+  range ??= document.createRange();
   range.selectNodeContents(el);
   const text = range.getBoundingClientRect();
-  return text.right > box.right - parseFloat(css.paddingRight) - parseFloat(css.borderRightWidth) + 0.5
-    || text.left < box.left + parseFloat(css.paddingLeft) + parseFloat(css.borderLeftWidth) - 0.5;
+  return text.right > box.right - parseFloat(css.paddingRight) - parseFloat(css.borderRightWidth) + 1
+    || text.left < box.left + parseFloat(css.paddingLeft) + parseFloat(css.borderLeftWidth) - 1;
 }
 
-function fit(el) {
-  el.style.fontSize = el.style.letterSpacing = '';
-  el.classList.remove('wrapped');
-  if (!overflows(el)) return;
-  // Tracking goes first: nobody notices a label losing its letter-spacing, everybody notices it
-  // shrinking. Only then the font size, and wrapping as a last resort.
-  el.style.letterSpacing = '0';
-  if (!overflows(el)) return;
-  const base = parseFloat(getComputedStyle(el).fontSize);
-  for (let size = base - 0.5; size >= base * 0.72; size -= 0.5) {
-    el.style.fontSize = size + 'px';
-    if (!overflows(el)) return;
+function fitLabels(root) {
+  for (const el of root.querySelectorAll(LABELS)) {
+    if (!el.offsetWidth) continue;
+    el.classList.remove('tight-label', 'wrapped');
+    if (!labelOverflows(el)) continue;
+    el.classList.add('tight-label');
+    if (labelOverflows(el)) el.classList.add('wrapped');
   }
-  if (overflows(el)) el.classList.add('wrapped');
-}
-
-export function fitAll(root = document) {
-  root.querySelectorAll(SELECTOR).forEach(fit);
-  // the guess field reserves room for its submit button, whose width depends on the language
   const submit = root.querySelector('.guess-input .submit');
   if (submit) submit.previousElementSibling.style.paddingRight = submit.offsetWidth + 16 + 'px';
 }
 
-// Re-fit when the window gets wider or narrower. Height changes are ignored: fitting can itself change
-// the height (a label wrapping), and reacting to that would loop.
+function fitsScreen(screen, viewport) {
+  if (screen.scrollWidth > screen.clientWidth + 1) return false;
+  if (screen.matches('.fit, [data-screen=menu], [data-screen=games]')) {
+    return screen.scrollHeight <= viewport.clientHeight + 1;
+  }
+  // Long pages can scroll. Keep the part of Guess above its scrolling history in view when possible.
+  const entry = screen.querySelector('#entry');
+  return !entry || entry.offsetTop + entry.offsetHeight <= viewport.clientHeight + 1;
+}
+
+function fitScope(scope, fits) {
+  const style = scope.style;
+  style.removeProperty('--spacing');
+  style.removeProperty('--button-scale');
+  style.removeProperty('--text-scale');
+  const css = getComputedStyle(scope);
+  const buttonScale = Number(css.getPropertyValue('--button-scale'));
+  const textScale = Number(css.getPropertyValue('--text-scale'));
+  const fitsWithLabels = () => { fitLabels(scope); return fits(); };
+
+  // Always lay out within the safe viewport. Start at the saved sizes on each screen,
+  // then tighten spacing, step down button size, and finally step down text size.
+  // Stop at 100% for either size. Lists can scroll at the chosen sizes. If everything
+  // else still needs more room, let the safe viewport (or dialog) scroll too.
+  if (fitsWithLabels()) return;
+  style.setProperty('--spacing', '.6');
+  if (fitsWithLabels()) return;
+  for (const scale of [...BUTTON_SCALES].reverse().filter(scale => scale < buttonScale)) {
+    style.setProperty('--button-scale', scale);
+    if (fitsWithLabels()) return;
+  }
+  for (const scale of [...TEXT_SCALES].reverse().filter(scale => scale < textScale)) {
+    style.setProperty('--text-scale', scale);
+    if (fitsWithLabels()) return;
+  }
+}
+
+export function fitAll(root = document.getElementById('root')) {
+  const screen = root.firstElementChild;
+  if (root.clientWidth && screen?.matches('.app')) {
+    fitScope(screen, () => fitsScreen(screen, root));
+    const pop = screen.querySelector('.cn-pop');
+    if (pop) {
+      const room = pop.parentElement.getBoundingClientRect().top - root.getBoundingClientRect().top;
+      pop.style.maxHeight = Math.max(0, room - 16) + 'px';
+    }
+  } else if (root.clientWidth && root.matches('dialog, .ota-banner')) {
+    fitScope(root, () => root.scrollWidth <= root.clientWidth + 1 && root.scrollHeight <= root.clientHeight + 1);
+  } else {
+    fitLabels(root);
+  }
+}
+
 export function watchResize(root) {
-  let width = 0;
-  new ResizeObserver(([entry]) => {
-    if (entry.contentRect.width === width) return;
-    width = entry.contentRect.width;
-    fitAll(root);
-  }).observe(root);
+  const overlays = 'dialog[open], .ota-banner:not([hidden])';
+  let frame;
+  const schedule = () => {
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      fitAll(root);
+      document.querySelectorAll(overlays).forEach(fitAll);
+    });
+  };
+  new ResizeObserver(schedule).observe(root);
+  // Viewport size can be unchanged when settings, a dialog, or the in-menu update notice changes.
+  window.addEventListener('lexling:size', schedule);
+  new MutationObserver(records => {
+    if (records.some(({ target, addedNodes, removedNodes, type }) => {
+      if (target.matches?.('.scroll-fade')) return false;
+      if ([...addedNodes].some(node => node.matches?.(overlays))) return true;
+      if (!target.closest?.(overlays + ', .upd-slot')) return false;
+      return type !== 'childList'
+        || [...addedNodes, ...removedNodes].some(node => !node.matches?.('.scroll-fade'));
+    })) schedule();
+  }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['open', 'hidden'] });
+  schedule();
 }

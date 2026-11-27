@@ -55,8 +55,8 @@ async function boot({ platform = 'android', hasOta = true, snapshot = {}, hash =
     setUpdateSettings: method('setUpdateSettings', patch => (state.updateSettings = { ...state.updateSettings, ...patch })),
     claimCheckNotice: method('claimCheckNotice'),
     check: method('check'),
-    download: method('download'), downloadShell: method('downloadShell'),
-    restart: method('restart'), installShell: method('installShell'),
+    download: method('download'), downloadShell: method('downloadShell'), downloadCombined: method('downloadCombined'),
+    restart: method('restart'), installShell: method('installShell'), installCombined: method('installCombined'),
     openReleases: method('openReleases'), settings: method('settings'), logs: method('logs'),
   };
   window.Capacitor = { getPlatform: () => platform, isNativePlatform: () => platform === 'android',
@@ -281,7 +281,7 @@ test('legacy APK prompts and network check are disabled on OTA while cleanup sti
 test('dismissed offers stay hidden through replay and reload but Settings and new versions still offer them', async () => {
   const game = await boot({ snapshot: { available } });
   await game.ready();
-  assert.equal(game.get('.ota-banner strong').textContent, 'New update 9.1.0 · 1.0 MB');
+  assert.equal(game.get('.ota-banner strong').textContent, 'Update for Lexling 9.1.0 · 1.0 MB');
   assert.equal(game.get('.ota-banner [data-ota-action=offer]').textContent, 'Download update');
   game.click('.ota-banner [data-ota-action=dismiss]');
   const key = 'lx.ota.dismiss:available:web:' + update;
@@ -293,7 +293,7 @@ test('dismissed offers stay hidden through replay and reload but Settings and ne
   await reloaded.ready();
   assert.equal(reloaded.get('.ota-banner'), null);
   reloaded.ui.renderOtaSettings(reloaded.get('#root'));
-  assert.equal(reloaded.get('[data-ota-action=offer]').textContent, 'Get update ' + update);
+  assert.equal(reloaded.get('[data-ota-action=offer]').textContent, 'Download Lexling ' + update);
   reloaded.state.available = { version: appUpdate, size: 1024 };
   await reloaded.emit();
   assert.match(reloaded.get('.ota-banner').textContent, /9\.2\.0/);
@@ -327,14 +327,14 @@ test('web flow preserves progress DOM, uses downloadOnly and holds Installing th
   await game.emit('updateStaged');
   assert.equal(game.get('.ota-banner'), banner);
   assert.equal(game.get('.ota-banner strong'), title);
-  assert.equal(title.textContent, 'Update ' + update + ' is ready');
+  assert.equal(title.textContent, 'Ready to install Lexling ' + update);
   assert.equal(progress.parentElement.hidden, true);
   assert.equal(game.get('.ota-banner [data-ota-action=offer]').textContent, 'Install & restart');
   game.click('.ota-banner [data-ota-action=offer]');
   await flush();
   assert.equal(game.calls('restart').length, 1);
   assert.equal(game.get('.ota-banner').dataset.notice, 'installing');
-  assert.equal(title.textContent, 'Installing update ' + update + '…');
+  assert.equal(title.textContent, 'Installing Lexling ' + update + '…');
   assert.equal(progress.parentElement.hidden, true);
   Object.assign(game.state, { token: 'next-token', webVersion: update, staged: null });
   await game.emit('updated');
@@ -344,7 +344,7 @@ test('web flow preserves progress DOM, uses downloadOnly and holds Installing th
 test('APK offers use native APK methods and a web update explains its app requirement', async () => {
   const game = await boot({ snapshot: { available: { ...available, needsShell: true } } });
   await game.ready();
-  assert.equal(game.get('.ota-banner strong').textContent, 'App update required');
+  assert.equal(game.get('.ota-banner strong').textContent, 'Android app update required');
   assert.match(game.get('.ota-banner').textContent, /Update the Android app before installing Lexling 9\.1\.0/);
   assert.equal(game.get('.ota-banner [data-ota-action=offer]'), null);
   game.state.shellAvailable = { ...readyApp, size: 2048 };
@@ -359,13 +359,36 @@ test('APK offers use native APK methods and a web update explains its app requir
   assert.equal(game.calls('installShell').length, 1);
 });
 
+test('a combined release uses one download and one install action', async () => {
+  const combined = { ...readyApp, webVersion: update, phase: 'available', size: 2400000 };
+  const game = await boot({ snapshot: { combined, available: { ...available, needsShell: true }, shellAvailable: readyApp } });
+  await game.ready();
+  const banner = game.get('.ota-banner');
+  assert.match(banner.querySelector('strong').textContent, /Android app 9\.2\.0 and Lexling 9\.1\.0/);
+  assert.deepEqual(summary(offers(game.state)), [['combined', 'available', appUpdate]]);
+  game.click('.ota-banner [data-ota-action=offer]');
+  await flush();
+  const target = { versionCode: readyApp.versionCode, webVersion: update };
+  assert.deepEqual(game.calls('downloadCombined'), [[target]]);
+  game.state.combined = { ...combined, phase: 'downloading', transfer: { done: 24, total: 100 } };
+  await game.emit();
+  assert.equal(banner.querySelector('progress').value, 24);
+  game.state.combined = { ...combined, phase: 'ready' };
+  await game.emit();
+  game.click('.ota-banner [data-ota-action=offer]');
+  await flush();
+  assert.deepEqual(game.calls('installCombined'), [[target]]);
+  for (const method of ['download', 'downloadShell', 'restart', 'installShell']) assert.deepEqual(game.calls(method), []);
+  assert.equal(banner.dataset.notice, 'installing');
+});
+
 test('an accepted updated notice lasts five seconds, advances seenVersion and ignores event replay', async () => {
   const notes = 'Literal <b>notes</b>';
   const game = await boot({ snapshot: { updated: { from: '0.1.0', to: VERSION, notes } } });
   store.settings.seenVersion = '0.1.0';
   assert.equal(game.get('.ota-banner'), null);
   await game.ready();
-  assert.equal(game.get('.ota-banner strong').textContent, 'Updated to ' + VERSION);
+  assert.equal(game.get('.ota-banner strong').textContent, 'Updated to Lexling ' + VERSION);
   assert.equal(game.get('.ota-banner a').textContent, 'What’s new →');
   assert.equal(game.get('.ota-banner a').getAttribute('href'), '#/whatsnew');
   assert.equal(JSON.parse(localStorage.getItem('wg.settings')).seenVersion, VERSION);
@@ -381,7 +404,7 @@ test('APK upgrade is detected from running version code even with an unchanged v
   const key = 'lx.ota.appVersion';
   const game = await boot({ saved: { [key]: JSON.stringify({ version: VERSION, versionCode: 7200 }) } });
   await game.ready();
-  assert.equal(game.get('.ota-banner strong').textContent, 'Updated to ' + VERSION);
+  assert.equal(game.get('.ota-banner strong').textContent, 'Updated to Android app ' + VERSION);
   assert.equal(JSON.parse(localStorage.getItem(key)).versionCode, 7201);
   game.click('.ota-banner a');
   assert.equal(game.window.location.hash, '#/whatsnew');
@@ -392,7 +415,7 @@ test('APK upgrade is detected from running version code even with an unchanged v
 test('rollback takes priority and stays dismissed across replayed snapshots', async () => {
   const game = await boot({ snapshot: { rolledBack: { from: update, to: VERSION }, available } });
   await game.ready();
-  assert.match(game.get('.ota-banner').textContent, /Version 9\.1\.0 didn’t start/);
+  assert.match(game.get('.ota-banner').textContent, /Lexling 9\.1\.0 didn’t start/);
   game.click('.ota-banner [data-ota-action=dismiss]');
   await game.emit('rolledBack');
   assert.equal(game.get('.ota-banner').dataset.notice, 'available');
@@ -444,8 +467,7 @@ test('Settings renders native fields and sends partials without losing an in-fli
   const get = selector => game.get('.ota-settings ' + selector);
   assert.deepEqual([...host.querySelector('.ota-actions').children].map(control => control.textContent), ['Install & restart', 'Check']);
   assert.ok(get('[data-ota-action=github] svg'));
-  assert.equal(get('[data-ota-address]').value, prefs.url);
-  assert.equal(get('[data-ota-address]').readOnly, true);
+  assert.equal(get('[data-ota-address]'), null);
   assert.equal(host.querySelectorAll('.toggle').length, 4);
   assert.equal(get('[data-ota-field=updateNotifications]').hidden, false);
   assert.deepEqual([...host.querySelectorAll('h3')].map(heading => heading.textContent),
@@ -505,13 +527,13 @@ test('Later leaves setup unanswered and Customize keeps its draft through a snap
   game.click('.ota-settings [data-ota-action=setup]');
   game.click('dialog [data-ota-action=customize]');
   const frequency = game.get('dialog [data-ota-field=checkFrequency] select');
-  frequency.value = 'manual';
+  frequency.value = '24h';
   frequency.dispatchEvent(new game.window.Event('change', { bubbles: true }));
   await game.emit('updateSettingsChanged');
-  assert.equal(frequency.value, 'manual');
+  assert.equal(frequency.value, '24h');
   game.click('dialog [data-ota-action=save]');
   await flush();
-  assert.deepEqual(game.calls('setUpdateSettings'), [[{ ...defaults, checkFrequency: 'manual', setupAnswered: true }]]);
+  assert.deepEqual(game.calls('setUpdateSettings'), [[{ ...defaults, checkFrequency: '24h', setupAnswered: true }]]);
   assert.equal(game.get('dialog'), null);
 });
 
@@ -541,7 +563,7 @@ test('effective theme and language are forwarded after readiness and on change',
   await flush();
   assert.deepEqual(game.calls('setUiTheme').at(-1), [{ theme: 'light', lang: 'pl' }]);
   await game.emit();
-  assert.equal(game.get('.ota-banner strong').textContent, 'Nowa aktualizacja 9.1.0 · 1,0 MB');
+  assert.equal(game.get('.ota-banner strong').textContent, 'Aktualizacja · Lexling 9.1.0 · 1,0 MB');
   assert.equal(game.get('.ota-banner [data-ota-action=offer]').textContent, 'Pobierz aktualizację');
 });
 

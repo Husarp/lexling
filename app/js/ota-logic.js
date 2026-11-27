@@ -16,10 +16,12 @@ export function isNewShell(state, version, versionCode) {
 
 const target = (channel, phase, details) => ({ ...details, channel, phase });
 const sameUpdate = (a, b) => a && b && a.channel === b.channel && (
-  a.channel === 'shell' && a.versionCode && b.versionCode ? a.versionCode === b.versionCode : a.version === b.version
+  a.channel === 'combined' ? a.versionCode === b.versionCode && a.webVersion === b.webVersion
+    : a.channel === 'shell' && a.versionCode && b.versionCode ? a.versionCode === b.versionCode : a.version === b.version
 );
 
 function installing(state, version) {
+  if (state.combined?.phase === 'installing') return target('combined', 'installing', state.combined);
   const { installingVersion: next } = state;
   const channel = state.installingChannel || (state.shellReady?.version === next ? 'shell' : 'web');
   const versionCode = state.installingShellVersionCode || (state.shellReady?.version === next && state.shellReady?.versionCode);
@@ -29,6 +31,10 @@ function installing(state, version) {
 
 export function offers(state, version = state.webVersion) {
   if (state.trial) return [];
+  if (state.combined) {
+    const { phase } = state.combined;
+    return ['available', 'ready'].includes(phase) ? [target('combined', phase, state.combined)] : [];
+  }
   const { staged, available, shellReady, shellAvailable } = state;
   const appReady = isNewShell(state, shellReady?.version, shellReady?.versionCode);
   const webReady = newerVersion(staged?.version, version);
@@ -37,16 +43,17 @@ export function offers(state, version = state.webVersion) {
     appReady && target('shell', 'ready', shellReady),
     webReady && target('web', 'ready', staged),
     !appReady && isNewShell(state, shellAvailable?.version, shellAvailable?.versionCode) && target('shell', 'available', shellAvailable),
-    !webReady && newerVersion(available?.version, version) && target('web', 'available', available),
+    !webReady && !(available?.needsShell && (appReady || shellAvailable)) && newerVersion(available?.version, version) && target('web', 'available', available),
   ].filter(item => item && !sameUpdate(item, active));
 }
 
 export function failureStatus(state, channel) {
   const statuses = channel === 'web' ? [state.status] : channel === 'shell' ? [state.shellStatus] : [state.status, state.shellStatus];
-  return statuses.find(value => /^(Download failed|(?:Shell )?Update processing failed|Install failed|App install failed|Restart failed|Could not apply)|Not enough storage/i.test(value));
+  return statuses.find(value => /^(Download failed|(?:Shell |Android app )?Update processing failed|Install failed|(?:Android )?App install failed|Restart failed|Could not apply)|Not enough storage/i.test(value));
 }
 
 function transfers(state, version, items) {
+  if (state.combined) return state.combined.phase === 'downloading' ? [target('combined', 'downloading', state.combined)] : [];
   const shell = state.shellAvailable || state.shellReady;
   const shellVersion = state.shellDownloadVersion || (state.shellDownloading && shell?.version);
   const shellCode = state.shellDownloadVersionCode || (shell?.version === shellVersion && shell?.versionCode);
@@ -80,8 +87,8 @@ export function selectFlow(state, request, previous, version = state.webVersion,
   return downloads[0] || items.find(item => sameUpdate(item, previous) && item.phase === 'ready') || items[0] || null;
 }
 
-export function noticeKey(type, version, channel, versionCode) {
-  return [type, channel, channel === 'shell' && versionCode ? versionCode : version].filter(Boolean).join(':');
+export function noticeKey(type, version, channel, versionCode, webVersion) {
+  return [type, channel, ['shell', 'combined'].includes(channel) && versionCode ? versionCode : version, channel === 'combined' && webVersion].filter(Boolean).join(':');
 }
 
 const megabytes = bytes => decimal((bytes / 1000000).toFixed(1));
@@ -125,5 +132,5 @@ export function checkStatus(state, requestedAt) {
     return { kind: failureKind(failure?.code, failure?.error || checks.summary), last, previousSuccess: lastSuccess > lastAttempt };
   }
   const [found] = offers(state);
-  return found ? { kind: 'available', last, version: found.version } : { kind: last ? 'upToDate' : 'neverChecked', last };
+  return found ? { kind: 'available', last, item: found } : { kind: last ? 'upToDate' : 'neverChecked', last };
 }

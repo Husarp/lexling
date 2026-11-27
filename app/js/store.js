@@ -17,7 +17,7 @@ export const deviceLanguage = () => /^pl/i.test(navigator.language) ? 'pl' : 'en
 const savedSettings = read('wg.settings', {});
 export const settings = {
   lang: deviceLanguage(),
-  buttonSize: '130',
+  buttonSize: '130', textSize: '100',
   theme: 'dark', palette: 'classic', accent: 'orange', sound: true, fuzzy: true, lastCheck: 0, latest: '',
   // Older settings may have a selected language without the flag.
   langChosen: savedSettings.lang === 'pl' || savedSettings.lang === 'en',
@@ -203,14 +203,15 @@ for (const g of saves) {
 saves = saves.filter(g => g.link?.role !== 'guest');
 const persistSaves = () => write('wg.saves', saves);
 
-// Last games keeps five end states independently of resumable games (owner, 2026-11-26).
+// Keep a bounded reserve so starring a result can reveal the next unstarred one.
+const FINISHED_RESERVE = 20;
 const FINISHED_LIMIT = 5;
 let finished = [];
 try {
   const stored = JSON.parse(localStorage.getItem('wg.finished'));
-  if (Array.isArray(stored)) finished = stored.slice(0, FINISHED_LIMIT);
+  if (Array.isArray(stored)) finished = stored.slice(0, FINISHED_RESERVE + FINISHED_LIMIT);
 } catch { /* storage unavailable or invalid */ }
-export const listFinished = () => [...finished];
+export const listFinished = () => finished.slice(0, FINISHED_LIMIT);
 // Kept games survive the recent-game limit (owner, 2026-11-26).
 const keptKey = 'wg.kept';
 export function listKept() {
@@ -220,8 +221,38 @@ export function listKept() {
   } catch { /* storage unavailable or invalid */ }
   return [];
 }
+function recentUnstarred(keptIds, limit = FINISHED_LIMIT) {
+  return finished.filter(g => !keptIds.has(g.id)).slice(0, limit);
+}
+export function listSavedResults() {
+  const kept = listKept(), keptIds = new Set(kept.map(g => g.id));
+  return [...kept.map(game => ({ game, kept: true })),
+    ...recentUnstarred(keptIds).map(game => ({ game, kept: false }))];
+}
+function persistFinished(kept) {
+  const keepIds = new Set(kept.map(g => g.id));
+  const recentIds = new Set([...listFinished(), ...recentUnstarred(keepIds, FINISHED_RESERVE)].map(g => g.id));
+  finished = finished.filter(g => recentIds.has(g.id));
+  write('wg.finished', finished);
+}
 export const isKept = id => listKept().some(g => g.id === id);
-export const getFinished = id => finished.find(g => g.id === id) ?? listKept().find(g => g.id === id);
+export const getFinished = id => listSavedResults().find(({ game }) => game.id === id)?.game;
+export function deleteFinished(id) {
+  const recent = finished.filter(g => g.id !== id);
+  const kept = listKept();
+  const remainingKept = kept.filter(g => g.id !== id);
+  try {
+    localStorage.setItem('wg.finished', JSON.stringify(recent));
+    try {
+      if (remainingKept.length !== kept.length) localStorage.setItem(keptKey, JSON.stringify(remainingKept));
+    } catch {
+      write('wg.finished', finished);
+      return false;
+    }
+    finished = recent;
+    return true;
+  } catch { return false; }
+}
 const pick = (obj, keys) => Object.fromEntries(keys.filter(k => k in obj).map(k => [k, obj[k]]));
 function resultSnapshot(game) {
   const common = ['id', 'mode', 'lang', 'auto', 'name', 'title', 'practice', 'timeMs', 'status', 'endedAt'];
@@ -254,15 +285,16 @@ export function toggleKept(game) {
     : kept.filter(g => g.id !== game.id);
   try {
     localStorage.setItem(keptKey, JSON.stringify(next));
+    persistFinished(next);
     return on;
   } catch { return null; }
 }
 
 function keepFinished(game, status, fields = {}) {
-  if (game.live || game.link?.role === 'guest' || getFinished(game.id)) return;
+  if (game.live || game.link?.role === 'guest' || finished.some(g => g.id === game.id) || isKept(game.id)) return;
   const snapshot = JSON.parse(JSON.stringify(resultSnapshot({ ...game, ...fields, status, endedAt: Date.now() })));
-  finished = [snapshot, ...finished].slice(0, FINISHED_LIMIT);
-  write('wg.finished', finished);
+  finished.unshift(snapshot);
+  persistFinished(listKept());
 }
 
 export const listSaves = () => [...saves].sort((a, b) => b.updated - a.updated);

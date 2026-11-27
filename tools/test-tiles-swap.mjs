@@ -19,7 +19,7 @@ function screen(draft = []) {
   const c = {
     draft: copy(draft), S: { cells: Array(225).fill(null) }, n: 15,
     active: true, mode: 'play', shown: 0, tiles: ['t', 'a', 'r', '?'], BLANK: '?',
-    sel: -1, selectedTile: null, msg: null, cursor: null, desk: true, rackGap: -1, dropAt: -1,
+    sel: -1, msg: null, cursor: null, desk: true, rackGap: -1, dropAt: -1,
     zoom: { z: 1 }, press: null, dragEl: { style: { setProperty() {} }, remove() {} },
     play: { getBoundingClientRect: () => ({ left: 0, top: 0 }) },
     touches: new Map(), pinch: null, follows: 0, paints: 0, saved: 0, game: {},
@@ -38,11 +38,11 @@ function screen(draft = []) {
       && !c.draft.some((d, i) => i !== skip && d.r === r && d.c === col),
   };
   const release = source.slice(source.indexOf('  const release = (e, cancelled) => {'), source.indexOf("  play.addEventListener('pointerup'"));
-  runInNewContext(['placeAt', 'rackOrder', 'reorder', 'gapAt', 'moveDrag', 'tap', 'unplace', 'swapTarget', 'swapDraft', 'drop', 'paintRack', 'locateTile'].map(fn).join('\n') + release + '\nthis.release = release;', c);
+  runInNewContext(['placeAt', 'rackOrder', 'reorder', 'gapAt', 'moveDrag', 'tap', 'swapTarget', 'swapDraft', 'drop', 'paintRack', 'locateTile'].map(fn).join('\n') + release + '\nthis.release = release;', c);
   c.hover = (p, x, y) => { c.press = p; c.moveDrag(x, y); };
-  c.tapTile = di => {
-    c.press = { id: 1, kind: 'tile', di, drag: false };
-    c.release({ pointerId: 1 }, false);
+  c.tapTile = (di, heldMs = 100, cancelled = false) => {
+    c.press = { id: 1, kind: 'tile', di, at: 10, drag: false };
+    c.release({ pointerId: 1, timeStamp: 10 + heldMs }, cancelled);
   };
   c.rackSlots = () => [...c.rackEl.innerHTML.matchAll(/data-slot="(\d+)"/g)].map(m => +m[1]);
   return c;
@@ -115,33 +115,27 @@ for (const kind of ['rack', 'tile']) {
   check('rack tap over a draft never replaces it', c.draft, [a, b]);
   check('rack tap selects its tile', c.sel, 2);
   c.tapTile(0);
-  check('first board tap selects its tile', c.selectedTile, a);
-  check('board selection clears the rack selection', c.sel, -1);
-  check('first board tap leaves both tiles in place', c.draft, [a, b]);
-  c.tapTile(1);
-  check('tapping another board tile trades squares', c.draft, [{ ...a, c: 8 }, { ...b, c: 7 }]);
-  check('tap swap clears the selection and follows the move', [c.selectedTile, c.follows], [null, 1]);
+  check('one board tap returns the tile and leaves its neighbour in place', c.draft, [b]);
+  check('recalling a tile clears the rack selection', c.sel, -1);
   c.tapTile(0);
-  c.tapTile(0);
-  check('tapping the same board tile returns it', c.draft, [{ ...b, c: 7 }]);
+  check('a second tile is recalled without swapping or following', [c.draft, c.follows], [[], 0]);
 }
 {
   const blank = tile(3, 'z', 7, 7, { blank: true }), a = tile(1, 'a', 7, 8), c = screen([blank, a]);
+  c.tapTile(0, 600, true);
+  check('cancelled hold keeps the blank and does not open the picker', [c.draft, c.picker ?? null], [[blank, a], null]);
+  c.tapTile(0, 600);
+  check('holding a blank opens the picker and preserves its letter', [c.picker, c.draft], [0, [blank, a]]);
   c.tapTile(0);
-  c.tapTile(1);
-  check('tap swap keeps the chosen blank letter', c.draft, [{ ...blank, c: 8 }, { ...a, c: 7 }]);
-  c.tapTile(0);
-  c.tapTile(0);
-  check('tapping the selected blank opens the picker', c.picker, 0);
+  check('one short tap returns a blank to the rack', c.draft, [a]);
 }
 {
   const a = tile(0, 't', 7, 7), b = tile(1, 'a', 7, 8, { hint: 'small' }), c = screen([a, b]);
-  c.tapTile(0);
   c.tapTile(1);
-  check('tap cannot swap a hint', c.draft, [a, b]);
+  check('tap leaves a hint in place', c.draft, [a, b]);
   c.S.cells[114] = { ch: 'x' };
   c.tap({ kind: 'board', cell: { r: 7, c: 9 } });
-  check('tapping a settled tile still peeks and clears selection', [c.peeked, c.selectedTile], [114, null]);
+  check('tapping a settled tile still peeks', c.peeked, 114);
 }
 {
   const a = tile(0, 't', 7, 7), b = tile(1, 'a', 7, 8), c = screen([a, b]);
@@ -168,11 +162,10 @@ for (const kind of ['rack', 'tile']) {
   check('placement keeps every slot in the rack', c.rackSlots(), [0, 1, 2, 3]);
   check('only the placed duplicate is faded', [...c.rackEl.innerHTML.matchAll(/class="rt used shadow" data-slot="(\d+)"/g)].map(m => +m[1]), [2, 3]);
   check('blank shadow has a name', c.rackEl.innerHTML.includes('aria-label="Highlight Blank on the board"'), true);
-  c.tapTile(0);
-  c.tapTile(1);
+  c.drop({ kind: 'tile', di: 0 }, 8, 7);
   c.locateTile(2);
   check('shadow highlights the matching tile after a swap for one second', c.located, ['[data-i="113"]', 1000]);
-  c.unplace(0);
+  c.tapTile(0);
   c.paintRack();
   check('returned duplicate is active again in its own slot', c.rackEl.innerHTML.includes('<span class="rt" data-slot="2">a'), true);
   c.mode = 'exchange';
@@ -202,7 +195,6 @@ for (const kind of ['rack', 'tile']) {
         dock: {}, t, app: { isConnected: true }, turnHints: [], zoomOut() { c.zoom = { z: 1, x: 0, y: 0 }; },
         panel: null, wide: false, toast: false, paintOver() {}, refit() {}, canExchange: () => true,
         act(action) { c.action = action; c.resetTurn(); } });
-      c.selectedTile = c.draft[1];
       runInNewContext([fn('paintDock'), fn('resetTurn'), tools, fn('onKey'), 'this.tools = TOOLS;'].join('\n'), c);
       c.tools[mode]();
       c.paintDock();
@@ -213,7 +205,7 @@ for (const kind of ['rack', 'tile']) {
       if (mode === 'pass') c.onKey({ key: 'Escape', target: {}, preventDefault() {} });
       else { c.tap({ kind: 'rack', slot: 3 }); c.tools.cancel(); }
       check(`${lang} ${mode}: cancel restores the board, blank, selection and view`,
-        [c.mode, c.draft, c.selectedTile, c.cursor, c.zoom, c.manualOverview, c.picks.size], ['play', original, original[1], cursor, zoom, true, 0]);
+        [c.mode, c.draft, c.cursor, c.zoom, c.manualOverview, c.picks.size], ['play', original, cursor, zoom, true, 0]);
       c.tools[mode]();
       if (mode === 'pass') c.tools.passYes();
       else { c.tap({ kind: 'rack', slot: 3 }); c.tools.swap(); }
@@ -234,6 +226,5 @@ for (const kind of ['rack', 'tile']) {
   runInNewContext(board, c);
   const html = c.boardInner(c.S, { draft: c.draft, drop: 112, bad: true });
   check('occupied target face renders drop highlight even on an invalid move', /class="t new bad drop"/.test(html), true);
-  check('board renders the selected tile with a distinct ring', /class="t new bad selected"/.test(c.boardInner(c.S, { draft: c.draft, selected: c.draft[0], bad: true })), true);
 }
 console.log(`all ${passed} tiles swap tests passed`);

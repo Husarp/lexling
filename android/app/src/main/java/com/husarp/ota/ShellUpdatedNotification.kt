@@ -40,26 +40,42 @@ object ShellUpdatedNotification {
         if (!shellUpdatedNoticeRequested(target,BuildConfig.VERSION_CODE)) return
         val strings = NativeStrings.context(context)
         post(strings, 701, strings.getString(R.string.ota_notification_installed),
-            strings.getString(R.string.ota_notification_installed_text, strings.getString(R.string.app_name), BuildConfig.VERSION_NAME))
+            strings.getString(R.string.ota_notification_installed_text, BuildConfig.VERSION_NAME))
     }
 
     fun postWorkerOffers(context: Context, updater: Updater) {
         val state = updater.info()
         val strings = NativeStrings.context(context)
         val prefs = context.getSharedPreferences("worker-update-notices", Context.MODE_PRIVATE)
-        listOf(Triple(702, "staged", "available"), Triple(703, "shellReady", "shellAvailable")).forEach { (id, readyKey, offerKey) ->
-            val ready = state.optJSONObject(readyKey)
-            val offer = ready ?: state.optJSONObject(offerKey)
-            val version = offer?.optString("version")?.takeIf { it.isNotBlank() } ?: return@forEach
-            val key = "$id:$version:${ready != null}"
-            val title = if (id == 703) {
-                if (ready != null) R.string.ota_app_update_ready else R.string.ota_app_update_available
-            } else {
-                if (ready != null) R.string.ota_update_ready else R.string.ota_update_available
-            }
-            post(strings, id, strings.getString(title),
-                strings.getString(R.string.ota_notification_open_version, strings.getString(R.string.app_name), version), prefs = prefs, key = key)
+        val paired = state.optJSONObject("combined")
+        val shellReady = state.optJSONObject("shellReady")
+        val shellOffer = shellReady ?: state.optJSONObject("shellAvailable")
+        val webReady = state.optJSONObject("staged")
+        val webOffer = webReady ?: state.optJSONObject("available")?.takeUnless { it.optBoolean("needsShell") }
+        val id = if (paired != null || shellOffer != null) 703 else 702
+        val offer = paired ?: shellOffer ?: webOffer
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.cancel(if (id == 703) 702 else 703)
+        val version = offer?.optString("version") ?: return
+        val ready = when {
+            paired != null -> paired.optString("phase") == "ready"
+            shellOffer != null -> shellReady != null
+            else -> webReady != null
         }
+        if (paired != null && paired.optString("phase") !in listOf("ready", "available")) return
+        val title = when {
+            paired != null -> if (ready) R.string.ota_combined_update_ready else R.string.ota_combined_update_available
+            shellOffer != null -> if (ready) R.string.ota_app_update_ready else R.string.ota_app_update_available
+            else -> if (ready) R.string.ota_update_ready else R.string.ota_update_available
+        }
+        val versions = when {
+            paired != null -> strings.getString(R.string.ota_combined_versions, version, paired.optString("webVersion"))
+            shellOffer != null -> strings.getString(R.string.ota_android_version, version)
+            else -> strings.getString(R.string.ota_lexling_version, version)
+        }
+        post(strings, id, strings.getString(title), strings.getString(R.string.ota_notification_open_version, versions),
+            prefs = prefs, key = "$id:$versions:${offer.optLong("versionCode")}:$ready")
+
     }
 
     private fun post(context: Context, id: Int, title: String, text: String,
