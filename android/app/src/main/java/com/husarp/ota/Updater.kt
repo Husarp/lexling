@@ -13,6 +13,14 @@ import java.util.Base64
 import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicBoolean
 
+internal const val UPDATE_SETTINGS_PREFERENCES = "ota-settings"
+private val Engine.pairedReleaseFile get() = File(root, "paired-web.json")
+
+internal fun Engine.resetWebBundle(label: String) {
+    reset(label)
+    pairedReleaseFile.delete()
+}
+
 internal data class TransferState(val done: Long, val total: Long, val speed: Long) {
     fun snapshot() = JSObject().put("done", done).put("total", total).put("speed", speed)
 }
@@ -23,7 +31,7 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         val RELEASES_URL = BuildConfig.OTA_RELEASES_URL
         val SHELL_URL = BuildConfig.OTA_SHELL_URL
     }
-    private val prefs = context.getSharedPreferences("ota-settings", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences(UPDATE_SETTINGS_PREFERENCES, Context.MODE_PRIVATE)
     private val worker = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private val busy = AtomicBoolean(false)
@@ -65,7 +73,9 @@ class Updater(private val context: Context, val engine: Engine, private val veri
     private fun selectLaunch() {
         val state = engine.snapshot()
         val deferPending = !(launching && !prepared && completingPairedLaunch) &&
-            state.pending != null && pairedOffer()?.web?.version == state.pending
+            state.pending != null && runCatching { pairedOffer()?.web?.version == state.pending }
+                .onFailure { engine.log.add("Could not read combined update for launch: ${it.message}") }
+                .getOrDefault(false)
         if (!deferPending && state.pendingShellCode == null) state.pending?.let(activation::begin)
         if (activation.current != null) changed()
         val next = engine.coldStart(deferPending = deferPending, onProgress = { progress ->
@@ -73,7 +83,7 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         }) { version ->
             if (activation.advance(version)) changed()
         }
-        val simulate = prefs.getBoolean("simulateBrokenStart", false) &&
+        val simulate = (prefs.all["simulateBrokenStart"] == true) &&
             prefs.edit().remove("simulateBrokenStart").commit()
         watchdog.launch(next.token, SystemClock.elapsedRealtime(), simulate)
         launch = next
@@ -95,18 +105,26 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         else shell.check(manual = true, metadataOnly = true)
     }
     init {
-        val installedAt = context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
         // Only a date for Settings: a full disk must not stop the app before the built-in version can start.
-        runCatching { engine.dates.record("shell", BuildConfig.VERSION_CODE.toString(), BuildConfig.SHELL_RELEASED_AT, installedAt = installedAt) }
-            .onFailure { engine.log.add("Could not record the app install date: ${it.message}") }
-        runCatching { engine.reconcileShell() }.onFailure { engine.log.add("Shell reconciliation failed: ${it.message}") } }
+        runCatching {
+            val installedAt = context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
+            engine.dates.record("shell", BuildConfig.VERSION_CODE.toString(), BuildConfig.SHELL_RELEASED_AT, installedAt = installedAt)
+        }.onFailure { engine.log.add("Could not record the app install date: ${it.message}") }
+    }
     @Volatile private var settings = readSettings()
     private fun readSettings(): UpdateSettings {
-        val migrated = migrateUpdateSettings(if(prefs.contains("automatic")) prefs.getBoolean("automatic",true) else null)
+        val saved = prefs.all
+        val defaults = migrateUpdateSettings(saved["automatic"] as? Boolean)
+        val frequency = (saved["checkFrequency"] as? String)?.let(::migrateCheckFrequency)
         return UpdateSettings(
-            prefs.getBoolean("smallFixes",migrated.smallFixes), prefs.getBoolean("majorUpdates",migrated.majorUpdates),
-            prefs.getBoolean("shellUpdates",true), prefs.getInt("wifiLimitMb",20), prefs.getInt("mobileLimitMb",5),
-            prefs.getBoolean("setupAnswered",false), migrateCheckFrequency(prefs.getString("checkFrequency", "6h")!!)).validate()
+            smallFixes = saved["smallFixes"] as? Boolean ?: defaults.smallFixes,
+            majorUpdates = saved["majorUpdates"] as? Boolean ?: defaults.majorUpdates,
+            shellUpdates = saved["shellUpdates"] as? Boolean ?: defaults.shellUpdates,
+            wifiLimitMb = (saved["wifiLimitMb"] as? Int)?.takeIf { it in listOf(5, 20, 50, 100, -1) } ?: defaults.wifiLimitMb,
+            mobileLimitMb = (saved["mobileLimitMb"] as? Int)?.takeIf { it in listOf(0, 5, 20, 50, -1) } ?: defaults.mobileLimitMb,
+            setupAnswered = saved["setupAnswered"] as? Boolean ?: defaults.setupAnswered,
+            checkFrequency = frequency?.takeIf { it in listOf("1h", "6h", "24h") } ?: defaults.checkFrequency
+        )
     }
     fun updateSettings(): UpdateSettings = settings
     fun settingsJson(): JSObject = JSObject(json.toJson(settings))
@@ -141,30 +159,41 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         return cm.getNetworkCapabilities(cm.activeNetwork)?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == true
     }
     val automatic get() = settings.smallFixes // legacy info field
+    private inline fun deliverUpdate(label: String, action: () -> Unit) {
+        try { action() }
+        catch (e: Exception) { engine.log.add("Could not deliver $label: ${e.javaClass.simpleName}: ${e.message}") }
+    }
     private fun changed() { main.post {
-        onChange?.invoke()
-        eventListeners.forEach { it("updateStateChanged", JSObject()) }
-        val m = shell.manifest()?.takeIf { shell.isReady() }
-        if (m == null) shellEventVersion = null
-        else if (shellEventVersion != m.versionCode) {
-            shellEventVersion = m.versionCode
-            event("shellUpdateReady", shell.state(m))
+        deliverUpdate("native update state") { onChange?.invoke() }
+        sendEvent("updateStateChanged", JSObject())
+        deliverUpdate("Android app update state") {
+            val m = shell.manifest()?.takeIf { shell.isReady() }
+            if (m == null) shellEventVersion = null
+            else if (shellEventVersion != m.versionCode) {
+                val state = shell.state(m)
+                shellEventVersion = m.versionCode
+                event("shellUpdateReady", state)
+            }
         }
     } }
     private fun message(text: String) { status = text; changed() }
-    private fun toast(message: Int) { main.post { onToast?.invoke(message) } }
-    private fun event(name: String, data: JSObject) { main.post { eventListeners.forEach { it(name, data) } } }
+    private fun toast(message: Int) { main.post { deliverUpdate("update notice") { onToast?.invoke(message) } } }
+    private fun sendEvent(name: String, data: JSObject) {
+        eventListeners.forEach { listener -> deliverUpdate(name) { listener(name, data) } }
+    }
+    private fun event(name: String, data: JSObject) { main.post { sendEvent(name, data) } }
     fun subscribe(listener: (String, JSObject) -> Unit) {
         eventListeners.add(listener)
         // The startup check may finish before Capacitor creates the plugin.
         // Reconstruct the current offer/staged event for late web listeners.
         main.post {
-            availableState()?.let { listener("updateAvailable",it) }
-            stagedState()?.let { listener("updateStaged",it) }
-            if (shell.isReady()) shell.manifest()?.let {
-                listener("shellUpdateReady",shell.state(it))
+            deliverUpdate("initial update state") {
+                availableState()?.let { listener("updateAvailable",it) }
+                stagedState()?.let { listener("updateStaged",it) }
+                if (shell.isReady()) shell.manifest()?.let {
+                    listener("shellUpdateReady",shell.state(it))
+                }
             }
-
         }
     }
     fun setForeground(value: Boolean) {
@@ -179,22 +208,25 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         changed()
     }
     // Only an activity initiates coldStart. Keep its UI free to draw progress (owner, 2026-11-26).
-    fun prepareLaunch(complete: () -> Unit) {
+    fun prepareLaunch(startingBuiltIn: Boolean = false, complete: () -> Unit) {
         if (prepared) { complete(); return }
         launchCallbacks.add(complete)
         if (launchCallbacks.size > 1) return
         safeToInterrupt = false
-        Thread(::prepareColdLaunch, "lexling-startup").start()
+        Thread({ prepareColdLaunch(startingBuiltIn) }, "lexling-startup").start()
     }
 
-    private fun prepareColdLaunch() {
+    private fun prepareColdLaunch(startingBuiltIn: Boolean) {
         val start = SystemClock.elapsedRealtime()
         engine.log.add("Quick apply start: launch held at most ${QUICK_APPLY_MS} ms")
+        runCatching { engine.reconcileShell() }.onFailure { engine.log.add("Shell reconciliation failed: ${it.message}") }
         val pending = engine.snapshot().pending != null
-        val check = check()
-        if (!pending) {
-            val result=awaitQuickApply(check,SystemClock.elapsedRealtime()-start,false)
-            engine.log.add("Quick apply $result; timeout/error keeps current and lets background work continue",SystemClock.elapsedRealtime()-start)
+        if (!startingBuiltIn) {
+            val check = check()
+            if (!pending) {
+                val result=awaitQuickApply(check,SystemClock.elapsedRealtime()-start,false)
+                engine.log.add("Quick apply $result; timeout/error keeps current and lets background work continue",SystemClock.elapsedRealtime()-start)
+            }
         }
         selectLaunch(); launching = false
         if(launch.notice!=null) status="Ready · Lexling ${launch.version}"
@@ -262,7 +294,7 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         val shell: ShellManifest, val web: Manifest, val release: Offer?, val payload: PairedWebUpdate
     )
     private data class SavedPair(val shellCode: Long, val envelope: String, val source: String)
-    private val pairedReleaseFile = File(engine.root, "paired-web.json")
+    private val pairedReleaseFile = engine.pairedReleaseFile
     @Volatile private var lastWebRelease: Offer? = null
     @Volatile private var checkingPair = false
     @Volatile private var downloadingPair: PairedOffer? = null
@@ -353,10 +385,11 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         }
         checkingPair = true
         lastCheckSucceeded = false
-        val task = worker.submit {
+        val task = FutureTask {
             val started = System.nanoTime()
             try {
                 engine.log.add("Check started (${if (manual) "Check now" else "background/start"})")
+                engine.reconcileShell()
                 message("Checking…")
                 if (offer == null) offer = restorePairedRelease()
                 val shellCheck = shell.check(manual = manual, metadataOnly = true)
@@ -418,6 +451,15 @@ class Updater(private val context: Context, val engine: Engine, private val veri
             }
         }
         currentCheck = task
+        try { worker.execute(task) }
+        catch (e: RejectedExecutionException) {
+            checkingPair = false
+            currentCheck = null
+            busy.set(false)
+            engine.log.add("Could not queue update check: ${e.message}")
+            message("Update processing failed. See Logs.")
+            return null
+        }
         return task
     }
 
@@ -627,8 +669,7 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         worker.execute {
             try {
                 if (reset) {
-                    engine.reset(NativeStrings.context(context).getString(R.string.ota_reset_builtin))
-                    pairedReleaseFile.delete()
+                    engine.resetWebBundle(NativeStrings.context(context).getString(R.string.ota_reset_builtin))
                     offer = null
                     lastWebRelease = null
                     setUpdateSettings(JSObject().put("setupAnswered",false))

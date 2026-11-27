@@ -35,4 +35,18 @@ class PairedUpdateTest {
         assertEquals("1.0.0", Harness(h.root).engine.coldStart().version)
         assertEquals(next.version, Engine(h.root, h.embedded, 1, h.log, shellCode = 2).coldStart().version)
     }
+
+    @Test fun apiTwoApkStartsFromLegacyOtaStateWithoutPairedFields() {
+        val old = Harness(embedded = bundle("0.73.0"))
+        old.good("0.73.2")
+        assertFalse(old.engine.stateJson().contains("pendingShellCode"))
+
+        val new = Harness(old.root, embedded = bundle("0.74.0").copy(minShellApi = 2), shell = 2)
+        val launch = new.engine.coldStart()
+
+        assertEquals("0.74.0", launch.version)
+        assertFalse(new.engine.snapshot().trial)
+        assertNull(new.engine.snapshot().pending)
+        assertTrue(new.engine.ready(launch.version, launch.token))
+    }
 }

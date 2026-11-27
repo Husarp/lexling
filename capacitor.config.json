@@ -1,11 +1,12 @@
 {
   "appId": "com.husarp.lexling",
   "appName": "Lexling",
-  "webDir": ".local/ota-baseline/0.74.0",
+  "webDir": ".local/ota-baseline/0.74.2",
   "android": {
     "backgroundColor": "#000000"
   },
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "appStartPath": "/ota-startup.html"
   }
 }

@@ -294,14 +294,23 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
         } catch(e: Exception) { installer.abandonSession(id); installing=false; prefs.edit().remove("session").remove("notifyTarget").apply(); throw e }
     }
     fun presentRequestedAndroidUi(activity: MainActivity) {
-        if (prefs.getLong("awaitingInstallTap",-1) == ready?.versionCode) return
-        if (ready?.let(mayInstall) != true || !installRequested || (!explicitInstallRequested && !automaticShellInstall(settings())) || !mayInterrupt() || !isReady()) return
-        if (!canInstallPackages() && !permissionOpened) {
-            permissionOpened = true
-            activity.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,Uri.parse("package:${context.packageName}")))
-        } else if (canInstallPackages() && confirmation != null && !prefs.getBoolean("confirmationShown",false)) {
-            installFromWeb(activity, false)
+        try {
+            val target = ready ?: return
+            if (!installRequested || !mayInterrupt() || !isReady() ||
+                (!explicitInstallRequested && !automaticShellInstall(settings())) ||
+                prefs.getLong("awaitingInstallTap", -1) == target.versionCode || !mayInstall(target)) return
+            if (!canInstallPackages()) {
+                if (!permissionOpened) openInstallSettings(activity)
+            } else if (confirmation != null && !prefs.getBoolean("confirmationShown", false)) {
+                installFromWeb(activity, false)
+            }
+        } catch (e: RuntimeException) {
+            failInstall("Could not open Android update UI: ${e.message}")
         }
+    }
+    private fun openInstallSettings(activity: MainActivity) {
+        activity.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
+        permissionOpened = true
     }
     fun installFromWeb(activity: MainActivity, userInitiated: Boolean = true): Boolean {
         if (!mayInterrupt() || !isReady() || ready?.let(mayInstall) != true) return false
@@ -314,10 +323,12 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
         prefs.edit().putBoolean("failed",false).apply()
         status = "Installing Android app ${ready?.versionName}"
         if(!canInstallPackages()) {
-            permissionOpened = true
             log("opening Android Install unknown apps settings")
-            try { activity.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,Uri.parse("package:${context.packageName}"))) }
-            catch (e: Exception) { failInstall("Could not open Android install settings: ${e.message}") }
+            try { openInstallSettings(activity) }
+            catch (e: RuntimeException) {
+                failInstall("Could not open Android install settings: ${e.message}")
+                return false
+            }
         } else confirmation?.let {
             prefs.edit().putBoolean("confirmationShown",true).apply()
             log("user confirmation: launching Android installer once")
@@ -340,7 +351,12 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
     fun returnedFromInstallSettings() {
         if (!permissionOpened) return
         permissionOpened = false
-        if (!canInstallPackages() && explicitInstallRequested) failInstall("Android install permission was not granted")
+        if (!explicitInstallRequested) return
+        try {
+            if (!canInstallPackages()) failInstall("Android install permission was not granted")
+        } catch (e: RuntimeException) {
+            failInstall("Could not check Android install permission: ${e.message}")
+        }
     }
     private fun recordInstalledIfNeeded(): Boolean {
         val target=prefs.getInt("targetCode",-1)
@@ -357,7 +373,8 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
     }
     fun installedNotes(): String? = prefs.getString("notes",null).takeIf { prefs.getInt("notesCode",-1) == BuildConfig.VERSION_CODE }
     fun packageReplaced() {
-        ShellUpdatedNotification.postIfRequested(context)
+        try { ShellUpdatedNotification.postIfRequested(context) }
+        catch (e: RuntimeException) { log("Could not post Android update notification: ${e.message}") }
         if(!recordInstalledIfNeeded()) log("package replacement observed: installed ${BuildConfig.VERSION_CODE}")
     }
     fun result(intent: Intent) {

@@ -61,6 +61,7 @@ class OtaPlugin : Plugin() {
     }
     @PluginMethod fun appReady(call: PluginCall) {
         val accepted=updater.ready(call.getString("version") ?: "",call.getString("token") ?: "", call.getBoolean("checkNotices") == true)
+        if (accepted) (context.applicationContext as OtaApplication).startupCrashGuard.ready()
         call.resolve(JSObject().put("accepted",accepted))
     }
     @PluginMethod fun claimCheckNotice(call: PluginCall) {
@@ -84,7 +85,8 @@ class OtaPlugin : Plugin() {
         call.resolve()
     }
     @PluginMethod fun getUpdateLog(call: PluginCall) {
-        call.resolve(JSObject().put("text", "${(activity as MainActivity).logEnvironment()}\n\n${updater.engine.log.read()}"))
+        val screen = activity as MainActivity
+        call.resolve(JSObject().put("text", screen.withNativeCrashReport("${screen.logEnvironment()}\n\n${updater.engine.log.read()}")))
     }
     @PluginMethod fun clearUpdateLog(call: PluginCall) { updater.engine.log.clear(); call.resolve() }
     @PluginMethod fun confirmReset(call: PluginCall) { activity.runOnUiThread { (activity as MainActivity).confirmReset() }; call.resolve() }

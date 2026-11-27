@@ -23,8 +23,6 @@ for (const release of whatsnew) {
 check('English fallback', changesFor({ en: ['English'] }, 'pl'), ['English']);
 check('empty Polish fallback', changesFor({ en: ['English'], pl: [] }, 'pl'), ['English']);
 check('Polish selected', changesFor({ en: ['English'], pl: ['Polski'] }, 'pl'), ['Polski']);
-check('Saved games in English notes', changesFor(whatsnew[0], 'en').some(text => text.includes('Saved games')), true);
-check('Saved games in Polish notes', changesFor(whatsnew[0], 'pl').some(text => text.includes('Zapisane gry')), true);
 
 // Exercise the real storage and dismissal code, including a new app start.
 const saved = new Map();

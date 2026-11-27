@@ -2,4 +2,5 @@
 <full-backup-content>
     <exclude domain="file" path="ota" />
     <exclude domain="sharedpref" path="shell-install.xml" />
+    <exclude domain="sharedpref" path="startup-crash.xml" />
 </full-backup-content>

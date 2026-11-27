@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="ota_safe_mode_title">Lexling had trouble starting</string>
+    <string name="ota_safe_mode_try_again">Try again</string>
+    <string name="ota_safe_mode_download">Download fixed version</string>
+    <string name="ota_safe_mode_copy">Copy crash report</string>
+    <string name="ota_safe_mode_no_report">No crash report is available.</string>
+    <string name="ota_safe_mode_reset_failed">Could not restore the stable version.</string>
     <string name="ota_start_failed">%1$s didn\'t start properly</string>
     <string name="ota_recovery_help">You can check for a fix here. Your saves stay.</string>
     <string name="ota_open_maintenance">Open Android app maintenance</string>

@@ -31,10 +31,12 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.getcapacitor.Bridge
 import com.getcapacitor.BridgeActivity
 import com.getcapacitor.BridgeWebChromeClient
 import com.getcapacitor.BridgeWebViewClient
 import com.getcapacitor.ProcessedRoute
+import com.getcapacitor.ServerPath
 import com.husarp.lexling.AppUpdatePlugin
 import com.husarp.lexling.BluetoothLinkPlugin
 import com.husarp.lexling.BuildConfig
@@ -47,9 +49,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class MainActivity : BridgeActivity() {
-    private val updater get() = (application as OtaApplication).updater
+    private val app get() = application as OtaApplication
+    private val updater get() = app.updater
     private val handler = Handler(Looper.getMainLooper())
-    private var started = false
+    private var safeMode = false
     private var resumed = false
     private var localizedContext: Context? = null
     private val strings: Context get() = localizedContext ?: NativeStrings.context(this).also { localizedContext = it }
@@ -62,7 +65,7 @@ class MainActivity : BridgeActivity() {
     private val bannerFlow = UpdateBannerFlow(UpdateBannerItem::step)
     private val transientBanners = linkedMapOf<String, (String) -> UpdateBannerItem>()
     private var applyingStartupFix = false
-    private lateinit var activityLaunchToken: String
+    @Volatile private var activityLaunchToken: String? = null
     private var loadingOverlay: StartupScreen? = null
     private var webCommitted = false
     private var safeArea = Insets.NONE
@@ -74,7 +77,7 @@ class MainActivity : BridgeActivity() {
     }
     private fun refreshRecovery() {
         handler.removeCallbacks(recoveryTick)
-        if (bridge == null || (updater.launching && updater.activation.current != null)) {
+        if (activityLaunchToken == null || (updater.launching && updater.activation.current != null)) {
             renderStartup()
             return
         }
@@ -101,9 +104,9 @@ class MainActivity : BridgeActivity() {
                     else strings.getString(R.string.ota_installing_version, versionLabel("web", phase.version))
                 loadingOverlay?.show(phase.version, step, phase)
             }
-            bridge == null -> loadingOverlay?.show(updater.launch.version, strings.getString(R.string.ota_loading_app))
+            activityLaunchToken == null -> loadingOverlay?.show(updater.launch.version, strings.getString(R.string.ota_loading_app))
             !updater.watchdog.showLoading && !updater.launching -> loadingOverlay?.visibility = View.GONE
-            trial -> {
+            trial || !webCommitted -> {
                 val step = strings.getString(if (webCommitted) R.string.ota_starting else R.string.ota_loading_app)
                 loadingOverlay?.show(updater.launch.version, step)
             }
@@ -200,7 +203,8 @@ class MainActivity : BridgeActivity() {
         recoveryDialog = dialog; NativeLook.show(dialog, outlined = true)
     }
     private fun startupFailed(reason: String) {
-        updater.watchdog.failed(activityLaunchToken, reason)
+        val token = activityLaunchToken ?: return
+        updater.watchdog.failed(token, reason)
         refreshRecovery()
     }
     private var logDialog: AlertDialog? = null
@@ -211,15 +215,25 @@ class MainActivity : BridgeActivity() {
         }
     }
     override fun onCreate(savedInstanceState: Bundle?) {
+        safeMode = !app.startupCrashGuard.beginLaunch()
+        if (safeMode) {
+            super.onCreate(savedInstanceState)
+            return
+        }
         ShellUpdatedNotification.enterForeground(this)
         registerPlugin(OtaPlugin::class.java)
         // Capacitor's own shouldInterceptRequest still injects its bridge into HTML.
         // Route every signed web path independently to the overlay or the APK asset.
         bridgeBuilder.setRouteProcessor { _, route ->
             val path = route.trimStart('/').ifEmpty { "index.html" }
-            val overlay = updater.engine.overlayFile(path)
+            val bundlePath = activityLaunchToken != null && path != STARTUP_PAGE && updater.engine.hasPath(path)
+            val overlay = if (bundlePath) updater.engine.overlayFile(path) else null
             ProcessedRoute().apply {
-                setPath(if (!updater.engine.hasPath(path)) "public/__missing__" else overlay?.absolutePath ?: "public/$path")
+                setPath(when {
+                    path == STARTUP_PAGE -> STARTUP_PAGE
+                    bundlePath -> overlay?.absolutePath ?: "public/$path"
+                    else -> "public/__missing__"
+                })
                 setAsset(overlay == null); setIgnoreAssetPath(true)
             }
         }
@@ -231,7 +245,29 @@ class MainActivity : BridgeActivity() {
         super.onCreate(savedInstanceState)
     }
 
+    override fun setContentView(layoutResID: Int) {
+        if (safeMode) {
+            // BridgeActivity sets its WebView layout before calling load().
+            super.setContentView(StartupSafeModeScreen(this, app, ::retryStartup))
+        } else {
+            super.setContentView(layoutResID)
+        }
+    }
+
+    private fun retryStartup(builtIn: Boolean) {
+        if (isFinishing || isDestroyed) return
+        app.startingBuiltIn = builtIn
+        app.startupCrashGuard.beginLaunch(retry = true)
+        recreate()
+    }
+
     override fun load() {
+        if (safeMode) return
+        // Bridge and Chrome client register Activity Result launchers during onCreate.
+        // Queue the initial navigation so Capacitor has installed the route processor first.
+        bridgeBuilder.setServerPath(ServerPath(ServerPath.PathType.ASSET_PATH, Bridge.DEFAULT_WEB_ASSET_DIR))
+        super.load()
+        configureWebView()
         val webFrame = findViewById<FrameLayout>(android.R.id.content)
         updateBanner = NativeUpdateBanner(webFrame, ::dismissUpdateBanner)
         loadingOverlay = StartupScreen(this).also {
@@ -243,7 +279,7 @@ class MainActivity : BridgeActivity() {
             if (!isFinishing && !isDestroyed) {
                 refreshRecovery()
                 refreshDebugSettings?.invoke()
-                if (resumed && bridge != null) updater.shell.presentRequestedAndroidUi(this)
+                if (resumed && activityLaunchToken != null) updater.shell.presentRequestedAndroidUi(this)
                 showNativeMessages()
             }
         }
@@ -255,14 +291,12 @@ class MainActivity : BridgeActivity() {
                 showNativeMessages()
             }
         }
-        updater.prepareLaunch {
+        updater.prepareLaunch(app.startingBuiltIn) {
             if (!isFinishing && !isDestroyed) loadPreparedBundle()
         }
     }
 
-    private fun loadPreparedBundle() {
-        activityLaunchToken = updater.launch.token
-        super.load()
+    private fun configureWebView() {
         val web = bridge.webView
         // Local text notices have no response charset in Capacitor.
         web.settings.defaultTextEncodingName = "UTF-8"
@@ -272,7 +306,6 @@ class MainActivity : BridgeActivity() {
             web.settings.loadWithOverviewMode = true
         }
         setupEdgeToEdge(web)
-        configureSystemBars()
         // Keep Capacitor routing and browser features while catching failures independently of bundle JS.
         web.webChromeClient = object : BridgeWebChromeClient(bridge) {
             override fun onConsoleMessage(message: ConsoleMessage): Boolean {
@@ -286,12 +319,17 @@ class MainActivity : BridgeActivity() {
         bridge.setWebViewClient(object : BridgeWebViewClient(bridge) {
             override fun onPageCommitVisible(view: WebView, url: String) {
                 super.onPageCommitVisible(view, url)
+                if (activityLaunchToken == null || url == bridge.appUrl) return
+                if (!webCommitted) view.clearHistory()
                 webCommitted = true
                 refreshRecovery()
                 injectSafeArea(view)
             }
-            private fun required(request: WebResourceRequest) = request.isForMainFrame ||
-                (request.url.host == "localhost" && updater.engine.hasPath(request.url.path.orEmpty().trimStart('/')))
+            private fun required(request: WebResourceRequest): Boolean {
+                if (activityLaunchToken == null || request.url.toString() == bridge.appUrl) return false
+                return request.isForMainFrame ||
+                    (request.url.host == "localhost" && updater.engine.hasPath(request.url.path.orEmpty().trimStart('/')))
+            }
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 if (required(request)) startupFailed("load-error")
                 super.onReceivedError(view,request,error)
@@ -304,14 +342,15 @@ class MainActivity : BridgeActivity() {
         registerReceiver(screenReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_USER_PRESENT)
         })
-        // Capacitor skips these callbacks while its bridge is still being prepared.
-        if (started) bridge.onStart()
-        if (resumed) {
-            bridge.app.fireStatusChange(true)
-            bridge.onResume()
-            resumeUpdateUi()
-        } else {
-            refreshRecovery()
+    }
+    private fun loadPreparedBundle() {
+        val web = bridge.webView
+        web.post {
+            if (isFinishing || isDestroyed) return@post
+            activityLaunchToken = updater.launch.token
+            app.bundleSelected()
+            web.loadUrl("${bridge.localUrl}/")
+            if (resumed) resumeUpdateUi() else refreshRecovery()
         }
     }
     private fun setupEdgeToEdge(web: WebView) {
@@ -365,6 +404,7 @@ class MainActivity : BridgeActivity() {
     }
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        if (safeMode) return
         localizedContext = null
         refreshRecovery()
         showNativeMessages()
@@ -372,7 +412,7 @@ class MainActivity : BridgeActivity() {
     }
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) configureSystemBars()
+        if (hasFocus && !safeMode) configureSystemBars()
     }
     private fun lightStatusBars() = loadingOverlay?.visibility != View.VISIBLE && NativeLook.light(this)
 
@@ -385,14 +425,15 @@ class MainActivity : BridgeActivity() {
     }
     override fun onStart() {
         super.onStart()
-        started = true
+        if (safeMode) return
         ShellUpdatedNotification.enterForeground(this)
         updater.setForeground(true)
     }
     override fun onResume() {
         super.onResume()
+        if (safeMode) return
         resumed = true
-        if (bridge != null) resumeUpdateUi() else renderStartup()
+        if (activityLaunchToken != null) resumeUpdateUi() else renderStartup()
     }
     private fun resumeUpdateUi() {
         refreshRecovery(); showNativeMessages()
@@ -401,11 +442,16 @@ class MainActivity : BridgeActivity() {
         updater.shell.presentRequestedAndroidUi(this)
     }
     override fun onPause() {
-        resumed = false; refreshRecovery()
+        if (!safeMode) {
+            resumed = false; refreshRecovery()
+        }
         super.onPause()
     }
     override fun onStop() {
-        started = false
+        if (safeMode) {
+            super.onStop()
+            return
+        }
         if (bridge == null) activityDepth = 0
         updater.setForeground(false)
         ShellUpdatedNotification.leaveForeground()
@@ -687,12 +733,22 @@ class MainActivity : BridgeActivity() {
         val maintenance = maintenanceBanner
         val banner = maintenance ?: updateBanner ?: return
         if (loadingOverlay?.visibility == View.VISIBLE && maintenance == null) return
-        if (maintenance != null) updateBanner?.clear()
+        try {
+            renderNativeMessages(banner, maintenance != null)
+        } catch (e: Exception) {
+            banner.clear()
+            activeBannerKey = null
+            bannerFlow.clear()
+            updater.engine.log.add("Could not show native update notice: ${e.javaClass.simpleName}: ${e.message}")
+        }
+    }
+    private fun renderNativeMessages(banner: NativeUpdateBanner, maintenance: Boolean) {
+        if (maintenance) updateBanner?.clear()
         val webNotices = updater.webCheckNotices()
-        if (!UpdateBannerFlow.nativeOwns(webNotices, maintenance != null)) {
+        if (!UpdateBannerFlow.nativeOwns(webNotices, maintenance)) {
             banner.clear(); activeBannerKey = null; bannerFlow.clear(); return
         }
-        if (!resumed || isFinishing || isDestroyed || logDialog != null || (maintenance == null && recoveryDialog != null)) {
+        if (!resumed || isFinishing || isDestroyed || logDialog != null || (!maintenance && recoveryDialog != null)) {
             banner.clear(); return
         }
         updater.checks.claim()?.let { notice ->
@@ -713,7 +769,7 @@ class MainActivity : BridgeActivity() {
                 strings.getString(reason, from), strings.getString(R.string.ota_details), ::showLogs, symbol = "↶"))
         }
         val combined = state.optJSONObject("combined")
-        if (combined != null) items.add(combinedBanner(combined, locale))
+        combined?.let { combinedBanner(it, locale) }?.let(items::add)
         if (combined == null) {
             for ((channel, version, transfer) in listOf(
                 Triple("web", state.optString("webDownloadVersion"), state.optJSONObject("webTransfer")),
@@ -775,7 +831,7 @@ class MainActivity : BridgeActivity() {
         activeBannerKey = next?.key
         val bandInset = maxOf(safeArea.top, systemTop)
         val bandHeight = if (bandInset > 0) bandInset + 14.dp else 0
-        if (maintenance == null) banner.render(next, bandHeight + 8.dp, safeArea.left, safeArea.right)
+        if (!maintenance) banner.render(next, bandHeight + 8.dp, safeArea.left, safeArea.right)
         else banner.render(next, 0, 0, 0)
     }
     private fun versionLabel(channel: String, version: String) =
@@ -792,10 +848,11 @@ class MainActivity : BridgeActivity() {
         else updater.downloadCombined(update.optLong("versionCode"), update.optString("webVersion"))
     }
 
-    private fun combinedBanner(update: org.json.JSONObject, locale: java.util.Locale): UpdateBannerItem {
+    private fun combinedBanner(update: org.json.JSONObject, locale: java.util.Locale): UpdateBannerItem? {
         val target = "combined:${update.optLong("versionCode")}:${update.optString("webVersion")}"
         val versions = combinedVersions(update)
-        val phase = UpdateBannerPhase.valueOf(update.optString("phase").uppercase(java.util.Locale.ROOT))
+        val phase = UpdateBannerPhase.entries.firstOrNull { it.name.equals(update.optString("phase"), ignoreCase = true) }
+            ?: return null
         val progress = update.optJSONObject("transfer")
         val done = progress?.optLong("done") ?: 0
         val total = progress?.optLong("total") ?: 0
@@ -835,7 +892,11 @@ class MainActivity : BridgeActivity() {
         val version = webView?.let { "${it.packageName} ${it.versionName}" } ?: "unknown"
         return "WebView: $version\nAndroid: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})\nDevice: ${Build.MANUFACTURER} ${Build.MODEL}"
     }
-    private fun logsText() = "${logEnvironment()}\nUpdate address: ${Updater.DEFAULT_URL}\n${strings.getString(R.string.ota_versions, updater.launch.version, BuildConfig.VERSION_NAME)} / API ${BuildConfig.SHELL_API}\n${updater.status} · ${updater.shell.status}\n\n${updater.checks.summary()}\n${updater.checks.snapshot()}\n\nstate.json\n${updater.engine.stateJson()}\n\nNewest first (last 500 lines)\n${updater.engine.log.read()}"
+    internal fun withNativeCrashReport(log: String): String {
+        val report = app.startupCrashGuard.reportText()
+        return if (report.isEmpty()) log else "$report\n\n$log"
+    }
+    private fun logsText() = withNativeCrashReport("${logEnvironment()}\nUpdate address: ${Updater.DEFAULT_URL}\n${strings.getString(R.string.ota_versions, updater.launch.version, BuildConfig.VERSION_NAME)} / API ${BuildConfig.SHELL_API}\n${updater.status} · ${updater.shell.status}\n\n${updater.checks.summary()}\n${updater.checks.snapshot()}\n\nstate.json\n${updater.engine.stateJson()}\n\nNewest first (last 500 lines)\n${updater.engine.log.read()}")
     private fun renderLogs() { logText?.text = logsText() }
     @Suppress("DEPRECATION")
     private fun showLogoToast(message: Int, duration: Int) {
@@ -902,11 +963,19 @@ class MainActivity : BridgeActivity() {
         NativeLook.show(dialog, outlined = true)
     }
     override fun onDestroy() {
+        if (safeMode) {
+            super.onDestroy()
+            return
+        }
         handler.removeCallbacks(recoveryTick); recoveryDialog?.dismiss(); updateBanner?.clear()
         debugDialog?.setOnDismissListener(null); debugDialog?.dismiss(); refreshDebugSettings = null
         if (bridge != null) unregisterReceiver(screenReceiver)
         handler.removeCallbacks(refreshLogs); logDialog?.setOnDismissListener(null); logDialog?.dismiss()
         updater.onChange = null; updater.onToast = null
         super.onDestroy()
+    }
+
+    private companion object {
+        const val STARTUP_PAGE = "ota-startup.html"
     }
 }

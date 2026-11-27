@@ -68,6 +68,9 @@ android {
     buildFeatures {
         buildConfig true
     }
+    testOptions {
+        unitTests.includeAndroidResources = true
+    }
     signingConfigs {
         if (releaseSigning) release {
             storeFile releaseSigning.file
@@ -123,6 +126,7 @@ dependencies {
     // Tiles on several phones through Google's Nearby Connections (Google Play services on the phone)
     implementation "com.google.android.gms:play-services-nearby:19.5.0"
     testImplementation "junit:junit:$junitVersion"
+    testImplementation 'org.robolectric:robolectric:4.16'
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')

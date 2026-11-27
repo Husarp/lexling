@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="ota_safe_mode_title">Lexling miał problem z uruchomieniem</string>
+    <string name="ota_safe_mode_try_again">Spróbuj ponownie</string>
+    <string name="ota_safe_mode_download">Pobierz poprawioną wersję</string>
+    <string name="ota_safe_mode_copy">Kopiuj raport o awarii</string>
+    <string name="ota_safe_mode_no_report">Brak raportu o awarii.</string>
+    <string name="ota_safe_mode_reset_failed">Nie udało się przywrócić stabilnej wersji.</string>
     <string name="ota_start_failed">%1$s nie uruchomił się poprawnie</string>
     <string name="ota_recovery_help">Tutaj możesz sprawdzić, czy jest dostępna poprawka. Twoje zapisy zostaną zachowane.</string>
     <string name="ota_open_maintenance">Otwórz narzędzia aplikacji Android</string>

@@ -200,7 +200,7 @@ try {
     const generated = JSON.parse(fs.readFileSync(path.join(fixture, 'capacitor.config.json')));
     assert.deepEqual(generated, {
       appId: c.appId, appName: 'Lexling', webDir: '.local/android-web',
-      android: { backgroundColor: '#000000' }, server: { androidScheme: 'https' },
+      android: { backgroundColor: '#000000' }, server: { androidScheme: 'https', appStartPath: '/ota-startup.html' },
     });
   });
   check('prepare embeds English notes and Lexling release timestamp', () => {

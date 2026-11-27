@@ -50,7 +50,7 @@ const webDir = path.relative(root, source).split(path.sep).join('/');
 fs.writeFileSync(path.join(root, 'capacitor.config.json'), JSON.stringify({
   appId: config.appId, appName: config.appName, webDir,
   android: { backgroundColor: '#000000' },
-  server: { androidScheme: 'https' },
+  server: { androidScheme: 'https', appStartPath: '/ota-startup.html' },
 }, null, 2) + '\n');
 const cap = spawnSync(process.execPath, [path.join(root, 'node_modules/@capacitor/cli/bin/capacitor'), 'sync', 'android'], { cwd: root, stdio: 'inherit' });
 if (cap.error || cap.status !== 0) throw cap.error || new Error('Capacitor sync failed');

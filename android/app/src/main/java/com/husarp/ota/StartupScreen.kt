@@ -2,6 +2,7 @@ package com.husarp.ota
 
 import android.content.Context
 import android.content.res.ColorStateList
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
@@ -12,6 +13,7 @@ import android.graphics.Shader
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
+import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -30,13 +32,14 @@ import kotlin.random.Random
 internal class StartupScreen(context: Context) : FrameLayout(context) {
     private val Int.dp get() = (this * resources.displayMetrics.density).roundToInt()
     private val scattered = Random.nextBoolean()
-    private val art by lazy {
-        BitmapFactory.decodeResource(resources, if (scattered) R.drawable.startup_scattered else R.drawable.startup_single)
-    }
+    private var art: Bitmap? = null
+    private var triedArtwork = false
     private val artBounds = RectF()
     private val artPaint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val fade = Paint()
     private var bottomInset = 0
+    private val wordmark = startupAsset("wordmark font") { resources.getFont(R.font.lexling_wordmark) }
+    private val progressSkin = startupAsset("progress drawable") { context.getDrawable(R.drawable.startup_progress) }
 
     private val brand = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
@@ -54,7 +57,7 @@ internal class StartupScreen(context: Context) : FrameLayout(context) {
             setSpan(ForegroundColorSpan(NativeLook.accent), 3, 4, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
         setTextColor(Color.WHITE)
-        typeface = resources.getFont(R.font.lexling_wordmark)
+        wordmark?.let { typeface = it }
         letterSpacing = -.025f
         includeFontPadding = false
         gravity = Gravity.CENTER
@@ -65,7 +68,7 @@ internal class StartupScreen(context: Context) : FrameLayout(context) {
         progressTintList = null
         progressBackgroundTintList = null
         indeterminateTintList = ColorStateList.valueOf(NativeLook.accent)
-        progressDrawable = context.getDrawable(R.drawable.startup_progress)
+        progressSkin?.let { progressDrawable = it }
     }
 
     init {
@@ -92,13 +95,24 @@ internal class StartupScreen(context: Context) : FrameLayout(context) {
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
         val height = MeasureSpec.getSize(heightMeasureSpec)
+        if (!triedArtwork && width > 0 && height > 0) {
+            triedArtwork = true
+            if (wordmark != null && progressSkin != null) {
+                art = startupAsset("artwork") {
+                    BitmapFactory.decodeResource(resources, if (scattered) R.drawable.startup_scattered else R.drawable.startup_single)
+                }
+            }
+        }
         val safeWidth = (width - paddingLeft - paddingRight).coerceAtLeast(1)
         val brandWidth = minOf(safeWidth, height).coerceAtLeast(1)
         val titleSize = (brandWidth * .16f).coerceIn(46.dp.toFloat(), 74.dp.toFloat())
         if (name.textSize != titleSize) name.setTextSize(TypedValue.COMPLEX_UNIT_PX, titleSize)
+        val plain = art == null
+        if (plain) status.visibility = VISIBLE
         (brand.layoutParams as LayoutParams).apply {
             this.width = brandWidth
-            bottomMargin = maxOf((height * .08f).roundToInt(), bottomInset + 8.dp)
+            this.gravity = if (plain) Gravity.CENTER else Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            bottomMargin = if (plain) 0 else maxOf((height * .08f).roundToInt(), bottomInset + 8.dp)
         }
         bar.layoutParams.width = (brandWidth * .36f).roundToInt().coerceAtLeast(1)
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
@@ -106,35 +120,61 @@ internal class StartupScreen(context: Context) : FrameLayout(context) {
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
+        val bitmap = art ?: return
         if (w == 0 || h == 0) return
         // Scattered spans the portrait screen from the top. L Tile uses a centered cover crop.
-        val scale = if (scattered) minOf(w.toFloat(), h * .65f) / art.width
-            else maxOf(w.toFloat() / art.width, h.toFloat() / art.height)
-        val artWidth = art.width * scale
-        val artHeight = art.height * scale
+        val scale = if (scattered) minOf(w.toFloat(), h * .65f) / bitmap.width
+            else maxOf(w.toFloat() / bitmap.width, h.toFloat() / bitmap.height)
+        val artWidth = bitmap.width * scale
+        val artHeight = bitmap.height * scale
         val left = (w - artWidth) / 2
         val top = if (scattered) 0f else (h - artHeight) / 2
         artBounds.set(left, top, left + artWidth, top + artHeight)
-        fade.shader = if (scattered) {
-            LinearGradient(0f, h * .55f, 0f, h * .82f, Color.TRANSPARENT, Color.BLACK, Shader.TileMode.CLAMP)
-        } else {
-            LinearGradient(0f, 0f, 0f, h.toFloat(),
-                intArrayOf(Color.TRANSPARENT, 0x5C000000, 0xDB000000.toInt()),
-                floatArrayOf(.55f, .78f, 1f), Shader.TileMode.CLAMP)
+        val shader = startupAsset("artwork fade") {
+            if (scattered) {
+                LinearGradient(0f, h * .55f, 0f, h * .82f, Color.TRANSPARENT, Color.BLACK, Shader.TileMode.CLAMP)
+            } else {
+                LinearGradient(0f, 0f, 0f, h.toFloat(),
+                    intArrayOf(Color.TRANSPARENT, 0x5C000000, 0xDB000000.toInt()),
+                    floatArrayOf(.55f, .78f, 1f), Shader.TileMode.CLAMP)
+            }
         }
+        if (shader == null) usePlainScreen() else fade.shader = shader
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        canvas.drawBitmap(art, null, artBounds, artPaint)
-        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), fade)
+        val bitmap = art ?: return
+        val drawn = startupAsset("artwork draw") {
+            canvas.drawBitmap(bitmap, null, artBounds, artPaint)
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), fade)
+        }
+        if (drawn == null) usePlainScreen()
+    }
+
+    private fun usePlainScreen() {
+        art = null
+        fade.shader = null
+        requestLayout()
+        invalidate()
+    }
+
+    private inline fun <T> startupAsset(name: String, load: () -> T?): T? {
+        try {
+            return load().also { if (it == null) Log.w("LexlingStartup", "Startup $name is unavailable") }
+        } catch (e: RuntimeException) {
+            Log.w("LexlingStartup", "Could not load startup $name", e)
+        } catch (e: OutOfMemoryError) {
+            Log.w("LexlingStartup", "Insufficient memory for startup $name", e)
+        }
+        return null
     }
 
     fun show(version: String, step: String, work: UpdateActivation.Progress? = null) {
         val appName = context.getString(R.string.app_name)
         name.contentDescription = if (work == null) "$appName. $step" else appName
-        status.visibility = if (work == null) GONE else VISIBLE
-        if (work != null && status.text != step) status.text = step
+        status.visibility = if (work != null || (triedArtwork && art == null)) VISIBLE else GONE
+        if (status.text != step) status.text = step
         bar.contentDescription = version
         bar.importantForAccessibility = if (work == null) IMPORTANT_FOR_ACCESSIBILITY_NO else IMPORTANT_FOR_ACCESSIBILITY_AUTO
         val total = work?.total ?: 0

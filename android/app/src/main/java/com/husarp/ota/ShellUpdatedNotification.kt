@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import com.husarp.ota.core.shellUpdatedNoticeRequested
 import com.husarp.ota.core.UpdateNotificationGate
 import com.husarp.lexling.BuildConfig
@@ -25,8 +26,12 @@ object ShellUpdatedNotification {
     fun leaveForeground() = gate.leave()
 
     fun cancel(context: Context) = synchronized(gate) {
-        val manager = context.getSystemService(NotificationManager::class.java)
-        ids.forEach { manager.cancel(it) }
+        try {
+            val manager = context.getSystemService(NotificationManager::class.java) ?: return@synchronized
+            ids.forEach { manager.cancel(it) }
+        } catch (e: RuntimeException) {
+            Log.w("LexlingUpdates", "Could not clear update notifications", e)
+        }
     }
 
     fun enabled(context: Context) = context.getSharedPreferences("ota-settings", Context.MODE_PRIVATE)
