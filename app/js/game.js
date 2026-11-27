@@ -232,6 +232,23 @@ export async function gameScreen(root, id, archived = false) {
     if (!all.length) {
       const ex = FORM_EXAMPLE[game.lang];
       board.innerHTML = playing() ? `<div class="card empty">
+      <svg class="empty-ranks" viewBox="0 0 144 60" width="144" height="60" aria-hidden="true">
+        <g style="fill:var(--surface-2)">
+          <rect x="10" y="4" width="124" height="14" rx="4"/>
+          <rect x="10" y="23" width="124" height="14" rx="4"/>
+        </g>
+        <rect x="10" y="4" width="35" height="14" rx="4" fill="#c93a30"/>
+        <rect x="10" y="23" width="76" height="14" rx="4" fill="#b99227"/>
+        <rect x="10" y="42" width="124" height="14" rx="4" fill="#218841"/>
+        <g fill="#fff" font-size="8">
+          <text x="16" y="14">${game.lang === 'pl' ? 'SŁOWO' : 'WORD'}</text>
+          <text x="16" y="33">${game.lang === 'pl' ? 'LITERA' : 'LETTER'}</text>
+          <text x="16" y="52">${game.lang === 'pl' ? 'WYRAZ' : 'TERM'}</text>
+          <text x="109" y="14" style="fill:var(--text)">642</text>
+          <text x="115" y="33" style="fill:var(--text)">42</text>
+          <text x="122" y="52">1</text>
+        </g>
+      </svg>
       <h2>${t('game.emptyTitle')}</h2>
       <p class="help">${t('game.emptyText')}</p>
       <div class="legend"><span>${t('game.far')}</span><div class="ramp"></div><span>${t('game.close')}</span></div>
@@ -269,5 +286,5 @@ export async function gameScreen(root, id, archived = false) {
   paintStatus();
   paintEntry();
   paintBoard();
-  if (!archived) return playClock(root, game, () => board.isConnected);
+  if (!archived) return playClock(root.firstElementChild, game);
 }

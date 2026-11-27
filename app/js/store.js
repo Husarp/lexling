@@ -38,6 +38,7 @@ export const settings = {
   tilesBoardStyle: 'classic', tilesCb: false, tilesLast: true, tilesFrame: 'graphite',
   // Tiles: after each of your moves, how good it was - its points against the best move there was (owner, 2026-09-26)
   tilesRate: true,
+  tilesReactions: true,
   // Under a move: rating, base-word rarity or both; adjustable rarity colour limits (owner, 2026-11-14).
   tilesUnder: 'rating', tilesRareTiers: [1, 5, 20],
   // Tiles: the tiles on the board raised, like real ones - easier to see (owner, 2026-09-26)
@@ -55,7 +56,7 @@ export const settings = {
   // Your name is set once in Settings and used when joining online Tiles (owner, 2026-11-14).
   myName: '',
   // Settings → Check for updates: on opening and on coming back (APP-STANDARDS.md: on by default)
-  updateCheck: true, seenVersion: null,
+  updateCheck: true, waitForUpdates: true, seenVersion: null,
   // Settings → Time (owner, 2026-09-28): the current time on screen; a reminder of the time played, every remindMin minutes
   showClock: false, playRemind: false, remindMin: 90,
   ...savedSettings,
@@ -203,9 +204,12 @@ for (const g of saves) {
 saves = saves.filter(g => g.link?.role !== 'guest');
 const persistSaves = () => write('wg.saves', saves);
 
-// Keep a bounded reserve so starring a result can reveal the next unstarred one.
+// Keep a bounded reserve, including space for the latest results of each mode.
 const FINISHED_RESERVE = 20;
 const FINISHED_LIMIT = 5;
+const RECENT_PER_MODE = 3;
+const resultMode = game => game.mode || 'guess';
+const newestResultFirst = (a, b) => b.endedAt - a.endedAt || (b.auto || 0) - (a.auto || 0);
 let finished = [];
 try {
   const stored = JSON.parse(localStorage.getItem('wg.finished'));
@@ -224,19 +228,38 @@ export function listKept() {
 function recentUnstarred(keptIds, limit = FINISHED_LIMIT) {
   return finished.filter(g => !keptIds.has(g.id)).slice(0, limit);
 }
-export function listSavedResults() {
-  const kept = listKept(), keptIds = new Set(kept.map(g => g.id));
-  return [...kept.map(game => ({ game, kept: true })),
-    ...recentUnstarred(keptIds).map(game => ({ game, kept: false }))];
+export function listRecentFinished(mode, kept = listKept()) {
+  const recent = finished.filter(g => resultMode(g) === mode);
+  const ids = new Set(recent.map(g => g.id));
+  const archived = kept.filter(g => resultMode(g) === mode && !ids.has(g.id));
+  return [...recent, ...archived].sort(newestResultFirst).slice(0, RECENT_PER_MODE);
 }
 function persistFinished(kept) {
   const keepIds = new Set(kept.map(g => g.id));
-  const recentIds = new Set([...listFinished(), ...recentUnstarred(keepIds, FINISHED_RESERVE)].map(g => g.id));
+  const recentIds = new Set(listFinished().map(g => g.id));
+  const modeCounts = {};
+  for (const game of [...finished].sort(newestResultFirst)) {
+    const mode = resultMode(game);
+    if ((modeCounts[mode] || 0) >= RECENT_PER_MODE) continue;
+    modeCounts[mode] = (modeCounts[mode] || 0) + 1;
+    recentIds.add(game.id);
+  }
+  for (const game of recentUnstarred(keepIds, FINISHED_RESERVE)) {
+    if (recentIds.size >= FINISHED_RESERVE + FINISHED_LIMIT) break;
+    recentIds.add(game.id);
+  }
   finished = finished.filter(g => recentIds.has(g.id));
   write('wg.finished', finished);
 }
 export const isKept = id => listKept().some(g => g.id === id);
-export const getFinished = id => listSavedResults().find(({ game }) => game.id === id)?.game;
+export function getFinished(id) {
+  const kept = listKept();
+  const saved = kept.find(g => g.id === id);
+  if (saved) return saved;
+  const recent = finished.find(g => g.id === id);
+  if (recent && listRecentFinished(resultMode(recent), kept).some(g => g.id === id)) return recent;
+  return recentUnstarred(new Set(kept.map(g => g.id))).find(g => g.id === id);
+}
 export function deleteFinished(id) {
   const recent = finished.filter(g => g.id !== id);
   const kept = listKept();
@@ -281,7 +304,7 @@ function resultSnapshot(game) {
 export function toggleKept(game) {
   const kept = listKept();
   const on = !kept.some(g => g.id === game.id);
-  const next = on ? [...kept, resultSnapshot(game)].sort((a, b) => b.endedAt - a.endedAt || (b.auto ?? 0) - (a.auto ?? 0))
+  const next = on ? [...kept, resultSnapshot(game)].sort(newestResultFirst)
     : kept.filter(g => g.id !== game.id);
   try {
     localStorage.setItem(keptKey, JSON.stringify(next));
@@ -436,23 +459,33 @@ export function recordConnectEnd(game, fields) {
   deleteSave(game.id);
 }
 
-// Time in game counts only while the player is actually playing: the game's screen open, the window
-// visible, and something typed within the last IDLE_MS. A game left open on the desk adds nothing.
-// Returns the screen's cleanup.
+// One live game screen at a time, with input in the last minute (Tiles: 3 minutes, since watching the
+// others' turns is part of playing it - owner, 2026-11-27).
 const IDLE_MS = 60000;
-export function playClock(root, game, onScreen) {
+let stopPlayClock;
+export function playClock(screen, game, canPlay = () => true, idleMs = IDLE_MS) {
+  if (stopPlayClock) stopPlayClock();
+  const onScreen = () => screen.isConnected && location.hash === '#/game/' + game.id;
   const playing = () => game.status === 'playing';
-  let ticks = 0, lastActive = Date.now();
-  const touch = () => { lastActive = Date.now(); };
-  root.addEventListener('keydown', touch);
-  root.addEventListener('pointerdown', touch);
+  const canCount = () => document.visibilityState === 'visible'
+    && !document.querySelector('dialog[open]') && canPlay();
+  let ticks = 0, lastActive = null;
+  const touch = () => { if (onScreen() && playing() && canCount()) lastActive = Date.now(); };
+  // Letters, Connect and Tiles also handle keys when focus is on the page itself.
+  const key = ({ target }) => {
+    if (target === document || target === document.body || target === document.documentElement
+      || (target.nodeType && screen.contains(target))) touch();
+  };
+  window.addEventListener('keydown', key, true);
+  screen.addEventListener('pointerdown', touch, true);
+  screen.addEventListener('input', touch, true);
   const persist = () => {
-    if (playing()) putSave(game);
+    if (playing() && getSave(game.id) === game) putSave(game);
     saveStats();
   };
   const timer = setInterval(() => {
-    if (!onScreen()) return clearInterval(timer);   // this screen has been replaced
-    if (!playing() || document.visibilityState !== 'visible' || Date.now() - lastActive > IDLE_MS) return;
+    if (!onScreen() || !playing()) return stop();
+    if (lastActive === null || Date.now() - lastActive > idleMs || !canCount()) return;
     game.timeMs += 1000;
     stats.timeMs += 1000;
     const r = stats.rec[game.id];
@@ -460,13 +493,18 @@ export function playClock(root, game, onScreen) {
     if (++ticks % 10 === 0) persist();
   }, 1000);
   window.addEventListener('pagehide', persist);
-  return () => {
+  const stop = () => {
+    if (stopPlayClock !== stop) return;
+    stopPlayClock = null;
     clearInterval(timer);
     window.removeEventListener('pagehide', persist);
-    root.removeEventListener('keydown', touch);      // `root` outlives the screen, so these must go
-    root.removeEventListener('pointerdown', touch);
+    window.removeEventListener('keydown', key, true);
+    screen.removeEventListener('pointerdown', touch, true);
+    screen.removeEventListener('input', touch, true);
     persist();
   };
+  stopPlayClock = stop;
+  return stop;
 }
 
 // Historical totals with the same meaning remain included. Untagged old totals can only be

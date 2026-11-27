@@ -105,8 +105,13 @@ try {
 
   const manifest = { version, files };
   const signed = path.join(temp, 'signed.json');
+  const beforeSigning = Date.now();
   writeSignedManifest(signed, manifest, privateKey);
-  check('reads signed manifest', () => assert.deepEqual(readSignedManifest(signed, c, fixture), manifest));
+  check('reads the publication timestamp inside the signed payload', () => {
+    const { publishedAt, ...metadata } = readSignedManifest(signed, c, fixture);
+    assert.deepEqual(metadata, manifest);
+    assert.ok(Number.isSafeInteger(publishedAt) && publishedAt >= beforeSigning && publishedAt <= Date.now());
+  });
   check('rejects a bad signature', () => {
     const envelope = JSON.parse(fs.readFileSync(signed));
     const signature = Buffer.from(envelope.signature, 'base64');
@@ -249,6 +254,7 @@ try {
     assert.equal(bundle.message, notes);
     assert.equal(bundle.kind, 'fix');
     assert.equal(bundle.minShellApi, 2);
+    assert.ok(Number.isSafeInteger(bundle.publishedAt) && bundle.publishedAt >= bundle.releasedAt);
     assert.deepEqual(bundle.blocked, ['0.72.9']);
     const main = bundle.files.find(file => file.path === 'js/main.js');
     assert.deepEqual(fs.readdirSync(bundlePath).sort(), [c.artifacts.manifest, main.asset].sort());

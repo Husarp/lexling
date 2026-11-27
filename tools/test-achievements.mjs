@@ -191,14 +191,19 @@ for(const key of Object.keys(stats.ach.got)) delete stats.ach.got[key];
 stats.ach.n['letters.finished']=5;stats.ach.got['letters.finished#0']=now;
 stats.ach.got['tiles.bingo']=now;stats.ach.got['tiles.points#0']=now-1;
 // Render the actual screen and run the global notice listener against a tiny DOM stand-in.
-const listeners = new Map(), notices = [], timers = [];
-globalThis.window = { addEventListener() {} };
+const listeners = new Map(), notices = [], timers = [], windowListeners = new Map();
+globalThis.window = { location: { hash: '#/' }, addEventListener(type, fn) { windowListeners.set(type, fn); } };
 globalThis.matchMedia = () => ({ matches: false, addEventListener() {} });
 Object.defineProperty(globalThis, 'document', { configurable: true, writable: true, value: {
   documentElement: {},
   addEventListener(type, fn) { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
+  dispatchEvent(event) { for (const fn of listeners.get(event.type) ?? []) fn(event); },
   createRange() { return {}; },
-  createElement() { return { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, remove() { notices.splice(notices.indexOf(this), 1); } }; },
+  createElement() {
+    const buttons = { '[data-see]': { hidden: false, addEventListener() {} }, '[data-close]': { addEventListener() {} } };
+    return { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, remove() { notices.splice(notices.indexOf(this), 1); },
+      querySelector(selector) { return this.innerHTML.includes(selector.slice(1, -1)) ? buttons[selector] : null; } };
+  },
   body: { append(node) { notices.push(node); } },
 } });
 const realTimeout = globalThis.setTimeout;
@@ -272,7 +277,27 @@ timers.shift().fn();
 check('later notice preserves queue order', notices[0].innerHTML.includes(t('ach.tiles.len10')), true);
 timers.shift().fn();
 check('notice queue clears completely', [notices.length, timers.length], [0, 0]);
-check('notice has detail and dismiss actions', notices.length === 0 && read('app/js/ui.js').includes('data-see') && read('app/js/ui.js').includes('data-close'), true);
+announce(['guess.finished#0']);
+check('local notice offers detail and dismissal', [notices[0].querySelector('[data-see]').hidden, !!notices[0].querySelector('[data-close]')], [false, true]);
+timers.shift().fn();
+for (const [kind, role] of [['web', 'host'], ['lan', 'host'], ['bt', 'guest']]) {
+  announce(['guess.finished#0']);
+  const see = notices[0].querySelector('[data-see]');
+  const linked = { id: 'linked-' + kind, mode: 'tiles', live: true, status: 'playing', link: { kind, role } };
+  putSave(linked);
+  window.location.hash = '#/game/' + linked.id;
+  windowListeners.get('hashchange')();
+  check(kind + ': a visible local offer is hidden on joining a linked game', see.hidden, true);
+  delete stats.ach.got['tiles.bingo'];
+  grant('tiles.bingo', linked);
+  window.location.hash = '#/';
+  windowListeners.get('hashchange')();
+  check(kind + ': local offer returns after leaving the linked game', see.hidden, false);
+  timers.shift().fn();
+  check(kind + ': queued linked unlock has only dismissal',
+    [!!notices[0].querySelector('[data-see]'), !!notices[0].querySelector('[data-close]')], [false, true]);
+  timers.shift().fn();
+}
 check('menu link follows Statistics', /href="#\/stats"[^\n]+\n\s+<a href="#\/achievements"/.test(read('app/js/screens.js')), true);
 const mainSource = read('app/js/main.js');
 check('route opens achievement screen', mainSource.includes('achievements: achievementsScreen'), true);

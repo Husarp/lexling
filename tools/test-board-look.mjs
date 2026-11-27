@@ -147,7 +147,7 @@ for (const lang of ['en', 'pl']) {
 // Execute the real closed-over Options function, with a repaint counter and the real shared row wiring.
 let dialog, repaints = 0;
 const options = source.slice(source.indexOf('  function openOptions() {'), source.indexOf('  // ── several phones', source.indexOf('  function openOptions() {')));
-const context = { UI_ICONS, playerIcon, S: { rules: {}, players: [{}, { cpu: true }] }, nameOf: (_, p) => p ? 'Computer' : 'You', esc: s => s, histHtml: () => '<p>History rows</p>', host: false, settings, t, BONUS_LOOKS, TILE_LOOKS, RATE_LOOKS, tileSwatch,
+const context = { UI_ICONS, playerIcon, S: { rules: {}, players: [{}, { cpu: true }] }, nameOf: (_, p) => p ? 'Computer' : 'You', esc: s => s, histHtml: () => '<p>History rows</p>', host: false, linked: false, settings, t, BONUS_LOOKS, TILE_LOOKS, RATE_LOOKS, tileSwatch,
   window: { addEventListener() {}, removeEventListener() {} }, LIST: '', settingRows, wireSettingRows, applyTileLook() {}, repaint() { repaints++; }, confirmClick() {},
   openDialog(title, html) { dialog = new Element(); dialog.innerHTML = html; return { dlg: dialog, close() {} }; } };
 runInNewContext(options + '\nopenOptions();', context);

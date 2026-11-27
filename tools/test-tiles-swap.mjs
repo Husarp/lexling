@@ -28,7 +28,7 @@ function screen(draft = []) {
     myTurn: () => c.active, rackOf: () => c.tiles,
     setOrder: (_, tiles) => { c.tiles = tiles; }, putSave: () => c.saved++,
     openPicker: i => { c.picker = i; }, peek: i => { c.peeked = i; },
-    lang: 'en', fresh: null, rackEl: { children: [] }, esc: s => s, valueOf: () => 1,
+    lang: 'en', fresh: null, rackEl: { children: [] }, motion: { querySelectorAll: () => [] }, esc: s => s, valueOf: () => 1,
     t: (key, vars) => key === 'tiles.locate' ? `Highlight ${vars.tile} on the board` : 'Blank',
     picks: new Set(), tb: { querySelector: selector => ({ animate: (_, options) => { c.located = [selector, options.duration]; } }) },
     inDraft: slot => c.draft.some(d => d.slot === slot),
@@ -193,7 +193,7 @@ for (const kind of ['rack', 'tile']) {
       const zoom = { z: 2, x: -0.3, y: -0.2 }, cursor = { r: 7, c: 9, down: false };
       Object.assign(c, { stashedDraft: null, blankFor: -1, levels: null, zoom: { ...zoom }, cursor, manualOverview: true,
         dock: {}, t, app: { isConnected: true }, turnHints: [], zoomOut() { c.zoom = { z: 1, x: 0, y: 0 }; },
-        panel: null, wide: false, toast: false, paintOver() {}, refit() {}, canExchange: () => true,
+        panel: null, pickerOpen: () => false, wide: false, toast: false, paintOver() {}, refit() {}, canExchange: () => true,
         act(action) { c.action = action; c.resetTurn(); } });
       runInNewContext([fn('paintDock'), fn('resetTurn'), tools, fn('onKey'), 'this.tools = TOOLS;'].join('\n'), c);
       c.tools[mode]();

@@ -18,7 +18,7 @@ data class BundleFile(val path: String, val sha256: String, val size: Long, val 
 data class Manifest(
     val schema: Int = 1, val version: String, val minShellApi: Int = 1,
     val releasedAt: Long, val expiresAt: Long, val kind: String, val message: String,
-    val blocked: List<String> = emptyList(), val files: List<BundleFile>
+    val blocked: List<String> = emptyList(), val files: List<BundleFile>, val publishedAt: Long? = null
 )
 
 fun versionParts(version: String): List<Long> {
@@ -70,11 +70,15 @@ class ManifestVerifier(private val publicKey: ByteArray) {
     fun verify(envelope: ByteArray, now: Long): Manifest {
         val m = json.fromJson(payload(envelope).toString(Charsets.UTF_8), Manifest::class.java)
         validateManifest(m)
-        require(m.releasedAt <= now) { "Release is in the future (check phone clock)" }
+        require(releaseTimeValid(m.releasedAt, m.publishedAt, now)) { "Release is in the future (check phone clock)" }
         require(m.expiresAt > now && m.expiresAt > m.releasedAt) { "Manifest expired or invalid expiry" }
         return m
     }
 }
+
+// New metadata has a first-seen fallback for clocks behind the publication time.
+internal fun releaseTimeValid(releasedAt: Long, publishedAt: Long?, now: Long) =
+    releasedAt <= now || (publishedAt != null && publishedAt >= releasedAt)
 fun validateManifest(m: Manifest) {
     require(m.schema == 1 && m.minShellApi >= 1) { "Unsupported schema/shell" }
     versionParts(m.version); m.blocked.forEach { versionParts(it) }

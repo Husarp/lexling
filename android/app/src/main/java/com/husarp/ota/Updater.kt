@@ -43,8 +43,11 @@ class Updater(private val context: Context, val engine: Engine, private val veri
     @Volatile var progressPercent = 0
         private set
     private val transport = HttpsTransport()
-    private data class Offer(val manifest: Manifest, val source: DownloadedManifest, val decision: Decision)
+    // A deferred release must be fetched again before it can become an offer.
+    private data class Offer(val manifest: Manifest, val source: DownloadedManifest, val decision: Decision,
+                             val checkedAt: Long = System.currentTimeMillis())
     @Volatile private var offer: Offer? = null
+    @Volatile private var manuallyCheckedWeb: Manifest? = null
     @Volatile var webDownloadVersion: String? = null
     @Volatile private var transfer: TransferState? = null
     @Volatile var status = "Ready"
@@ -70,12 +73,16 @@ class Updater(private val context: Context, val engine: Engine, private val veri
 
     fun simulateBrokenStart() = prefs.edit().putBoolean("simulateBrokenStart", true).commit()
 
-    private fun selectLaunch() {
+    private fun selectLaunch(recovery: Boolean = false, manual: Boolean = false) {
         val state = engine.snapshot()
-        val deferPending = !(launching && !prepared && completingPairedLaunch) &&
-            state.pending != null && runCatching { pairedOffer()?.web?.version == state.pending }
+        val deferYoung = pendingManifest(state)?.let {
+            !webAllowed(it, manual = manual && it == manuallyCheckedWeb, staged = true)
+        } == true
+        val deferPending = !recovery && state.pending != null && (
+            deferYoung ||
+            !(launching && !prepared && completingPairedLaunch) && runCatching { pairedOffer()?.web?.version == state.pending }
                 .onFailure { engine.log.add("Could not read combined update for launch: ${it.message}") }
-                .getOrDefault(false)
+                .getOrDefault(false))
         if (!deferPending && state.pendingShellCode == null) state.pending?.let(activation::begin)
         if (activation.current != null) changed()
         val next = engine.coldStart(deferPending = deferPending, onProgress = { progress ->
@@ -123,14 +130,15 @@ class Updater(private val context: Context, val engine: Engine, private val veri
             wifiLimitMb = (saved["wifiLimitMb"] as? Int)?.takeIf { it in listOf(5, 20, 50, 100, -1) } ?: defaults.wifiLimitMb,
             mobileLimitMb = (saved["mobileLimitMb"] as? Int)?.takeIf { it in listOf(0, 5, 20, 50, -1) } ?: defaults.mobileLimitMb,
             setupAnswered = saved["setupAnswered"] as? Boolean ?: defaults.setupAnswered,
-            checkFrequency = frequency?.takeIf { it in listOf("1h", "6h", "24h") } ?: defaults.checkFrequency
+            checkFrequency = frequency?.takeIf { it in listOf("1h", "6h", "24h") } ?: defaults.checkFrequency,
+            waitForUpdates = saved["waitForUpdates"] as? Boolean ?: defaults.waitForUpdates
         )
     }
     fun updateSettings(): UpdateSettings = settings
     fun settingsJson(): JSObject = JSObject(json.toJson(settings))
         .put("updateNotifications", ShellUpdatedNotification.enabled(context))
     @Synchronized fun setUpdateSettings(partial: JSObject): JSObject {
-        val allowed = setOf("smallFixes","majorUpdates","shellUpdates","wifiLimitMb","mobileLimitMb","setupAnswered","checkFrequency","updateNotifications")
+        val allowed = setOf("smallFixes","majorUpdates","shellUpdates","wifiLimitMb","mobileLimitMb","setupAnswered","checkFrequency","updateNotifications","waitForUpdates")
         val keys = partial.keys()
         while(keys.hasNext()) {
             val key = keys.next(); require(key in allowed) { "Unknown setting: $key" }
@@ -140,17 +148,20 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         val old = settings
         val next = UpdateSettings(partial.optBoolean("smallFixes",old.smallFixes),partial.optBoolean("majorUpdates",old.majorUpdates),
             partial.optBoolean("shellUpdates",old.shellUpdates),partial.optInt("wifiLimitMb",old.wifiLimitMb),
-            partial.optInt("mobileLimitMb",old.mobileLimitMb),partial.optBoolean("setupAnswered",old.setupAnswered), migrateCheckFrequency(partial.optString("checkFrequency",old.checkFrequency))).validate()
+            partial.optInt("mobileLimitMb",old.mobileLimitMb),partial.optBoolean("setupAnswered",old.setupAnswered),
+            migrateCheckFrequency(partial.optString("checkFrequency",old.checkFrequency)), partial.optBoolean("waitForUpdates",old.waitForUpdates)).validate()
         val notifications = partial.optBoolean("updateNotifications", ShellUpdatedNotification.enabled(context))
         kotlin.check(prefs.edit().putBoolean("smallFixes",next.smallFixes).putBoolean("majorUpdates",next.majorUpdates)
             .putBoolean("updateNotifications", notifications)
+            .putBoolean("waitForUpdates",next.waitForUpdates)
             .putBoolean("shellUpdates",next.shellUpdates).putInt("wifiLimitMb",next.wifiLimitMb).putInt("mobileLimitMb",next.mobileLimitMb)
             .putString("checkFrequency",next.checkFrequency).putBoolean("setupAnswered",next.setupAnswered).remove("url").remove("automatic").commit())
         settings = next
-        if (!notifications) ShellUpdatedNotification.cancel(context)
+        if (!notifications || (!old.waitForUpdates && next.waitForUpdates)) ShellUpdatedNotification.cancel(context)
         event("updateSettingsChanged",settingsJson()); changed()
         UpdateWorker.schedule(context)
         shell.maybeInstall()
+        if (old.waitForUpdates != next.waitForUpdates && busy.get()) checkAfterDownload = true
         check()
         return settingsJson()
     }
@@ -208,27 +219,27 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         changed()
     }
     // Only an activity initiates coldStart. Keep its UI free to draw progress (owner, 2026-11-26).
-    fun prepareLaunch(startingBuiltIn: Boolean = false, complete: () -> Unit) {
+    fun prepareLaunch(startingBuiltIn: Boolean = false, recovery: Boolean = false, complete: () -> Unit) {
         if (prepared) { complete(); return }
         launchCallbacks.add(complete)
         if (launchCallbacks.size > 1) return
         safeToInterrupt = false
-        Thread({ prepareColdLaunch(startingBuiltIn) }, "lexling-startup").start()
+        Thread({ prepareColdLaunch(startingBuiltIn, recovery) }, "lexling-startup").start()
     }
 
-    private fun prepareColdLaunch(startingBuiltIn: Boolean) {
+    private fun prepareColdLaunch(startingBuiltIn: Boolean, recovery: Boolean) {
         val start = SystemClock.elapsedRealtime()
         engine.log.add("Quick apply start: launch held at most ${QUICK_APPLY_MS} ms")
         runCatching { engine.reconcileShell() }.onFailure { engine.log.add("Shell reconciliation failed: ${it.message}") }
         val pending = engine.snapshot().pending != null
         if (!startingBuiltIn) {
-            val check = check()
+            val check = check(manual = recovery)
             if (!pending) {
                 val result=awaitQuickApply(check,SystemClock.elapsedRealtime()-start,false)
                 engine.log.add("Quick apply $result; timeout/error keeps current and lets background work continue",SystemClock.elapsedRealtime()-start)
             }
         }
-        selectLaunch(); launching = false
+        selectLaunch(recovery); launching = false
         if(launch.notice!=null) status="Ready · Lexling ${launch.version}"
         engine.log.add("Quick apply finished: ${launch.version}; existing staged=$pending", SystemClock.elapsedRealtime()-start)
         main.post {
@@ -239,7 +250,7 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         }
         changed()
     }
-    fun info(): JSObject = JSObject().apply {
+    fun info(includeManual: Boolean = true): JSObject = JSObject().apply {
         put("updateChecks", checks.snapshot())
         put("webVersion", launch.version); put("shellVersion", BuildConfig.VERSION_NAME); put("shellApi", BuildConfig.SHELL_API)
         put("runningShellVersionCode", BuildConfig.VERSION_CODE)
@@ -251,7 +262,8 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         put("shellReleasedAt", shellDates.publishedAt); put("shellInstalledAt", shellDates.installedAt)
         put("token", launch.token); put("status", status); put("automatic", automatic)
         put("canDownload", !busy.get() && availableOffer() != null)
-        put("needsShell", offer?.decision?.action == Action.FULL_APP)
+        val available = availableState(includeManual)
+        put("needsShell", visibleOffer(includeManual)?.decision?.action == Action.FULL_APP)
         put("webDownloadVersion", webDownloadVersion); put("pending", engine.snapshot().pending); put("trial", engine.snapshot().trial)
         put("safeToInterrupt", safeToInterrupt); put("shellStatus", shell.status)
         val webInstalling = activation.current?.version
@@ -259,36 +271,46 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         put("installingVersion", webInstalling ?: shellInstalling?.versionName)
         put("installingChannel", if (webInstalling != null) "web" else if (shellInstalling != null) "shell" else null)
         if (webInstalling == null) put("installingShellVersionCode", shellInstalling?.versionCode)
-        val pair = pairedState()
+        val pair = pairedState(includeManual)
         put("combined", pair)
-        put("available", if (pair == null) availableState()?.takeUnless { it.optBoolean("needsShell") && shell.candidate() != null } else null)
-        put("staged", if (pair == null) stagedState() else null); put("updated",updated); put("rolledBack",rolledBack)
-        put("shellUpdateReady",shell.isReady()); put("shellVersionCode",shell.manifest()?.versionCode)
-        put("shellReady",shell.manifest()?.takeIf { pair == null && shell.isReady() && !checkingPair }?.let { shell.state(it) })
+        put("available", if (pair == null) available?.takeUnless { it.optBoolean("needsShell") && shell.candidate(includeManual) != null } else null)
+        put("staged", if (pair == null) stagedState(includeManual) else null); put("updated",updated); put("rolledBack",rolledBack)
+        put("shellUpdateReady",shell.isReady(includeManual)); put("shellVersionCode",shell.manifest()?.takeIf { shell.isReady(includeManual) }?.versionCode)
+        put("shellReady",shell.manifest()?.takeIf { pair == null && shell.isReady(includeManual) && !checkingPair }?.let { shell.state(it) })
         put("busy",busy.get()); put("downloading",consentDownloading); put("progress",progressPercent)
         put("webTransfer",transfer?.snapshot()); put("shellTransfer",shell.transfer?.snapshot())
         val shellDownload = shell.downloadTarget()
         put("shellDownloading",shell.downloading); put("shellDownloadVersion",shellDownload?.versionName)
         put("shellDownloadVersionCode",shellDownload?.versionCode); put("shellNotes",shell.installedNotes())
         put("autoRestart",autoRestartPending)
-        put("updateSettings",settingsJson()); put("shellAvailable",if (pair == null && !checkingPair) shell.availableState() else null)
+        put("updateSettings",settingsJson()); put("shellAvailable",if (pair == null && !checkingPair) shell.availableState(includeManual) else null)
     }
-    private fun availableState(): JSObject? = offer?.takeIf {
+    private fun webAllowed(m: Manifest, manual: Boolean = false, staged: Boolean = false,
+                           checkedAt: Long = Long.MAX_VALUE): Boolean {
+        val dates = engine.dates.get("web", m.version)
+        val recovery = engine.isCurrentBlocked() || (staged && dates.approvedEarly)
+        return updateAgeAllows(settings.waitForUpdates, m.publishedAt, dates.availableAt ?: dates.downloadedAt,
+            minOf(checkedAt, System.currentTimeMillis()), manual, recovery)
+    }
+    private fun visibleOffer(includeManual: Boolean = true) = offer?.takeIf {
+        webAllowed(it.manifest, manual = includeManual && it.manifest == manuallyCheckedWeb, checkedAt = it.checkedAt)
+    }
+    private fun availableState(includeManual: Boolean = true): JSObject? = visibleOffer(includeManual)?.takeIf {
         it.decision.action in listOf(Action.PROMPT,Action.FULL_APP) && it.manifest.version != laterVersion &&
             compareVersions(it.manifest.version, launch.version) > 0 && it.manifest.version != activation.current?.version
     }?.let {
         webState(it.manifest).put("version",it.manifest.version).put("kind",it.manifest.kind)
             .put("size",it.decision.delta).put("needsShell",it.decision.action==Action.FULL_APP)
     }
-    private fun stagedState(): JSObject? = engine.snapshot().takeIf { it.pendingShellCode == null }?.pending?.let { version ->
-        runCatching { engine.manifest(version) }.getOrNull()?.let {
-            webState(it).put("version",it.version).put("kind",it.kind)
-        }
+    private fun pendingManifest(state: State) = state.pending?.let { runCatching { engine.manifest(it) }.getOrNull() }
+    private fun stagedState(includeManual: Boolean = true): JSObject? = engine.snapshot().takeIf { it.pendingShellCode == null }
+        ?.let(::pendingManifest)?.takeIf { webAllowed(it, manual = includeManual && it == manuallyCheckedWeb, staged = includeManual) }?.let {
+        webState(it).put("version",it.version).put("kind",it.kind)
     }
     private fun webState(m: Manifest): JSObject = JSObject(json.toJson(engine.dates.get("web", m.version)))
         .put("releasedAt", m.releasedAt).put("version", m.version)
     data class Available(val version: String, val size: Long)
-    fun availableOffer(): Available? = offer?.takeIf { it.decision.action == Action.PROMPT && it.manifest.version != laterVersion }?.let { Available(it.manifest.version, it.decision.delta) }
+    fun availableOffer(): Available? = visibleOffer()?.takeIf { it.decision.action == Action.PROMPT && it.manifest.version != laterVersion }?.let { Available(it.manifest.version, it.decision.delta) }
     fun later() { laterVersion = offer?.manifest?.version; engine.log.add("Later: hide $laterVersion until next cold start"); changed() }
     private data class PairedOffer(
         val shell: ShellManifest, val web: Manifest, val release: Offer?, val payload: PairedWebUpdate
@@ -319,16 +341,16 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         atomicWrite(pairedReleaseFile, json.toJson(saved).toByteArray())
     }
 
-    private fun pairedOffer(): PairedOffer? {
-        val apk = shell.candidate() ?: return null
+    private fun pairedOffer(includeManual: Boolean = true): PairedOffer? {
+        val apk = shell.candidate(includeManual) ?: return null
         val state = engine.snapshot()
-        val release = offer?.takeIf {
+        val release = visibleOffer(includeManual)?.takeIf {
             it.decision.action in listOf(Action.AUTO, Action.PROMPT, Action.FULL_APP) &&
                 it.manifest.version !in state.failed && it.manifest.version !in state.blocked &&
                 compareVersions(it.manifest.version, state.current) > 0
         }
         val pending = state.pending?.takeIf { it !in state.failed && it !in state.blocked }
-            ?.let { runCatching { engine.manifest(it) }.getOrNull() }
+            ?.let { pendingManifest(state) }?.takeIf { webAllowed(it, manual = includeManual && it == manuallyCheckedWeb, staged = includeManual) }
         val web = when {
             pending == null -> release?.manifest
             release == null || compareVersions(pending.version, release.manifest.version) >= 0 -> pending
@@ -352,8 +374,8 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         return pair == null || (pair.shell.versionCode == target.versionCode && pairedReady(pair))
     }
 
-    private fun pairedState(): JSObject? {
-        val pair = downloadingPair ?: pairedOffer() ?: return null
+    private fun pairedState(includeManual: Boolean = true): JSObject? {
+        val pair = downloadingPair ?: pairedOffer(includeManual) ?: return null
         val shellBytes = if (shell.readyFor(pair.shell)) 0 else pair.shell.size
         val webBytes = if (pair.payload == PairedWebUpdate.EMBEDDED || pairedReady(pair)) 0
             else pair.web.files.sumOf { it.size }
@@ -376,10 +398,12 @@ class Updater(private val context: Context, val engine: Engine, private val veri
     }
 
     private var checkAfterDownload = false
+    private var manualCheckAfterDownload = false
 
     @Synchronized fun check(manual: Boolean = false, onForeground: Boolean = false): Future<*>? {
         if (!busy.compareAndSet(false, true)) {
             if (onForeground && currentCheck == null) checkAfterDownload = true
+            if (manual) manualCheckAfterDownload = true
             engine.log.add("Check coalesced: updater busy")
             return currentCheck
         }
@@ -401,22 +425,24 @@ class Updater(private val context: Context, val engine: Engine, private val veri
                 if (release == null) {
                     pairedReleaseFile.delete()
                     offer = null
+                    manuallyCheckedWeb = null
                     message("No Lexling update published")
                 } else {
                     val (source, m) = release
                     if (compareVersions(m.version, engine.snapshot().current) > 0)
-                        engine.dates.record("web", m.version, m.releasedAt, available = true)
+                        engine.dates.record("web", m.version, m.publishedAt ?: m.releasedAt, available = true)
+                    manuallyCheckedWeb = m.takeIf { manual || it == manuallyCheckedWeb }
                     engine.blocked(m.blocked)
                     val state = engine.snapshot()
                     val decision = decide(m, engine.currentManifest(), engine.embedded, BuildConfig.SHELL_API,
                         settings, unmetered(), state.failed, state.blocked, state.trial, state.pending)
                     engine.log.add("Lexling ${m.version}: ${decision.action}, ${decision.reason}; delta ${decision.delta} bytes")
                     offer = Offer(m, source, decision).also { lastWebRelease = it }
-                    message("Lexling ${m.version}: ${decision.reason}")
+                    message(if (webAllowed(m, manual)) "Lexling ${m.version}: ${decision.reason}" else "Ready")
                 }
                 checkingPair = false
                 changed()
-                val pair = pairedOffer()
+                val pair = pairedOffer(includeManual = manual)
                 if (pair != null) {
                     val current = engine.snapshot()
                     val critical = current.current in current.blocked
@@ -425,18 +451,18 @@ class Updater(private val context: Context, val engine: Engine, private val veri
                     val autoShell = shell.readyFor(pair.shell) ||
                         automaticDownload(settings, "shell", pair.shell.size, unmetered())
                     if (!pairedReady(pair) && !current.trial && autoWeb && autoShell) {
-                        downloadPair(pair, consent = false)
+                        downloadPair(pair, consent = false, manual = manual)
                         shell.allowAutomaticInstall(pair.shell)
                     } else if (pairedReady(pair)) shell.maybeInstall()
                 } else {
-                    val selected = offer
+                    val selected = offer?.takeIf { webAllowed(it.manifest, manual) }
                     // The ready APK may be installed independently when it cannot carry this Lexling release.
-                    val apk = shell.candidate()
+                    val apk = shell.candidate(includeManual = manual)
                     if (apk != null && !shell.readyFor(apk) &&
-                        automaticDownload(settings, "shell", apk.size, unmetered())) shell.check(expected = apk).get()
+                        automaticDownload(settings, "shell", apk.size, unmetered())) shell.check(manual = manual, expected = apk).get()
                     else shell.maybeInstall()
                     if (selected?.decision?.action == Action.AUTO && engine.snapshot().pendingShellCode == null)
-                        install(selected, false)
+                        install(selected, false, manual = manual)
                     else availableState()?.let { event("updateAvailable", it) }
                 }
                 lastCheckSucceeded = true
@@ -484,19 +510,22 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         downloadingPair = null; webDownloadVersion = null; transfer = null
         consentDownloading = false; currentCheck = null
         busy.set(false); changed()
-        if (checkAfterDownload) {
+        if (checkAfterDownload || manualCheckAfterDownload) {
+            val manual = manualCheckAfterDownload
+            manualCheckAfterDownload = false
             checkAfterDownload = false
-            check()
+            check(manual = manual)
         }
     }
 
-    private fun downloadPair(pair: PairedOffer, consent: Boolean) {
+    private fun downloadPair(pair: PairedOffer, consent: Boolean, manual: Boolean = false) {
+        require(webAllowed(pair.web, consent || manual, staged = true) && shell.ageAllows(pair.shell, consent || manual)) { "Combined update is too recent" }
         downloadingPair = pair
         if (consent) shell.requireInstallTap(pair.shell)
         savePairedRelease(pair)
         message("Downloading Android app and Lexling")
         val apkBytes = if (shell.readyFor(pair.shell)) 0L else pair.shell.size
-        if (apkBytes > 0) shell.check(consent = consent, downloadOnly = true, expected = pair.shell).get()
+        if (apkBytes > 0) shell.check(consent = consent, manual = manual, downloadOnly = true, expected = pair.shell).get()
         require(shell.readyFor(pair.shell)) { "Android app download did not finish" }
         if (pairedReady(pair)) return
         val embedded = shell.embeddedFor(pair.shell)
@@ -510,7 +539,8 @@ class Updater(private val context: Context, val engine: Engine, private val veri
                 reusable.files.none { it.path == file.path && it.sha256 == file.sha256 &&
                     (reusable != current || engine.currentOverlayFile(it.path) != null) }
         }.sumOf { it.size }
-        val policy = { automaticDownload(settings, web.kind, delta, unmetered(), current.version in engine.snapshot().blocked) }
+        val policy = { webAllowed(web, manual, staged = true) && shell.ageAllows(pair.shell, manual) &&
+            automaticDownload(settings, web.kind, delta, unmetered(), current.version in engine.snapshot().blocked) }
         require(consent || policy()) { "Lexling download needs consent" }
         webDownloadVersion = web.version
         transfer = TransferState(apkBytes, apkBytes + delta, 0)
@@ -525,6 +555,8 @@ class Updater(private val context: Context, val engine: Engine, private val veri
             else File(engine.bundles, "${reusable.version}/files/$path").takeIf { it.isFile }
         }, pair.release?.source?.finalUrl ?: DEFAULT_URL)
         requireNotNull(staged) { "Not enough storage" }
+        require(consent || policy()) { "Lexling download needs consent" }
+        approveWebEarly(web, consent || manual)
         engine.commit(web, staged, targetShell = pair.shell)
         message("Android app and Lexling ready to install")
     }
@@ -535,7 +567,7 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         } == true
 
     fun download(installAfterDownload: Boolean = true): Boolean {
-        val selected = offer ?: return false
+        val selected = visibleOffer() ?: return false
         if (pairedOffer() != null || selected.decision.action != Action.PROMPT ||
             engine.snapshot().pendingShellCode != null || !busy.compareAndSet(false, true)) return false
         webDownloadVersion = selected.manifest.version
@@ -572,7 +604,11 @@ class Updater(private val context: Context, val engine: Engine, private val veri
                 val release = checks.fetch(CheckChannel.WEB, DEFAULT_URL, transport, reportFailure = false) {
                     verifier.verify(it.bytes, System.currentTimeMillis())
                 }
-                val selected = release?.let { (source, manifest) -> startupOffer(source, manifest) }
+                val selected = release?.let { (source, manifest) ->
+                    if (compareVersions(manifest.version, engine.snapshot().current) > 0)
+                        engine.dates.record("web", manifest.version, manifest.publishedAt ?: manifest.releasedAt, available = true)
+                    startupOffer(source, manifest)
+                }
                 if (selected == null) {
                     strings.getString(R.string.ota_no_startup_fix)
                 } else if (selected.decision.action != Action.PROMPT) {
@@ -611,7 +647,7 @@ class Updater(private val context: Context, val engine: Engine, private val veri
                     "Fix was not staged"
                 }
                 launching = true
-                restartLaunch()
+                restartLaunch(recovery = true)
                 null
             } catch (e: Exception) {
                 engine.log.add("Startup fix failed: ${e.message}")
@@ -621,8 +657,14 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         }
     }
 
-    private fun install(selected: Offer, consent: Boolean, recoveryToken: String? = null, installAfterDownload: Boolean = true): Boolean {
+    private fun approveWebEarly(m: Manifest, consent: Boolean) {
+        if (consent || engine.isCurrentBlocked()) engine.dates.record("web", m.version, approvedEarly = true)
+    }
+
+    private fun install(selected: Offer, consent: Boolean, recoveryToken: String? = null, installAfterDownload: Boolean = true,
+                        manual: Boolean = false): Boolean {
         val m = verifier.verify(selected.source.bytes, System.currentTimeMillis())
+        if (!webAllowed(m, consent || manual)) return false
         val s = engine.snapshot()
         val d = decide(m, engine.currentManifest(), engine.embedded, BuildConfig.SHELL_API, settings, unmetered(),
             s.failed, s.blocked, s.trial, s.pending, startupRecovery = recoveryToken != null)
@@ -645,6 +687,7 @@ class Updater(private val context: Context, val engine: Engine, private val veri
             transfer = TransferState(done, total, downloadSpeed.sample(received, SystemClock.elapsedRealtime()))
             changed()
         }, beforeDownload = {
+            require(webAllowed(m, consent || manual)) { "Update is too recent" }
             if (!consent && !automaticDownload(settings,m.kind,d.delta,unmetered(),engine.currentManifest().version in engine.snapshot().blocked)) {
                 offer = selected.copy(decision=Decision(Action.PROMPT,"Settings/network changed; consent required",d.delta))
                 availableState()?.let { event("updateAvailable",it) }
@@ -653,6 +696,8 @@ class Updater(private val context: Context, val engine: Engine, private val veri
         })
         val staged = installer.stage(m, engine.currentManifest(), { engine.currentOverlayFile(it) }, selected.source.finalUrl)
         if (staged == null) { message("${m.version}: Not enough storage; skipped"); return false }
+        if (!webAllowed(m, consent || manual)) return false
+        approveWebEarly(m, consent || manual)
         engine.commit(m, staged, recoveryToken)
         autoRestartPending = consent && recoveryToken == null && installAfterDownload
         message("Lexling ${m.version} downloaded · Restart")
@@ -674,15 +719,15 @@ class Updater(private val context: Context, val engine: Engine, private val veri
                     lastWebRelease = null
                     setUpdateSettings(JSObject().put("setupAnswered",false))
                 }
-                restartLaunch()
+                restartLaunch(recovery = startupRecovery)
                 main.post { complete() }
             } catch (e: Exception) { activation.clear(); engine.log.add("Restart error: ${e.message}"); message("Restart failed; see Logs") }
             finally { launching = false; finishDownload() }
         }
         return true
     }
-    private fun restartLaunch() {
-        selectLaunch(); offer = null; laterVersion = null
+    private fun restartLaunch(recovery: Boolean = false) {
+        selectLaunch(recovery, manual = true); offer = null; laterVersion = null
         status = "Ready · Lexling ${launch.version}"; autoRestartPending = false; safeToInterrupt = true
         updated = null; rolledBack = null
     }

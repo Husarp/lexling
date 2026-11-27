@@ -3,7 +3,7 @@ import { achievementInk, achievementState, achievementPips, achievementBar, achi
 // Menu, game picker, new game, statistics, settings. Markup is the design handoff's
 // (design/handoff/*.html), with the dummy text replaced by t(...) and live data.
 import { t, plural, esc, num, duration, ago, dateTime, checkTime, setLang, getLang, LANG_NAMES } from './i18n.js';
-import { deviceLanguage, settings, saveSettings, stats, listSaves, listSavedResults, deleteFinished, getSave, putSave, deleteSave, newGame, gameName, collected, totals, setupPractice } from './store.js';
+import { deviceLanguage, settings, saveSettings, stats, listSaves, listKept, listRecentFinished, getSave, putSave, deleteSave, newGame, gameName, collected, totals, setupPractice } from './store.js';
 import { net, netKinds, netReady, nearbyHere, openLocation } from './net.js';
 import { createGuest } from './session.js';
 import { has } from './dawg.js';
@@ -14,7 +14,7 @@ import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js'
 import { makePuzzle, RANGE, RING_MIN, RING_MAX, WORD_MIN, visible, isDone } from './connect.js';
 import { BOARDS, STANDARD, LEVEL_ORDER, levelKey, PLAYERS_MAX, newGame as tilesGame, apply as tilesApply, loadTileWords, valueOf, fullBag } from './tiles.js';
 import { nameOf, topics, LABEL, bonusSeg, bonusOf, boardStyleSeg, tileSeg, applyTileLook } from './tiles-game.js';
-import { UI_ICONS, playerIcon, TILE_SETUP_ICONS, topbar, fillColor, confirmClick, applyTheme, applyAccent, applyButtonSize, applyTextSize, applyLettersContrast, ACCENTS, PALETTES, GLYPH, modeTag, TILE, squares, remindBt, practiceBadge, openDialog, openRules, keepButton, wireKeep, resultHref } from './ui.js';
+import { UI_ICONS, playerIcon, TILE_SETUP_ICONS, topbar, fillColor, confirmClick, applyTheme, applyAccent, applyButtonSize, applyTextSize, applyLettersContrast, ACCENTS, PALETTES, GLYPH, modeTag, TILE, squares, remindBt, practiceBadge, openDialog, openRules, KEEP_STAR, keepButton, wireKeep, resultHref } from './ui.js';
 import { fitAll } from './fit.js';
 import { soundVolume, syncSound } from './sound.js';
 import { VERSION, REPO } from './version.js';
@@ -133,55 +133,69 @@ export function menu(root, _, refresh) {
   });
 }
 
+let lastGamesSegment = 'saved';
+const lastGamesMode = { saved: 'guess', recent: 'guess' };
+
 export function lastGamesScreen(root) {
-  const games = listSavedResults();
-  const cards = games.map(({ game: g, kept }) => {
-    const mode = g.mode ?? 'guess';
-    const { winner } = g.state?.over ?? {};
-    const result = mode === 'tiles' ? (winner < 0 ? t('tiles.end.draw') : t('tiles.end.wins', { name: esc(nameOf(g.state, winner)) }))
-      : t(g.status === 'won' ? mode === 'connect' ? 'cn.solved' : 'end.won' : g.status === 'lost' ? 'end.lost' : 'end.gaveUp');
-    return `<div class="card last-game-row">
-      <a class="last-game" href="${resultHref(esc(g.id))}">${GLYPH[mode]}
-        <span class="last-game-info"><strong>${t('mode.' + mode)}</strong><span>${result}</span>
-          <time datetime="${new Date(g.endedAt).toISOString()}">${dateTime(g.endedAt)}</time></span></a>
-      <div class="last-game-actions">${keepButton(g, kept)}
-        <button class="btn btn-ghost" type="button" data-delete-result aria-label="${t('games.delete')}" title="${t('games.delete')}">${UI_ICONS.trash}</button></div>
-    </div>`;
-  });
+  const segmentButton = (segment, icon) => `<button type="button" data-segment="${segment}" aria-pressed="false">${icon}${t('lastGames.' + segment)}</button>`;
+  const modeButton = mode => {
+    const label = esc(t('mode.' + mode));
+    return `<button type="button" data-mode="${mode}" aria-pressed="false" aria-label="${label}" title="${label}">${GLYPH[mode]}</button>`;
+  };
   root.innerHTML = `<div class="app" data-screen="last-games">
     ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
     <main class="main">${screenTitle('last-games', 'menu.lastGames')}
-      ${cards.length ? `<div class="saves">${cards.join('')}</div>` : `<div class="empty">${screenIcon('last-games')}<p class="help">${t('lastGames.empty')}</p></div>`}
+      <div class="seg last-games-segments" role="group" aria-label="${t('lastGames.sections')}">
+        ${segmentButton('saved', KEEP_STAR)}${segmentButton('recent', UI_ICONS.time)}
+      </div>
+      <div class="seg last-games-modes" role="group" aria-label="${t('lastGames.modes')}">${GAMES.map(modeButton).join('')}</div>
+      <div class="last-games-list"></div>
     </main></div>`;
-  root.querySelectorAll('.last-game-row').forEach((row, i) => {
-    const game = games[i].game;
-    const href = row.querySelector('.last-game').hash;
-    const refresh = selector => {
-      lastGamesScreen(root);
-      const rows = [...root.querySelectorAll('.last-game-row')];
-      const next = rows.find(item => item.querySelector('.last-game').hash === href) ?? rows[Math.min(i, rows.length - 1)];
-      (next?.querySelector(selector) ?? root.querySelector('.topbar a')).focus();
-    };
-    wireKeep(row, game, () => refresh('[data-keep]'));
-    row.querySelector('[data-delete-result]').addEventListener('click', () => {
-      const { dlg, close } = openDialog(t('games.delete'), `<p class="help" id="delete-result-confirm">${t('lastGames.deleteConfirm')}</p>
-        <p class="help delete-result-status" role="status"></p>
-        <div class="gs-acts"><button class="btn btn-ghost" type="button" data-cancel autofocus>${t('tiles.cancel')}</button>
-          <button class="btn btn-outline btn-danger" type="button" data-confirm>${t('games.delete')}</button></div>`,
-      { icon: UI_ICONS.trash, showClose: false });
-      dlg.setAttribute('aria-label', t('games.delete'));
-      dlg.setAttribute('aria-describedby', 'delete-result-confirm');
-      dlg.querySelector('[data-cancel]').addEventListener('click', close);
-      dlg.querySelector('[data-confirm]').addEventListener('click', () => {
-        if (!deleteFinished(game.id)) {
-          dlg.querySelector('.delete-result-status').textContent = t('lastGames.deleteFailed');
-          return;
-        }
-        close();
-        refresh('.last-game');
+
+  const list = root.querySelector('.last-games-list');
+  const segments = root.querySelectorAll('[data-segment]');
+  const modes = root.querySelectorAll('[data-mode]');
+  function paint() {
+    const saved = lastGamesSegment === 'saved', mode = lastGamesMode[lastGamesSegment];
+    const kept = listKept(), keptIds = new Set(kept.map(g => g.id));
+    const games = saved ? kept.filter(g => (g.mode || 'guess') === mode) : listRecentFinished(mode, kept);
+    segments.forEach(button => button.setAttribute('aria-pressed', button.dataset.segment === lastGamesSegment));
+    modes.forEach(button => button.setAttribute('aria-pressed', button.dataset.mode === mode));
+    if (!games.length) {
+      list.innerHTML = `<div class="empty"><span class="menu-badge" data-icon="last-games" aria-hidden="true">${saved ? KEEP_STAR : UI_ICONS.time}</span>
+        <p class="help">${t(saved ? 'lastGames.emptySaved' : 'lastGames.emptyRecent')}</p></div>`;
+      return;
+    }
+    list.innerHTML = `<div class="saves">${games.map(g => {
+      const { winner } = g.state?.over ?? {};
+      const result = mode === 'tiles' ? (winner < 0 ? t('tiles.end.draw') : t('tiles.end.wins', { name: esc(nameOf(g.state, winner)) }))
+        : t(g.status === 'won' ? mode === 'connect' ? 'cn.solved' : 'end.won' : g.status === 'lost' ? 'end.lost' : 'end.gaveUp');
+      return `<div class="card last-game-row">
+        <a class="last-game" href="${resultHref(esc(g.id))}">${GLYPH[mode]}
+          <span class="last-game-info"><strong>${t('mode.' + mode)}</strong><span>${result}</span>
+            <time datetime="${new Date(g.endedAt).toISOString()}">${dateTime(g.endedAt)}</time></span></a>
+        ${keepButton(g, keptIds.has(g.id), true)}
+      </div>`;
+    }).join('')}</div>`;
+    list.querySelectorAll('.last-game-row').forEach((row, index) => {
+      const game = games[index];
+      wireKeep(row, game, () => {
+        paint();
+        const actions = list.querySelectorAll('[data-keep]');
+        const next = actions[Math.min(index, actions.length - 1)];
+        (next || root.querySelector('[data-mode][aria-pressed=true]')).focus();
       });
     });
-  });
+  }
+  segments.forEach(button => button.addEventListener('click', () => {
+    lastGamesSegment = button.dataset.segment;
+    paint();
+  }));
+  modes.forEach(button => button.addEventListener('click', () => {
+    lastGamesMode[lastGamesSegment] = button.dataset.mode;
+    paint();
+  }));
+  paint();
 }
 
 export function chooseFirstLanguage(refresh) {
@@ -1624,6 +1638,7 @@ export async function settingsScreen(root, _, refresh) {
 <div class="row"><div class="row-text"><strong>${t('set.remember')}</strong><span>${t('set.rememberDesc')}</span></div><button type="button" class="toggle ${on(settings.rememberSetup)}" data-toggle="rememberSetup" role="switch" aria-checked="${!!settings.rememberSetup}" aria-label="${t('set.remember')}"></button></div>
 
       <h2 class="title">${t('set.tiles')}</h2>
+      <div class="row"><div class="row-text"><strong>${t('tiles.reactions')}</strong><span>${t('tiles.reactionsHelp')}</span></div><button type="button" class="toggle ${on(settings.tilesReactions)}" data-toggle="tilesReactions" role="switch" aria-checked="${!!settings.tilesReactions}" aria-label="${t('tiles.reactions')}"></button></div>
       <div class="row"><div class="row-text"><strong>${t('tiles.under')}</strong><span>${t('tiles.underHelp')}</span></div>${seg('tilesUnder', ['rating', 'rarity', 'both'], v => t('tiles.under.' + v))}</div>
       <div class="row"><div class="row-text"><strong>${t('set.rareTiers')}</strong><span id="rare-help">${t('set.rareTiersHelp', { pl: num(dataIndex.counts.pl), en: num(dataIndex.counts.en) })}</span></div>
         <div class="rare-tiers">${['purple', 'gold', 'blue'].map((tier, i) => `<label class="rare-${tier}"><i aria-hidden="true"></i><input class="input" type="number" inputmode="numeric" min="1" max="100" step="1" data-rare-tier="${i}" value="${rareTiers[i]}" aria-label="${t('tiles.rare.tier.' + tier)}" aria-describedby="rare-help"><span>%</span></label>`).join('')}
@@ -1659,6 +1674,7 @@ export async function settingsScreen(root, _, refresh) {
       <h2 class="title">${t('set.updates')}</h2>
       ${ota ? '<div data-ota-settings></div>' : `
       <div class="row"><div class="row-text"><strong>${t('set.autoCheck')}</strong><span>${t('set.autoCheckDesc')}</span></div><button type="button" class="toggle ${on(settings.updateCheck)}" data-toggle="updateCheck" role="switch" aria-checked="${!!settings.updateCheck}" aria-label="${t('set.autoCheck')}"></button></div>
+      <div class="row"><strong class="row-text">${t('ota.waitForUpdates')}</strong><button type="button" class="toggle ${on(settings.waitForUpdates)}" data-toggle="waitForUpdates" role="switch" aria-checked="${settings.waitForUpdates}" aria-label="${t('ota.waitForUpdates')}"></button></div>
       <div class="row"><div class="row-text"><strong>${t('set.version', { v: VERSION })}</strong><span id="update-line">${updateLine}</span></div>
         <div class="row-actions">${waiting ? `<button type="button" class="btn btn-primary" id="get">${t('set.get')} <span class="arrow">→</span></button>` : ''}
         <button type="button" class="btn btn-outline" id="check" ${REPO ? '' : 'disabled'}>${t('set.check')}</button>
@@ -1673,6 +1689,7 @@ export async function settingsScreen(root, _, refresh) {
           <dt>${t('set.vocab')}</dt><dd>${t('set.vocabText', { pl: num(dataIndex.counts.pl), en: num(dataIndex.counts.en) })}</dd>
           <dt>${t('set.saves')}</dt><dd>${t('set.savesText')}</dd>
           <dt>${t('set.tiles')}</dt><dd>${t('set.credits')} <a href="data/familiar-sources.txt" target="_blank" rel="noopener">${t('set.wordNotices')}</a> · <a href="data/SCOWL-Copyright.txt" target="_blank" rel="noopener">${t('set.scowlNotice')}</a></dd>
+          <dt>${t('tiles.reactions')}</dt><dd><a href="img/reactions/LICENSE.txt" target="_blank" rel="noopener">${t('set.reactionNotice')}</a></dd>
         </dl>
         <details><summary>${t('set.technical')}</summary><dl class="kv"><dt>${t('set.vectors')}</dt><dd>${t('set.vectorsReal', { d: dataIndex.dims })}</dd></dl></details>
       </div>
@@ -1727,6 +1744,7 @@ export async function settingsScreen(root, _, refresh) {
     if (key === 'sound') { volume.disabled = !settings.sound; syncSound(); }
     if (key === 'lettersContrast') applyLettersContrast();
     if (key === 'updateCheck' && settings.updateCheck) checkUpdate();
+    if (key === 'waitForUpdates') refresh();
     if (key === 'showClock') paintClock();
     if (key === 'playRemind') root.querySelector('#rm-row').hidden = !settings.playRemind;
   }));

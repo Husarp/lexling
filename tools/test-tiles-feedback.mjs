@@ -23,6 +23,11 @@ const source = readFileSync(new URL('../app/js/tiles-game.js', import.meta.url),
 const fn = name => source.match(new RegExp(`  function ${name}\\(\\) \\{[\\s\\S]*?\\n  \\}`))[0];
 let passed = 0;
 const check = (name, actual, expected) => { assert.deepEqual(actual, expected, name); passed++; };
+const css = readFileSync(new URL('../app/css/app.css', import.meta.url), 'utf8');
+check('valid and invalid tiles share a 2 px outline from the face to the tile base',
+  /\.tb \.t\.new:not\(\.hint\):not\(\.drop\)::before,\.tb \.t\.bad:not\(\.hint\):not\(\.drop\)::before\{\s*content:"";position:absolute;top:0;right:0;bottom:calc\(-1 \* var\(--tile-depth,0px\)\);left:0;\s*border:2px solid var\(--ring\);border-radius:inherit/.test(css), true);
+check('raised tiles share their lift and outline depth',
+  /\.tb\.raised \.t:not\(\.hint\)\{[^}]*--tile-depth:calc\(var\(--cs\) \* \.16\);top:calc\(-1 \* var\(--tile-depth\)\)/.test(css), true);
 const draft = word => [...word].map((ch, slot) => ({ r: 7, c: 7 + slot, ch, slot }));
 const button = c => c.dock.innerHTML.match(/<button[^>]*data-act="play"[^>]*>[\s\S]*?<\/button>/)[0];
 
@@ -34,13 +39,14 @@ for (const lang of ['en', 'pl']) {
     myTurn: () => c.active && !c.S.vote, active: true, placedOf: () => c.draft,
     placementError, wordsMade, checkMove, isWord: w => w === 'at', canApprove, canExchange,
     t, esc, document, ERR: { line: 'tiles.err.line', gap: 'tiles.err.gap', alone: 'tiles.err.touch', centre: 'tiles.err.centre', single: 'tiles.err.single' },
-    moveError: element(), say: element(), dock: element(),
+    moveError: element(), say: element(), dock: element(), reactionLink: null,
     nameOf: () => 'You', whoCell: () => '<span class="who"><svg></svg></span>',
     lastMove: () => -1, thinking: false, linked: false, fresh: null, linkHtml: '',
     sendDraft() {}, remote: p => p !== c.solo, linkLine: () => '<p class="mc-link"></p>',
     cardWords: words => words.map(x => x.w).join(', '), hintMark: () => '', hintPaid: 0,
     ICON: {}, hintsOn: () => false, canUndo: false, refit() {},
   };
+  c.moveCards = c.say;
   runInNewContext(fn('judge') + fn('paintSay') + fn('paintDock'), c);
   c.paintSay();
   const neutral = c.say.innerHTML;
@@ -76,14 +82,25 @@ for (const lang of ['en', 'pl']) {
   c.draft = []; c.paintSay();
   check(`${lang}: recall restores the neutral prompt`, c.say.innerHTML, neutral);
 
+  // One placed tile can make more than one invalid word through existing tiles.
+  const empty = c.S;
+  c.S = apply(empty, { type: 'place', placed: draft('at') }, c.isWord);
+  c.S.cells[6 * 15 + 6] = { ch: 't', by: 0 };
+  c.draft = [{ r: 7, c: 6, ch: 'c', slot: 0 }]; c.paintSay();
+  check(`${lang}: names both invalid words`, c.moveError.textContent, `✕ ${t('tiles.err.unknown', { w: 'CAT, TC' })}`);
+  c.draft = []; c.paintSay();
+  check(`${lang}: clears the invalid words on recall`, c.moveError.textContent, '');
+  c.S = empty;
+
   // The online turn line takes the place of the empty move card (owner, 2026-11-26).
-  c.linked = true; c.active = false; c.S.turn = 1; c.paintSay();
+  c.linked = true; c.reactionLink = element(); c.active = false; c.S.turn = 1; c.paintSay();
+  check(`${lang}: remote turn keeps the live line alongside the picker`, c.reactionLink.innerHTML, '<p class="mc-link"></p>');
   check(`${lang}: remote turn hides the empty card`, c.say.innerHTML.includes('class="mc me'), false);
   c.lastMove = predicate => predicate(0) ? 0 : -1;
   c.moveCard = () => '<div class="mc me">previous move</div>';
   c.paintSay();
   check(`${lang}: remote turn keeps my previous move`, c.say.innerHTML.includes('previous move'), true);
-  c.linked = false; c.active = true; c.S.turn = 0; c.lastMove = () => -1;
+  c.linked = false; c.reactionLink = null; c.active = true; c.S.turn = 0; c.lastMove = () => -1;
 
   c.draft = draft('ax'); c.paintSay();
   c.active = false; c.paintSay();

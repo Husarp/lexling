@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { VERSION } from '../app/js/version.js';
 import { getLang, setLang } from '../app/js/i18n.js';
-import { checkStatus, defaults, failureKind, failureStatus, isNewShell, noticeKey, offers, selectFlow, sizeText, speedText } from '../app/js/ota-logic.js';
+import { checkStatus, defaults, failureKind, failureStatus, isNewShell, noticeKey, offers, selectFlow, sizeText, speedText, updateAgeAllows } from '../app/js/ota-logic.js';
 
 const tests = [];
 const test = (name, run) => tests.push([name, run]);
@@ -195,6 +195,56 @@ test('Android without Ota preserves the old updater and creates no OTA UI', asyn
   assert.equal(await legacy.checkUpdate(true), true);
   assert.equal(game.fetched(), 1);
   assert.equal(legacy.updateShown(), true);
+});
+
+test('the update delay uses publication or first sight and handles a future publication', () => {
+  const seen = 10_000_000, twoHours = 7_200_000;
+  const published = seen - 60000;
+  assert.equal(updateAgeAllows(true, published, seen, published + twoHours - 1), false);
+  assert.equal(updateAgeAllows(true, published, seen, published + twoHours), true);
+  for (const timestamp of [null, seen + 60000]) {
+    assert.equal(updateAgeAllows(true, timestamp, seen, seen), false);
+    assert.equal(updateAgeAllows(true, timestamp, seen, seen + twoHours - 1), false);
+    assert.equal(updateAgeAllows(true, timestamp, seen, seen + twoHours), true);
+  }
+});
+
+test('installer updates stay hidden until eligible, manually checked, or delay is off', async () => {
+  const game = await boot({ platform: 'windows' });
+  await game.ready();
+  const settings = store.settings;
+  const saved = { ...settings };
+  const realNow = Date.now;
+  let now = realNow();
+  let version = '9.3.0';
+  let published = new Date(now).toISOString();
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ tag_name: version, published_at: published }) });
+  try {
+    Date.now = () => now;
+    settings.lastCheck = 0;
+    assert.equal(await legacy.checkUpdate(), true);
+    assert.equal(legacy.updateWaiting(), false);
+    assert.equal(legacy.updateShown(), false);
+    now += 7_200_000;
+    assert.equal(legacy.updateWaiting(), false, 'a cached young version stays hidden until the channel is rechecked');
+    assert.equal(await legacy.checkUpdate(), true);
+    assert.equal(legacy.updateShown(), true);
+    version = '9.3.1';
+    published = new Date(now).toISOString();
+    settings.lastCheck = 0;
+    assert.equal(await legacy.checkUpdate(), true);
+    const seen = settings.updateFirstSeen[version];
+    assert.equal(await legacy.checkUpdate(true), true);
+    assert.equal(settings.updateFirstSeen[version], seen);
+    assert.equal(legacy.updateWaiting(), true);
+    version = '9.3.2';
+    settings.lastCheck = 0;
+    assert.equal(await legacy.checkUpdate(), true);
+    assert.equal(legacy.updateShown(), false);
+    settings.waitForUpdates = false;
+    assert.equal(legacy.updateShown(), true);
+    assert.equal(JSON.parse(game.window.localStorage.getItem('wg.settings')).updateFirstSeen['9.3.1'], seen);
+  } finally { Date.now = realNow; Object.assign(settings, saved); }
 });
 
 for (const platform of ['web', 'ios', 'windows']) {
@@ -468,7 +518,7 @@ test('Settings renders native fields and sends partials without losing an in-fli
   assert.deepEqual([...host.querySelector('.ota-actions').children].map(control => control.textContent), ['Install & restart', 'Check']);
   assert.ok(get('[data-ota-action=github] svg'));
   assert.equal(get('[data-ota-address]'), null);
-  assert.equal(host.querySelectorAll('.toggle').length, 4);
+  assert.equal(host.querySelectorAll('.toggle').length, 5);
   assert.equal(get('[data-ota-field=updateNotifications]').hidden, false);
   assert.deepEqual([...host.querySelectorAll('h3')].map(heading => heading.textContent),
     ['Automatic updates', 'Downloads and checks', 'Installed versions', 'Support']);
@@ -491,6 +541,20 @@ test('Settings renders native fields and sends partials without losing an in-fli
   for (const action of ['github', 'maintenance', 'logs']) get('[data-ota-action=' + action + ']').click();
   await flush();
   for (const method of ['openReleases', 'settings', 'logs']) assert.equal(game.calls(method).length, 1);
+});
+
+test('the delay switch defaults on and saves to localStorage and the OTA bridge', async () => {
+  const game = await boot({ hash: '#/settings' });
+  await game.ready();
+  game.ui.renderOtaSettings(game.get('#root'));
+  const control = game.get('[data-ota-field=waitForUpdates] button');
+  assert.equal(control.getAttribute('aria-checked'), 'true');
+  control.click();
+  await flush();
+  assert.deepEqual(game.calls('setUpdateSettings'), [[{ waitForUpdates: false }]]);
+  assert.equal(JSON.parse(game.window.localStorage.getItem('wg.settings')).waitForUpdates, false);
+  assert.equal(control.getAttribute('aria-checked'), 'false');
+  store.settings.waitForUpdates = true;
 });
 
 test('setup makes interruption unsafe, Recommended saves defaults, and reset asks again', async () => {

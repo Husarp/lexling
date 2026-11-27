@@ -47,10 +47,10 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
     @Volatile private var explicitInstallRequested = false
     private var recoveredAtStart = false
     private var permissionOpened = false
-    fun isReady() = ready != null && (!installing || confirmation != null)
+    fun isReady(includeManual: Boolean = true) = ready?.let { visible(it, includeManual) } == true && (!installing || confirmation != null)
     fun manifest() = ready
-    fun candidate() = (listOfNotNull(available, ready).maxByOrNull { it.versionCode })
-        ?.takeIf { it.versionCode > installedCode() }
+    fun candidate(includeManual: Boolean = true) = listOfNotNull(offered(includeManual), ready?.takeIf { visible(it, includeManual) })
+        .filter { it.versionCode > installedCode() }.maxByOrNull { it.versionCode }
     fun readyFor(target: ShellManifest) = ready?.versionCode == target.versionCode && ready?.sha256 == target.sha256
 
     fun embeddedFor(target: ShellManifest): Manifest {
@@ -63,7 +63,19 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
     private fun verifyStored(): ShellManifest? = if (envelope.isFile) runCatching {
         verifier.verifyShell(envelope.readBytes(),System.currentTimeMillis(),BuildConfig.VERSION_CODE.toLong())
     }.getOrNull() else null
-    @Volatile private var available: ShellManifest? = null
+    private data class Offer(val manifest: ShellManifest, val checkedAt: Long = System.currentTimeMillis())
+    @Volatile private var available: Offer? = null
+    @Volatile private var manuallyChecked: ShellManifest? = null
+    internal fun ageAllows(m: ShellManifest, manual: Boolean = false, staged: Boolean = false,
+                           checkedAt: Long = Long.MAX_VALUE): Boolean {
+        val dates = engine.dates.get("shell", m.versionCode.toString())
+        return updateAgeAllows(settings().waitForUpdates, m.publishedAt, dates.availableAt ?: dates.downloadedAt,
+            minOf(checkedAt, System.currentTimeMillis()), manual, engine.isCurrentBlocked() || (staged && dates.approvedEarly))
+    }
+    private fun visible(m: ShellManifest, includeManual: Boolean, checkedAt: Long = Long.MAX_VALUE) =
+        ageAllows(m, manual = includeManual && (m == manuallyChecked || (explicitInstallRequested && readyFor(m))),
+            staged = includeManual && readyFor(m), checkedAt = checkedAt)
+    private fun offered(includeManual: Boolean) = available?.takeIf { visible(it.manifest, includeManual, it.checkedAt) }?.manifest
     @Volatile private var requestedDownload: ShellManifest? = null
     @Volatile private var downloadingTarget: ShellManifest? = null
     fun downloadTarget() = downloadingTarget ?: requestedDownload
@@ -73,11 +85,11 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
     fun installingTarget(): ShellManifest? = completedInstall ?: preparingInstall ?: ready?.takeIf {
         explicitInstallRequested || (installing && (confirmation == null || prefs.getBoolean("confirmationShown", false)))
     }
-    fun availableState(): JSObject? = available?.takeIf {
+    fun availableState(includeManual: Boolean = true): JSObject? = offered(includeManual)?.takeIf {
         isUpdateOffer(it.versionCode, installedCode(), ready?.versionCode, preparingInstall?.versionCode)
     }?.let { state(it) }
     @Synchronized fun downloadOffered(): Boolean {
-        val offered = available ?: return false
+        val offered = offered(true) ?: return false
         if (downloadTarget() != null || !isUpdateOffer(offered.versionCode, installedCode(), ready?.versionCode, preparingInstall?.versionCode)) return false
         requestedDownload = offered
         transfer = null
@@ -96,7 +108,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
             // Recover publication metadata even when this envelope now describes the running APK.
             if (envelope.isFile) runCatching {
                 val stored = verifier.verifyShell(envelope.readBytes(),System.currentTimeMillis(),-1)
-                engine.dates.record("shell",stored.versionCode.toString(),stored.releasedAt)
+                engine.dates.record("shell",stored.versionCode.toString(),stored.publishedAt ?: stored.releasedAt)
             }
             recordInstalledIfNeeded()
             // Recover a ready APK and a pending system confirmation after process death.
@@ -108,7 +120,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
                 throw e
             }
             if (stored != null) {
-                engine.dates.record("shell", stored.versionCode.toString(), stored.releasedAt, downloaded = true)
+                engine.dates.record("shell", stored.versionCode.toString(), stored.publishedAt ?: stored.releasedAt, downloaded = true)
                 val id=prefs.getInt("session",-1)
                 val installer=context.packageManager.packageInstaller
                 val lostConfirmation=prefs.getBoolean("awaitingConfirmation",false) && confirmation==null
@@ -132,31 +144,39 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
             }
             if (release == null) {
                 available = null
+                manuallyChecked = null
                 lastCheckSucceeded = true
                 if (ready == null) status = "No Android app update published"
                 return@submit
             }
             val (source, m) = release
-            engine.dates.record("shell",m.versionCode.toString(),m.releasedAt,
+            engine.dates.record("shell",m.versionCode.toString(),m.publishedAt ?: m.releasedAt,
                 available=m.versionCode>BuildConfig.VERSION_CODE)
             lastCheckSucceeded=true
             if(m.versionCode<=installedCode()) {
                 available = null
+                manuallyChecked = null
                 log("decision: equal/older shell ${m.versionCode}; skip")
                 if(ready==null) status="Android app is current"
+                return@submit
+            }
+            manuallyChecked = m.takeIf { manual || (consent && expected == it) || it == manuallyChecked }
+            if (!ageAllows(m, manual || consent)) {
+                available = Offer(m)
+                status = "No Android app update"
                 return@submit
             }
             log("signature OK; versionCode ${m.versionCode}, API ${m.shellApi}, embedded ${m.embeddedWebVersion}")
             if (expected != null && (m.versionCode != expected.versionCode || m.sha256 != expected.sha256)) {
                 lastCheckSucceeded = false
                 status = "Download failed: the Android app update changed"
-                available = m
+                available = Offer(m)
                 return@submit
             }
             if (ready?.sha256 == m.sha256 && ready?.versionCode == m.versionCode) { log("already ready/session pending"); return@submit }
             // Do not replace an APK while a committed installer session is using it.
             if (installing) { log("existing session pending; defer new shell download"); return@submit }
-            available = m
+            available = Offer(m)
             if (consent && downloadOnly && requestedDownload?.versionCode?.let { it != m.versionCode } == true) {
                 status = "The Android app update changed; check the new version before downloading"
                 return@submit
@@ -165,9 +185,11 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
                 status="Android app update ${m.versionName} · ${m.size} bytes · Later / Update"; changed(); return@submit
             }
             transfer=TransferState(0,m.size,0); downloadingTarget=m; downloading=true; status="Downloading Android app ${m.versionName}"; changed()
-            val apk=download(m,consent)
+            val apk=download(m,consent,manual)
             verifyApk(apk,m)
-            engine.dates.record("shell",m.versionCode.toString(),m.releasedAt,downloaded=true)
+            if (!ageAllows(m, manual || consent)) return@submit
+            engine.dates.record("shell",m.versionCode.toString(),m.publishedAt ?: m.releasedAt,
+                downloaded = true, approvedEarly = consent || manual || engine.isCurrentBlocked())
             val installNow = consent && !downloadOnly
             if (downloadOnly && consent) requireInstallTap(m)
             atomicWrite(envelope,source.bytes); ready=m; available=null
@@ -190,7 +212,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
             log("check finished",start)
         }
     }
-    private fun download(m: ShellManifest, consent: Boolean): File {
+    private fun download(m: ShellManifest, consent: Boolean, manual: Boolean): File {
         require(dir.usableSpace >= m.size*2) { "Not enough APK storage" }
         val target=File(dir,m.apk)
         if (target.isFile && target.length()==m.size && hash(target)==m.sha256) return target
@@ -198,7 +220,12 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
         if (part.length()>m.size) part.delete()
         var offset=part.length(); var received=0L
         val start=System.nanoTime()
-        if(!consent) require(automaticDownload(settings(),"shell",m.size,unmetered())) { "Automatic APK download paused; Later / Update" }
+        fun checkPolicy() {
+            if (!consent) require(ageAllows(m, manual) && automaticDownload(settings(),"shell",m.size,unmetered())) {
+                "Automatic APK download paused; Later / Update"
+            }
+        }
+        checkPolicy()
         transport.open(URI(Updater.SHELL_URL).resolve(m.apk).toString(),offset).use { r ->
             if(r.status==206) require(r.rangeStart==offset) { "APK Range mismatch" }
             else { require(r.status==200); offset=0 }
@@ -206,7 +233,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
                 val buffer=ByteArray(65536); var last=0L
                 val downloadSpeed = DownloadSpeed(0)
                 while(true) {
-                    if(!consent) require(automaticDownload(settings(),"shell",m.size,unmetered())) { "Automatic APK download paused; Later / Update" }
+                    checkPolicy()
                     val n=r.body.read(buffer); if(n<0) break
                     require(offset+received+n<=m.size) { "APK oversized" }
                     out.write(buffer,0,n); received+=n
@@ -256,6 +283,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
     fun maybeInstall() { executor.execute { runCatching { maybeInstallOnExecutor() }.onFailure { failInstall(it.message ?: "Could not start Android installer") } } }
     private fun maybeInstallOnExecutor() {
         val m=ready ?: return
+        if (!ageAllows(m, explicitInstallRequested, staged = true)) return
         if (!mayInstall(m) || prefs.getLong("awaitingInstallTap",-1) == m.versionCode) return
         if (!explicitInstallRequested && !automaticShellInstall(settings())) { log("automatic shell installation disabled"); return }
         if (!mayInterrupt()) { log("install deferred: app is busy"); return }
@@ -282,7 +310,8 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
                 val intent=Intent(context,InstallStatusReceiver::class.java).setAction("${context.packageName}.INSTALL_RESULT").putExtra("sessionId",id)
                 val flags=PendingIntent.FLAG_UPDATE_CURRENT or (if(Build.VERSION.SDK_INT>=31) PendingIntent.FLAG_MUTABLE else 0)
                 val receiver=PendingIntent.getBroadcast(context,id,intent,flags)
-                if(!mayInterrupt() || !mayInstall(m) || (!explicitInstallRequested && !automaticShellInstall(settings()))) {
+                if(!mayInterrupt() || !mayInstall(m) || !ageAllows(m, explicitInstallRequested, staged = true) ||
+                    (!explicitInstallRequested && !automaticShellInstall(settings()))) {
                     installer.abandonSession(id); log("session deferred before commit: app is busy"); return
                 }
                 // Durable before commit: package replacement can terminate this process immediately.
@@ -297,6 +326,7 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
         try {
             val target = ready ?: return
             if (!installRequested || !mayInterrupt() || !isReady() ||
+                !ageAllows(target, explicitInstallRequested, staged = true) ||
                 (!explicitInstallRequested && !automaticShellInstall(settings())) ||
                 prefs.getLong("awaitingInstallTap", -1) == target.versionCode || !mayInstall(target)) return
             if (!canInstallPackages()) {
@@ -314,10 +344,14 @@ class ShellUpdater(private val context: Context, private val engine: Engine,
     }
     fun installFromWeb(activity: MainActivity, userInitiated: Boolean = true): Boolean {
         if (!mayInterrupt() || !isReady() || ready?.let(mayInstall) != true) return false
+        if (!userInitiated && ready?.let { ageAllows(it, explicitInstallRequested, staged = true) } != true) return false
         installRequested = true
         if(userInitiated) {
             explicitInstallRequested = true
-            ready?.let { prefs.edit().remove("awaitingInstallTap").putInt("notifyTarget",it.versionCode.toInt()).commit() }
+            ready?.let {
+                runCatching { engine.dates.record("shell", it.versionCode.toString(), approvedEarly = true) }
+                prefs.edit().remove("awaitingInstallTap").putInt("notifyTarget",it.versionCode.toInt()).commit()
+            }
         }
         permissionOpened = false
         prefs.edit().putBoolean("failed",false).apply()

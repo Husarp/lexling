@@ -51,6 +51,7 @@ class Engine(val root: File, val embedded: Manifest, private val shellApi: Int, 
         json.fromJson(File(bundles, "$version/bundle.json").readText(), Manifest::class.java).also { validateManifest(it); require(it.version == version) }
     }
     @Synchronized fun currentManifest(): Manifest = manifest(state.current)
+    @Synchronized fun isCurrentBlocked() = state.current in state.blocked
     @Synchronized fun blocked(versions: List<String>) {
         versions.forEach { if (it !in state.blocked) state.blocked.add(it) }
         save()
@@ -119,7 +120,7 @@ class Engine(val root: File, val embedded: Manifest, private val shellApi: Int, 
         if (state.trial) { state.trialStarts++; log.add("Trial start count ${state.trialStarts}/2 for ${state.current}; recovery available before ready") }
         loaded = state.current; token = UUID.randomUUID().toString(); save()
         if (activated) onProgress(UpdateActivation.Progress(loaded, UpdateActivation.Step.APPLYING, 1, 2))
-        dates.record("web", loaded, manifest(loaded).releasedAt,
+        dates.record("web", loaded, manifest(loaded).let { it.publishedAt ?: it.releasedAt },
             installedAt = if (activated || loaded == embedded.version) System.currentTimeMillis() else null)
         if (activated) onProgress(UpdateActivation.Progress(loaded, UpdateActivation.Step.APPLYING, 2, 2))
         cleanup()
@@ -220,7 +221,7 @@ class Engine(val root: File, val embedded: Manifest, private val shellApi: Int, 
             check(staging.renameTo(destination)) { "Staging rename failed" }
         }
         syncDirectory(bundles); syncDirectory(staging.parentFile!!)
-        dates.record("web", m.version, m.releasedAt, downloaded = true)
+        dates.record("web", m.version, m.publishedAt ?: m.releasedAt, downloaded = true)
         state.pending = m.version
         state.pendingShellCode = targetShell?.versionCode
         if (state.trial) rollback(false, "startup-repair", notify = false) else save()

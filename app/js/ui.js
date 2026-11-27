@@ -1,5 +1,5 @@
 import { achievementDetail } from './achievement-view.js';
-import { settings, saveSettings, gameName, counts, isKept, toggleKept } from './store.js';
+import { settings, saveSettings, gameName, counts, getFinished, getSave, isKept, toggleKept } from './store.js';
 import { t, esc } from './i18n.js';
 import { TIERS } from './achievements.js';
 import { playCue, queueTap, syncSound } from './sound.js';
@@ -10,6 +10,7 @@ import { botLevelIcon } from './bot-level-icons.js';
 
 // Owner-picked icons from notes/icon-places/index.html; geometry stays with its proposal.
 export const UI_ICONS = {
+  close: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 6-12 12M6 6l12 12"/></svg>',
   bluetooth: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 4V3l5 4L7 17"/></svg>',
   // Drawn in the style of Lucide's wifi-off.
   wifiOff: '<svg class="app-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 18 18M2 9a15 15 0 0 1 4-2.4m4-1.1A15 15 0 0 1 22 9M5 13a10 10 0 0 1 6-2.5m4.5.6A10 10 0 0 1 19 13M8.5 16.5a5.5 5.5 0 0 1 6-.7M12 20h.01"/></svg>',
@@ -50,24 +51,41 @@ export const achievementMedal = (earned = true) => `<svg viewBox="0 0 24 24" ari
 // A small notice on every screen, queued so simultaneous unlocks all get their moment (owner, 2026-11-14).
 const achievementQueue = [];
 let achievementNotice = null;
+function inLinkedGame() {
+  const match = window.location?.hash.match(/^#\/game\/([^/]+)$/);
+  const game = match && getSave(match[1]);
+  return !!game?.link;
+}
+function updateAchievementAction() {
+  const see = achievementNotice?.querySelector?.('[data-see]');
+  if (see) see.hidden = inLinkedGame();
+}
+window.addEventListener('hashchange', updateAchievementAction);
 function showAchievement() {
   if (achievementNotice || !achievementQueue.length) return;
-  const [id, tier] = achievementQueue.shift().split('#');
+  const { key, linked } = achievementQueue.shift();
+  const [id, tier] = key.split('#');
   const name = t('ach.' + id) + (tier === undefined ? '' : ' · ' + t('tier.' + TIERS[+tier]));
   const notice = achievementNotice = document.createElement('div');
   notice.className = 'achievement-notice';
   notice.setAttribute('role', 'status');
-  notice.innerHTML = `<span class="ach-notice-icon"><img src="img/achievement.webp" alt=""></span><span><strong>${t('ach.unlocked')}</strong><b>${tier === undefined ? t('ach.earned') : t('tier.' + TIERS[+tier])}</b><span>${esc(name)}</span></span><span class="ach-notice-actions"><button data-see>${t('ach.see')}</button><button data-close>${t('ach.nice')}</button></span>`;
+  notice.innerHTML = `<span class="ach-notice-icon"><img src="img/achievement.webp" alt=""></span><span><strong>${t('ach.unlocked')}</strong><b>${tier === undefined ? t('ach.earned') : t('tier.' + TIERS[+tier])}</b><span>${esc(name)}</span></span><span class="ach-notice-actions">${linked ? '' : `<button data-see>${t('ach.see')}</button>`}<button data-close>${t('ach.nice')}</button></span>`;
   let closed = false;
   const close = () => { if (closed) return; closed = true; notice.remove(); achievementNotice = null; showAchievement(); };
   notice.querySelector?.('[data-close]')?.addEventListener('click', close);
-  notice.querySelector?.('[data-see]')?.addEventListener('click', () => { close(); achievementDetail(id); });
+  notice.querySelector?.('[data-see]')?.addEventListener('click', () => {
+    if (inLinkedGame()) return;
+    close();
+    achievementDetail(id);
+  });
+  updateAchievementAction();
   document.body.append(notice);
   playCue('achievement');
   setTimeout(close, 3000);
 }
 document.addEventListener('lexling:achievement', e => {
-  achievementQueue.push(...e.detail.keys);
+  const { keys, linked } = e.detail;
+  achievementQueue.push(...keys.map(key => ({ key, linked })));
   showAchievement();
 });
 
@@ -236,20 +254,50 @@ export const topbar = ({ left = '', right = '' } = {}) =>
 export const resultHref = id => `#/result/${id}`;
 export const backToResults = () => `<a class="btn btn-ghost" href="#/last-games">${t('back.lastGames')}</a>`;
 
-// Saved games and individual results use the same star.
-export const keepButton = (game, on = game && isKept(game.id)) => game ? `<span class="keep-game">
-  <button class="btn btn-outline" type="button" data-keep aria-pressed="${on}" aria-label="${t('lastGames.keep')}" title="${t('lastGames.keep')}"><span aria-hidden="true">${on ? '★' : '☆'}</span></button>
+export const KEEP_STAR = '<svg class="keep-star" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.9 3.3Q12 1.8 13.1 3.3L15.4 7.8 20.5 8.5Q22.3 8.8 21 10.2L17.3 13.8 18.2 19Q18.5 20.8 16.9 20L12 17.5 7.1 20Q5.5 20.8 5.8 19L6.7 13.8 3 10.2Q1.7 8.8 3.5 8.5L8.6 7.8Z"/></svg>';
+const keepLabel = on => t(on ? 'lastGames.kept' : 'lastGames.keep');
+export const keepButton = (game, on = game && isKept(game.id), iconOnly = false) =>
+  game ? `<span class="keep-game">
+  <button class="btn" type="button" data-keep aria-pressed="${on}"${iconOnly ? ` aria-label="${keepLabel(on)}" title="${keepLabel(on)}"` : ''}>${KEEP_STAR}${iconOnly ? '' : `<span>${keepLabel(on)}</span>`}</button>
   <span class="keep-status help" role="status"></span>
 </span>` : '';
 export function wireKeep(root, game, changed) {
   const button = root.querySelector('[data-keep]');
-  button?.addEventListener('click', () => {
+  if (!button) return;
+  const update = () => {
     const on = toggleKept(game);
-    button.nextElementSibling.textContent = on === null ? t('lastGames.keepFailed') : '';
-    if (on === null) return;
+    if (on === null) return false;
+    button.nextElementSibling.textContent = '';
     button.setAttribute('aria-pressed', on);
-    button.firstElementChild.textContent = on ? '★' : '☆';
-    changed?.(on);
+    const label = button.querySelector('span');
+    if (label) label.textContent = keepLabel(on);
+    return true;
+  };
+  button.addEventListener('click', () => {
+    if (!isKept(game.id)) {
+      if (!update()) button.nextElementSibling.textContent = t('lastGames.keepFailed');
+      else if (changed) changed();
+      return;
+    }
+    const title = t('lastGames.unkeepTitle');
+    const { dlg, close } = openDialog(title, `<p class="help" id="unkeep-description">${t('lastGames.unkeepDescription')}</p>
+      <p class="help unkeep-status" role="status"></p>
+      <div class="gs-acts"><button class="btn btn-ghost" type="button" data-cancel autofocus>${t('tiles.cancel')}</button>
+        <button class="btn btn-ghost btn-danger" type="button" data-confirm>${t('games.delete')}</button></div>`,
+    { icon: KEEP_STAR, showClose: false });
+    dlg.classList.add('unkeep-dialog');
+    dlg.setAttribute('aria-label', title);
+    dlg.setAttribute('aria-describedby', 'unkeep-description');
+    dlg.querySelector('[data-cancel]').addEventListener('click', close);
+    dlg.querySelector('[data-confirm]').addEventListener('click', () => {
+      if (isKept(game.id) && !update()) {
+        dlg.querySelector('.unkeep-status').textContent = t('lastGames.keepFailed');
+        return;
+      }
+      close();
+      if (changed) changed();
+      else if (!getFinished(game.id)) button.disabled = true;
+    });
   });
 }
 

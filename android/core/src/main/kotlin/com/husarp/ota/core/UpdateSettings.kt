@@ -10,7 +10,8 @@ data class UpdateSettings(
     val wifiLimitMb: Int = 20,
     val mobileLimitMb: Int = 5,
     val setupAnswered: Boolean = false,
-    val checkFrequency: String = "6h"
+    val checkFrequency: String = "6h",
+    val waitForUpdates: Boolean = true
 ) {
     fun validate(): UpdateSettings {
         require(checkFrequency in listOf("1h","6h","24h")) { "Invalid check frequency" }

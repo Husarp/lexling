@@ -5,12 +5,27 @@
 // lines (net.js); this file only says what is in them.
 //
 //   host → phone: welcome {seat, id, title, setup, log, here}, act {n, a}, here {here}, names {names}, reject {n},
-//                 refused, full, version, end {why}, draft {id, n, placing}, ping, pong
-//   phone → host: hello {v, name}, move {n, a}, app {open} (showing Lexling or not), draft {id, n, placing}, ping, pong, bye
+//                 refused, full, version, end {why}, draft {id, n, placing}, reaction {id, p, icon}, ping, pong
+//   phone → host: hello {v, name}, move {n, a}, app {open}, draft {id, n, placing}, reaction {id, icon}, ping, pong, bye
 export const PROTOCOL = 2;
 export const QUIET = 15000;   // nothing heard for this long: the connection counts as gone
 // a phone showing another app: Android may pause Lexling there, so its pings can stop - only a closed connection counts
 export const QUIET_AWAY = 300000;
+export const REACTION_WINDOW = 10000;
+export const REACTION_ICONS = ['joy', 'wink', 'sunglasses', 'exploding-head', 'thinking', 'monocle',
+  'pleading', 'rage', 'crying', 'yawning', 'clap', 'snail', 'heart'];
+
+function reactionLimit() {
+  const received = new Map();
+  return p => {
+    const now = Date.now();
+    const recent = (received.get(p) || []).filter(at => now - at < REACTION_WINDOW);
+    if (recent.length >= 4) return false;
+    recent.push(now);
+    received.set(p, recent);
+    return true;
+  };
+}
 
 // a seat takes its first name for the whole game, even when another phone takes over (owner, 2026-11-14)
 export const seatName = (current, offered) => current || String(offered ?? '').trim().slice(0, 16);
@@ -25,7 +40,8 @@ const parse = text => { try { return JSON.parse(text); } catch { return null; } 
 // phone can take (not a player out of the game). extra(): more for every phone with who is here (who is away).
 // onApp(seat, open): that phone shows Lexling again, or another app.
 // onDraft(seat, activity): an optional turn status, with no tiles or positions (owner, 2026-11-26).
-export function createHost({ players, me = 0, known = [], game, take, send, drop, onChange = () => {}, onAsk = () => {}, usable = () => true, extra = () => ({}), onApp = () => {}, onDraft = () => {} }) {
+// reactionsOpen(): whether the round still accepts reactions. onReaction(icon): show one on this phone.
+export function createHost({ players, me = 0, known = [], game, take, send, drop, onChange = () => {}, onAsk = () => {}, usable = () => true, extra = () => ({}), onApp = () => {}, onDraft = () => {}, reactionsOpen = () => true, onReaction = () => {} }) {
   const seats = Array.from({ length: players }, (_, i) => ({ conn: null, heard: 0, address: known[i]?.address ?? null, device: known[i]?.device ?? '' }));
   const waiting = new Map();   // conn → { device, address, name, said } - connected, not seated yet
   let asking = null, sent = game().log.length;
@@ -33,7 +49,15 @@ export function createHost({ players, me = 0, known = [], game, take, send, drop
   const others = () => seats.map((s, i) => i).filter(i => i !== me);
   const seatOf = conn => others().find(i => seats[i].conn === conn) ?? -1;
   const here = () => seats.map((s, i) => i === me || !!s.conn);
-  const everyone = m => others().forEach(i => { if (seats[i].conn) say(seats[i].conn, m); });
+  const everyone = (m, except = -1) => others().forEach(i => { if (i !== except && seats[i].conn) say(seats[i].conn, m); });
+  const allowReaction = reactionLimit();
+  function reaction(p, id, icon) {
+    if (!reactionsOpen() || !REACTION_ICONS.includes(icon) || (p !== me && !allowReaction(p))) return false;
+    // The guest that sent it already showed it locally. Take the seat from the connection.
+    everyone({ t: 'reaction', id, p, icon }, p);
+    onReaction(icon);
+    return true;
+  }
   const empty = () => others().filter(i => !seats[i].conn && usable(i));
   const free = () => empty()[0] ?? -1;
   const welcome = (conn, seat) => say(conn, { t: 'welcome', v: PROTOCOL, seat, ...game(), here: here(), ...extra() });
@@ -103,6 +127,7 @@ export function createHost({ players, me = 0, known = [], game, take, send, drop
       else if (m.t === 'ping') say(conn, { t: 'pong' });
       else if (m.t === 'app') { seats[i].bg = !m.open; onApp(i, !!m.open); }
       else if (m.t === 'draft' && typeof m.placing === 'boolean') onDraft(i, { id: m.id, n: m.n, placing: m.placing });
+      else if (m.t === 'reaction' && m.id === game().id) reaction(i, m.id, m.icon);
       else if (m.t === 'bye') { gone(conn); drop(conn); }
     },
     disconnected: gone,
@@ -128,6 +153,7 @@ export function createHost({ players, me = 0, known = [], game, take, send, drop
     },
     names: names => everyone({ t: 'names', names }),
     draft: ({ id, n, placing }) => everyone({ t: 'draft', id, n, placing }),
+    react: icon => seats.some(s => s.conn) && reaction(me, game().id, icon),
     end: why => everyone({ t: 'end', why }),
     // every few seconds: a ping keeps the line alive; a phone quiet for too long is let go
     tick() {
@@ -142,20 +168,33 @@ export function createHost({ players, me = 0, known = [], game, take, send, drop
 }
 
 // A phone in someone else's game. on: the host's messages by type (welcome, act, names, here, reject, refused, full,
-// version, end). flush(log) sends this phone's own new actions; the host's copy of each comes back as an `act`.
+// version, end, reaction). flush(log) sends this phone's own new actions; the host's copy of each comes back as an `act`.
 export function createGuest({ name, send, on = {} }) {
   let up = false, heard = 0, sent = 0, relaxed = false;
+  let round = null, seat = -1, players = 0;
+  const allowReaction = reactionLimit();
   const say = m => { if (up) send(JSON.stringify(m)); };
   return {
     get up() { return up; },
-    connected() { up = true; heard = Date.now(); say({ t: 'hello', v: PROTOCOL, name }); },
-    disconnected() { up = false; },
+    connected() { up = true; round = null; heard = Date.now(); say({ t: 'hello', v: PROTOCOL, name }); },
+    disconnected() { up = false; round = null; },
     message(text) {
       const m = parse(text);
       if (!m) return;
       heard = Date.now();
-      if (m.t === 'welcome') sent = m.log.length;
+      if (m.t === 'welcome') {
+        sent = m.log.length;
+        round = m.id; seat = m.seat; players = Array.isArray(m.here) ? m.here.length : 0;
+      }
       if (m.t === 'ping') return say({ t: 'pong' });
+      if (m.t === 'reaction') {
+        const { p, id, icon } = m;
+        if (up && round != null && id === round && Number.isInteger(p) && p >= 0 && p < players && p !== seat
+          && REACTION_ICONS.includes(icon) && allowReaction(p)) {
+          on.reaction?.(icon);
+        }
+        return;
+      }
       on[m.t]?.(m);
     },
     flush(log) {
@@ -169,6 +208,12 @@ export function createGuest({ name, send, on = {} }) {
     // this phone shows Lexling again, or another app
     app: open => say({ t: 'app', open }),
     draft: ({ id, n, placing }) => say({ t: 'draft', id, n, placing }),
+    react(icon) {
+      if (!up || round == null || !Number.isInteger(seat) || seat < 0 || seat >= players || !REACTION_ICONS.includes(icon)) return false;
+      say({ t: 'reaction', id: round, icon });
+      on.reaction?.(icon);
+      return true;
+    },
     // the host's phone shows another app: its silence counts for less
     relax: on => { relaxed = on; },
     // every few seconds: true when the host has gone quiet

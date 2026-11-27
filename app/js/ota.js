@@ -11,7 +11,7 @@ export const otaActive = () => !!plugin();
 const githubIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .8a11.2 11.2 0 0 0-3.54 21.83c.56.1.77-.24.77-.54v-2.09c-3.13.68-3.79-1.33-3.79-1.33-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.22.71-1.5-2.5-.28-5.13-1.25-5.13-5.57 0-1.23.44-2.24 1.16-3.03-.12-.28-.5-1.43.11-2.99 0 0 .95-.3 3.08 1.16a10.7 10.7 0 0 1 5.61 0c2.14-1.46 3.08-1.16 3.08-1.16.61 1.56.23 2.71.11 2.99.72.79 1.16 1.8 1.16 3.03 0 4.33-2.64 5.28-5.15 5.56.4.35.76 1.03.76 2.08v3.1c0 .3.21.64.77.53A11.2 11.2 0 0 0 12 .8Z"/></svg>';
 const events = ['updateStateChanged', 'updateAvailable', 'updateStaged', 'updated', 'rolledBack', 'shellUpdateReady', 'updateSettingsChanged'];
 const fields = [
-  ['smallFixes'], ['majorUpdates'], ['shellUpdates'], ['updateNotifications'],
+  ['smallFixes'], ['majorUpdates'], ['shellUpdates'], ['updateNotifications'], ['waitForUpdates'],
   ['wifiLimitMb', [5, 20, 50, 100, -1]],
   ['mobileLimitMb', [0, 5, 20, 50, -1]],
   ['checkFrequency', ['1h', '6h', '24h']],
@@ -49,8 +49,8 @@ function controlsMarkup() {
       ? `<label class="ota-select"><span>${label}</span>${controls}</label>`
       : `<strong class="row-text">${label}</strong>${controls}`}</div>`;
   });
-  return `${settingsGroup('automatic', rows.slice(0, 4).join(''))}
-    ${settingsGroup('downloads', rows.slice(4).join(''))}<p class="ota-muted">${t('ota.frequencyNote')}</p><p class="ota-muted">${t('ota.limitNote')}</p>`;
+  return `${settingsGroup('automatic', rows.slice(0, 5).join(''))}
+    ${settingsGroup('downloads', rows.slice(5).join(''))}<p class="ota-muted">${t('ota.frequencyNote')}</p><p class="ota-muted">${t('ota.limitNote')}</p>`;
 }
 
 const settingsGroup = (title, contents) => `<section class="ota-group">
@@ -59,7 +59,7 @@ const settingsGroup = (title, contents) => `<section class="ota-group">
 function paintControls(container, values, disabled) {
   for (const row of container.querySelectorAll('[data-ota-field]')) {
     const key = row.dataset.otaField;
-    row.hidden = key === 'updateNotifications' && typeof values?.[key] !== 'boolean';
+    row.hidden = ['updateNotifications', 'waitForUpdates'].includes(key) && typeof values?.[key] !== 'boolean';
     const control = row.querySelector('button, select');
     if (control.matches('button')) {
       const on = values?.[key] === true;
@@ -503,6 +503,7 @@ function mount(ota) {
 
   async function savePreferences(patch, finish = false) {
     if (!state?.updateSettings || saving) return;
+    if (typeof state.updateSettings.waitForUpdates !== 'boolean') delete patch.waitForUpdates;
     saving = patch;
     saveError = false;
     paintPanel();
@@ -512,6 +513,10 @@ function mount(ota) {
       const values = await call('setUpdateSettings', patch);
       ++policyRevision;
       state.updateSettings = { ...state.updateSettings, ...patch, ...values };
+      if (typeof patch.waitForUpdates === 'boolean') {
+        settings.waitForUpdates = state.updateSettings.waitForUpdates;
+        saveSettings();
+      }
       if (finish) closeSetup();
     } catch { saveError = true; }
     finally {
@@ -565,9 +570,10 @@ function mount(ota) {
         return;
       }
       const action = event.target.closest('button')?.dataset.otaAction;
-      if (action === 'recommended') void savePreferences({ ...defaults, setupAnswered: true }, true);
+      if (action === 'recommended') void savePreferences({ ...defaults, waitForUpdates: settings.waitForUpdates, setupAnswered: true }, true);
       if (action === 'customize') {
         setupDraft = { ...defaults };
+        delete setupDraft.waitForUpdates;
         for (const [key] of fields) {
           if (state.updateSettings[key] !== undefined) setupDraft[key] = state.updateSettings[key];
         }
@@ -624,6 +630,9 @@ function mount(ota) {
       throw new Error('OTA readiness was not accepted');
     }
     launch = info;
+    if (typeof info.updateSettings?.waitForUpdates === 'boolean' && info.updateSettings.waitForUpdates !== settings.waitForUpdates) {
+      await call('setUpdateSettings', { waitForUpdates: settings.waitForUpdates }).catch(() => {});
+    }
     new window.MutationObserver(syncTheme).observe(html, { attributes: true, attributeFilter: ['data-theme', 'lang'] });
     syncTheme();
     window.addEventListener('hashchange', () => {

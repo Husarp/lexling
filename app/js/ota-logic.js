@@ -3,10 +3,17 @@ import { newer } from './whatsnew.js';
 
 export const defaults = {
   smallFixes: true, majorUpdates: false, shellUpdates: true,
-  wifiLimitMb: 20, mobileLimitMb: 5, checkFrequency: '6h',
+  wifiLimitMb: 20, mobileLimitMb: 5, checkFrequency: '6h', waitForUpdates: true,
 };
 
 const newerVersion = (version, running) => !!version && !!running && newer(version, running);
+
+export function updateAgeAllows(wait, publishedAt, firstSeenAt, now, manual = false) {
+  if (!wait || manual) return true;
+  const start = publishedAt > 0 && publishedAt <= now && (!firstSeenAt || publishedAt <= firstSeenAt)
+    ? publishedAt : firstSeenAt;
+  return start > 0 && now - start >= 2 * 60 * 60 * 1000;
+}
 
 export function isNewShell(state, version, versionCode) {
   if (!version) return false;

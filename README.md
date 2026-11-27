@@ -243,6 +243,7 @@ when it is distributed (to-do in PLAN.md M5). Not legal advice; check the terms 
 | SJP.PL "odmiany" (sjp.pl inflection list) | Letters / Connect: which words are base words (`app/data/pl/pool.json`) | GPL 2, LGPL 2.1, Apache 2.0 or CC BY 4.0 — we use CC BY 4.0: attribution |
 | FrequencyWords (Hermit Dave), from OpenSubtitles 2018 | Tiles: the words people say, for the computer's levels (`app/data/<lang>/spoken.txt`) | CC BY-SA 4.0 — attribution + share-alike |
 | Barlow Condensed, Inter | fonts | SIL OFL (licence files in `app/fonts/`) |
+| [Google Noto Emoji](https://github.com/googlefonts/noto-emoji/tree/v2.042/svg) | Tiles reactions | Apache-2.0 ([licence](app/img/reactions/LICENSE.txt)) |
 
 ## Licence
 

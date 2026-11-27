@@ -5,29 +5,35 @@ import { JSDOM } from 'jsdom';
 
 const { window } = new JSDOM('<div id="root"></div>', { url: 'https://localhost/', pretendToBeVisual: true });
 const box = { left: 0, right: 100, top: 0, bottom: 100, width: 100, height: 100 };
+let reducedMotion = false;
 Object.assign(globalThis, { window, document: window.document, localStorage: window.localStorage,
+  CustomEvent: window.CustomEvent,
   location: window.location, innerWidth: 360, getComputedStyle: window.getComputedStyle.bind(window),
-  matchMedia: () => ({ matches: false, addEventListener() {} }),
+  matchMedia: query => ({ matches: query.includes('pointer: fine') || (reducedMotion && query.includes('reduced-motion')), addEventListener() {} }),
   fetch: async url => new Response(readFileSync(new URL('../app/' + url, import.meta.url))),
 });
 window.Range.prototype.getBoundingClientRect = () => box;
 window.HTMLElement.prototype.scrollIntoView = () => {};
+window.HTMLElement.prototype.scrollTo = () => {};
 window.HTMLElement.prototype.setPointerCapture = () => {};
 window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
 window.HTMLDialogElement.prototype.close = function () { this.open = false; this.dispatchEvent(new window.Event('close')); };
 
-const { putSave, settings } = await import('../app/js/store.js');
+const { newGame, putSave, settings } = await import('../app/js/store.js');
 const { load, rankAll, pct } = await import('../app/js/engine.js');
 const { setLang, t } = await import('../app/js/i18n.js');
 const { gameScreen } = await import('../app/js/game.js');
 const { lettersGameScreen } = await import('../app/js/letters-game.js');
 const { connectGameScreen } = await import('../app/js/connect-game.js');
+const { tilesGameScreen } = await import('../app/js/tiles-game.js');
+const { newGame: newTiles } = await import('../app/js/tiles.js');
 const { settingsScreen } = await import('../app/js/screens.js');
 settings.sound = false;
 setLang('en');
 
 const root = document.querySelector('#root');
 const $ = sel => document.querySelector(sel);
+const typed = key => document.dispatchEvent(new window.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
 const base = mode => ({ id: mode, mode, status: 'playing', lang: 'en', diff: 'normal', timeMs: 0 });
 const open = (screen, game) => { putSave(game); location.hash = '#/game/' + game.id; return screen(root, game.id); };
 function guide(mode, board) {
@@ -100,6 +106,7 @@ stop();
 
 const hints = { ...base('guess'), id: 'guess-hints', cat: 'all', secret, guesses: [] };
 stop = await open(gameScreen, hints);
+assert.deepEqual([...$('.empty-ranks').querySelectorAll('text')].map(el => el.textContent), ['WORD', 'LETTER', 'TERM', '642', '42', '1']);
 $('#hint').click();
 assert.equal($('dialog .help').textContent, 'Use a hint? This game becomes practice.');
 assert.equal($('[data-keep]').textContent, 'Keep playing');
@@ -111,6 +118,7 @@ assert.equal($('[data-use]').textContent, 'Use hint');
 $('[data-use]').click();
 assert.equal(hints.practice, true);
 assert.equal(hints.guesses.filter(g => g.hint).length, 1);
+assert.equal($('.empty-ranks'), null);
 $('#hint').click();
 assert.equal($('dialog'), null);
 assert.equal(hints.guesses.filter(g => g.hint).length, 2);
@@ -149,8 +157,31 @@ guide('letters', '.lt-board');
 assert.equal($('.lt-row.now').textContent, 'c');
 stop();
 
+for (const reduce of [false, true]) {
+  reducedMotion = reduce;
+  const win = { ...base('letters'), id: 'letters-win-' + reduce, len: 3, tries: 6, secret, guesses: [] };
+  stop = await open(lettersGameScreen, win);
+  for (const key of ['c', 'a', 't', 'Enter']) typed(key);
+  assert.equal(win.status, 'won');
+  await new Promise(resolve => setTimeout(resolve, 260));
+  assert.ok($('.outcome.won'));
+  assert.equal(!!$('.lt-win-pulse'), !reduce);
+  assert.equal(document.querySelectorAll('.lt-confetti i').length, reduce ? 0 : 48);
+  stop();
+  location.hash = '#/result/' + win.id;
+  await lettersGameScreen(root, win.id, true);
+  assert.ok($('.outcome.won'));
+  assert.equal($('.lt-confetti, .lt-win-pulse'), null);
+}
+reducedMotion = false;
+
 const connect = { ...base('connect'), ring: 'scat', found: [], shown: [], bonus: [], hints: 0,
   board: { rows: 4, cols: 4, words: ['cat', 'act', 'sat', 'scat'].map((w, i) => ({ w, r: i + 1, c: 1, d: 'a' })) } };
+const { setInterval: realInterval, clearInterval: realClear } = globalThis;
+const intervals = new Set();
+globalThis.setInterval = fn => { intervals.add(fn); return fn; };
+globalThis.clearInterval = fn => intervals.delete(fn);
+const tick = () => { for (const fn of [...intervals]) fn(); };
 stop = await open(connectGameScreen, connect);
 const ring = $('.cn-ring'), coords = [[50, 16], [84, 50], [50, 84], [16, 50]];
 ring.getBoundingClientRect = () => box;
@@ -161,10 +192,18 @@ function pointer(type, i) {
   ring.dispatchEvent(e);
 }
 const tap = i => { pointer('down', i); pointer('up', i); };
-const typed = key => document.dispatchEvent(new window.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
 const draft = () => $('.say .w')?.textContent;
 assert.ok($('.cn-tap-actions').hidden);
 tap(1);
+tick();
+const connectTime = connect.timeMs;
+assert.ok(connectTime > 0);
+$('.cn-bonus').click();
+assert.ok($('.cn-pop'));
+assert.equal($('.cn-pop .cn-bonus-art').getAttribute('aria-hidden'), 'true');
+tick();
+assert.equal(connect.timeMs, connectTime);
+$('.cn-bonus').click();
 assert.equal($('[data-remove]').textContent, 'Usuń ostatnią');
 assert.equal($('[data-submit]').textContent, 'Sprawdź');
 assert.ok($('[data-submit]').disabled);
@@ -202,8 +241,59 @@ tap(0);
 $('[data-remove]').click();
 assert.ok($('.cn-tap-actions').hidden);
 assert.equal($('polyline').getAttribute('points'), '');
+connect.bonus.push('cast');
+$('.cn-bonus').click();
+assert.equal($('.cn-pop .cn-bonus-art'), null);
+assert.equal($('.cn-pop .words').textContent, 'cast');
 stop();
+
+globalThis.ResizeObserver = class { observe() {} disconnect() {} };
+const tiles = newGame({ mode: 'tiles', lang: 'en', toasted: true,
+  state: newTiles({ lang: 'en', players: [{}, { cpu: 'expert' }], first: 0, seed: 3, rules: { rating: false } }) });
+location.hash = '#/game/' + tiles.id;
+stop = await tilesGameScreen(root, tiles.id);
+const activity = () => root.firstElementChild.dispatchEvent(new window.Event('pointerdown', { bubbles: true }));
+activity();
+tick();
+assert.equal(tiles.timeMs, 1000);
+$('[data-open="check"]').click();
+assert.ok($('.tl-panel'));
+tick();
+assert.equal(tiles.timeMs, 2000);   // Tiles counts while a panel is open and during the others' turns
+$('[data-act="close"]').click();
+$('[data-act="pass"]').click();
+$('[data-act="passYes"]').click();
+assert.equal(tiles.state.turn, 1);
+activity();
+tick();
+assert.equal(tiles.timeMs, 3000);
+stop();
+
+for (const bonus of [50, 0]) {
+  const state = newTiles({ lang: 'en', players: [{}, { cpu: 'expert' }], first: 0, seed: 3, rules: { rating: false, bingo: bonus } });
+  state.racks[0] = [...'letters'];
+  const game = { ...base('tiles'), id: 'tiles-bingo-' + bonus, state, toasted: true };
+  stop = await open(tilesGameScreen, game);
+  $('.tl-board').getBoundingClientRect = $('.tb').getBoundingClientRect = () => box;
+  for (const type of ['down', 'up']) {
+    const e = new window.MouseEvent('pointer' + type, { bubbles: true, cancelable: true, clientX: 50, clientY: 50 });
+    Object.defineProperties(e, { pointerId: { value: 1 }, isPrimary: { value: true } });
+    $('.tb').dispatchEvent(e);
+  }
+  typed('l');
+  assert.equal($('.tb .t.new.settling').firstChild.textContent, 'l');
+  for (const ch of 'etters') typed(ch);
+  assert.equal(document.querySelectorAll('.tb .t.new.settling').length, 1);
+  assert.equal(document.querySelectorAll('.tb .t.new').length, 7);
+  $('[data-act="play"]').click();
+  assert.ok(game.state.moves[0].bingo);
+  assert.equal($('.ps-bingo-label')?.textContent, bonus ? 'Bingo +50' : undefined);
+  assert.equal(document.querySelectorAll('.ps[data-who="0"] .ps-bingo-tiles i').length, bonus ? 7 : 0);
+  stop();
+}
+assert.equal(intervals.size, 0);
+Object.assign(globalThis, { setInterval: realInterval, clearInterval: realClear });
 root.replaceChildren();
 window.close();
 
-console.log('in-game guides, Guess hints and latest row, and Connect entry passed');
+console.log('in-game controls and Connect/Tiles play time passed');

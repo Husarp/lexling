@@ -321,7 +321,19 @@ export async function connectGameScreen(root, id, archived = false) {
     if (open) { open.remove(); bonusBtn.classList.remove('open'); return; }
     dock.insertAdjacentHTML('beforeend', `<div class="cn-pop" role="dialog" aria-label="${t('cn.bonusList')}">
       <div class="cn-pop-head"><span class="eyebrow">${t('cn.bonusList')}</span><span class="num" style="font-size:22px;color:var(--accent)">${game.bonus.length}</span></div>
-      ${game.bonus.length ? `<div class="words">${game.bonus.map(w => `<span>${esc(w)}</span>`).join('')}</div>` : ''}
+      ${game.bonus.length ? `<div class="words">${game.bonus.map(w => `<span>${esc(w)}</span>`).join('')}</div>` :
+        `<svg class="cn-bonus-art" viewBox="0 0 144 60" width="144" height="51" aria-hidden="true">
+          <g fill="#79b851">
+            <rect x="32" y="13" width="19" height="19" rx="4"/>
+            <rect x="55" y="13" width="19" height="19" rx="4"/>
+            <rect x="78" y="13" width="19" height="19" rx="4"/>
+          </g>
+          <g style="stroke:var(--rare-gold-ink)">
+            <path d="M64.5 32v16h31" fill="none" stroke-width="1.5" stroke-dasharray="3 3"/>
+            <circle cx="106" cy="48" r="10" style="fill:var(--rare-gold-bg)"/>
+            <path d="M106 44v8m-4-4h8" fill="none" stroke-width="1.7" stroke-linecap="round"/>
+          </g>
+        </svg>`}
       <p class="help">${t('cn.bonusHelp')}</p>
     </div>`);
     bonusBtn.classList.add('open');
@@ -493,7 +505,7 @@ export async function connectGameScreen(root, id, archived = false) {
   if (archived) return;
   document.addEventListener('keydown', onKey, true);   // before main.js's Esc-goes-back
   document.addEventListener('click', onDocClick);
-  const stop = playClock(root, game, () => app.isConnected);
+  const stop = playClock(app, game, () => !dock.querySelector('.cn-pop'));
   return () => {
     document.removeEventListener('keydown', onKey, true);
     document.removeEventListener('click', onDocClick);

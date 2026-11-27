@@ -10,6 +10,8 @@ import com.husarp.ota.core.Engine
 import com.husarp.ota.core.EventLog
 import com.husarp.ota.core.Manifest
 import com.husarp.ota.core.ManifestVerifier
+import com.husarp.ota.core.atomicWrite
+import com.husarp.ota.core.json
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import org.junit.Assert.*
@@ -43,6 +45,24 @@ class UpdateStartupTest {
         assertEquals(6L, updater().updateSettings().periodicHours)
         prefs.edit().putString("checkFrequency", "24h").apply()
         assertEquals(24L, updater().updateSettings().periodicHours)
+    }
+
+    @Test fun youngStagedBundleWaitsByDefaultAndCanBeUsedForRecovery() {
+        val updater = updater()
+        val engine = updater.engine
+        val young = engine.embedded.copy(version = "0.74.1", publishedAt = System.currentTimeMillis())
+        val staging = engine.root.resolve("staging/${young.version}")
+        atomicWrite(staging.resolve("bundle.json"), json.toJson(young).toByteArray())
+        engine.commit(young, staging)
+
+        assertTrue(updater.settingsJson().getBoolean("waitForUpdates"))
+        assertNull(updater.info().optJSONObject("staged"))
+        assertEquals(young.version, engine.snapshot().pending)
+
+        updater.prepareLaunch(startingBuiltIn = true, recovery = true) {}
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+        while (updater.launching && System.nanoTime() < deadline) Thread.sleep(10)
+        assertEquals(young.version, updater.launch.version)
     }
 
     @Test fun failedCheckAndThrowingObserversDoNotEscapeTheMainThread() {

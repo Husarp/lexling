@@ -302,9 +302,10 @@ export function pointsBreakdown(state, placed) {
     const letters = [...w.w].map((ch, k) => {
       const i = (w.r + (w.across ? 0 : k)) * n + w.c + (w.across ? k : 0);
       const tile = fresh.get(i) ?? state.cells[i], active = fresh.has(i) || state.rules?.premiums === 'always';
-      const letter = active ? LETTER_X[prem[i]] || 1 : 1;
-      multiplier *= active ? WORD_X[prem[i]] || 1 : 1;
-      return { ch, blank: !!tile.blank, value: valueOf(state.lang, tile.blank ? BLANK : ch), multiplier: letter };
+      const premium = active ? prem[i] : '';
+      multiplier *= WORD_X[premium] || 1;
+      return { ch, blank: !!tile.blank, value: valueOf(state.lang, tile.blank ? BLANK : ch),
+        multiplier: LETTER_X[premium] || 1, premium };
     });
     return { ...w, letters, multiplier };
   });

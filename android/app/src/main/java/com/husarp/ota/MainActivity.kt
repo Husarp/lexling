@@ -257,6 +257,7 @@ class MainActivity : BridgeActivity() {
     private fun retryStartup(builtIn: Boolean) {
         if (isFinishing || isDestroyed) return
         app.startingBuiltIn = builtIn
+        app.retryingStartup = true
         app.startupCrashGuard.beginLaunch(retry = true)
         recreate()
     }
@@ -291,7 +292,7 @@ class MainActivity : BridgeActivity() {
                 showNativeMessages()
             }
         }
-        updater.prepareLaunch(app.startingBuiltIn) {
+        updater.prepareLaunch(app.startingBuiltIn, recovery = app.retryingStartup) {
             if (!isFinishing && !isDestroyed) loadPreparedBundle()
         }
     }

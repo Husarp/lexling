@@ -49,7 +49,7 @@ object ShellUpdatedNotification {
     }
 
     fun postWorkerOffers(context: Context, updater: Updater) {
-        val state = updater.info()
+        val state = updater.info(includeManual = false)
         val strings = NativeStrings.context(context)
         val prefs = context.getSharedPreferences("worker-update-notices", Context.MODE_PRIVATE)
         val paired = state.optJSONObject("combined")
@@ -61,7 +61,7 @@ object ShellUpdatedNotification {
         val offer = paired ?: shellOffer ?: webOffer
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.cancel(if (id == 703) 702 else 703)
-        val version = offer?.optString("version") ?: return
+        val version = offer?.optString("version") ?: run { manager.cancel(id); return }
         val ready = when {
             paired != null -> paired.optString("phase") == "ready"
             shellOffer != null -> shellReady != null

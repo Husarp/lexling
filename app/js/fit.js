@@ -26,7 +26,8 @@ function fitLabels(root) {
 
 function fitsScreen(screen, viewport) {
   if (screen.scrollWidth > screen.clientWidth + 1) return false;
-  if (screen.matches('.fit, [data-screen=menu], [data-screen=games]')) {
+  if (screen.matches('[data-screen=menu]')) return screen.scrollHeight <= viewport.clientHeight;
+  if (screen.matches('.fit, [data-screen=games]')) {
     return screen.scrollHeight <= viewport.clientHeight + 1;
   }
   // Long pages can scroll. Keep the part of Guess above its scrolling history in view when possible.
@@ -34,15 +35,34 @@ function fitsScreen(screen, viewport) {
   return !entry || entry.offsetTop + entry.offsetHeight <= viewport.clientHeight + 1;
 }
 
+function sizeMenu(style, fits, low, high) {
+  // The rendered menu includes the heading, footer and any update notice.
+  // Search in one-percent steps so wrapped labels are included in the fit.
+  while (low < high) {
+    const scale = Math.ceil((low + high) / 2);
+    style.setProperty('--menu-scale', scale / 100);
+    if (fits()) low = scale;
+    else high = scale - 1;
+  }
+  style.setProperty('--menu-scale', low / 100);
+}
+
 function fitScope(scope, fits) {
   const style = scope.style;
+  const menu = scope.matches('[data-screen=menu]');
+  if (menu) style.removeProperty('--menu-scale');
   style.removeProperty('--spacing');
   style.removeProperty('--button-scale');
   style.removeProperty('--text-scale');
   const css = getComputedStyle(scope);
   const buttonScale = Number(css.getPropertyValue('--button-scale'));
   const textScale = Number(css.getPropertyValue('--text-scale'));
-  const fitsWithLabels = () => { fitLabels(scope); return fits(); };
+  const fitsWithLabels = () => {
+    fitLabels(scope);
+    if (!fits()) return false;
+    if (menu) sizeMenu(style, fits, 100, 150);
+    return true;
+  };
 
   // Always lay out within the safe viewport. Start at the saved sizes on each screen,
   // then tighten spacing, step down button size, and finally step down text size.
@@ -59,6 +79,8 @@ function fitScope(scope, fits) {
     style.setProperty('--text-scale', scale);
     if (fitsWithLabels()) return;
   }
+  // On very short screens a notice can take up much of the safe viewport.
+  if (menu) sizeMenu(style, fits, 60, 99);
 }
 
 export function fitAll(root = document.getElementById('root')) {

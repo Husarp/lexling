@@ -337,10 +337,26 @@ export async function lettersGameScreen(root, id, archived = false) {
     if (afterReveal) playCue('accepted', cue); else playCue(cue);
     if (!afterReveal) return paintEnd();
     revealing = true;
-    setTimeout(() => { if (app.isConnected) paintEnd(); }, revealMs);
+    setTimeout(() => { if (app.isConnected) paintEnd(status === 'won'); }, revealMs);
   }
 
-  function paintEnd() {
+  function celebrateWin() {
+    main.querySelector('.outcome').classList.add('lt-win-pulse');
+    const confetti = document.createElement('div');
+    confetti.className = 'lt-confetti';
+    confetti.setAttribute('aria-hidden', 'true');
+    // A little jitter in each part of the viewport keeps the burst spread across the screen.
+    confetti.innerHTML = Array.from({ length: 48 }, (_, i) => {
+      const x = (i % 8 + Math.random()) * 12.5, y = (Math.floor(i / 8) + Math.random()) * (100 / 6);
+      const dx = (x - 50) * .22, dy = (y - 40) * .22 + 6;
+      const spin = Math.round(Math.random() * 360 - 180), delay = Math.round(Math.random() * 90);
+      return `<i style="left:${x}%;top:${y}%;--dx:${dx}vw;--dy:${dy}vh;--spin:${spin}deg;animation-delay:${delay}ms"></i>`;
+    }).join('');
+    app.append(confetti);
+    setTimeout(() => confetti.remove(), 650);
+  }
+
+  function paintEnd(freshWin = false) {
     const won = game.status === 'won', g = game.guesses.length, dot = '<span class="dot">·</span>';
     // first the banner - what happened, big, in green or red - then the word and the numbers in a card
     const head = outcome(won, t(won ? 'end.won' : game.status === 'lost' ? 'end.lost' : 'end.gaveUp'),
@@ -357,6 +373,7 @@ export async function lettersGameScreen(root, id, archived = false) {
     </div>`;
     app.classList.remove('fit', 'kbon');
     main.innerHTML = `${head}${card}<div class="lt-board" role="grid" aria-label="${t('game.guesses')}"></div>`;
+    if (freshWin && !matchMedia('(prefers-reduced-motion: reduce)').matches) celebrateWin();
     wireKeep(main, saved);
     board = $('.lt-board');
     paintBoard();
@@ -369,7 +386,7 @@ export async function lettersGameScreen(root, id, archived = false) {
   window.addEventListener('resize', keepDown);
   window.visualViewport?.addEventListener('resize', keepDown);
   document.addEventListener('keydown', onKey, true);   // before main.js's Esc-goes-back: Esc first lets a selection go
-  const stop = playClock(root, game, () => app.isConnected);
+  const stop = playClock(app, game);
   return () => {
     window.removeEventListener('resize', keepDown);
     window.visualViewport?.removeEventListener('resize', keepDown);

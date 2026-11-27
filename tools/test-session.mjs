@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { newGame, apply, voteFits } from '../app/js/tiles.js';
-import { createHost, createGuest, seatName, PROTOCOL, QUIET, QUIET_AWAY } from '../app/js/session.js';
+import { createHost, createGuest, seatName, PROTOCOL, QUIET, QUIET_AWAY, REACTION_WINDOW } from '../app/js/session.js';
 
 let pass = 0, fail = 0;
 const check = (name, got, want) => {
@@ -320,6 +320,66 @@ for (const outcome of ['veto', 'accept', 'silence', 'timeout']) {
   check('only boolean draft activity reaches the host, attributed to its seat', seen, [[1, activity]]);
   wire.forEach(text => g.message(text));
   check('a relayed draft carries only the round, log number and flag', received, [{ t: 'draft', ...activity }]);
+}
+
+// Reactions are transient, limited by seat and scoped to the current round.
+{
+  let now = 10000, id = 'round1', open = true;
+  const received = [[], [], []], relayed = [], sent = [];
+  const h = createHost({ players: 3, game: () => ({ id, log: [] }), take: () => false, drop() {},
+    send: (p, text) => {
+      if (JSON.parse(text).t === 'reaction') relayed.push([p, JSON.parse(text)]);
+      guests[p - 1].message(text);
+    },
+    reactionsOpen: () => open, onReaction: icon => received[0].push(icon),
+  });
+  const guests = [1, 2].map(p => createGuest({
+    send: text => { sent.push(JSON.parse(text)); h.message(p, text); },
+    on: { reaction: icon => received[p].push(icon) },
+  }));
+  const guestMessage = (p, fields) => h.message(p, JSON.stringify({ t: 'reaction', id, icon: 'heart', ...fields }));
+  const hostMessage = (guest, fields) => guest.message(JSON.stringify({ t: 'reaction', id, p: 0, icon: 'joy', ...fields }));
+  const connect = p => { h.connected(p, { address: 'phone-' + p }); guests[p - 1].connected(); };
+  const realNow = Date.now;
+  Date.now = () => now;
+  try {
+    const [a, b] = guests;
+    check('the host needs a connected guest to send', h.react('joy'), false);
+    connect(1);
+    guestMessage(1, {});
+    check('a guest needs a seat and a welcome', [a.react('heart'), relayed.length], [false, 0]);
+    h.letIn(1);
+    connect(2); h.letIn(2);
+    guestMessage(1, { id: 'previous-round' }); guestMessage(1, { icon: 'unknown' });
+    hostMessage(b, { p: 2 }); hostMessage(b, { p: 3 }); hostMessage(b, { p: -1 });
+    hostMessage(b, { id: 'stale' }); hostMessage(b, { icon: 'unknown' }); hostMessage(b, { icon: 'fire' });
+    check('both ends ignore stale rounds, invalid senders and unknown or retired icons', received, [[], [], []]);
+    check('a valid guest reaction is seen once by each phone, including its sender', [a.react('heart'), received],
+      [true, [['heart'], ['heart'], ['heart']]]);
+    check('the guest sends only the round and stable reaction id', sent.at(-1), { t: 'reaction', id, icon: 'heart' });
+    check('the host supplies the seat and omits the name', relayed, [[2, { t: 'reaction', id, p: 1, icon: 'heart' }]]);
+    for (const icon of ['joy', 'wink', 'snail', 'rage']) guestMessage(1, { p: 0, icon });
+    check('the host uses the connection seat and drops the fifth reaction', relayed.map(([, m]) => [m.p, m.icon]),
+      [[1, 'heart'], [1, 'joy'], [1, 'wink'], [1, 'snail']]);
+    hostMessage(b, { p: 1, icon: 'rage' });
+    check('the guest also drops the fifth reaction from a seat', received[2], ['heart', 'joy', 'wink', 'snail']);
+    check('other seats can still send', [h.react('monocle'), b.react('yawning')], [true, true]);
+    h.disconnected(1); a.disconnected(); connect(1);
+    now += REACTION_WINDOW - 1;
+    guestMessage(1, { icon: 'rage' });
+    hostMessage(b, { p: 1, icon: 'rage' });
+    check('the receiver window still applies after reconnecting', [received[0].at(-1), received[2].at(-1)], ['yawning', 'yawning']);
+    now++;
+    guestMessage(1, { icon: 'rage' });
+    check('the first reactions expire after ten seconds', [received[0].at(-1), received[2].at(-1)], ['rage', 'rage']);
+    id = 'round2'; h.restart();
+    guestMessage(1, { id: 'round1' });
+    hostMessage(b, { id: 'round1' });
+    check('a rematch ignores old reactions on both ends', [received[0].at(-1), received[2].at(-1)], ['rage', 'rage']);
+    open = false;
+    guestMessage(1, { icon: 'thinking' });
+    check('a closed round cannot relay or send a reaction', [h.react('thinking'), received[0].at(-1)], [false, 'rage']);
+  } finally { Date.now = realNow; }
 }
 
 // Exercise the screen's reconnect path with each local transport, without a browser.

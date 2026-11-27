@@ -10,6 +10,7 @@ class OtaApplication : Application() {
     internal lateinit var startupCrashGuard: StartupCrashGuard
         private set
     @Volatile internal var startingBuiltIn = false
+    internal var retryingStartup = false
     private var updatesScheduled = false
 
     override fun onCreate() {
@@ -31,6 +32,7 @@ class OtaApplication : Application() {
 
     internal fun bundleSelected() {
         startingBuiltIn = false
+        retryingStartup = false
         if (updatesScheduled) return
         updatesScheduled = true
         UpdateWorker.schedule(this)

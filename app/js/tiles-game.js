@@ -3,15 +3,15 @@
 // look-back. The rules are tiles.js; finding moves - the computer, hints, the look-back - is tiles-moves.js.
 import { t, esc, clock, duration, plural } from './i18n.js';
 import { counts, settings, saveSettings, getSave, getFinished, putSave, deleteSave, recordMove, noteMove, tilesProgress, recordTilesEnd, recordTilesRating, playClock, gameName, newGame as makeSave } from './store.js';
-import { createHost, createGuest, seatName } from './session.js';
+import { createHost, createGuest, seatName, REACTION_ICONS, REACTION_WINDOW } from './session.js';
 import { net, netReady } from './net.js';
 import { loadWords, resolve } from './engine.js';
 import { lookupMeaning } from './meaning.js';
 import { has } from './dawg.js';
 import { cleanTiers, moveRarity, listedPct } from './rarity.js';
 import { bump, grant, playChallenges, gameChallenges } from './achievements.js';
-import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, pointsBreakdown, checkMove, apply, canExchange,
-  unseen, undo, wordList, loadTileWords, checkWord, fullBag, hintCost, BLANK, STANDARD, newGame as startOf, outOf, levelKey, voteFits, voteStatus, canApprove, matchSummary, replayBoard } from './tiles.js';
+import { sizeOf, centre, premiums, valueOf, letterSet, placementError, wordsMade, pointsBreakdown, WORD_X, checkMove, apply, canExchange,
+  unseen, undo, wordList, loadTileWords, checkWord, fullBag, hintCost, RACK, BLANK, STANDARD, newGame as startOf, outOf, levelKey, voteFits, voteStatus, canApprove, matchSummary, replayBoard } from './tiles.js';
 import { findMoves, evaluateMoves, hintLevels, sameMove, computerMove, lookBack, LEVELS, loadSpoken } from './tiles-moves.js';
 import { UI_ICONS, playerIcon, practiceBadge, confirmClick, outcome, openDialog, openRules, settingRows, wireSettingRows, meaningButton, wordLink, remindBt, topbar, backToResults, keepButton, wireKeep, resultHref, gameTitle } from './ui.js';
 import { fitAll } from './fit.js';
@@ -21,6 +21,37 @@ import { shareTilesStory } from './tiles-share.js';
 // a bonus square's look and label: d / t = double / triple letter, D / T = double / triple word (tiles.js BOARDS)
 export const LABEL = { d: 'l2', t: 'l3', D: 'w2', T: 'w3' };
 export { playerIcon } from './ui.js';
+const BOT_SCORE_COLOURS = new Map([
+  ['relaxed', '#80C86A'], ['easy', '#C0D86B'], ['medium', '#F0CA63'],
+  ['normal', '#F3AA4C'], ['hard', '#FF864F'], ['expert', '#FF6565'],
+]);
+function scoreIcon(S, p, me) {
+  const level = S.players[p].cpu;
+  const colour = level ? BOT_SCORE_COLOURS.get(level) || BOT_SCORE_COLOURS.get('normal') : p === me ? 'var(--accent)' : '';
+  return `<span class="pb" aria-hidden="true"${colour ? ` style="--face:${colour}"` : ''}>${playerIcon(S, p)}</span>`;
+}
+
+function pointsHtml(detail) {
+  const points = n => `<strong>${n} <small>${t('tiles.hist.pts')}</small></strong>`;
+  const tile = l => {
+    const bonus = LABEL[l.premium], letter = esc(l.ch.toUpperCase());
+    return `<div class="tl-calc-letter${bonus ? ' ' + bonus : ''}">
+      <span>${l.value}${l.multiplier > 1 ? '×' + l.multiplier : ''}</span>
+      <b class="tl-calc-face"><span${l.blank ? ` aria-label="${letter} (${t('tiles.blankName')})"` : ''}>${letter}</span></b>
+      <small class="tl-calc-bonus">${bonus ? t('tiles.label.' + bonus) : ''}</small>
+    </div>`;
+  };
+  const words = detail.words.map(w => {
+    const factors = w.letters.map(l => WORD_X[l.premium]).filter(Boolean);
+    return `<div class="tl-calc-letters" style="--letters:${w.letters.length}">${w.letters.map(tile).join('')}</div>
+      <div class="tl-calc-equation">${factors.length
+        ? `<span>${[w.score / w.multiplier, ...factors].join(' × ')} <small>(${t('tiles.wordMultipliers')})</small></span>` : ''}${points(w.score)}</div>`;
+  });
+  return `<div class="tl-calculation">${words.join('')}${detail.bonus
+    ? `<div class="tl-calc-bingo"><span>${t('tiles.sevenBonus')}</span>${points('+' + detail.bonus)}</div>` : ''}
+    <div class="tl-calc-total"><span>${t('tiles.pointsTotal')}</span>${points(detail.score)}</div></div>`;
+}
+
 const svg = paths => `<svg viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
 const ICON = {
   shuffle: svg('<path d="m18 14 4 4-4 4"></path><path d="m18 2 4 4-4 4"></path><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-7.6a4 4 0 0 1 3.3-1.7H22"></path><path d="M2 6h1.972a4 4 0 0 1 3.6 2.2"></path><path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"></path>'),
@@ -211,6 +242,71 @@ function wireCheck(box, lang, rules, dict) {
   });
 }
 
+function watchCheckViewport(root, more, boardWrap) {
+  if (!matchMedia('(pointer: coarse)').matches) return () => {};
+  const IME_HEIGHT_DROP = 100, IME_SETTLE_MS = 2500;
+  const viewport = window.visualViewport;
+  const visibleHeight = () => viewport ? viewport.height : window.innerHeight;
+  let before, timer, cappedPanel;
+  const release = () => {
+    window.clearTimeout(timer);
+    if (!before) return;
+    before = null;
+    root.style.removeProperty('--safe-height');
+    if (cappedPanel) cappedPanel.style.removeProperty('max-height');
+    cappedPanel = null;
+  };
+  function update() {
+    if (!before) return;
+    if (window.innerWidth !== before.width) return release();
+    const height = visibleHeight(), drop = before.height - height;
+    const panel = more.querySelector('.tl-check-panel');
+    if (panel && drop > 1) {
+      const bottom = height + (viewport ? viewport.offsetTop : 0);
+      const room = Math.min(boardWrap.getBoundingClientRect().bottom, bottom) - panel.getBoundingClientRect().top;
+      panel.style.maxHeight = Math.max(0, room) + 'px';
+      cappedPanel = panel;
+    } else if (cappedPanel) {
+      cappedPanel.style.removeProperty('max-height');
+      cappedPanel = null;
+    }
+    window.clearTimeout(timer);
+    // Back can hide the IME while the input still has focus. A small height loss can be
+    // the three-button bar, which Android can keep visible briefly after the IME closes.
+    if (drop < IME_HEIGHT_DROP || !panel || document.activeElement !== panel.querySelector('input')) {
+      timer = window.setTimeout(release, IME_SETTLE_MS);
+    }
+  }
+  function focus(e) {
+    if (root.clientWidth >= 900 || !e.target.matches('.tl-check input')) return;
+    if (!before) {
+      before = { width: window.innerWidth, height: visibleHeight() };
+      // Hold the safe height through both viewport resizes and CSS/native bottom inset changes.
+      root.style.setProperty('--safe-height', root.clientHeight + 'px');
+    }
+    update();
+  }
+  more.addEventListener('focusin', focus);
+  more.addEventListener('focusout', update);
+  for (const event of ['resize', 'ota-window-insets']) window.addEventListener(event, update);
+  window.addEventListener('orientationchange', release);
+  if (viewport) {
+    viewport.addEventListener('resize', update);
+    viewport.addEventListener('scroll', update);
+  }
+  return () => {
+    release();
+    more.removeEventListener('focusin', focus);
+    more.removeEventListener('focusout', update);
+    for (const event of ['resize', 'ota-window-insets']) window.removeEventListener(event, update);
+    window.removeEventListener('orientationchange', release);
+    if (viewport) {
+      viewport.removeEventListener('resize', update);
+      viewport.removeEventListener('scroll', update);
+    }
+  };
+}
+
 // The board's squares and tiles (design: only bonus / start / marked squares and tiles are elements - plain
 // squares are the grid's background). `draft` = this turn's tiles. No points on the board, ever (owner, 2026-09-26) - the
 // message line and Play show them.
@@ -331,6 +427,7 @@ export async function tilesGameScreen(root, id, archived = false) {
   // its seat (linkMe) with the game in memory only. Every move goes through the host (session.js), over Bluetooth or
   // Wi-Fi (net.js). Nobody moves while a seat's phone is missing.
   const linked = !!game.link, host = linked && game.link.role === 'host';
+  const reactions = linked && !archived;
   let linkMe = linked ? game.link.me : -1;
   const remote = p => linked && p !== linkMe;
   const kind = game.link?.kind ?? 'bt', wire = linked && !archived ? net(kind) : null;
@@ -341,6 +438,7 @@ export async function tilesGameScreen(root, id, archived = false) {
   // whoever is on turn, or make a player give up (Options → Players)
   let away = [], goneSince = [], askSeat = -1, visibleDeclined = false, visAsking = false, joinedAs = false;
   let remoteMs = 0, linkHtml = '', linkDraft = null, sentDraft = null;
+  let reactionTimer = 0, recentReactions = [];
   let findable = null;   // Bluetooth host: can other phones' search find this one now (null: not known)
   const handles = [];
   // one person here (against computers, or on their own phone): their rack is always shown
@@ -364,7 +462,10 @@ export async function tilesGameScreen(root, id, archived = false) {
   // tabs (owner, 2026-09-25); over the board on a phone, beside it when wide (History until another is opened)
   let panel = null, histOf = null;   // histOf: the player whose History a score chip opened, or null for everyone's
   let msg = null;             // what just happened, for the message line: { html, err }
-  let landing = null;         // squares whose tiles just came down, to animate
+  let landing = null;         // the opponent's move waiting for the board to paint
+  let scoreCount = null;
+  let settling = [];          // draft squares just placed by the player
+  let bingoPlayer = -1, bingoTimer = 0, bingoWave = false;
   let endStep = false;        // the end, before the results: what the tiles left on the racks cost (finish)
   let thinking = false, toast = false, handOver = false, wide = false;
   let turnCuePending = !S.log.length;
@@ -373,30 +474,47 @@ export async function tilesGameScreen(root, id, archived = false) {
   let zoom = { z: 1, x: 0, y: 0 };      // x / y: the board's shift, in fractions of its size (0 or less)
   let press = null, pinch = null, dragEl = null, dropAt = -1, rackGap = -1;
   const touches = new Map();
+  const reactionFace = '<img src="img/reactions/joy.svg" alt="">';
+  const reactionButtons = icons => icons.map(icon =>
+    `<button type="button" class="btn btn-ghost" data-reaction="${icon}" aria-label="${t('tiles.reaction.' + icon)}" title="${t('tiles.reaction.' + icon)}"><img src="img/reactions/${icon}.svg" alt=""></button>`).join('');
 
   root.innerHTML = `<div class="app fit" data-screen="tiles">
   ${archived ? topbar({ left: backToResults(), right: gameTitle(game, archived) }) : ''}
   <main class="main"><div class="tl-play">
     <div class="status"></div>
-    <div class="tl-bwrap"><div class="tl-board"><div class="tb"></div></div></div>
-    <div class="tl-messages"><div class="tl-moves" role="status"></div><div class="tl-vote" hidden></div></div>
-    <div class="tl-rack-area"><div id="tl-move-error" class="tl-move-error" role="status" aria-atomic="true" aria-hidden="true"></div><div class="tl-rack"></div></div>
+    <div class="tl-bwrap"><div class="tl-board"><div class="tb"></div>${reactions ? '<div class="tl-reaction-pops" aria-live="polite" aria-relevant="additions"></div>' : ''}</div></div>
+    <div class="tl-messages"><div class="tl-moves"${reactions ? '' : ' role="status"'}>${reactions ? `<div class="tl-reaction-lane">
+      <div class="tl-reaction-link" role="status"></div>
+      <button type="button" class="btn btn-ghost tl-reaction-toggle" aria-label="${t('tiles.reactions')}" title="${t('tiles.reactions')}" aria-expanded="false" aria-controls="tl-reaction-picker tl-reaction-rack" hidden>${reactionFace}</button>
+      <div id="tl-reaction-picker" class="tl-reaction-picker" role="group" aria-label="${t('tiles.reaction.choose')}" hidden>${reactionButtons(REACTION_ICONS.slice(0, 6))}</div>
+      </div><div class="tl-move-cards" role="status"></div>` : ''}</div><div class="tl-vote" hidden></div></div>
+    <div class="tl-rack-area"><div id="tl-move-error" class="tl-move-error" role="status" aria-atomic="true" aria-hidden="true"></div><div class="tl-rack"></div>${reactions ?
+      `<div id="tl-reaction-rack" class="tl-reaction-rack" role="group" aria-label="${t('tiles.reaction.choose')}" hidden>${reactionButtons(REACTION_ICONS.slice(6))}</div>` : ''}</div>
     <div class="tl-dock"></div>
     <div class="tl-more"></div>
+    <p class="tl-keys" hidden>${t('tiles.keys')}</p>
     <div class="tl-over"></div>
+    <div class="tl-motion" aria-hidden="true"></div>
   </div></main>
 </div>`;
   const app = root.firstElementChild, main = app.querySelector('main'), play = app.querySelector('.tl-play');
   const repaint = () => { if (S.over) return; paintStatus(); paintTurn(); paintMore(); refit(); };
   const $ = s => play.querySelector(s);
   const status = $('.status'), boardEl = $('.tl-board'), tb = $('.tb'), say = $('.tl-moves'), rackEl = $('.tl-rack'), dock = $('.tl-dock');
-  const more = $('.tl-more'), over = $('.tl-over'), voteEl = $('.tl-vote'), moveError = $('#tl-move-error');
+  const more = $('.tl-more'), keys = $('.tl-keys'), over = $('.tl-over'), voteEl = $('.tl-vote'), moveError = $('#tl-move-error');
+  const motion = $('.tl-motion');
+  const motionOn = () => typeof motion.animate === 'function' && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reactionToggle = $('.tl-reaction-toggle'), reactionPicker = $('.tl-reaction-picker'), reactionPops = $('.tl-reaction-pops');
+  const reactionRack = $('.tl-reaction-rack');
+  const reactionLane = $('.tl-reaction-lane'), reactionLink = $('.tl-reaction-link'), moveCards = $('.tl-move-cards') || say;
   const refit = () => fitAll(root);
 
   // The board looks shared by the live and final boards (owner, 2026-11-14).
   const looks = () => (settings.tilesBonus === false ? ' mono' : settings.tilesBonus === 'text' ? ' tint' : '')
     + (settings.tiles3d ? ' raised' : '') + (settings.tilesBoardStyle === 'muted' ? ' muted' : '') + (settings.tilesCb ? ' cb' : '');
   const myTurn = () => !S.over && !S.vote && !thinking && !toast && !handOver && !cpu(S.turn) && shown === S.turn && netOk();
+  // the others' turns count too: watching them is part of Tiles, so only 3 minutes without a tap stop the clock
+  const trackPlayTime = () => playClock(app, game, () => !S.over, 180000);
   // several phones: every seat's phone there - and, on a joining phone, the host within reach
   const netOk = () => !linked || (host ? !!party && !startWaits() : linkUp && !ended && !startWaits());
   const isOut = p => !!outOf(S)[p];
@@ -404,6 +522,60 @@ export async function tilesGameScreen(root, id, archived = false) {
   const gone = () => host ? party?.missing() ?? [] : hereList.map((x, p) => x || isOut(p) ? -1 : p).filter(p => p >= 0);
   // before the first move everyone is waited for; after it, a player only on their own turn (owner: "skip current player")
   const startWaits = () => !S.log.length && gone().length > 0;
+  const reactionsOpen = () => app.isConnected && !S.over && !startWaits();
+  const reactionsOn = () => reactions && settings.tilesReactions !== false && reactionsOpen();
+  const pickerOpen = () => reactionPicker && !reactionPicker.hidden;
+
+  function openReactions(open) {
+    const label = t(open ? 'tiles.reaction.close' : 'tiles.reactions');
+    reactionPicker.hidden = !open;
+    reactionRack.hidden = !open;
+    reactionToggle.setAttribute('aria-expanded', String(open));
+    reactionToggle.setAttribute('aria-label', label);
+    reactionToggle.title = label;
+    reactionToggle.innerHTML = open ? UI_ICONS.close : reactionFace;
+    play.classList.toggle('reactions-open', open);
+  }
+  function paintReactionDock() {
+    if (!reactionToggle) return;
+    const on = reactionsOn();
+    const show = on && voteEl.hidden && !play.classList.contains('tl-hidden');
+    reactionToggle.hidden = !show;
+    reactionLane.classList.toggle('has-reactions', show);
+    reactionToggle.classList.toggle('cooldown', !!reactionTimer);
+    reactionToggle.disabled = !!reactionTimer || !netOk() || linkNote.startsWith('net.disconnected.') || (host
+      ? !party.here().some((here, p) => here && p !== linkMe) : !hereList[linkMe]);
+    if ((!show || reactionToggle.disabled) && pickerOpen()) openReactions(false);
+    if (!on) reactionPops.textContent = '';
+  }
+  function showReaction(icon) {
+    if (!reactionsOn()) return;
+    const pop = document.createElement('span'), img = document.createElement('img');
+    pop.className = 'tl-reaction-pop';
+    img.src = 'img/reactions/' + icon + '.svg';
+    img.alt = t('tiles.reaction.' + icon);
+    pop.append(img);
+    pop.addEventListener('animationend', () => pop.remove(), { once: true });
+    reactionPops.append(pop);
+  }
+  if (reactions) app.addEventListener('click', e => {
+    if (reactionToggle.contains(e.target)) {
+      if (!reactionToggle.disabled && !press) openReactions(!pickerOpen());
+      return;
+    }
+    if (!pickerOpen()) return;
+    const choice = e.target.closest('[data-reaction]');
+    openReactions(false);
+    if (!choice || !reactionsOn() || reactionToggle.disabled) return;
+    const now = Date.now();
+    recentReactions = recentReactions.filter(at => now - at < REACTION_WINDOW);
+    if (recentReactions.length < 3 && party?.react(choice.dataset.reaction)) recentReactions.push(now);
+    if (recentReactions.length === 3) {
+      reactionTimer = setTimeout(() => { reactionTimer = 0; paintReactionDock(); }, 8000);
+      paintReactionDock();
+    }
+    if (!reactionToggle.disabled) reactionToggle.focus();
+  });
   // The rack in the order its player arranged it (reorder, shuffle): the saved order, then any tiles new to it.
   const rackOf = p => {
     const left = [...S.racks[p]], out = [];
@@ -434,7 +606,7 @@ export async function tilesGameScreen(root, id, archived = false) {
     : S.vote ? voteMs() : remote(S.turn) ? remoteMs : game.turnMs || 0;
   const turnMs = () => (S.used || 0) + liveMs();
 
-  // The move as it stands: { error } or { words, score }. With challenges the words go down unchecked, so the
+  // The move as it stands: { error, bad? } or { words, score }. With challenges the words go down unchecked, so the
   // screen does not tell either - except for a move that uses the last tiles, which is checked at once.
   function judge() {
     if (!draft.length || draft.some(d => !d.ch)) return null;
@@ -447,21 +619,26 @@ export async function tilesGameScreen(root, id, archived = false) {
   const mmss = ms => { const x = Math.floor(ms / 1000), h = Math.floor(x / 3600), m = Math.floor(x / 60) % 60, sec = String(x % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`; };
   // S.clock already includes used; add only the part not yet credited by the action log.
   const timeOf = p => (S.clock?.[p] || 0) + (!S.over && p === S.turn ? liveMs() : 0);
+  const lastScoreMove = p => S.moves.findLast(m => m.p === p && m.kind !== 'hint');
 
   // ── painting ──
   function paintStatus() {
     const np = S.players.length;
+    const counting = p => scoreCount?.p === p && scoreCount.to === S.scores[p] && scoreCount.move === lastScoreMove(p);
     // beside each score what that player's last turn brought (owner, 2026-09-25): +23, or +0 for a pass or exchange
-    const last = p => { const m = S.moves.findLast(x => x.p === p && x.kind !== 'hint'); return m ? `<small class="delta">+${m.kind === 'play' ? m.score : 0}</small>` : ''; };
+    const last = p => { const m = lastScoreMove(p); return m ? `<small class="delta">+${counting(p) ? scoreCount.now - scoreCount.from : m.kind === 'play' ? m.score : 0}</small>` : ''; };
+    const bingo = t('tiles.bingoLabel', { n: S.rules.bingo ?? STANDARD.bingo });
+    const bonus = p => p !== bingoPlayer ? '' : `<span class="ps-bingo${bingoWave ? ' wave' : ''}" id="ps-bingo"><span class="ps-bingo-tiles" aria-hidden="true">${Array.from({ length: RACK }, (_, i) => `<i style="animation-delay:${i * 32}ms"></i>`).join('')}</span><span class="ps-bingo-label">${UI_ICONS.onlyNew}${bingo}</span></span>`;
     // A box per player: person/computer icon, name and score; the player to move ringed in the theme. With three players or more
     // the boxes scroll sideways, and the row follows the turn: the player to move slides to the front.
-    const chip = p => `<button type="button" class="ps pc${p}${!S.over && S.turn === p ? ' on' : ''}${isOut(p) ? ' out' : ''}" data-open="hist" data-who="${p}" aria-label="${esc(nameOf(S, p))}: ${S.scores[p]}"><span class="pb" aria-hidden="true">${playerIcon(S, p)}</span><span class="nm">${esc(nameOf(S, p))}${linked && p === linkMe ? ` <small class="you">(${t('net.you')})</small>` : ''}</span>${cpu(p) ? '' : `<span class="tm">${mmss(timeOf(p))}</span>`}<span class="sc">${S.scores[p]}${last(p)}${
-      thinking && S.turn === p ? `<span class="tl-dots" aria-label="${t('tiles.thinking')}"><i></i><i></i><i></i></span>` : ''}</span></button>`;
+    const chip = p => `<button type="button" class="ps pc${p}${!S.over && S.turn === p ? ' on' : ''}${isOut(p) ? ' out' : ''}" data-open="hist" data-who="${p}" aria-label="${esc(nameOf(S, p))}: ${S.scores[p]}"${p === bingoPlayer ? ' aria-describedby="ps-bingo"' : ''}>${scoreIcon(S, p, solo >= 0 ? solo : shown)}<span class="nm">${esc(nameOf(S, p))}${linked && p === linkMe ? ` <small class="you">(${t('net.you')})</small>` : ''}</span>${cpu(p) ? '' : `<span class="tm">${mmss(timeOf(p))}</span>`}<span class="sc"><span class="total">${counting(p) ? scoreCount.now : S.scores[p]}</span>${last(p)}${
+      thinking && S.turn === p ? `<span class="tl-dots" aria-label="${t('tiles.thinking')}"><i></i><i></i><i></i></span>` : ''}</span>${bonus(p)}</button>`;
     const was = status.querySelector('.ps-row')?.scrollLeft ?? 0;
     status.innerHTML = `<div class="ps-row${np > 2 ? ' many' : ''}">${S.players.map((_, p) => chip(p)).join('')}</div>
       <button class="ps-bag" type="button" data-open="unseen" aria-label="${t('tiles.unseen')}"><span class="nm">${t('tiles.bag')}</span><span class="sc">${S.bag.length}</span></button>
       ${open ? othersHtml() : ''}
       <div class="status-actions"><a class="btn btn-ghost tl-exit" href="#/games/tiles">${DOOR}<span>${t(linked && !host ? 'net.leave' : 'game.saveExit')}</span></a>${practiceBadge(game)}<button class="btn btn-ghost tl-find" type="button" data-open="check" aria-label="${t('tiles.check')}" title="${t('tiles.check')}">${FIND}</button>${['zoomIn', 'wholeBoard'].map(act => `<button class="btn btn-ghost tl-find" type="button" data-act="${act}" aria-label="${t('tiles.' + act)}" title="${t('tiles.' + act)}">${ICON[act]}</button>`).join('')}<button class="btn btn-ghost tl-opts" type="button" data-act="options">${LIST}<span>${t('tiles.options')}</span></button></div>`;
+    bingoWave = false;
     paintClock();
     paintZoomTools();
     const row = status.querySelector('.ps-row.many'), cur = row?.querySelector('.ps.on');
@@ -489,10 +666,8 @@ export async function tilesGameScreen(root, id, archived = false) {
     tb.className = `tb n${n}${zoom.z > 1 ? ' zoom' : ''}${looks()}`;
     tb.innerHTML = boardInner(S, { draft: shownDraft, bad: !!res?.error && res.error !== 'word', badWords: res?.bad ?? [], cursor: myTurn() && mode === 'play' ? cursor : null, drop: dropAt, hinted: hintedCells(), peek: peekAt });
     applyZoom(!!(pinch || press?.drag));
-    // tiles that just came down settle in, 150 ms each, 60 apart (design: motion)
-    landing?.forEach((i, k) => tb.querySelector(`[data-i="${i}"]`)?.animate([{ transform: 'translateY(-35%) scale(1.15)', opacity: 0 }, { transform: 'none', opacity: 1 }],
-      { duration: 150, delay: k * 60, easing: 'ease-out', fill: 'backwards' }));
-    landing = null;
+    for (const i of settling) tb.querySelector(`[data-i="${i}"].new`)?.classList.add('settling');
+    settling = [];
   }
   // The zoom is one transform on the board grid, set on it directly (owner, 2026-09-26: "zooming lags a bit"): through the
   // --z / --tx / --ty custom properties every square and tile below restyled on each step, as they inherit them. While the
@@ -601,7 +776,8 @@ export async function tilesGameScreen(root, id, archived = false) {
     // Validation belongs by the rack; keep the move bar neutral (owner, 2026-11-20).
     const error = myTurn() && mode === 'play' && res?.error ? (res.error === 'word'
       ? t(canApprove(S) ? 'tiles.approval.unknown' : 'tiles.err.unknown', { w: esc(res.bad.join(', ').toUpperCase()) }) : t(ERR[res.error])) : '';
-    if (error) moveError.innerHTML = `<span aria-hidden="true">✕</span> ${error}`;
+    const errorHtml = error ? `<span aria-hidden="true">✕</span> ${error}` : '';
+    if (moveError.innerHTML !== errorHtml) moveError.innerHTML = errorHtml;
     moveError.classList.toggle('visible', !!error);
     moveError.setAttribute('aria-hidden', String(!error));
     let text = '';
@@ -622,7 +798,8 @@ export async function tilesGameScreen(root, id, archived = false) {
     const other = thinking && S.turn !== me && !linked ? `<div class="mc them pc${S.turn}">${whoCell(S.turn)}<span class="msg">${t('tiles.say.thinking')}</span></div>`
       : theirs >= 0 ? moveCard(theirs, 'them') : '';
     linkHtml = linked ? linkLine() : '';
-    say.innerHTML = `${linkHtml}<div class="mcards">${card}${other}</div><p class="mc-bag">${fresh?.p === me ? t('tiles.drew', { l: `<b>${fresh.letters.map(x => x === BLANK ? '?' : esc(x.toUpperCase())).join(' · ')}</b>` }) : ''}</p>`;
+    if (reactionLink) reactionLink.innerHTML = linkHtml;
+    moveCards.innerHTML = `<div class="mcards">${card}${other}</div><p class="mc-bag">${fresh?.p === me ? t('tiles.drew', { l: `<b>${fresh.letters.map(x => x === BLANK ? '?' : esc(x.toUpperCase())).join(' · ')}</b>` }) : ''}</p>`;
     paintDock();
   }
 
@@ -631,15 +808,13 @@ export async function tilesGameScreen(root, id, archived = false) {
     if (!b || b.disabled) return;
     let state = S, placed = placedOf();
     if (b.dataset.points !== 'draft') {
-      const i = +b.dataset.points, m = S.moves[i];
-      placed = m.placed;
-      // Remove this and subsequent plays; premiums are then evaluated on the original board.
-      const cells = [...S.cells];
-      for (const move of S.moves.slice(i)) if (move.kind === 'play') for (const d of move.placed) cells[d.r * n + d.c] = null;
-      state = { ...S, cells };
+      const i = +b.dataset.points;
+      placed = S.moves[i].placed;
+      state = { ...S, cells: replayBoard(S, S.moves, i).cells };
     }
     const detail = pointsBreakdown(state, placed);
-    openDialog(t('tiles.pointsExplain'), `<div class="tl-calculation">${detail.words.map(w => `<p><b>${esc(w.w.toUpperCase())}</b>: (${w.letters.map(l => `${esc(l.ch.toUpperCase())}${l.blank ? ' (' + t('tiles.blankName') + ')' : ''} ${l.value}${l.multiplier > 1 ? ' × ' + l.multiplier : ''}`).join(' + ')}) × ${w.multiplier} = <b>${w.score}</b></p>`).join('')}${detail.bonus ? `<p>${t('tiles.sevenBonus')}: +${detail.bonus}</p>` : ''}<p><b>${t('tiles.pointsTotal')}: ${detail.score}</b></p></div>`);
+    const { dlg } = openDialog(t('tiles.pointsExplain'), pointsHtml(detail));
+    dlg.classList.add('tl-points-dialog');
   });
   // Online: the mover's activity or the connection, above the move cards (owner, 2026-11-26).
   function linkLine() {
@@ -682,6 +857,7 @@ export async function tilesGameScreen(root, id, archived = false) {
   }
 
   function paintRack() {
+    motion.querySelectorAll('.tl-rack-flight').forEach(el => el.remove());
     if (shown < 0) { rackEl.innerHTML = '<span class="rt" style="visibility:hidden"></span>'.repeat(7); return; }
     const tiles = rackOf(shown), dragging = press?.drag && press.kind === 'rack' && !inDraft(press.slot);
     const voting = new Set(), left = S.vote?.p === shown ? S.vote.placed.map(x => x.blank ? BLANK : x.ch) : [];
@@ -745,6 +921,7 @@ export async function tilesGameScreen(root, id, archived = false) {
     seeVote();
     const v = S.vote || voteResult;
     voteEl.hidden = !v;
+    paintReactionDock();
     if (!v) { voteEl.innerHTML = ''; return; }
     const done = !S.vote, remaining = Math.max(0, VOTE_MS - voteMs());
     const buttons = p => `<button class="btn btn-outline" type="button" data-voter="${p}" data-veto="true">${t(v.approval ? 'tiles.approval.allow' : 'tiles.veto.veto')}</button><button class="btn btn-primary" type="button" data-voter="${p}" data-veto="false">${t(v.approval ? 'tiles.approval.reject' : 'tiles.veto.accept')}</button>`;
@@ -821,30 +998,19 @@ export async function tilesGameScreen(root, id, archived = false) {
       `<span class="us${u[ch] ? '' : ' none'}${ch === BLANK ? ' blank' : ''}"><b>${ch === BLANK ? '' : ch}</b><em>${u[ch] || 0}</em></span>`).join('')}</div>`;
   }
   function paintMore() {
-    const input = more.querySelector('.tl-check input'), res = more.querySelector('.tl-check .res');
-    const kept = input && { value: input.value, cls: res.className, text: res.textContent, mean: more.querySelector('.tl-check .mean-slot').innerHTML };
-    const focus = kept && document.activeElement === input;
     const which = panel ?? (wide ? 'hist' : null);
+    keys.hidden = !wide;
+    // Keep the focused field, including any text the keyboard is still composing.
+    if (which === 'check' && more.querySelector('.tl-check')) return refit();
     let html = '';
     if (which) {
       const title = which === 'hist' && histOf !== null ? `${t('tiles.history')} · ${esc(nameOf(S, histOf))}` : t({ hist: 'tiles.history', unseen: 'tiles.unseen', check: 'tiles.check' }[which]);
-      html = `<div class="tl-panel" role="dialog" aria-label="${title}"><div class="tl-panel-head"><span class="eyebrow grow">${title}</span>
+      html = `<div class="tl-panel${which === 'check' ? ' tl-check-panel' : ''}" role="dialog" aria-label="${title}"><div class="tl-panel-head"><span class="eyebrow grow">${title}</span>
         <button class="btn btn-ghost tl-x" type="button" data-act="close" aria-label="${t('tiles.close')}">${CLOSE}</button></div>${{ hist: histHtml, unseen: unseenHtml, check: checkHtml }[which]()}</div>`;
     }
-    if (wide) html += `<p class="tl-keys">${t('tiles.keys')}</p>`;
     more.innerHTML = html;
     const box = more.querySelector('.tl-check');
-    if (box) {
-      wireCheck(box, lang, S.rules, dict);
-      if (kept) {
-        const nextInput = box.querySelector('input');
-        nextInput.value = kept.value;
-        box.querySelector('.res').className = kept.cls;
-        box.querySelector('.res').textContent = kept.text;
-        box.querySelector('.mean-slot').innerHTML = kept.mean;
-        if (focus) { nextInput.focus({ preventScroll: true }); nextInput.setSelectionRange(input.selectionStart, input.selectionEnd); }
-      }
-    }
+    if (box) wireCheck(box, lang, S.rules, dict);
     refit();
   }
 
@@ -908,11 +1074,167 @@ export async function tilesGameScreen(root, id, archived = false) {
     }
     over.innerHTML = html;
     play.classList.toggle('tl-hidden', handOver || !!asked || waitCard() || (linked && !host && !S.over && (!!ended || (linkUp && startWaits()))));
+    paintReactionDock();
     refit();
   }
 
   const paintTurn = () => { paintBoard(); paintSay(); paintRack(); paintVote(); };
-  const paintAll = () => { seeVote(); paintStatus(); paintTurn(); paintMore(); paintOver(); };
+  const paintAll = () => { seeVote(); paintStatus(); paintTurn(); paintMore(); paintOver(); landMove(); };
+
+  // Motion uses the rendered geometry after layout. Copies in this layer never take taps away from the game.
+  const centerOf = ({ left, top, width, height }) => ({ x: left + width / 2, y: top + height / 2 });
+  const offset = (from, to, scale = 1) => `translate(${to.x - from.x}px,${to.y - from.y}px) scale(${scale})`;
+  const tileAt = i => tb.querySelector(`[data-i="${i}"]`);
+  function pin(el, point) {
+    const box = motion.getBoundingClientRect();
+    el.style.left = point.x - box.left + 'px';
+    el.style.top = point.y - box.top + 'px';
+    motion.append(el);
+  }
+  function fly(el, frames, duration, delay) {
+    const flight = el.animate(frames, { duration, delay, easing: 'ease-out', fill: 'both' });
+    flight.onfinish = () => el.remove();
+  }
+  function motionText(cls, text, point) {
+    const el = document.createElement('span');
+    el.className = cls;
+    el.textContent = text;
+    pin(el, point);
+    return el;
+  }
+  function landMove() {
+    const move = landing;
+    landing = null;
+    if (!move || !motionOn() || !motion.offsetWidth) return;
+    const placed = [...move.placed].sort((a, b) => a.r - b.r || a.c - b.c);
+    const word = move.words[0], steps = [...word.w].length - 1;
+    const first = tileAt(word.r * n + word.c).getBoundingClientRect();
+    const last = tileAt(word.r * n + word.c + steps * (word.across ? 1 : n)).getBoundingClientRect();
+    const board = boardEl.getBoundingClientRect();
+    placed.forEach(({ r, c }, k) => tileAt(r * n + c).animate([
+      { transform: 'translateY(-55%) scale(1.22)', opacity: 0 },
+      { transform: 'scale(.94)', opacity: 1, offset: .55 },
+      { transform: 'scale(1.04)', opacity: 1, offset: .77 },
+      { transform: 'none', opacity: 1 },
+    ], { duration: 370, delay: k * 65, easing: 'ease-out', fill: 'backwards' }));
+    const point = { x: last.right + 6, y: (first.top + last.bottom) / 2 };
+    const label = motionText('tl-move-float', '', point);
+    const name = document.createElement('span'), pts = document.createElement('b');
+    name.textContent = word.w.toUpperCase();
+    pts.textContent = '+' + move.score;
+    label.append(name, pts);
+    label.style.maxWidth = Math.max(0, board.width - 12) + 'px';
+    const width = label.offsetWidth;
+    if (point.x + width > board.right - 6) {
+      point.x = Math.max(board.left + 6, Math.min(board.right - width - 6, (first.left + last.right - width) / 2));
+      point.y = first.top - 14;
+    }
+    point.y = Math.max(board.top + 14, Math.min(board.bottom - 14, point.y));
+    pin(label, point);
+    fly(label, [
+      { transform: 'translate(-7px,-50%) scale(.85)', opacity: 0 },
+      { transform: 'translate(0,-50%)', opacity: 1, offset: .2 },
+      { transform: 'translate(0,-50%)', opacity: 1, offset: .77 },
+      { transform: 'translate(0,-75%)', opacity: 0 },
+    ], 780, 180 + (placed.length - 1) * 65);
+  }
+  function scoreFlight(move, before) {
+    const centered = transform => 'translate(-50%,-50%) ' + transform;
+    const chip = status.querySelector(`.ps.pc${move.p}`);
+    const score = chip.querySelector('.total'), row = chip.parentElement.getBoundingClientRect();
+    const end = centerOf(score.getBoundingClientRect()), board = boardEl.getBoundingClientRect();
+    end.x = Math.max(row.left, Math.min(row.right, end.x));
+    const letters = new Map();
+    for (const word of pointsBreakdown(before, move.placed).words) {
+      word.letters.forEach((letter, k) => {
+        const i = word.r * n + word.c + k * (word.across ? 1 : n);
+        const factor = letter.multiplier * word.multiplier, entry = letters.get(i);
+        letters.set(i, entry
+          ? { value: entry.value + letter.value, points: entry.points + letter.value * factor }
+          : { value: letter.value, points: letter.value * factor, factor });
+      });
+    }
+    const sources = [];
+    for (const [i, letter] of letters) {
+      const point = centerOf(tileAt(i).getBoundingClientRect());
+      if (point.x >= board.left && point.x <= board.right && point.y >= board.top && point.y <= board.bottom)
+        sources.push({ point, letter });
+    }
+    const avg = axis => sources.reduce((sum, x) => sum + x.point[axis], 0) / sources.length;
+    const merge = sources.length ? { x: avg('x'), y: Math.max(board.top + 12, avg('y') - 48) } : centerOf(board);
+    sources.forEach(({ point, letter }, k) => {
+      point.y -= 8;
+      const el = motionText('tl-score-float', '+' + letter.value, point);
+      const delay = Math.min(k * 42, 160);
+      if (letter.points !== letter.value) setTimeout(() => {
+        if (el.isConnected) el.textContent = letter.factor ? `${letter.value}×${letter.factor}` : '+' + letter.points;
+      }, delay + 175);
+      fly(el, [
+        { transform: centered('translateY(4px) scale(.75)'), opacity: 0 },
+        { transform: centered('translateY(-15px)'), opacity: 1, offset: .3 },
+        { transform: centered('translateY(-15px)'), opacity: 1, offset: .65 },
+        { transform: centered(offset(point, merge, .65)), opacity: 0 },
+      ], 500, delay);
+    });
+    const total = motionText('tl-score-float tl-score-gain', '+' + move.score, merge);
+    const bend = { x: (merge.x + end.x) / 2 + (end.x > merge.x ? -28 : 28), y: (merge.y + end.y) / 2 - 28 };
+    fly(total, [
+      { transform: centered('scale(.72)'), opacity: 0 },
+      { transform: centered('scale(1.12)'), opacity: 1, offset: .2 },
+      { transform: centered(offset(merge, bend, .85)), opacity: 1, offset: .57 },
+      { transform: centered(offset(merge, end, .5)), opacity: 0 },
+    ], 400, 625);
+
+    const p = move.p, from = before.scores[p];
+    const count = scoreCount = { move, p, from, now: from, to: S.scores[p] };
+    score.textContent = from;
+    chip.querySelector('.delta').textContent = '+0';
+    const started = performance.now() + 1000;
+    function tick() {
+      if (scoreCount !== count || !app.isConnected) return;
+      if (S.scores[p] !== count.to || move !== lastScoreMove(p)) { scoreCount = null; return; }
+      const progress = document.visibilityState === 'visible' && motionOn() ? Math.max(0, Math.min(1, (performance.now() - started) / 270)) : 1;
+      const now = from + Math.floor(move.score * progress);
+      if (count.now !== now || progress === 1) {
+        count.now = now;
+        const card = status.querySelector(`.ps.pc${p}`);
+        card.querySelector('.total').textContent = progress === 1 ? count.to : now;
+        card.querySelector('.delta').textContent = '+' + (now - from);
+      }
+      if (progress < 1) setTimeout(tick, 30);
+      else scoreCount = null;
+    }
+    setTimeout(tick, 1000);
+  }
+  function rackCopy(tile, box) {
+    const copy = tile.cloneNode(true);
+    copy.className = 'rt tl-rack-flight';
+    copy.removeAttribute('data-slot');
+    copy.querySelector('.ck')?.remove();
+    copy.style.setProperty('--rs', box.width + 'px');
+    pin(copy, { x: box.left, y: box.top });
+    return copy;
+  }
+  function rackFlight(p, returned) {
+    const bag = status.querySelector('.ps-bag'), end = centerOf(bag.getBoundingClientRect());
+    const delay = returned.length ? 310 + (returned.length - 1) * 32 : 35;
+    returned.forEach(({ tile, box }, k) => fly(rackCopy(tile, box), [
+      { transform: 'none', opacity: 1 },
+      { transform: 'translateY(-12px) scale(1.06)', opacity: 1, offset: .25 },
+      { transform: offset(centerOf(box), end, .35), opacity: 0 },
+    ], 310, k * 32));
+    if (returned.length) bag.animate([{ transform: 'none' }, { transform: 'scale(.92)' }, { transform: 'none' }], { duration: 240, delay: delay - 110 });
+    if (shown !== p) return;
+    rackEl.querySelectorAll('.rt.fresh').forEach((tile, k) => {
+      const box = tile.getBoundingClientRect(), wait = delay + k * 72;
+      fly(rackCopy(tile, box), [
+        { transform: offset(centerOf(box), end, .36), opacity: 0 },
+        { opacity: 1, offset: .16 },
+        { transform: 'none', opacity: 1 },
+      ], 345, wait);
+      tile.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 1, delay: wait + 345, fill: 'backwards' });
+    });
+  }
 
   // ── turns ──
   function resetTurn(keepHints = false) {
@@ -921,14 +1243,33 @@ export async function tilesGameScreen(root, id, archived = false) {
     if (!keepHints) turnHints = [];
     zoomOut();
   }
+  function showBingo(played, replaying) {
+    if (replaying || !played?.bingo || !((S.rules.bingo ?? STANDARD.bingo) > 0)) return;
+    bingoPlayer = played.p;
+    bingoWave = true;
+    clearTimeout(bingoTimer);
+    bingoTimer = setTimeout(() => {
+      bingoPlayer = -1;
+      bingoWave = false;
+      const strip = status.querySelector('.ps-bingo');
+      if (!strip) return;
+      strip.parentElement.removeAttribute('aria-describedby');
+      strip.remove();
+      if (app.isConnected) refit();
+    }, 1800);
+  }
   // Every action goes through here: into the engine (apply), the save, what the message line says, the next turn.
   function act(action, fromLink = false, candidates, replaying = false) {
     const p = S.turn, before = S, rackBefore = [...S.racks[p]];
+    const animate = !replaying && motionOn();
     if (!cpu(p)) redoStack = [];   // a new move: nothing to redo any more
     if (!cpu(p) && !fromLink && !['vote', 'voteEnd'].includes(action.type)) action = { ...action, ms: game.turnMs || 0 };
     let after;
     try { after = apply(before, action, isWord); } catch (e) { msg = { html: esc(e.message), err: true }; paintSay(); return false; }
     const added = after.moves.slice(before.moves.length), played = added.findLast(m => m.kind === 'play'), vetoed = added.findLast(m => m.kind === 'vetoed');
+    const own = !cpu(p) && !remote(p);
+    const returned = animate && own && shown === p && action.type === 'exchange'
+      ? [...rackEl.querySelectorAll('.rt.pick')].map(tile => ({ tile, box: tile.getBoundingClientRect() })) : [];
     // Passes and exchanges carry no rating (owner, 2026-11-26). A vote may append a resignation before the accepted move.
     const rated = before.rules.rating !== false && ['play', 'timeout'].includes(added.at(-1)?.kind);
     const evaluation = rated ? evaluateMoves(before, candidates?.() ?? findMoves(before, dict), familiar) : null;
@@ -945,12 +1286,12 @@ export async function tilesGameScreen(root, id, archived = false) {
       recordMove(game, statsNow());
     } else noteMove(game, statsNow());
     party?.flush(S.log);   // the host: to every phone; a joining phone: to the host
-    if (!cpu(p) && !remote(p) && (played || action.type === 'exchange')) drew(p, rackBefore, played ? played.placed.map(x => x.blank ? BLANK : x.ch) : action.tiles);
+    if (own && (played || action.type === 'exchange')) drew(p, rackBefore, played ? played.placed.map(x => x.blank ? BLANK : x.ch) : action.tiles);
     game.turnMs = 0;
     resetTurn(!!S.vote || (!!before.vote && S.turn === p));
-    // no points bubble on the board after a move (owner, 2026-09-25) - the message line says what was played
     if (played) {
-      landing = [...played.placed].sort((a, b) => a.r - b.r || a.c - b.c).map(x => x.r * n + x.c);
+      if (animate && !own) landing = played;
+      showBingo(played, replaying);
     }
     // a challenge's outcome, or a turn lost to the clock, stays on the line while the next player moves
     const approvalMove = vetoed?.approval ? vetoed : played?.approved ? played : null;
@@ -964,12 +1305,18 @@ export async function tilesGameScreen(root, id, archived = false) {
     countAchievements();
     // A settled move either announces the local turn or acknowledges the other mover (owner, 2026-11-26).
     const cue = replaying ? null : tilesMoveCue(before, S, solo);
-    if (S.over) { finish(cue, replaying); return true; }
-    if (cue === 'turn') turnCuePending = true;
-    else if (cue) playCue(cue);
-    putSave(game);
-    if (vetoed && !linked && !open && solo < 0) shown = -1;
-    next(replaying);
+    if (S.over) finish(cue, replaying);
+    else {
+      if (cue === 'turn') turnCuePending = true;
+      else if (cue) playCue(cue);
+      putSave(game);
+      if (vetoed && !linked && !open && solo < 0) shown = -1;
+      next(replaying);
+    }
+    if (animate && own && motion.offsetWidth) {
+      if (played && played.score > 0) scoreFlight(played, before);
+      if ((played || action.type === 'exchange') && (returned.length || fresh?.p === p)) rackFlight(p, returned);
+    }
     return true;
   }
   function report(action, p, ev) {
@@ -1032,6 +1379,7 @@ export async function tilesGameScreen(root, id, archived = false) {
     if (finished) return;   // once: the end and the statistics
     finished = true;
     thinking = false;
+    paintReactionDock();
 
     game.status = 'over';
     recordTilesEnd(game, linked ? linkMe : -1, { u: canUndo, bs: !!game.bsOn });   // two phones: each counts its own player
@@ -1177,6 +1525,8 @@ export async function tilesGameScreen(root, id, archived = false) {
       game.turnMs = 0;
       count('undo', solo);
       thinking = false;
+      motion.textContent = '';
+      scoreCount = null;
       resetTurn();
       msg = { html: t('tiles.say.undone') };
       fresh = null;
@@ -1284,11 +1634,12 @@ export async function tilesGameScreen(root, id, archived = false) {
     if (draft[0]?.hint) draft = [];     // the hint's word makes way for the player's own
     const x = rackOf(shown)[slot];
     draft.push({ slot, r, c, ch: x === BLANK ? typed : x, blank: x === BLANK });
+    settling = [r * n + c];
     sel = -1; msg = null;
     playCue('tile');
     follow();
     if (x === BLANK && !typed) openPicker(draft.length - 1);
-    paintTurn();
+    if (!press) paintTurn();  // Pointer release paints after clearing the drag state.
   }
   // The blank's letters. A phone also sends the tap that opened them as a click, a moment later - onto the
   // picker's backdrop (= Cancel) or a letter, right under the finger - so clicks there are ignored at first.
@@ -1403,6 +1754,7 @@ export async function tilesGameScreen(root, id, archived = false) {
     const { r, c } = draft[from], other = draft[to];
     draft[from] = { ...draft[from], r: other.r, c: other.c };
     draft[to] = { ...other, r, c };
+    settling = [other.r * n + other.c, r * n + c];
     playCue('tile');
     follow();
   }
@@ -1417,13 +1769,17 @@ export async function tilesGameScreen(root, id, archived = false) {
     }
     if (target >= 0) swapDraft(p.di, target);
     else if (sq && free(sq.r, sq.c, p.di)) {
-      if (draft[p.di].r !== sq.r || draft[p.di].c !== sq.c) playCue('tile');
+      if (draft[p.di].r !== sq.r || draft[p.di].c !== sq.c) {
+        settling = [sq.r * n + sq.c];
+        playCue('tile');
+      }
       draft[p.di] = { ...draft[p.di], r: sq.r, c: sq.c };
       follow();
     } else if (overRack(x, y)) draft.splice(p.di, 1);
   }
 
   play.addEventListener('pointerdown', e => {
+    if (pickerOpen()) return;
     if (toast) { endToast(); return; }
     if (panel && !wide && !e.target.closest('.tl-panel, [data-open]')) { panel = null; paintMore(); return; }   // a tap outside closes it
     if (e.target.closest('button, a, input, .tl-panel, .tl-pick, .tl-hand, .tl-scrim')) return;
@@ -1514,7 +1870,11 @@ export async function tilesGameScreen(root, id, archived = false) {
       panel = !wide && panel === el.dataset.open && histOf === who ? null : el.dataset.open;
       histOf = who;
       paintMore();
-      if (panel === 'check') more.querySelector('.tl-check input')?.focus();   // ready to type
+      if (panel === 'check') {
+        const input = more.querySelector('.tl-check input'), rect = input.getBoundingClientRect();
+        const view = window.visualViewport, top = view ? view.offsetTop : 0;
+        input.focus({ preventScroll: !wide && rect.top >= top && rect.bottom <= top + (view ? view.height : window.innerHeight) });
+      }
       return;
     }
     if (el.dataset.ch) return pickLetter(el.dataset.ch);
@@ -1548,12 +1908,13 @@ export async function tilesGameScreen(root, id, archived = false) {
       return;
     }
     if (e.key === 'Escape') {
+      if (pickerOpen()) { e.preventDefault(); openReactions(false); reactionToggle.focus(); return; }
       if (panel && !wide) { e.preventDefault(); panel = null; return paintMore(); }
       if (mode === 'pass' || mode === 'exchange') { e.preventDefault(); return TOOLS.cancel(); }
       if (draft.length || cursor || sel >= 0 || mode !== 'play') { e.preventDefault(); mode = 'play'; picks = new Set(); levels = null; msg = null; TOOLS.recall(); }
       return;
     }
-    if (!myTurn() || mode !== 'play') return;
+    if (pickerOpen() || !myTurn() || mode !== 'play') return;
     const down = { ArrowLeft: false, ArrowRight: false, ArrowUp: true, ArrowDown: true }[e.key];
     if (down !== undefined && cursor) { e.preventDefault(); cursor = { ...cursor, down }; return paintBoard(); }
     if (e.key === 'Enter') { e.preventDefault(); return TOOLS.play(); }
@@ -1573,9 +1934,8 @@ export async function tilesGameScreen(root, id, archived = false) {
     const { r, c } = cursor;
     let nr = r, nc = c;
     do { if (cursor.down) nr++; else nc++; } while (nr < n && nc < n && !free(nr, nc));
-    placeAt(slot, r, c, ch);
     cursor = nr < n && nc < n && free(nr, nc) ? { r: nr, c: nc, down: cursor.down } : null;
-    paintBoard();
+    placeAt(slot, r, c, ch);
   }
 
   // ── the end ──
@@ -1746,7 +2106,8 @@ export async function tilesGameScreen(root, id, archived = false) {
     if (S.over) return;
     const playerItems = [
       ...(S.rules.rating === false ? [] : [['tilesRate', t('tiles.rate.setting'), t('tiles.rate.settingHelp') + (S.rules.rating === 'score' ? ' ' + t('tiles.rate.fixed') : ' ' + t('help.bestNote')), RATE_LOOKS.map(([v, k]) => [v, t('tiles.rate.look.' + k)])]]),
-      ['tilesUnder', t('tiles.under'), t('tiles.underHelp'), ['rating', 'rarity', 'both'].map(v => [v, t('tiles.under.' + v)])]];
+      ['tilesUnder', t('tiles.under'), t('tiles.underHelp'), ['rating', 'rarity', 'both'].map(v => [v, t('tiles.under.' + v)])],
+      ...(linked ? [['tilesReactions', t('tiles.reactions'), t('tiles.reactionsHelp')]] : [])];
     const tile = (ch, colour = '') => `<span class="rt" aria-hidden="true"${colour ? ` style="--tl-tile:${colour}"` : ''}>${ch}<i class="p">1</i></span>`;
     const lookItems = [['buttonSize', t('set.buttonSize'), '', ['100', '115', '130', '150', '175'].map(v => [v, t('set.buttonSizePercent', { n: v })])],
       ['theme', t('set.theme'), '', ['dark', 'light', 'system'].map(v => [v, t('theme.' + v)])],
@@ -1879,6 +2240,7 @@ export async function tilesGameScreen(root, id, archived = false) {
       // (a game from 0.52 remembers its one other phone as `peer`)
       const known = game.link.seats ?? (game.link.peer ? [null, { address: game.link.peer.address, device: game.link.peer.name }] : []);
       party = createHost({ players: S.players.length, me: linkMe, known, usable: p => !isOut(p),
+        reactionsOpen, onReaction: showReaction,
         extra: () => ({ away, ...(draftIsCurrent(linkDraft) ? { draft: linkDraft } : {}) }),
         onApp: (p, open) => { away[p] = !open; party.announce(); paintAll(); },
         onDraft: (p, m) => { if (receiveDraft(m, p)) party.draft(m); },
@@ -1899,6 +2261,7 @@ export async function tilesGameScreen(root, id, archived = false) {
         send: (conn, text) => { wire.send(conn, text).catch(() => {}); },
         drop: conn => setTimeout(() => wire.close(conn).catch(() => {}), 500),   // what was said to it goes first
         onChange: ({ seat, name, left }) => {
+          if (left && pickerOpen()) openReactions(false);
           // gone: since when (the host shows it); back: in the app again
           goneSince[seat] = left ? Date.now() : 0;
           away[seat] = false;
@@ -1934,11 +2297,13 @@ export async function tilesGameScreen(root, id, archived = false) {
         },
         names: m => setNames(m.names),
         here: m => {
+          if (pickerOpen() && hereList.some((here, p) => here && !m.here[p])) openReactions(false);
           hereList = m.here; away = m.away ?? [];
           if (!hereList[S.turn]) linkDraft = null;
           party?.relax(!!away[hostSeat()]); paintAll(); if (netOk() && !S.over) next();
         },
         draft: receiveDraft,
+        reaction: showReaction,
         reject: () => { msg = { html: t('net.rejected'), err: true }; party.resync(); },
         end: () => { if (S.over) return; ended = 'left'; closeGuest(); },
         refused: () => { ended = 'refused'; closeGuest(); },
@@ -1986,13 +2351,17 @@ export async function tilesGameScreen(root, id, archived = false) {
     turnCuePending = true;
     voteAt = lastVote = sentVote = voteResult = null;
     msg = null; panel = null; landing = null; hintPaid = 0; redoStack = [];
+    motion.textContent = '';
+    scoreCount = null;
+    bingoPlayer = -1; bingoWave = false; clearTimeout(bingoTimer);
     remoteMs = 0; linkDraft = sentDraft = null;
+    if (pickerOpen()) openReactions(false);
+    if (reactionPops) reactionPops.textContent = '';
     shown = solo;
     resetTurn();
     main.replaceChildren(play);
     app.classList.add('fit');
-    stop();
-    stop = playClock(root, game, () => app.isConnected);
+    stop = trackPlayTime();
     putSave(game);
   }
   function rematch() {
@@ -2109,6 +2478,7 @@ export async function tilesGameScreen(root, id, archived = false) {
   const cells = new ResizeObserver(entries => entries.forEach(e => { const el = e.target; el.style.setProperty('--cpx', ((el.offsetWidth - (n - 1)) / n).toFixed(2)); }));
   // Reopen the analysis directly, without finishing or starting a session (owner, 2026-11-26).
   if (archived) { paintEnd(); return () => cells.disconnect(); }
+  const stopCheckViewport = watchCheckViewport(root, more, boardEl.parentElement);
   cells.observe(tb);
   const resize = new ResizeObserver(() => {
     if (!app.isConnected) return resize.disconnect();
@@ -2166,13 +2536,16 @@ export async function tilesGameScreen(root, id, archived = false) {
   });
 
   document.addEventListener('keydown', onKey, true);   // before main.js's Esc-goes-back
-  let stop = playClock(root, game, () => app.isConnected);
+  let stop = trackPlayTime();
   return () => {
+    stop();
     if (linked) { stopLink(); if (!host) deleteSave(game.id); if (kind === 'bt' || kind === 'near') remindBt(); }
     document.removeEventListener('keydown', onKey, true);
     clearInterval(tick);
+    clearTimeout(bingoTimer);
+    clearTimeout(reactionTimer);
     cells.disconnect();
     resize.disconnect();
-    stop();
+    stopCheckViewport();
   };
 }

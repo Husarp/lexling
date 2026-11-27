@@ -22,7 +22,7 @@ globalThis.fetch = async path => {
   return { arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) };
 };
 
-const { stats, settings, newGame, getSave, deleteSave, listFinished, listKept, getFinished, recordMove, recordEnd, recordLettersEnd,
+const { stats, settings, newGame, getSave, deleteSave, listFinished, listKept, listRecentFinished, getFinished, deleteFinished, recordMove, recordEnd, recordLettersEnd,
   recordConnectEnd, recordTilesEnd } = await import('../app/js/store.js');
 const { newGame: newTiles, apply } = await import('../app/js/tiles.js');
 const { menu, games, lastGamesScreen, statsScreen } = await import('../app/js/screens.js');
@@ -34,7 +34,19 @@ const { t, setLang, duration } = await import('../app/js/i18n.js');
 const root = document.querySelector('#root');
 
 lastGamesScreen(root);
-assert.equal(root.querySelector('.empty').textContent, t('lastGames.empty'));
+const segment = name => root.querySelector(`[data-segment="${name}"]`);
+const modeTab = mode => root.querySelector(`[data-mode="${mode}"]`);
+const rows = () => [...root.querySelectorAll('.last-game')].map(el => el.hash.slice('#/result/'.length));
+const star = () => root.querySelector('[data-keep]');
+const dialog = () => document.querySelector('dialog[open]');
+const cancelRemove = () => dialog().querySelector('[data-cancel]').click();
+const confirmRemove = () => dialog().querySelector('[data-confirm]').click();
+
+assert.equal(root.querySelector('.empty .help').textContent, t('lastGames.emptySaved'));
+assert.equal(segment('saved').getAttribute('aria-pressed'), 'true');
+assert.equal(modeTab('guess').getAttribute('aria-pressed'), 'true');
+segment('recent').click();
+assert.equal(root.querySelector('.empty .help').textContent, t('lastGames.emptyRecent'));
 const discarded = newGame({ lang: 'en' });
 deleteSave(discarded.id);
 assert.equal(listFinished().length, 0);
@@ -46,7 +58,7 @@ const guessWin = () => {
   recordEnd(game, true);
   return game;
 };
-const oldest = guessWin(), nextOldest = guessWin();
+const oldest = guessWin(), thirdGuess = guessWin(), nextOldest = guessWin();
 const guess = guessWin();
 guess.guesses[0].w = 'changed';
 assert.equal(getFinished(guess.id).guesses[0].w, 'stare');
@@ -74,6 +86,8 @@ recordTilesEnd(guest, 1, {});
 const newest = [tiles, connect, letters, guess, nextOldest].map(g => g.id);
 assert.deepEqual(listFinished().map(g => g.id), newest);
 assert.equal(getFinished(oldest.id), undefined);
+assert.deepEqual(listRecentFinished('guess').map(g => g.id), [guess.id, nextOldest.id, thirdGuess.id]);
+assert.equal(getFinished(thirdGuess.id).id, thirdGuess.id);
 assert.equal(stats.rec[oldest.id].end, 'won');
 assert.ok(newest.every(id => !getSave(id)));
 assert.deepEqual(getFinished(tiles.id).link, { role: 'host', me: 0 });
@@ -81,6 +95,7 @@ const reloaded = await import('../app/js/store.js?reload');
 assert.deepEqual(reloaded.listFinished(), listFinished());
 
 const before = { ...localStorage };
+const starShape = segment('saved').querySelector('svg path').getAttribute('d');
 for (const [game, screen, mode, result] of [
   [guess, gameScreen, 'game', '.guess.secret'], [letters, lettersGameScreen, 'letters', '.lt-board .lt-row + .lt-row'],
   [connect, connectGameScreen, 'connect', '.cw-flow .c.left'], [tiles, tilesGameScreen, 'tiles', '.tl-final .tb'],
@@ -91,7 +106,9 @@ for (const [game, screen, mode, result] of [
   if (game === letters) assert.equal(root.querySelector('.lt-board .lt-row:last-child').textContent, 'stare');
   assert.equal(root.querySelector('.topbar a[href="#/last-games"]').textContent, '← Saved games');
   assert.equal(root.querySelector('input, #give-up, .tl-play, [href^="#/new"], [data-rematch]'), null);
-  assert.equal(root.querySelector('[data-keep]').getAttribute('aria-pressed'), 'false');
+  assert.equal(star().getAttribute('aria-pressed'), 'false');
+  assert.equal(star().textContent, t('lastGames.keep'));
+  assert.equal(star().querySelector('svg path').getAttribute('d'), starShape);
   if (game === tiles) {
     assert.deepEqual([...root.querySelectorAll('.tl-highlights dd')].map(el => el.textContent),
       [`AT +${state.moves[0].score} pts`, 'AT · 2 letters', '18 min 42 s']);
@@ -184,8 +201,18 @@ for (const lang of ['en', 'pl']) {
   assert.equal(root.querySelectorAll('.g-desc').length, 0);
   lastGamesScreen(root);
   assert.equal(root.querySelector('h1').textContent, label);
-  assert.deepEqual([...root.querySelectorAll('.last-game')].map(el => el.hash), newest.map(id => '#/result/' + id));
-  assert.equal(root.querySelectorAll('.last-game time[datetime]').length, 5);
+  assert.equal(segment('recent').textContent, t('lastGames.recent'));
+  assert.equal(segment('saved').textContent, t('lastGames.saved'));
+  assert.equal(root.querySelectorAll('[data-mode]').length, 4);
+  for (const mode of ['guess', 'letters', 'connect', 'tiles']) {
+    const tab = modeTab(mode);
+    assert.equal(tab.getAttribute('aria-label'), t('mode.' + mode));
+    assert.equal(tab.textContent, '');
+    assert.ok(tab.querySelector('svg'));
+    tab.click();
+  }
+  assert.deepEqual(rows(), [tiles.id]);
+  assert.equal(root.querySelectorAll('.last-game time[datetime]').length, 1);
   assert.ok(root.querySelector('.last-game').textContent.includes(t('tiles.end.wins', { name: '<Ada>' })));
   assert.equal(root.querySelector('a[href="#/kept-games"]'), null);
   for (const mode of ['guess', 'letters', 'connect', 'tiles']) {
@@ -212,58 +239,103 @@ for (const lang of ['en', 'pl']) {
   }
 }
 
-// Keep all four modes, then reopen them after eviction and a fresh store load (owner, 2026-11-26).
+// Star from Recent and from a result, then reopen every mode after the reserve fills.
 setLang('en');
 lastGamesScreen(root);
-const toggleResult = id => root.querySelector(`.last-game[href="#/result/${id}"]`).parentElement.querySelector('[data-keep]').click();
-toggleResult(connect.id);
-toggleResult(tiles.id);
-assert.equal(root.querySelectorAll('.last-game-row').length, 6);
-assert.deepEqual([...root.querySelectorAll('[data-keep]')].map(b => b.getAttribute('aria-pressed')),
-  ['true', 'true', 'false', 'false', 'false', 'false']);
+assert.equal(segment('recent').getAttribute('aria-pressed'), 'true');
+assert.equal(modeTab('tiles').getAttribute('aria-pressed'), 'true');
+star().click();
+assert.deepEqual(rows(), [tiles.id]);
+assert.equal(star().getAttribute('aria-pressed'), 'true');
+modeTab('connect').click();
+star().click();
+segment('saved').click();
+modeTab('letters').click();
+segment('recent').click();
+assert.equal(modeTab('connect').getAttribute('aria-pressed'), 'true');
+segment('saved').click();
+lastGamesScreen(root);
+assert.equal(segment('saved').getAttribute('aria-pressed'), 'true');
+assert.equal(modeTab('letters').getAttribute('aria-pressed'), 'true');
+assert.deepEqual(rows(), []);
 for (const [game, screen] of [[guess, gameScreen], [letters, lettersGameScreen]]) {
   location.hash = '#/result/' + game.id;
   await screen(root, game.id, true);
-  root.querySelector('[data-keep]').click();
-  assert.equal(root.querySelector('[data-keep]').getAttribute('aria-pressed'), 'true');
+  star().click();
+  assert.equal(star().getAttribute('aria-pressed'), 'true');
+  assert.equal(star().textContent, t('lastGames.kept'));
 }
 const keptOrder = [tiles, connect, letters, guess].map(g => g.id);
 assert.deepEqual(listKept().map(g => g.id), keptOrder);
-for (let i = 0; i < 6; i++) guessWin();
+const later = Array.from({ length: 30 }, guessWin);
 assert.equal(listFinished().length, 5);
 assert.ok(keptOrder.every(id => !listFinished().some(g => g.id === id)));
+assert.ok(JSON.parse(localStorage.getItem('wg.finished')).length <= 25);
 const archive = await import('../app/js/store.js?kept-reload');
 assert.deepEqual(archive.listKept().map(g => g.id), keptOrder);
+assert.deepEqual(archive.listRecentFinished('guess').map(g => g.id), later.slice(-3).reverse().map(g => g.id));
+assert.deepEqual(archive.listRecentFinished('letters').map(g => g.id), [letters.id]);
+assert.deepEqual(archive.listRecentFinished('connect').map(g => g.id), [connect.id]);
+assert.deepEqual(archive.listRecentFinished('tiles').map(g => g.id), [tiles.id]);
 const keptTiles = archive.getFinished(tiles.id);
 for (const key of ['racks', 'bag', 'pending', 'seed', 'turn']) assert.ok(!(key in keptTiles.state));
 assert.deepEqual(keptTiles.state.moves, state.moves);
+
 lastGamesScreen(root);
-assert.deepEqual([...root.querySelectorAll('.last-game')].map(el => el.hash),
-  [...keptOrder, ...listFinished().map(g => g.id)].map(id => '#/result/' + id));
-for (const [game, screen] of [[tiles, tilesGameScreen], [connect, connectGameScreen], [letters, lettersGameScreen], [guess, gameScreen]]) {
+assert.deepEqual(rows(), [letters.id]);
+modeTab('tiles').click();
+assert.deepEqual(rows(), [tiles.id]);
+setLang('pl');
+lastGamesScreen(root);
+star().click();
+assert.equal(dialog().getAttribute('aria-label'), 'Usunąć gwiazdkę?');
+assert.equal(dialog().querySelector('#unkeep-description').textContent,
+  'Gra zostanie usunięta z zapisanych gier. Tej operacji nie można cofnąć.');
+assert.equal(dialog().querySelector('svg path').getAttribute('d'), starShape);
+cancelRemove();
+assert.deepEqual(rows(), [tiles.id]);
+assert.equal(star().getAttribute('aria-pressed'), 'true');
+star().click();
+confirmRemove();
+assert.deepEqual(rows(), []);
+assert.equal(document.activeElement, modeTab('tiles'));
+segment('recent').click();
+modeTab('tiles').click();
+assert.deepEqual(rows(), [tiles.id]);
+assert.equal(star().getAttribute('aria-pressed'), 'false');
+setLang('en');
+
+for (const [game, screen] of [[connect, connectGameScreen], [letters, lettersGameScreen], [guess, gameScreen]]) {
   location.hash = '#/result/' + game.id;
   const cleanup = await screen(root, game.id, true);
   assert.ok(root.querySelector('.topbar a[href="#/last-games"]'));
-  assert.equal(root.querySelector('[data-keep]').getAttribute('aria-pressed'), 'true');
-  if (game === tiles) {
-    root.querySelector('[data-replay]').click();
-    root.querySelector('[data-step="next"]').click();
-    assert.equal(root.querySelectorAll('.tl-final .t.last').length, 2);
-  }
-  root.querySelector('[data-keep]').click();
-  assert.equal(root.querySelector('[data-keep]').getAttribute('aria-pressed'), 'false');
-  assert.equal(getFinished(game.id), undefined);
+  assert.equal(star().textContent, t('lastGames.kept'));
+  star().click();
+  assert.ok(dialog().textContent.includes(t('lastGames.unkeepDescription')));
+  assert.equal(star().getAttribute('aria-pressed'), 'true');
+  cancelRemove();
+  assert.equal(star().getAttribute('aria-pressed'), 'true');
+  star().click();
+  confirmRemove();
+  assert.equal(star().getAttribute('aria-pressed'), 'false');
+  assert.equal(star().textContent, t('lastGames.keep'));
+  assert.equal(star().disabled, game === guess);
+  assert.equal(getFinished(game.id)?.id, game === guess ? undefined : game.id);
   cleanup?.();
 }
+assert.deepEqual(listKept(), []);
 lastGamesScreen(root);
-assert.equal(root.querySelectorAll('.last-game').length, 5);
-const newestId = listFinished()[0].id;
-toggleResult(newestId);
-assert.equal(root.querySelectorAll('.last-game').length, 6);
-assert.equal(root.querySelector('[data-keep]').getAttribute('aria-pressed'), 'true');
-toggleResult(newestId);
-assert.equal(root.querySelectorAll('.last-game').length, 5);
-assert.equal(root.querySelector('[data-keep]').getAttribute('aria-pressed'), 'false');
+modeTab('guess').click();
+const newestId = later.at(-1).id;
+const latestGuessIds = later.slice(-3).reverse().map(g => g.id);
+assert.deepEqual(rows(), latestGuessIds);
+star().click();
+assert.deepEqual(rows(), latestGuessIds);
+assert.equal(star().getAttribute('aria-pressed'), 'true');
+star().click();
+confirmRemove();
+assert.deepEqual(rows(), latestGuessIds);
+assert.equal(star().getAttribute('aria-pressed'), 'false');
 
 // The board is available even if the optional end-rating dictionary has not loaded (owner, 2026-11-26).
 let rejectWords, requests = 0;
@@ -291,16 +363,9 @@ assert.ok(root.querySelector('.tl-replay-controls p').textContent.includes(t('ti
 rejectWords(new Error('offline'));
 cleanup();
 
+assert.equal(deleteFinished(newestId), true);
 lastGamesScreen(root);
-toggleResult(newestId);
-const resultRow = () => root.querySelector(`.last-game[href="#/result/${newestId}"]`)?.parentElement;
-resultRow().querySelector('[data-delete-result]').click();
-assert.ok(document.querySelector('dialog[open]').textContent.includes(t('lastGames.deleteConfirm')));
-document.querySelector('dialog [data-cancel]').click();
-assert.ok(resultRow());
-resultRow().querySelector('[data-delete-result]').click();
-document.querySelector('dialog [data-confirm]').click();
-assert.equal(resultRow(), undefined);
+assert.ok(!rows().includes(newestId));
 const afterDelete = await import('../app/js/store.js?after-delete');
 assert.equal(afterDelete.getFinished(newestId), undefined);
 assert.equal(afterDelete.stats.rec[newestId].end, 'won');

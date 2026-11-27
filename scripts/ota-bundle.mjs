@@ -63,7 +63,7 @@ export function embedded(dir = resolvePath(config.bundle.baselineDir), version =
 }
 
 export function writeSignedManifest(file, manifest, key) {
-  const payload = Buffer.from(JSON.stringify(manifest));
+  const payload = Buffer.from(JSON.stringify({ ...manifest, publishedAt: Date.now() }));
   const signature = crypto.sign(null, payload, key);
   fs.writeFileSync(file, JSON.stringify({ payload: payload.toString('base64'), signature: signature.toString('base64') }, null, 2) + '\n');
 }

@@ -5,6 +5,7 @@ import { settings, saveSettings } from './store.js';
 import { VERSION, REPO } from './version.js';
 import { newer, whatsnewShown } from './whatsnew.js';
 import { otaActive } from './ota.js';
+import { updateAgeAllows } from './ota-logic.js';
 export { newer } from './whatsnew.js';
 
 // First install stays quiet; an update is acknowledged by opening What's new or closing its notice (owner, 2026-11-14).
@@ -16,12 +17,23 @@ export const closeRecentUpdate = () => {
 
 const EVERY = 5 * 60000;   // at most every five minutes: GitHub answers 60 unsigned checks an hour
 let running = null;
+let manuallyChecked = null;
+const firstSeenAt = version => settings.updateFirstSeen && settings.updateFirstSeen[version];
+function rememberFirstSeen(version, now) {
+  if (version && newer(version, VERSION) && !firstSeenAt(version)) {
+    settings.updateFirstSeen = { ...settings.updateFirstSeen, [version]: now };
+  }
+}
+if (settings.latest && !firstSeenAt(settings.latest)) {
+  rememberFirstSeen(settings.latest, settings.lastCheck || Date.now());
+  saveSettings();
+}
 
 // true when the check went through (or one was made just now); the menu hears 'lexling:update' when it has news
-export function checkUpdate(force = false) {
-  if (otaActive() || !REPO) return Promise.resolve(false);
-  if (!force && !settings.updateCheck) return Promise.resolve(false);   // Settings → Check for updates, switched off
-  if (!force && Date.now() - (settings.lastCheck || 0) < EVERY) return Promise.resolve(true);
+export async function checkUpdate(force = false) {
+  if (otaActive() || !REPO) return false;
+  if (!force && !settings.updateCheck) return false;   // Settings → Check for updates, switched off
+  if (!force && Date.now() - (settings.lastCheck || 0) < EVERY) return true;
   running ??= (async () => {
     try {
       const stop = new AbortController(), timer = setTimeout(() => stop.abort(), 10000);   // ~10 s (APP-STANDARDS.md)
@@ -30,18 +42,30 @@ export function checkUpdate(force = false) {
       if (!r.ok) return false;
       const release = await r.json();
       const file = end => release.assets?.find(a => a.name.toLowerCase().endsWith(end))?.browser_download_url || '';
-      settings.latest = (release.tag_name || '').replace(/^v/i, '');
+      const version = (release.tag_name || '').replace(/^v/i, '');
+      const now = Date.now();
+      if (settings.latest !== version) manuallyChecked = null;
+      rememberFirstSeen(version, now);
+      settings.latest = version;
+      settings.latestPublishedAt = Date.parse(release.published_at) || null;
       settings.latestFiles = { apk: file('.apk'), exe: file('.exe') };
-      settings.lastCheck = Date.now();
+      settings.lastCheck = now;
       saveSettings();
-      window.dispatchEvent(new Event('lexling:update'));
       return true;
     } catch { return false; } finally { running = null; }
   })();
-  return running;
+  const checked = await running;
+  if (checked) {
+    if (force) manuallyChecked = settings.latest;
+    emit();
+  }
+  return checked;
 }
 
-export const updateWaiting = () => !otaActive() && !!REPO && !!settings.latest && newer(settings.latest, VERSION);
+// A release that was too new at the last check needs a fresh look at the channel.
+export const updateWaiting = () => !otaActive() && !!REPO && !!settings.latest && newer(settings.latest, VERSION) &&
+  updateAgeAllows(settings.waitForUpdates !== false, settings.latestPublishedAt, firstSeenAt(settings.latest),
+    Math.min(settings.lastCheck || Date.now(), Date.now()), manuallyChecked === settings.latest);
 // the menu's banner: a newer version, while Check for updates is on. ✕ hides it until Lexling next starts (owner,
 // 2026-09-27): coming back from another app keeps it hidden; a fresh start - closed, or closed by the phone - shows it
 let closed = null;
@@ -68,6 +92,7 @@ const updater = () => {
 };
 // true: downloading in the app; false: handed to the browser
 export async function getUpdate() {
+  if (!updateWaiting()) return false;
   const api = window.pywebview?.api;
   if (api?.install_update && settings.latestFiles?.exe) return getSetup(api, settings.latestFiles.exe);
   const P = updater(), url = settings.latestFiles?.apk;

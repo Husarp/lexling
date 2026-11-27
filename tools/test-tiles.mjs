@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
+import { JSDOM } from 'jsdom';
 
 const ROOT = new URL('../app/', import.meta.url);
 const UI_ICONS = runInNewContext('(' + readFileSync(new URL('js/ui.js', ROOT), 'utf8').match(/export const UI_ICONS = (\{[\s\S]*?\n\});/)[1] + ')');
@@ -71,7 +72,66 @@ const seeded = seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul
     const consumed = { ...S, cells: [...S.cells] };
     consumed.cells[112] = { ch: 'a' };
     const extension = [{ r: 7, c: 8, ch: 't' }];
-    check(`${lang} ${premiums}: consumed word multiplier`, T.pointsBreakdown(consumed, extension).words.find(w => w.w === 'at').multiplier, premiums === 'always' ? 2 : 1);
+    const word = T.pointsBreakdown(consumed, extension).words.find(w => w.w === 'at');
+    check(`${lang} ${premiums}: consumed word multiplier and its displayed premium`,
+      [word.multiplier, word.letters[0].premium], premiums === 'always' ? [2, 'D'] : [1, '']);
+  }
+}
+
+// The selected score-card palette and the points dialog, using the live click handler.
+{
+  const source = readFileSync(new URL('js/tiles-game.js', ROOT), 'utf8');
+  const { t, esc, setLang } = await import('../app/js/i18n.js');
+  const { botLevelIcon } = await import('../app/js/bot-level-icons.js');
+  const section = (a, b) => source.slice(source.indexOf(a), source.indexOf(b));
+  const dom = new JSDOM('<main><button data-points="draft">164</button><button data-points="1">164</button></main>');
+  globalThis.document = dom.window.document;
+  try {
+    const { document } = dom.window, app = document.querySelector('main');
+    const dlg = document.createElement('dialog');
+    const start = newGame({ lang: 'pl', board: 'romb', players: [{}, {}], first: 0, seed: 42 });
+    const letters = [...'koszyków'].map((ch, c) => ({ r: 7, c, ch }));
+    const placed = letters.filter(d => d.c !== 1);
+    const moves = [{ kind: 'play', placed: [letters[1]] }, { kind: 'play', placed },
+      { kind: 'play', placed: [{ ch: 'a', r: 7, c: 8 }] }];
+    const context = {
+      app, t, esc, WORD_X: T.WORD_X, pointsBreakdown: T.pointsBreakdown, replayBoard: T.replayBoard,
+      S: { ...start, ...T.replayBoard(start, moves, 1), moves },
+      placedOf: () => placed,
+      playerIcon: (S, p) => S.players[p].cpu ? botLevelIcon(S.players[p].cpu) : '<svg></svg>',
+      openDialog: (title, body) => { dlg.setAttribute('aria-label', title); dlg.innerHTML = body; return { dlg }; },
+    };
+    runInNewContext(section('export const LABEL', 'export { playerIcon').replace('export ', '') +
+      section('const BOT_SCORE_COLOURS', 'const svg =') +
+      section("  app.addEventListener('click', e => {\n    const b = e.target.closest('[data-points]');", '  // Online: the mover') +
+      '\nthis.scoreIcon = scoreIcon;', context);
+    const colours = { relaxed: '#80C86A', easy: '#C0D86B', medium: '#F0CA63', normal: '#F3AA4C', hard: '#FF864F', expert: '#FF6565' };
+    const icon = (cpu, me) => context.scoreIcon({ players: [{ cpu }] }, 0, me);
+    for (const [level, colour] of Object.entries(colours)) {
+      check(`score icon: ${level} uses its warm colour and existing face`, icon(level, 0),
+        `<span class="pb" aria-hidden="true" style="--face:${colour}">${botLevelIcon(level)}</span>`);
+    }
+    check('score icon: only the local human uses the accent', [icon(null, 0).includes('--face:var(--accent)'), icon(null, 1).includes('--face')], [true, false]);
+    setLang('pl');
+    app.children[0].click();
+    check('points popup: dialog title and styling', [dlg.getAttribute('aria-label'), dlg.className], ['Wyjaśnienie punktów', 'tl-points-dialog']);
+    check('points popup: ordered letters, base points and board bonus labels',
+      Array.from(dlg.querySelectorAll('.tl-calc-letter'), l => [l.classList[1] || '', ...Array.from(l.children, n => n.textContent)]),
+      [['w3', '2', 'K', '3S'], ['', '1', 'O', ''], ['', '1', 'S', ''], ['l3', '1×3', 'Z', '3L'],
+        ['', '2', 'Y', ''], ['l2', '2×2', 'K', '2L'], ['', '5', 'Ó', ''], ['w2', '1', 'W', '2S']]);
+    check('points popup: separate word multipliers, bonus and total',
+      ['equation', 'bingo', 'total'].map(row => Array.from(dlg.querySelector(`.tl-calc-${row}`).children, el => el.textContent)),
+      [['19 × 3 × 2 (mnożniki słowa)', '114 pkt'], ['Premia za siedem płytek', '+50 pkt'], ['Suma', '164 pkt']]);
+    const draft = dlg.innerHTML;
+    context.S.cells = T.replayBoard(start, moves, moves.length).cells;
+    for (const [i, trigger] of [[1, 'points']]) {
+      app.children[i].click();
+      check(`points popup: played ${trigger} reconstructs the original board`, dlg.innerHTML, draft);
+    }
+  } finally {
+    setLang('en');
+    delete globalThis.document;
+    dom.window.close();
   }
 }
 
@@ -172,6 +232,7 @@ const seeded = seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul
     game: { evals: [{ best: 20, word: 'better' }] } };
   runInNewContext(ratings + gates + meaningWord + cards + history + '\nthis.card = () => moveCard(0, "me"); this.hist = histHtml; this.chip = rarityChip;', context);
   check('move words open local meanings', context.card().includes('data-definition="gold"'), true);
+  check('the played move score opens the points popup', (context.card().match(/data-points="0"/g) || []).length, 1);
   check('History words open local meanings', context.hist().includes('data-definition="gold"'), true);
   check('move words never invoke external meanings', context.card().includes('data-mean='), false);
   const hasRating = html => /class="rate rate-/.test(html), hasRare = html => /class="rare rare-/.test(html);
@@ -1026,13 +1087,15 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
       tilesMoveCue, turnCuePending: false, cues: [], playCue: cue => ctx.cues.push(cue),
       draft: [], stashedDraft: null, sel: -1, mode: 'play', picks: new Set(), levels: null, cursor: null, blankFor: -1, turnHints: ['remember hint'], redoStack: [],
       press: null, rackGap: -1, fresh: null, msg: null, landing: null, n: 15, lang: 'en', settings: {}, dict: {}, histOf: null,
+      motionOn: () => false, motion: { offsetWidth: 390, querySelectorAll: () => [] }, scoreFlights: [],
+      scoreFlight: move => ctx.scoreFlights.push(move.score),
       BLANK, STANDARD, wordsMade, LABEL: { d: 'l2', t: 'l3', D: 'w2', T: 'w3' }, sizeOf, premiums, centre: T.centre, valueOf: T.valueOf,
       playerIcon, nameOf: (s, p) => s.players[p].name, cpu: p => !!ctx.S.players[p].cpu, remote: p => ctx.linked && p !== ctx.linkMe, netOk: () => true,
       rackOf: p => [...ctx.S.racks[p]], inDraft: i => ctx.draft.some(d => d.slot === i),
       rackEl: { innerHTML: '' }, dock: { innerHTML: '' }, voteEl: { hidden: true, innerHTML: '', querySelectorAll: () => [], addEventListener: (_, fn) => { ctx.voteClick = fn; } },
       status: { querySelector: s => s === '.ps.pc0 .tm' ? chip : otherChip }, play: { classList: { toggle() {} } }, app: { isConnected: true },
       timers: [], setTimeout: fn => { ctx.timers.push(fn); ctx.clearNotice = fn; }, document: { visibilityState: 'visible' }, setInterval: fn => { ctx.tickNow = fn; return 1; }, clearInterval() {},
-      refit() {}, zoomOut() {}, paintSay() {}, paintAll: () => ctx.paintVote(), think() {}, putSave() {}, finish() {}, countAchievements() {}, quiet() {},
+      refit() {}, zoomOut() {}, paintSay() {}, paintReactionDock() {}, paintAll: () => ctx.paintVote(), think() {}, putSave() {}, finish() {}, countAchievements() {}, quiet() {},
       statsNow: () => ({}), recorded: 0, drawn: [], evaluated: [], recordMove: () => ctx.recorded++, noteMove() {},
       drew: (...args) => ctx.drawn.push(args), familiar: null,
       findMoves: s => { ctx.evaluated.push(s); return [{ score: 20, word: 'cat' }]; },
@@ -1044,6 +1107,17 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     ctx.advance = ms => { now += ms; };
     ctx.number = number; ctx.chip = chip; ctx.linkLineEl = linkLine;
     return ctx;
+  }
+  for (const replaying of [false, true]) {
+    const c = screen(2, { veto: false });
+    c.linked = true; c.linkMe = c.solo = c.shown = 0;
+    c.S.turn = 1;
+    c.motionOn = () => true;
+    const placed = [...'cat'].map((ch, i) => ({ r: 7, c: 7 + i, ch }));
+    c.act({ type: 'place', placed }, true, undefined, replaying);
+    check(`screen: ${replaying ? 'catch-up skips' : 'live remote play queues'} opponent motion`,
+      [c.S.turn, c.landing?.words[0].w ?? null, c.scoreFlights.length, c.drawn.length],
+      [0, replaying ? null : 'cat', 0, 0]);
   }
   for (const lang of ['en','pl']) {
     setLang(lang);
@@ -1182,8 +1256,9 @@ check('leave: a balance of vowels and consonants', leaveValue('en', ['a', 'r', '
     c.handOver = false; c.shown = 0; c.game.turnMs = 200;
     c.act({ type: 'place', placed });
     check(`${lang} screen: a re-move starts its own twenty-second window`, c.voteEl.innerHTML.includes('aria-valuenow="20"'), true);
+    c.motionOn = () => true;
     c.advance(800); c.castVote(1, false);
-    check(`${lang} screen: acceptance scores, draws, records and animates the played move`, [c.S.moves.at(-1).kind, c.S.vote, c.S.turn, c.recorded, c.drawn.length, plain(c.drawn[0][2]), plain(c.landing), plain(c.game.evals.at(-1)), c.voteEl.hidden], ['play', null, 1, 1, 1, [...'cat'], [112, 113, 114], { best: 20, word: 'cat' }, false]);
+    check(`${lang} screen: acceptance scores, draws, records and animates the played move`, [c.S.moves.at(-1).kind, c.S.vote, c.S.turn, c.recorded, c.drawn.length, plain(c.drawn[0][2]), c.scoreFlights[0], plain(c.game.evals.at(-1)), c.voteEl.hidden], ['play', null, 1, 1, 1, [...'cat'], c.S.moves.at(-1).score, { best: 20, word: 'cat' }, false]);
     check(`${lang} screen: acceptance hands over with the next rack hidden`, [c.handOver, c.shown], [true, -1]);
     check(`${lang} screen: accepted result stays visible briefly`, c.voteEl.innerHTML.includes(t('tiles.vote.accepted')), true);
     c.timers.at(-1)();

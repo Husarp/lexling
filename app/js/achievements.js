@@ -89,12 +89,12 @@ export function gameChallenges(state, mine) {
   return keys;
 }
 
-function unlock(keys) {
+function unlock(keys, game) {
   keys = keys.filter(key => gotAt(key) === null);
   const at = Date.now();
   for (const key of keys) ach.got[key] = at;
   saveStats();
-  if (keys.length && typeof document !== 'undefined') document.dispatchEvent(new CustomEvent('lexling:achievement', { detail: { keys } }));
+  if (keys.length && typeof document !== 'undefined') document.dispatchEvent(new CustomEvent('lexling:achievement', { detail: { keys, linked: !!game.link } }));
   return keys;
 }
 
@@ -103,12 +103,12 @@ export function bump(id, by = 1, game) {
   const def = TIERED.find(d => d.id === id);
   if (!def || !Number.isFinite(by) || by <= 0) return [];
   const value = ach.n[id] = (ach.n[id] ?? 0) + by;
-  return unlock(def.th.flatMap((th, i) => value >= th ? [`${id}#${i}`] : []));
+  return unlock(def.th.flatMap((th, i) => value >= th ? [`${id}#${i}`] : []), game);
 }
 
 export function grant(id, game) {
   if (!counts(game)) return [];
-  return CHALLENGES.some(d => d.id === id) ? unlock([id]) : [];
+  return CHALLENGES.some(d => d.id === id) ? unlock([id], game) : [];
 }
 
 export function progress(def) {
