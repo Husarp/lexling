@@ -69,6 +69,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:none;box-
 [data-game=letters],[data-screen=letters]{--game-colour:var(--game-letters)}
 [data-game=connect],[data-screen=connect]{--game-colour:var(--game-connect)}
 [data-game=tiles],[data-screen=tiles]{--game-colour:var(--game-tiles)}
+/* the small accent mark before screen titles stays (owner's pick 5B; the only allowed bar - owner, 2026-11-26) */
 .title::before,.game-title::before{content:"";display:inline-block;flex:none;width:4px;height:.9em;background:var(--game-colour,var(--accent))}
 .game-title:not(.gname)::before{margin-inline-end:.45em;vertical-align:-.05em}
 .display{font:800 clamp(40px,10vw,72px)/.95 var(--font-display);letter-spacing:-.02em;text-transform:uppercase}
@@ -121,7 +122,6 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 }
 [data-screen=menu] .hero{flex:1;position:relative;overflow:hidden;display:grid;align-content:center;gap:var(--space-8);padding:clamp(32px,8vh,96px) var(--gutter)}
 [data-screen=menu] .hero-inner{width:100%;max-width:var(--col);margin:0 auto;display:grid;gap:var(--space-6);position:relative}
-[data-screen=menu] .wm{position:absolute;right:-.06em;top:-.18em;font:800 clamp(260px,55vw,640px)/1 var(--font-display);letter-spacing:-.05em;color:var(--text);opacity:.05;pointer-events:none;user-select:none}
 [data-screen=menu] .tagline{max-width:44ch;font-size:clamp(16px,2.2vw,19px);color:var(--text-muted)}
 [data-screen=menu] .menu{display:grid;gap:var(--space-3);max-width:420px;width:100%}
 [data-screen=menu] .menu .btn{justify-content:space-between}
@@ -210,7 +210,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 [data-screen=game] .hist .r{justify-content:flex-end;font:700 16px/1 var(--font-display);font-variant-numeric:tabular-nums}
 [data-screen=game] .bar{height:4px;background:var(--surface-2);border-radius:var(--radius-sm);overflow:hidden;width:100%}
 [data-screen=game] .bar i{display:block;height:100%;width:var(--pct);background:var(--fill)}
-[data-screen=game] .empty{display:grid;gap:var(--space-4);padding:var(--space-6) var(--space-5);border-left:3px solid var(--game-colour)}
+[data-screen=game] .empty{display:grid;gap:var(--space-4);padding:var(--space-6) var(--space-5)}
 [data-screen=game] .empty h2{font:700 clamp(22px,5vw,28px)/1.05 var(--font-display);text-transform:uppercase;letter-spacing:-.02em}
 [data-screen=game] .legend{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--space-3);font-size:12px;color:var(--text-muted)}
 [data-screen=game] .ramp{height:8px;border-radius:var(--radius-sm);background:linear-gradient(90deg,var(--fill-cold),var(--fill-warm),var(--fill-mid),var(--fill-hot))}
@@ -262,10 +262,6 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .swatches button:hover{transform:scale(1.12)}
 .swatches button.on{border-color:var(--text);box-shadow:none}
 /* PL · EN in the menu top bar is the app-language switch */
-.lang-switch{display:flex;align-items:center;gap:var(--space-2)}
-.lang-switch button{font:inherit;letter-spacing:inherit;text-transform:inherit;color:var(--text-dim);min-height:44px;padding:0 var(--space-1)}
-.lang-switch button.on{color:var(--text)}
-.lang-switch button:hover{color:var(--accent)}
 /* topbar game name must never push the brand out */
 .topbar .eyebrow{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 [data-screen=games] .save-name .input{font:inherit;min-height:40px;padding:0 var(--space-3)}
@@ -290,7 +286,6 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 /* #board groups the guess lists so they can be repainted as one; it keeps .main's rhythm */
 #board{display:flex;flex-direction:column;gap:var(--space-6)}
 #board:empty{display:none}
-.topbar .lang-switch{overflow:visible}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:1ms!important;transition-duration:1ms!important}}
 /* split-screen / very short windows: the sticky bar may not eat the little height there is */
 @media (max-height:420px){.topbar{position:static;min-height:44px}.main{padding-top:var(--space-4);gap:var(--space-4)}}
@@ -474,7 +469,7 @@ html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;g
 .outcome .count{flex:none;text-align:right;font:800 clamp(28px,7vw,48px)/1 var(--font-display);font-variant-numeric:tabular-nums}
 .outcome .count small{display:block;margin-top:4px;font:600 11px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase}
 @media (max-width:360px){.outcome{gap:var(--space-3);padding:var(--space-4)}}
-.result{display:grid;gap:var(--space-4);padding:var(--space-5);border-left:3px solid var(--tone)}
+.result{display:grid;gap:var(--space-4);padding:var(--space-5)}
 .result.won{--tone:var(--success)}.result.lost{--tone:var(--error)}
 .result .display{font-size:clamp(40px,11vw,72px);overflow-wrap:anywhere}
 .result-stats{display:flex;flex-wrap:wrap;gap:var(--space-1) var(--space-3);font-size:15px;color:var(--text-muted)}
@@ -542,12 +537,10 @@ html:not([data-kb]) [data-screen=letters].fit .play{flex:0 1 auto;min-height:0;g
 [data-theme=light] [data-screen=menu] .cue-ring b{box-shadow:0 0 0 1.5px var(--lt-edge)}
 [data-screen=menu] .cue-ring b.on{background:var(--lt-hit);box-shadow:none;color:#fff}
 @container (min-width:600px){[data-screen=menu] .game .cue4>span{transform:scale(1.15)}[data-screen=menu] .game .cue4>.glyph.tiles{transform:scale(2.7)}}
-[data-screen=menu] .g-text{min-width:0;display:grid;gap:4px}
 [data-screen=menu] .g-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px var(--space-3)}
 [data-screen=menu] .g-name{font:800 26px/1 var(--font-display);letter-spacing:-.02em;text-transform:uppercase;overflow-wrap:anywhere}
 [data-screen=menu] .g-live{font-size:12px;color:var(--text-muted);white-space:nowrap}
 [data-screen=menu] .g-live b{font:800 14px/1 var(--font-display);color:var(--accent)}
-[data-screen=menu] .g-desc{font-size:13px;line-height:1.4;color:var(--text-muted)}
 [data-screen=menu] .game>.arrow{font:600 22px/1 var(--font-body);transition:transform var(--dur) var(--ease)}
 [data-screen=menu] .game:hover>.arrow{transform:translateX(4px)}
 [data-screen=menu] .game.soon .g-live{color:var(--text-dim)}
@@ -1288,6 +1281,12 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .game-settings{margin:auto;width:min(400px,calc(100vw - 32px));padding:var(--space-4) var(--space-5);color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-md)}
 .game-settings::backdrop{background:rgba(0,0,0,.55)}
 [data-theme=light] .game-settings::backdrop{background:rgba(0,0,0,.3)}
+.game-settings.first-language{width:min(340px,calc(100vw - 32px));padding:var(--space-5);text-align:center}
+.first-language h2{font:700 26px/1.1 var(--font-display)}
+.first-language h2 span{display:block}
+.first-language .language-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-3);margin-top:var(--space-5)}
+.first-language .btn{padding:0 var(--space-2);text-transform:none;letter-spacing:0}
+.first-language .btn:focus{outline:2px solid var(--accent);outline-offset:3px}
 .gs-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-2)}
 .gs-close{min-width:40px;padding:0}
 .gs-guide{justify-content:space-between;width:100%;min-height:48px;padding:0 12px;margin-bottom:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--text)}
@@ -1654,7 +1653,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-screen=stats] .main{container-type:inline-size;gap:var(--space-4);padding-bottom:var(--safe-b)}
 
 /* Centre the game glyphs in equal-width tabs (owner, 2026-11-26). */
-.seg.st-tabs{position:sticky;top:0;z-index:4;display:flex;gap:2px;padding:3px}
+.seg.st-tabs{display:flex;gap:2px;padding:3px}
 .seg.st-tabs button{min-height:52px;padding:8px;display:flex;align-items:center;justify-content:center;border-radius:11px}
 .st-tabs .tg{height:22px;display:grid;place-items:center}
 /* General's glyph: one square per game, in the colours the "games by mode" chart uses */
@@ -1676,45 +1675,28 @@ input,textarea{-webkit-user-select:text;user-select:text}
 @container (min-width:600px){[data-screen=stats] .st-levels{margin:0;padding:0;overflow:visible;-webkit-mask-image:none;mask-image:none}[data-screen=stats] .st-levels .chips{flex-wrap:wrap;width:auto;padding:0}}
 [data-screen=stats] .st-filters.off{opacity:.4;pointer-events:none}
 
-/* ── Groups: a card per group, a titled grid of cells ──
-   A cell = label · big number · optional line · optional 3px ratio bar (for the "53 % won" lines).
-   Rows are a subgrid, so numbers line up across a row even when one label takes two lines. */
+/* Each stat has its own panel. The mode breakdown uses the existing full-width rows. */
 [data-screen=stats] .section{display:grid;gap:var(--space-3)}
-[data-screen=stats] .sgroup{display:grid;align-content:start;flex:none;gap:var(--space-4);padding:var(--space-4) var(--space-5) var(--space-5)}
-[data-screen=stats] .sgroup:not([data-game=general]){border-inline-start:3px solid var(--game-colour)}
-[data-screen=stats] .st-mode{display:flex;align-items:center;gap:8px;padding:10px;border-inline-start:3px solid var(--game-colour)}
+[data-screen=stats] .st-mode{display:flex;align-items:center;gap:8px;padding:10px}
 [data-screen=stats] .st-mode .lbl{display:flex;align-items:center;gap:8px;font-weight:600}
 [data-screen=stats] .st-mode .num{margin-inline-start:auto;font-size:25px}
-@container (max-width:340px){[data-screen=stats] .sgroup,[data-screen=stats] .chart{padding:var(--space-4)}}
-[data-screen=stats] .sgroup>.eyebrow{margin:0}
-[data-screen=stats] .scells{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:var(--space-5) var(--space-4)}
-[data-screen=stats] .scell{display:grid;grid-row:span 2;grid-template-rows:subgrid;row-gap:5px;min-width:0}
-[data-screen=stats] .st-mode-heading{grid-column:1 / -1;margin:0}
-[data-screen=stats] .scell .lbl .glyph{width:20px;height:20px;vertical-align:middle;margin-right:6px}
-[data-screen=stats] .scell .num>.sub{display:block;margin-top:6px;font-family:var(--font-body);font-weight:400;text-transform:none;letter-spacing:0}
-[data-screen=stats] .scell .lbl{align-self:end;font:600 11px/1.3 var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);text-wrap:balance}
-[data-screen=stats] .scell .num{font:800 34px/1 var(--font-display);color:var(--text);overflow-wrap:anywhere}
-[data-screen=stats] .scell .unit{margin-left:3px;font:600 15px/1 var(--font-body);color:var(--text-muted)}
-[data-screen=stats] .scell .sub{font-size:12.5px;line-height:1.35;color:var(--text-muted)}
-[data-screen=stats] .scell .sub b{font-weight:600;color:var(--text)}
-[data-screen=stats] .scell .bar{align-self:start;display:block;height:3px;border-radius:2px;background:var(--line-soft);overflow:hidden}
-[data-theme=light] [data-screen=stats] .scell .bar{background:var(--line)}
-[data-screen=stats] .scell .bar i{display:block;width:var(--p);height:100%;border-radius:2px;background:var(--accent)}
-[data-screen=stats] .scell .bar.quiet i{background:var(--text-muted)}
-[data-screen=stats] .scell.wide{grid-column:1 / -1}
-[data-screen=stats] .scell.word .num{font-size:28px;text-transform:uppercase;letter-spacing:0}
-[data-screen=stats] .scell.hero{grid-column:span 2}
-[data-screen=stats] .scell.hero .num{font-size:clamp(56px,17cqi,80px);line-height:.86}
-[data-screen=stats] .scell.dash .num{color:var(--text-dim)}
-[data-screen=stats] .sgroup.dim .num,[data-screen=stats] .sgroup.dim .unit{color:var(--text-dim)}
-/* the honesty note: one quiet line at the foot of the group it concerns */
-[data-screen=stats] .snote{display:flex;gap:8px;padding-top:var(--space-3);border-top:1px solid var(--line-soft);font-size:12.5px;line-height:1.45;color:var(--text-muted)}
-[data-screen=stats] .snote::before{content:"·";flex:none;font-weight:700;color:var(--accent)}
+.st-panels{display:grid;gap:var(--space-4);margin-bottom:var(--space-1)}
+.st-panel{min-width:0}
+.st-panel h2{margin-bottom:8px;color:var(--text-muted);font-size:12px;font-weight:600;line-height:1.3;letter-spacing:.07em;text-transform:uppercase}
+.st-panel .scells{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.st-panel .scell{display:grid;grid-template-rows:1fr auto;align-items:start;gap:7px;min-width:0;min-height:76px;padding:10px 12px;background:var(--surface);border:1px solid var(--line-soft);border-radius:10px}
+.st-panel .lbl{display:flex;align-items:flex-start;gap:8px;min-width:0;color:var(--text-muted);font-size:13px;line-height:1.35;overflow-wrap:anywhere}
+.st-panel .lbl svg:is(.app-icon,.glyph){flex:none;width:16px;height:16px;margin-top:1px}
+.st-panel dd{min-width:0;padding-inline-start:24px}
+.st-panel .num{display:block;font-size:24px;overflow-wrap:anywhere}
+.st-panel .word .num{text-transform:uppercase}
+.st-panel .sub{display:block;margin-top:4px;font-size:11px;line-height:1.35;color:var(--text-muted);overflow-wrap:anywhere}
 
 /* ── Charts: one style, columns standing up ──
    Count on top, label under the base line, the tallest column in the mode's colour (--tone), the rest --surface-2.
    A value of 0 is a short dashed stub with a dim 0. Columns cap at 56px wide so four don't turn into slabs. */
 [data-screen=stats] .chart{display:grid;gap:var(--space-4);padding:var(--space-4) var(--space-5) var(--space-5)}
+@container (max-width:340px){[data-screen=stats] .chart{padding:var(--space-4)}}
 [data-screen=stats] .chart-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px var(--space-3)}
 [data-screen=stats] .chart ol{list-style:none;padding:0;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:0 clamp(3px,1.4cqi,12px)}
 [data-screen=stats] .chart li{display:grid;grid-template-rows:152px auto;row-gap:7px;min-width:0}
@@ -1754,15 +1736,12 @@ input,textarea{-webkit-user-select:text;user-select:text}
 [data-screen=menu] .games.tight .game{min-height:72px;gap:var(--space-3);padding:var(--space-2) var(--space-4) var(--space-2) var(--space-2)}
 [data-screen=menu] .games.tight .cue4{width:54px;height:54px}
 [data-screen=menu] .games.tight .g-name{font-size:23px}
-[data-screen=menu] .games.tight .g-desc{font-size:12.5px;line-height:1.35}
 [data-screen=menu] .games.tight .cue-ring{transform:scale(.9)}
 /* from a 600px column: two across */
 @container (min-width:600px){
-  [data-screen=menu] .games.tight{grid-template-columns:1fr 1fr;gap:var(--space-3)}
   [data-screen=menu] .games.tight .game{min-height:100px;padding:var(--space-4) var(--space-5) var(--space-4) var(--space-4)}
   [data-screen=menu] .games.tight .cue4{width:64px;height:64px}
   [data-screen=menu] .games.tight .g-name{font-size:28px}
-  [data-screen=menu] .games.tight .g-desc{font-size:13px}
 }
 /* Main menu: equal option-C cards with palette-aware outline badges. */
 [data-screen=menu] .menu.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-width:none;margin-top:var(--space-1)}
@@ -1774,7 +1753,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .menu.cards a[href="#/achievements"]{--icon-ink:var(--rare-gold-ink)}
 .menu.cards a[href="#/collection"]{--icon-ink:#61CFBA}
 .menu.cards a[href="#/settings"]{--icon-ink:#D0AEF5}
-[data-screen=menu] .menu.cards a[href="#/last-games"]{grid-column:1/-1;height:48px;flex-direction:row;gap:8px;--icon-ink:var(--accent)}
+[data-screen=menu] .menu.cards a[href="#/last-games"]{grid-column:1/-1;flex-direction:row;gap:8px;--icon-ink:var(--accent)}
 [data-theme=light] .menu.cards a[href="#/stats"]{--icon-ink:#4168AD}
 [data-theme=light] .menu.cards a[href="#/collection"]{--icon-ink:#227869}
 [data-theme=light] .menu.cards a[href="#/settings"]{--icon-ink:#764E9F}
@@ -1847,7 +1826,6 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .co-lead{margin:var(--space-1) 0 0;font-size:13px;color:var(--text-muted)}
 /* the help line, at the foot: Statistics' honesty note */
 .co-help{display:flex;gap:8px;margin:var(--space-2) 0 0;padding-top:var(--space-3);border-top:1px solid var(--line-soft);font-size:12.5px;line-height:1.45;color:var(--text-muted)}
-.co-help::before{content:"·";flex:none;font-weight:700;color:var(--accent)}
 
 /* ── A category ── */
 .co-back{justify-self:start}
@@ -1960,12 +1938,20 @@ canvas.co-dots{display:block;width:100%}
 .ach-pips .ach-shape{width:10px;height:10px}
 .ach-bar{height:4px;border-radius:4px;background:var(--surface-2);overflow:hidden}
 .ach-bar i{display:block;height:100%;background:var(--ink)}
-[data-screen=achievements] .ach-summary{display:grid;gap:12px;background:var(--surface);border:1px solid var(--line-soft);border-radius:12px;padding:14px;margin:20px 0 10px}
-.ach-summary .num{display:block;font-size:32px}
+[data-screen=achievements] .ach-summary{container-type:inline-size;display:grid;gap:12px;background:var(--surface);border:1px solid var(--line-soft);border-radius:12px;padding:14px;margin:20px 0 10px}
+.ach-total .num{display:block;font-size:32px}
 .ach-summary small{display:block;color:var(--text-muted);font-size:11px}
-.ach-counts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
-.ach-count{display:grid;justify-items:center;gap:5px;font-size:12px;text-align:center;overflow-wrap:anywhere}
-@container (min-width:600px){[data-screen=achievements] .ach-summary{grid-template-columns:1fr 3fr;align-items:center}}
+.ach-counts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding-top:10px;border-top:1px solid var(--line-soft)}
+.ach-count{display:grid;justify-items:center;align-content:start;gap:5px;text-align:center}
+.ach-count small{line-height:1.2;overflow-wrap:anywhere}
+.ach-count-pair{display:flex;align-items:center;justify-content:center;gap:2px;min-width:0}
+.ach-count-pair .num{font-size:21px}
+.ach-count-pair .ach-shape{width:min(25.6px,8cqi);height:auto;aspect-ratio:1}
+@media(max-width:400px){
+  [data-screen=achievements] .ach-summary{padding:9px}
+  .ach-count small{font-size:10px}
+  .ach-count-pair .num{font-size:18px}
+}
 .ach-heading{font-size:12px;color:var(--text-muted);margin:20px 0 10px}
 .ach-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:20px}
 .ach-tile{border-radius:10px;position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-width:0;padding:8px 4px;border:1px solid color-mix(in srgb,var(--ink) 22%,var(--line-soft));background:color-mix(in srgb,var(--ink) 17%,var(--surface));color:var(--text);cursor:pointer;font:inherit}
@@ -2001,7 +1987,7 @@ canvas.co-dots{display:block;width:100%}
 .ach-notice-actions button:first-child{background:var(--accent);color:var(--on-accent)}
 .ach-notice-icon{display:grid;place-items:center;background:radial-gradient(circle,color-mix(in srgb,var(--ink) 20%,transparent),transparent 72%);width:50px;flex:none}
 @media(min-width:700px){[data-screen=achievements] .main{max-width:760px}.ach-tile{aspect-ratio:1.3}.ach-tile>.ach-icon{width:48px;height:48px}}
-@media(max-width:350px){[data-screen=achievements] .ach-summary{gap:8px;padding:10px}.ach-tile{gap:5px}.ach-tile>.ach-icon{width:28px;height:28px}}
+@media(max-width:350px){.ach-tile{gap:5px}.ach-tile>.ach-icon{width:28px;height:28px}}
 
 [data-screen=achievements] .main{gap:0}
 [data-screen=achievements] .main>.title{margin-bottom:0}
@@ -2095,7 +2081,6 @@ html{scrollbar-gutter:stable}
 }
 
 .practice-badge{display:inline-block;font-size:.7rem;line-height:1.4;padding:.1rem .4rem;margin-inline-start:.4rem;border:1px solid var(--text-muted);border-radius:.4rem;color:var(--text-muted);white-space:nowrap}
-.earlier-ach{margin-block:1rem;font-size:.85rem;color:var(--text-muted)}
 
 /* Tiles decisions: one tile family, selectable frame, quiet tools and player rails. */
 .tl-board{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line)}
@@ -2128,7 +2113,7 @@ html{scrollbar-gutter:stable}
 .tl-dock .tl-tool.ur{background:transparent;border-color:transparent;box-shadow:none}
 /* Subgrid includes the card's 10px left inset: leave 24px for the icon (owner, 2026-11-20). */
 .tl-moves .mcards{grid-template-columns:34px minmax(0,1fr) auto auto;gap:4px 7px}
-.tl-moves .mc{min-height:60px;padding:6px 9px;align-content:center;row-gap:3px;border-color:var(--line-soft);border-radius:6px;box-shadow:inset 3px 0 var(--pc);background:var(--surface)}
+.tl-moves .mc{min-height:60px;padding:6px 9px;align-content:center;row-gap:3px;border-color:var(--line-soft);border-radius:6px;background:var(--surface)}
 .tl-moves .who{grid-column:auto;display:flex;align-items:center;justify-content:center;align-self:center;color:var(--pt)}
 /* Readable beside the 14px turn prompt, including on short screens (owner, 2026-11-20). */
 .tl-moves .who svg{width:24px;height:24px;flex:none}
@@ -2245,13 +2230,27 @@ details>summary :is(.arrow,.category-arrow){display:none}
 .settings-section .input{max-width:100%}
 /* Shared, transparent SVG mode icons retain the proposal's colours in both themes. */
 svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.all{display:inline-block;position:static;flex:none;width:22px;height:22px;background:none;border-radius:0;vertical-align:middle;overflow:visible}
-/* Menu art stays dark in light theme: its edges are part of the selected artwork. */
-[data-screen=menu] .games.tight .game{grid-template-columns:minmax(0,1fr) minmax(0,48%) auto;min-height:104px;padding:0 18px;background:#110d0c;border-color:#352b27;overflow:hidden}
-[data-screen=menu] .menu-art{grid-column:2;grid-row:1;width:100%;height:102px;object-fit:cover;mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
-[data-screen=menu] .games.tight .g-text{grid-column:1;grid-row:1;padding-block:8px;overflow-wrap:anywhere}
-[data-screen=menu] .games.tight .g-name{font:600 22px/1 var(--font-body);letter-spacing:0;text-transform:none;color:#fff3e9;text-shadow:0 2px 8px #000}
-[data-screen=menu] .games.tight .g-desc{color:#fff3e9;text-shadow:0 1px 3px #000,0 1px 6px #000}
-[data-screen=menu] .game>.arrow{color:#ED754C;text-shadow:0 2px 8px #000;font-size:22px}
+/* Keep the artwork at card height and fade its dark background into the card. */
+[data-screen=menu] .games.tight{grid-template-columns:minmax(0,max-content) minmax(0,1fr) auto}
+[data-screen=menu] .games.tight .game{grid-column:1/-1;grid-template-columns:7rem minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);height:104px;min-height:104px;padding:0 18px;background:#110d0c;border-color:#352b27;overflow:hidden;isolation:isolate}
+@supports (grid-template-columns:subgrid){
+  [data-screen=menu] .games.tight .game{grid-template-columns:subgrid}
+}
+[data-screen=menu] .menu-art{
+  display:block;grid-column:2;grid-row:1;justify-self:center;
+  width:184px;max-width:none;height:102px;
+  object-fit:cover;object-position:var(--art-position,71%) center;
+  mix-blend-mode:lighten;
+  mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent),
+    linear-gradient(transparent,#000 var(--art-fade,5px),#000 calc(100% - var(--art-fade,5px)),transparent);
+  mask-composite:intersect;
+}
+/* Center each illustration inside its wider source image. */
+[data-screen=menu] .game[href="#/games/guess"] .menu-art{--art-position:67%}
+[data-screen=menu] .game[href="#/games/letters"] .menu-art{--art-position:75%}
+[data-screen=menu] .game[href="#/games/tiles"] .menu-art{--art-position:53%;--art-fade:2px;height:92px}
+[data-screen=menu] .games.tight .g-name{grid-column:1;grid-row:1;z-index:1;font:600 22px/1 var(--font-body);letter-spacing:0;text-transform:none;color:#fff3e9;text-shadow:0 2px 8px #000}
+[data-screen=menu] .game>.arrow{grid-column:3;grid-row:1;z-index:1;color:#ED754C;text-shadow:0 2px 8px #000;font-size:22px}
 .empty-art{display:block;width:120px;max-width:65%;height:auto;max-height:140px;object-fit:contain;margin:0 auto 16px}
 .ach-notice-icon{position:relative;width:58px;height:60px;background:none}
 .ach-notice-icon img{width:58px;height:58px;object-fit:contain;border-radius:10px}
@@ -2312,7 +2311,6 @@ svg.glyph.guess,svg.glyph.letters,svg.glyph.connect,svg.glyph.tiles,svg.glyph.al
 [data-kb] [data-screen=letters] .main{padding-top:calc(var(--space-2) + var(--safe-t));padding-bottom:calc(var(--space-2) + var(--safe-b))}
 :is(.game-settings,.achievement-detail){inset:var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);max-width:calc(100vw - var(--safe-l) - var(--safe-r) - 24px);max-height:calc(100dvh - var(--safe-t) - var(--safe-b) - 24px);overflow:auto}
 .game-settings.tl-options,.rules-window.game-settings{max-height:calc(100dvh - var(--safe-t) - var(--safe-b) - 24px);overflow:hidden}
-:is([data-screen=stats],[data-screen=achievements],[data-screen=collection]) .seg.st-tabs{top:var(--topbar-h,calc(57px + var(--safe-t)))}
 :is(.meaning-notice,.achievement-notice){left:calc(var(--safe-l) + (100% - var(--safe-l) - var(--safe-r))/2);bottom:calc(16px + var(--safe-b));max-width:calc(100vw - var(--safe-l) - var(--safe-r) - 24px);max-height:calc(100dvh - var(--safe-t) - var(--safe-b) - 32px);overflow:auto}
 @media (max-height:680px){
   [data-screen=games] .main{padding-top:12px;gap:12px}
@@ -2347,8 +2345,6 @@ svg.app-icon{display:inline-block;flex:none;width:20px;height:20px;vertical-alig
 [data-screen=new] :is(.howto .eyebrow,.friend strong,#only-new strong){display:flex;align-items:center;gap:8px}
 [data-screen=new] .app-icon{color:var(--accent)}
 /* Tiles setup uses plain card borders (owner, 2026-11-26). */
-[data-screen=new]:not([data-game=tiles]) :is(.friend,.polish,.howto){border-inline-start:3px solid var(--game-colour)}
-[data-screen=stats] .scell .lbl .app-icon{width:18px;height:18px;margin-right:6px}
 [data-screen=letters] .stat .eyebrow{letter-spacing:.06em}
 
 /* Android update notices and settings (owner, 2026-11-26). */
@@ -2398,6 +2394,23 @@ svg.app-icon{display:inline-block;flex:none;width:20px;height:20px;vertical-alig
 .ota-setup .ota-actions .btn:first-child{flex-basis:100%}
 .ota-setup .ota-actions .btn:last-child{margin-inline-start:auto}
 .ota-setup .btn-selected{background:var(--accent-soft);color:var(--accent)}
+[data-screen=whatsnew] .main{gap:16px}
+.wn-panel{padding:16px;background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-md)}
+.wn-feature{border-color:color-mix(in srgb,var(--accent) 50%,var(--line));background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 13%,var(--surface)),var(--surface) 44%)}
+.wn-kicker{color:color-mix(in srgb,var(--accent) 70%,var(--text));font:600 11px/1.2 var(--font-body);letter-spacing:.1em;text-transform:uppercase}
+.wn-meta{display:flex;align-items:center;gap:8px;margin:7px 0 12px}
+.wn-version{font:700 25px/1 var(--font-display);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.wn-panel time{color:var(--text-muted);font-size:12px;font-variant-numeric:tabular-nums}
+.wn-changes{padding-inline-start:18px;font-size:14px}
+.wn-changes li+li{margin-top:6px}
+.wn-changes li::marker{color:var(--text-muted)}
+.wn-past{display:grid;gap:8px}
+.wn-fold{padding-block:0}
+.wn-fold summary{min-height:44px}
+.wn-fold summary::after{color:var(--text-muted)}
+.wn-details{padding-bottom:14px}
+.wn-panel .ota-release-notes{font-size:14px}
+.wn-changes+.ota-release-notes{margin-top:12px}
 .ota-release-notes{white-space:pre-wrap;overflow-wrap:break-word}
 .ota-banner[hidden],.ota-banner [hidden],.ota-settings [hidden],.ota-setup [hidden],.ota-muted:empty,
 .ota-check-state:empty,.ota-notice-body [data-ota-notice-action]:empty{display:none}

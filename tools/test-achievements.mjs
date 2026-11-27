@@ -16,7 +16,7 @@ const realNow = Date.now, now = 1800000000000;
 Date.now = () => now;
 const { stats, newGame, markPractice, counts, setupPractice, putSave } = await import('../app/js/store.js');
 const { TIERS, TIERED, CHALLENGES, playChallenges, gameChallenges, bump, grant, progress, gotAt,
-  recordAchievementEnd, recordConnectBonus, migrateAchievements, earlierAchievements } = await import('../app/js/achievements.js');
+  recordAchievementEnd, recordConnectBonus, migrateAchievements } = await import('../app/js/achievements.js');
 const def = id => TIERED.find(d => d.id === id);
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 const clean = { mode: 'guess', guesses: [] };
@@ -67,8 +67,7 @@ const reload = saved => spawnSync(process.execPath, ['--input-type=module','-e',
   Object.defineProperty(globalThis,'localStorage',{value:{getItem:k=>k==='wg.stats'?JSON.stringify(saved):null,setItem(){}}});
   Object.defineProperty(globalThis,'navigator',{value:{language:'en'}});
   const {stats}=await import(${JSON.stringify(new URL('../app/js/store.js',import.meta.url).href)});
-  const {earlierAchievements}=await import(${JSON.stringify(new URL('../app/js/achievements.js',import.meta.url).href)});
-  console.log(JSON.stringify({ach:stats.ach,earlier:earlierAchievements()}));
+  console.log(JSON.stringify({ach:stats.ach}));
 `, JSON.stringify(saved)], {encoding:'utf8'});
 const first = reload(original);
 check('fresh migration succeeds', first.status, 0);
@@ -76,7 +75,7 @@ const restored = JSON.parse(first.stdout);
 const second = reload({ach:restored.ach});
 check('second reload succeeds', second.status, 0);
 check('reload migration remains idempotent', JSON.parse(second.stdout).ach, restored.ach);
-check('retired earned awards listed', restored.earlier.some(([key,at])=>key==='tiles.points#1' && at===14), true);
+check('retired award date survives reload', restored.ach.got['tiles.points#1'], 14);
 check('unknown award survives reload', restored.ach.got.unknown, 18);
 
 const practice = newGame({friend:true, lang:'en'}), before = structuredClone(stats.ach);
@@ -225,11 +224,11 @@ for (const lang of ['en', 'pl']) {
   const html = root.innerHTML;
   check(`${lang}: Achievements game tabs have icons and translated accessible names`, ...gameTabLabels(html, 'col.all'));
   check(`${lang}: every summary shape has a visible tier label`,
-    [...html.matchAll(/class="ach-count"><svg[^]*?<\/svg><small>([^<]+)<\/small>/g)].map(m => m[1]), TIERS.map(k => t('tier.' + k)));
+    [...html.matchAll(/class="ach-count"><span class="ach-count-pair"><b class="num">[^<]+<\/b><svg[^]*?<\/svg><\/span><small>([^<]+)<\/small>/g)].map(m => m[1]), TIERS.map(k => t('tier.' + k)));
   check(`${lang}: selected tab name is not repeated as a heading`, html.includes(`>${t('col.all')}</h2>`), false);
   check(`${lang}: nineteen achievement squares`, (html.match(/data-ach="/g) ?? []).length, 19);
-  check(`${lang}: earlier awards are collapsed`, html.includes('<details class="earlier-ach"><summary>' + t('ach.earlier')), true);
-  check(`${lang}: earlier award keeps its date`, html.includes(t('ach.got', { d: dateTime(now - 1) })), true);
+  check(`${lang}: earlier awards section is absent`, html.includes('earlier-ach'), false);
+  check(`${lang}: retired award date is hidden`, html.includes(t('ach.got', { d: dateTime(now - 1) })), false);
   check(`${lang}: retired award has no active tile`, html.includes('data-ach="tiles.points"'), false);
   check(`${lang}: obsolete fairness paragraph removed`, html.includes(t('ach.fair')), false);
   check(`${lang}: seven progress bars`, (html.match(/role="progressbar"/g) ?? []).length, 7);

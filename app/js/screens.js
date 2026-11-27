@@ -3,12 +3,12 @@ import { achievementInk, achievementState, achievementPips, achievementBar, achi
 // Menu, game picker, new game, statistics, settings. Markup is the design handoff's
 // (design/handoff/*.html), with the dummy text replaced by t(...) and live data.
 import { t, plural, esc, num, duration, ago, dateTime, setLang, getLang, LANG_NAMES } from './i18n.js';
-import { settings, saveSettings, stats, listSaves, listFinished, listKept, getSave, putSave, deleteSave, newGame, gameName, collected, totals, setupPractice } from './store.js';
+import { deviceLanguage, settings, saveSettings, stats, listSaves, listFinished, listKept, getSave, putSave, deleteSave, newGame, gameName, collected, totals, setupPractice } from './store.js';
 import { net, netKinds, netReady, nearbyHere, openLocation } from './net.js';
 import { createGuest } from './session.js';
 import { has } from './dawg.js';
 import { cleanTiers, RARE_TIERS } from './rarity.js';
-import { TIERS, TIERED, CHALLENGES, gotAt, earlierAchievements } from './achievements.js';
+import { TIERS, TIERED, CHALLENGES, gotAt } from './achievements.js';
 import { load, loadWords, preload, resolve, pickSecret, secretPool, secretWords, lengthStats } from './engine.js';
 import { feedback, pool, pick, LEN_MIN, LEN_MAX, TRIES_MAX } from './letters.js';
 import { makePuzzle, RANGE, RING_MIN, RING_MAX, WORD_MIN, visible, isDone } from './connect.js';
@@ -61,32 +61,29 @@ export function menu(root, _, refresh) {
   // (owner, 2026-09-25) - only "soon" for a game not built yet.
   const row = key => {
     const live = READY.has(key) ? '' : `<span class="g-live">${t('menu.soon')}</span>`;
-    const inner = `<img class="menu-art" src="img/menu/${key}.webp" alt=""><span class="g-text"><span class="g-name">${t('mode.' + key)}</span><span class="g-desc">${t('menu.desc.' + key)}</span></span>${live}`;
+    const inner = `<span class="g-name">${t('mode.' + key)}</span><img class="menu-art" src="img/menu/${key}.webp" alt="">${live}`;
     return READY.has(key) ? `<a class="game" href="${LIST_OF[key]}">${inner}<span class="arrow" aria-hidden="true">→</span></a>`
       : `<div class="game soon" aria-disabled="true">${inner}</div>`;
   };
   root.innerHTML = `<div class="app" data-screen="menu">
-  ${topbar({ right: `<span class="eyebrow lang-switch">${
-    ['pl', 'en'].map(l => `<button type="button" data-lang="${l}" class="${on(getLang() === l)}" aria-label="${LANG_NAMES[l]}">${l.toUpperCase()}</button>`).join(DOT)}</span>` })}
+  ${topbar({})}
   <section class="hero four tight">
-    <div class="wm" aria-hidden="true">L/</div>
     <div class="hero-inner">
       <p class="eyebrow">${t('menu.eyebrow')} ${DOT} ${t('menu.offline')}</p>
       <h1 class="display">${t('menu.h1')}</h1>
       <nav class="games tight" aria-label="${t('menu.modesAria')}">${GAMES.map(row).join('')}</nav>
       <nav class="menu cards" aria-label="${t('menu.nav')}">
-        <a href="#/last-games"><span class="menu-badge" aria-hidden="true">${UI_ICONS.time}</span><span>${t('menu.lastGames')}</span></a>
         <a href="#/stats"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="13" width="3" height="7" rx=".5"/><rect x="10.5" y="4" width="3" height="16" rx=".5"/><rect x="17" y="9" width="3" height="11" rx=".5"/></svg></span><span>${t('menu.stats')}</span></a>
         <a href="#/achievements"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg></span><span>${t('menu.ach')}</span></a>
         <a href="#/collection"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="4" height="15" rx=".5"/><rect x="10" y="3" width="4" height="17" rx=".5"/><path d="m16 6 3-1 3 14-3 1z"/></svg></span><span>${t('menu.collection')}</span></a>
         <a href="#/settings"><span class="menu-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9.5 3-.5 2a7.5 7.5 0 0 0-2 1.2l-2-.6-2 3.4L4.5 10a7.5 7.5 0 0 0 0 4L3 15l2 3.4 2-.6A7.5 7.5 0 0 0 9 19l.5 2h5l.5-2a7.5 7.5 0 0 0 2-1.2l2 .6 2-3.4-1.5-1a7.5 7.5 0 0 0 0-4L21 9l-2-3.4-2 .6A7.5 7.5 0 0 0 15 5l-.5-2z"/><circle cx="12" cy="12" r="3"/></svg></span><span>${t('menu.settings')}</span></a>
+        <a href="#/last-games"><span class="menu-badge" aria-hidden="true">${UI_ICONS.time}</span><span>${t('menu.lastGames')}</span></a>
       </nav>
       <div class="upd-slot"></div>
     </div>
   </section>
   <footer class="footer"><span>v${VERSION}</span></footer>
 </div>`;
-  root.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => switchLang(b.dataset.lang, refresh)));
   if (otaActive()) return;
   // a newer version (owner, 2026-09-27): at the bottom - Download, or ✕ (hidden until Lexling next starts)
   const slot = root.querySelector('.upd-slot');
@@ -155,7 +152,32 @@ export function lastGamesScreen(root, kept = false) {
   }));
 }
 
-// `chosen` = the player picked the interface language themselves (menu switch or Settings). Until they
+export function chooseFirstLanguage(refresh) {
+  if (settings.langChosen) return;
+
+  const dialog = document.createElement('dialog');
+  const preferred = deviceLanguage();
+  dialog.className = 'game-settings first-language';
+  dialog.setAttribute('aria-labelledby', 'first-language-title');
+  dialog.innerHTML = `<h2 id="first-language-title"><span lang="en">${t('lang.choose', {}, 'en')}</span>
+      <span lang="pl">${t('lang.choose', {}, 'pl')}</span></h2>
+    <div class="language-choices">${['pl', 'en'].map(lang =>
+      `<button type="button" class="btn btn-outline btn-lg" lang="${lang}" data-lang="${lang}" ${lang === preferred ? 'autofocus' : ''}>${LANG_NAMES[lang]}</button>`
+    ).join('')}</div>`;
+  dialog.addEventListener('cancel', e => e.preventDefault());
+  dialog.addEventListener('keydown', e => {
+    if (e.key === 'Escape') e.preventDefault();
+  });
+  dialog.querySelectorAll('[data-lang]').forEach(button => button.addEventListener('click', () => {
+    dialog.close();
+    dialog.remove();
+    switchLang(button.dataset.lang, refresh);
+  }));
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+// `chosen` = the player picked the interface language themselves (first start or Settings). Until they
 // do, the interface follows the language of the game they set up; afterwards their choice is kept.
 function switchLang(lang, refresh, chosen = true) {
   if (!chosen && (settings.langChosen || settings.lang === lang)) return false;
@@ -1305,16 +1327,15 @@ export function achievementsScreen(root) {
   root.innerHTML = `<div class="app" data-screen="achievements">
     ${topbar({ left: `<a class="btn btn-ghost" href="#/">${t('back.menu')}</a>` })}
     <main class="main"><h1 class="title">${t('ach.title')}</h1>
-      <div class="ach-summary"><div><b class="num">${num(reached)}</b><small>${t('ach.tiers', { a: num(reached), b: num(TIERED.length * TIERS.length) })}</small></div>
-        <div class="ach-counts">${TIERS.map((tier, i) => `<span class="ach-count">${tierShape(i)}<small>${t('tier.' + tier)}</small>${num(TIERED.filter(d => gotAt(`${d.id}#${i}`) !== null).length)}</span>`).join('')}</div>
+      <div class="ach-summary"><div class="ach-total"><b class="num">${num(reached)}</b><small>${t('ach.tiers', { a: num(reached), b: num(TIERED.length * TIERS.length) })}</small></div>
+        <div class="ach-counts">${TIERS.map((tier, i) => {
+          const count = TIERED.filter(d => gotAt(`${d.id}#${i}`) !== null).length;
+          return `<span class="ach-count"><span class="ach-count-pair"><b class="num">${num(count)}</b>${tierShape(i)}</span><small>${t('tier.' + tier)}</small></span>`;
+        }).join('')}</div>
       </div>
       ${gameTabs(['all', ...GAMES], achievementTab, 'ach-tab', 'col.all')}
       ${filtered(TIERED).length ? `<h2 class="ach-heading">${t('ach.milestones')}</h2><div class="ach-grid">${filtered(TIERED).map(tile).join('')}</div>` : ''}
       ${filtered(CHALLENGES).length ? `<h2 class="ach-heading">${t('ach.challenges')} · ${num(filtered(CHALLENGES).filter(d => gotAt(d.id) !== null).length)} / ${num(filtered(CHALLENGES).length)}</h2><div class="ach-grid">${filtered(CHALLENGES).map(tile).join('')}</div>` : ''}
-      ${earlierAchievements().length ? `<details class="earlier-ach"><summary>${t('ach.earlier')}</summary>${earlierAchievements().filter(([key]) => achievementTab === 'all' || key.startsWith(achievementTab + '.')).map(([key, at]) => {
-        const [id, tier] = key.split('#'), title = t('ach.' + id);
-        return `<p>${esc(title === 'ach.' + id ? id : title)}${tier != null ? ' · ' + t('tier.' + TIERS[+tier]) : ''} <small>${t('ach.got', { d: dateTime(at) })}</small></p>`;
-      }).join('')}</details>` : ''}
     </main></div>`;
   root.querySelectorAll('[data-ach-tab]').forEach(b => {
     b.addEventListener('click', () => { achievementTab = b.dataset.achTab; achievementsScreen(root); root.querySelector('[aria-selected=true]')?.focus(); });
@@ -1328,43 +1349,73 @@ export function achievementsScreen(root) {
   root.querySelectorAll('[data-ach]').forEach(b => b.addEventListener('click', () => achievementDetail(b.dataset.ach)));
 }
 
+const statIcon = drawing => `<svg class="app-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${drawing}</svg>`;
+const STAT_ICONS = {
+  played: statIcon('<rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/>'),
+  finished: UI_ICONS.finished,
+  time: UI_ICONS.time,
+  words: statIcon('<path d="M4 6h16M4 12h13M4 18h10"/>'),
+  star: statIcon('<path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/>'),
+  longest: statIcon('<rect x="2.5" y="7" width="19" height="10" rx="2"/><path d="M7 7v5m5-5v3m5-3v5"/>'),
+  bonus: statIcon('<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9l6 6m0-6-6 6"/>'),
+  letters: GLYPH.letters,
+  tiles: GLYPH.tiles,
+};
+
 // Participation includes practice; quality figures use only unassisted records (owner, 2026-11-20).
 export function statsScreen(root, _, refresh) {
   if (!STAT_TABS.includes(statsTab)) statsTab = 'general';
   const f = statFilter[statsTab] ??= { lang: 'all' };
   const values = Object.fromEntries(MODES.map(m => [m, totals(m, statsTab === 'general' ? 'all' : f.lang)]));
-  const cell = (key, value, sub = '', cls = '') => {
-    const glyph = { 'stats.finished': UI_ICONS.finished, 'stats.solved': UI_ICONS.finished, 'stats.boardsCompleted': UI_ICONS.finished, 'stats.time': UI_ICONS.time }[key] ?? '';
-    return `<div class="scell ${cls}"><span class="lbl">${glyph}${t(key)}</span><span class="num">${value == null ? '—' : typeof value === 'number' ? num(value) : value}${sub ? `<small class="sub">${sub}</small>` : ''}</span></div>`;
+  const cell = (key, value, icon, sub = '', cls = '') => {
+    return `<div class="scell ${cls}"><dt class="lbl">${STAT_ICONS[icon]}<span>${t(key)}</span></dt><dd><span class="num">${value == null ? '—' : typeof value === 'number' ? num(value) : value}</span>${sub ? `<small class="sub">${sub}</small>` : ''}</dd></div>`;
   };
+  const group = (key, cells) => `<section class="st-panel"><h2>${t(key)}</h2><dl class="scells">${cells}</dl></section>`;
+  const games = cells => group('stats.g.games', cells);
+  const words = cells => group('stats.g.words', cells);
+  const letters = cells => group('stats.g.letters', cells);
   const decimal = value => value == null ? null : value.toLocaleString(getLang(), { maximumFractionDigits: 1 });
-  const times = value => cell('stats.time', duration(value.timeMs)) + cell('stats.avgTime', duration(value.avgTime));
-  const rows = {
-    guess: [['stats.solved', 'finished'], ['game.guesses', 'guesses'], ['stats.unique', 'distinct'], ['stats.letters', 'letters']],
-    letters: [['stats.finished', 'finished'], ['stats.won', 'solved'], ['stats.letters', 'letters'], ['stats.green', 'green'], ['stats.yellow', 'yellow']],
-    connect: [['stats.boardsCompleted', 'finished'], ['stats.wordsFound', 'words'], ['stats.bonusWords', 'bonus']],
-    tiles: [['stats.finished', 'finished'], ['stats.tiles.moves', 'words'], ['stats.tilesPlaced', 'tiles']],
-  };
+  const times = value => group('stats.g.time', cell('stats.time', duration(value.timeMs), 'time')
+    + cell('stats.avgTime', duration(value.avgTime), 'time'));
   const value = values[statsTab];
-  const timedGames = MODES.reduce((n, m) => n + values[m].timedGames, 0);
-  const timedMs = MODES.reduce((n, m) => n + values[m].timeMs, 0);
   let panel;
   if (statsTab === 'general') {
-    panel = cell('stats.finished', MODES.reduce((n, m) => n + values[m].finished, 0))
-      + cell('stats.played', MODES.reduce((n, m) => n + values[m].played, 0))
+    const sum = field => MODES.reduce((n, m) => n + values[m][field], 0);
+    const timedGames = sum('timedGames'), timedMs = sum('timeMs');
+    panel = games(cell('stats.finished', sum('finished'), 'finished') + cell('stats.played', sum('played'), 'played'))
       + times({ timeMs: stats.timeMs, avgTime: timedGames ? timedMs / timedGames : null });
   } else {
-    panel = cell('stats.played', value.played) + rows[statsTab].map(([key, field]) => cell(key, value[field],
-      statsTab === 'letters' && field === 'solved' && value.wonPct != null ? `${decimal(value.wonPct)} %` : '')).join('');
-    if (statsTab === 'connect') panel += cell('stats.bonusPerGame', decimal(value.bonusPerGame));
-    if (statsTab === 'tiles') {
-      const word = (key, w, points = false) => cell(key, w ? esc(w.w) : null,
-        w ? `${points ? t('stats.wordPoints', { n: num(w.score) }) + ' · ' : ''}${dateTime(w.at)}` : '', 'word');
-      panel += cell('stats.tiles.wordsFormed', value.wordsFormed) + cell('stats.tiles.avgWordPoints', decimal(value.avgWordPoints))
-        + word('stats.tiles.bestWord', value.bestWord, true) + word('stats.longest', value.longest)
-        + cell('stats.tiles.seven', value.seven)
-        + `<h2 class="eyebrow st-mode-heading">${t('stats.tiles.bonuses')}</h2>`
-        + ['d', 't', 'D', 'T'].map(k => cell('stats.tiles.bonus.' + k, value.bonuses[k])).join('');
+    const played = cell('stats.played', value.played, 'played');
+    const finished = cell('stats.finished', value.finished, 'finished');
+    const typed = cell('stats.letters', value.letters, 'letters');
+    switch (statsTab) {
+      case 'guess':
+        panel = games(played + cell('stats.solved', value.finished, 'finished'))
+          + words(cell('game.guesses', value.guesses, 'words') + cell('stats.unique', value.distinct, 'words') + typed);
+        break;
+      case 'letters':
+        panel = games(played + finished + cell('stats.won', value.solved, 'finished',
+          value.wonPct == null ? '' : `${decimal(value.wonPct)} %`))
+          + letters(typed + cell('stats.green', value.green, 'letters') + cell('stats.yellow', value.yellow, 'letters'));
+        break;
+      case 'connect':
+        panel = games(played + cell('stats.boardsCompleted', value.finished, 'finished'))
+          + words(cell('stats.wordsFound', value.words, 'words') + cell('stats.bonusWords', value.bonus, 'star')
+            + cell('stats.bonusPerGame', decimal(value.bonusPerGame), 'star'));
+        break;
+      case 'tiles': {
+        const best = value.bestWord, longest = value.longest;
+        panel = games(played + finished)
+          + words(cell('stats.tiles.moves', value.words, 'words') + cell('stats.tilesPlaced', value.tiles, 'tiles')
+            + cell('stats.tiles.wordsFormed', value.wordsFormed, 'words')
+            + cell('stats.tiles.avgWordPoints', decimal(value.avgWordPoints), 'star')
+            + cell('stats.tiles.bestWord', best ? esc(best.w) : null, 'star',
+              best ? `${t('stats.wordPoints', { n: num(best.score) })} · ${dateTime(best.at)}` : '', 'word')
+            + cell('stats.longest', longest ? esc(longest.w) : null, 'longest', longest ? dateTime(longest.at) : '', 'word')
+            + cell('stats.tiles.seven', value.seven, 'tiles'))
+          + group('stats.tiles.bonuses', ['d', 't', 'D', 'T'].map(k => cell('stats.tiles.bonus.' + k, value.bonuses[k], 'bonus')).join(''));
+        break;
+      }
     }
     panel += times(value);
   }
@@ -1374,7 +1425,7 @@ export function statsScreen(root, _, refresh) {
       ${gameTabs(STAT_TABS, statsTab, 'tab', 'stats.general')}
       ${statsTab === 'general' ? '' : `<div class="st-filters"><div class="seg" role="radiogroup">${['all', 'pl', 'en'].map(l => `<button type="button" data-f-lang="${l}" class="${on(f.lang === l)}">${l === 'all' ? t('lang.both') : LANG_NAMES[l]}</button>`).join('')}</div></div>`}
       <div class="section" role="tabpanel">
-        <section class="card sgroup" data-game="${statsTab}"><div class="scells">${panel}</div></section>
+        <div class="st-panels">${panel}</div>
         ${statsTab === 'general' ? `<h2 class="eyebrow">${t('stats.byMode')}</h2>
           ${MODES.map(m => `<div class="card st-mode" data-game="${m}"><strong class="lbl">${GLYPH[m]}${t('mode.' + m)}</strong><b class="num">${num(values[m].finished)}</b></div>`).join('')}` : ''}
       </div>
@@ -1691,15 +1742,29 @@ export async function settingsScreen(root, _, refresh) {
 export function whatsnewScreen(root) {
   closeRecentUpdate();
   const otaNotes = otaReleaseNotes();
+  const releases = otaNotes?.notes && !whatsnew.some(release => release.version === otaNotes.version)
+    ? [otaNotes, ...whatsnew] : whatsnew;
+  const [latest, ...earlier] = releases;
+  const meta = (release, tag) => `<${tag} class="wn-version">${esc(release.version)}</${tag}>${release.date
+    ? `<time datetime="${esc(release.date)}">${esc(release.date)}</time>` : ''}`;
+  const notes = release => {
+    const changes = release === otaNotes ? [] : changesFor(release, getLang());
+    return (changes.length ? `<ul class="wn-changes">${changes.map(text => `<li>${esc(text)}</li>`).join('')}</ul>` : '')
+      + (release.version === otaNotes?.version && otaNotes.notes ? `<p class="ota-release-notes">${esc(otaNotes.notes)}</p>` : '');
+  };
   root.innerHTML = `<div class="app" data-screen="whatsnew">
     ${topbar({ left: `<a class="btn btn-ghost" href="#/settings">${t('wn.back')}</a>` })}
     <main class="main"><h1 class="title">${t('wn.title')}</h1>
-      ${otaNotes?.notes && !whatsnew.some(release => release.version === otaNotes.version) ? `<section class="group">
-        <h2 class="title">${esc(otaNotes.version)}</h2><p class="ota-release-notes">${esc(otaNotes.notes)}</p></section>` : ''}
-      ${whatsnew.map(release => `<section class="group">
-        <h2 class="title">${esc(release.version)}</h2><time datetime="${esc(release.date)}">${esc(release.date)}</time>
-        <ul class="wn-changes">${changesFor(release, getLang()).map(text => `<li>${esc(text)}</li>`).join('')}</ul>
-        ${release.version === otaNotes?.version && otaNotes.notes ? `<p class="ota-release-notes">${esc(otaNotes.notes)}</p>` : ''}
-      </section>`).join('')}
+      <section class="wn-panel wn-feature">
+        <p class="wn-kicker">${t('wn.latest')}</p>
+        <div class="wn-meta">${meta(latest, 'h2')}</div>
+        ${notes(latest)}
+      </section>
+      <section class="wn-past" aria-label="${t('wn.earlier')}">
+        ${earlier.map(release => `<details class="wn-panel wn-fold">
+          <summary>${meta(release, 'span')}</summary>
+          <div class="wn-details">${notes(release)}</div>
+        </details>`).join('')}
+      </section>
     </main></div>`;
 }

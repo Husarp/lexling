@@ -81,8 +81,8 @@ document.addEventListener('lexling:save-evicted', () => {
 // A game's name in its top bar (owner, 2026-09-26: "Name (Game 12)"): a long name gives way, its number always shows.
 export const practiceBadge = (g, archived = false) => (archived ? !g.practice : counts(g)) ? '' : `<span class="practice-badge">${t('practice')}</span>`;
 export const gameTitle = (g, archived = false) => (g.name
-  ? `<span class="eyebrow gname game-title"><span class="nm">${esc(g.name)}</span><span class="no">(${t('games.defaultName', { n: g.auto ?? 1 })})</span></span>`
-  : `<span class="eyebrow game-title">${esc(gameName(g))}</span>`) + practiceBadge(g, archived);
+  ? `<span class="eyebrow gname"><span class="nm">${esc(g.name)}</span><span class="no">(${t('games.defaultName', { n: g.auto ?? 1 })})</span></span>`
+  : `<span class="eyebrow">${esc(gameName(g))}</span>`) + practiceBadge(g, archived);
 
 // A word's meaning (owner, 2026-09-26: no dictionary inside the app - too big - "open the browser with the word"): sjp.pl
 // for Polish (it knows every form, and says which word it comes from), Wiktionary for English. In the phone's own

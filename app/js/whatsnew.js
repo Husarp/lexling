@@ -2,6 +2,15 @@
 import { t } from './i18n.js';
 
 export const whatsnew = [
+  { version: '0.73.2', date: '2026-11-27', en: [
+    'A new What\'s new page, a choice of language when you first open the app, and the language switch now lives only in Settings.',
+    'Statistics in clearer panels, bigger tier icons in Achievements and new icons for Bonus hunter, Rare find, Hard board and Photo finish.',
+    'The menu pictures fit their cards again, Saved games is a bigger button, and the coloured side lines are gone.',
+  ], pl: [
+    'Nowa strona Co nowego, wybór języka przy pierwszym uruchomieniu, a przełącznik języka jest już tylko w Ustawieniach.',
+    'Statystyki w czytelniejszych panelach, większe ikony poziomów w Osiągnięciach i nowe ikony osiągnięć: Łowca bonusów, Rzadkie znalezisko, Trudna plansza i Rzutem na taśmę.',
+    'Grafiki w menu znów mieszczą się w kartach, Zapisane gry to większy przycisk, a kolorowe paski z boku zniknęły.',
+  ] },
   { version: '0.73.1', date: '2026-11-26', en: [
     'Redesigned in-app update banners and Settings → Updates, with clearer download progress.',
     'Last games is now Saved games, right under the four games in the menu. Empty game lists are simpler.',
@@ -25,15 +34,6 @@ export const whatsnew = [
     'Kafelki: uczciwsza ocena ruchów, gdy więcej punktów dają tylko rzadkie słowa, sprawdzanie słów, zamiana dwóch nowych płytek dotknięciem, Anuluj oddaje ułożone słowo, a poziomy komputera mają własne kolory i miny.',
     'Dźwięki i wibracje przy twojej turze, ruchach, wygranej i przegranej, z suwakiem głośności; dotykanie liter w Połącz; opcja Wysoki kontrast w Literach.',
     'Jak grać napisane od nowa i dostępne z każdej gry; czytelniejsze czasy w statystykach, podpisy w Osiągnięciach, kolorowe ikony sekcji i zegary online na żywo.',
-  ] },
-  { version: '0.72.1', date: '2026-11-21', en: [
-    'Tiles: drag a tile onto another of your unplayed tiles to swap them - or drop a rack tile on one to replace it.',
-    'Bigger game buttons by default (130 %), now from 100 to 175 % in Settings.',
-    'Tiles: the board is bigger on phones, the move note never covers your tiles, and How to play is a proper button next to Give up.',
-  ], pl: [
-    'Kafelki: przeciągnij płytkę na inną swoją niezagraną płytkę, by je zamienić - albo upuść płytkę z ławki, by ją podmienić.',
-    'Większe przyciski gry domyślnie (130 %), teraz od 100 do 175 % w Ustawieniach.',
-    'Kafelki: większa plansza na telefonach, komunikat o ruchu nie zasłania płytek, a Jak grać to zwykły przycisk obok Poddaj się.',
   ] },
 ];
 

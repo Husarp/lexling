@@ -3,7 +3,7 @@ import { setLang } from './i18n.js';
 import { applyTheme, applyAccent, applyButtonSize, applyLettersContrast } from './ui.js';
 import { fitAll, watchResize } from './fit.js';
 import { watchScrollFades } from './scroll-fades.js';
-import { menu, games, lastGamesScreen, newGameScreen, lettersNewScreen, connectNewScreen, tilesNewScreen, tilesJoinScreen, tilesOnlineScreen, statsScreen, achievementsScreen, whatsnewScreen, settingsScreen, collectionScreen } from './screens.js';
+import { menu, chooseFirstLanguage, games, lastGamesScreen, newGameScreen, lettersNewScreen, connectNewScreen, tilesNewScreen, tilesJoinScreen, tilesOnlineScreen, statsScreen, achievementsScreen, whatsnewScreen, settingsScreen, collectionScreen } from './screens.js';
 import { gameScreen } from './game.js';
 import { lettersGameScreen } from './letters-game.js';
 import { connectGameScreen } from './connect-game.js';
@@ -120,6 +120,7 @@ async function start() {
     } catch { /* nothing to go back to */ }
   }
   await render();
+  chooseFirstLanguage(() => render(false));
   window.LXStartup?.step('First screen drawn');
   // The desktop wrapper keeps its window hidden until this appears (no half-drawn first frame), and the
   // build's self-test compares it with the version it packaged.

@@ -49,10 +49,6 @@ for (const def of TIERED) {
   });
 }
 saveStats();
-const retired = ['guess.sharpshooter', 'letters.lucky', 'connect.unaided', 'tiles.move100', 'tiles.points',
-  'guess.streak', 'letters.streak', 'guess.mindReader', 'guess.deepCut', 'guess.noHelp', 'connect.bonusHunter'];
-export const earlierAchievements = () => Object.entries(ach.got).filter(([key]) => retired.includes(key.split('#')[0]));
-
 export function playChallenges(move, { rarePct = null } = {}) {
   if (move.kind !== 'play' || move.hinted || move.approved) return [];
   const words = (move.words ?? []).map(x => [...x.w]);

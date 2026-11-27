@@ -13,10 +13,14 @@ const read = (key, fallback) => {
 };
 const write = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage blocked: play on, unsaved */ } };
 
-export const settings = read('wg.settings', {
-  lang: (navigator.language || 'en').toLowerCase().startsWith('pl') ? 'pl' : 'en',
+export const deviceLanguage = () => /^pl/i.test(navigator.language) ? 'pl' : 'en';
+const savedSettings = read('wg.settings', {});
+export const settings = {
+  lang: deviceLanguage(),
   buttonSize: '130',
-  theme: 'dark', palette: 'classic', accent: 'orange', sound: true, fuzzy: true, langChosen: false, lastCheck: 0, latest: '',
+  theme: 'dark', palette: 'classic', accent: 'orange', sound: true, fuzzy: true, lastCheck: 0, latest: '',
+  // Older settings may have a selected language without the flag.
+  langChosen: savedSettings.lang === 'pl' || savedSettings.lang === 'en',
   // Sound and vibration are independent (owner, 2026-11-26).
   vibration: true, volume: 70,
   // Letters: tapping the tiles also opens the phone's own keyboard (the keys on screen stay) - owner, 2026-09-25
@@ -54,7 +58,8 @@ export const settings = read('wg.settings', {
   updateCheck: true, seenVersion: null,
   // Settings → Time (owner, 2026-09-28): the current time on screen; a reminder of the time played, every remindMin minutes
   showClock: false, playRemind: false, remindMin: 90,
-});
+  ...savedSettings,
+};
 export const saveSettings = () => write('wg.settings', settings);
 // Old saves include the former 100% default without recording whether it was chosen.
 // Migrate it once; choosing 100% after this must survive every later launch.

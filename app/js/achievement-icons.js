@@ -23,21 +23,21 @@ const drawings={
  longer:'<path d="M8 5H3v14h5M16 5h5v14h-5M3 12h18M8 9l-3 3 3 3M16 9l3 3-3 3"/>',
  triple:'<g fill="currentColor" stroke="none"><path d="m2 6-2 12h2.3l.4-2.5h2.6l.4 2.5H8L6 6Zm1 7 1-5 1 5Zm7-7L8 18h2.3l.4-2.5h2.6l.4 2.5H16L14 6Zm1 7 1-5 1 5Zm7-7-2 12h2.3l.4-2.5h2.6l.4 2.5H24L22 6Zm1 7 1-5 1 5Z"/></g>',
  century:'<path fill="currentColor" stroke="none" d="m12 1 3.1 6.3 7 .9-5.1 5 .9 7-5.9-3.3L6.1 20l.9-6.8-5.1-5 7-.9Z"/><path d="M7 22h10"/>',
- rare:'<path d="M6.5 4h11l4.5 6-10 11L2 10zM2 10h20M9 4l-2 6 5 11 5-11-2-6"/>',
+ rare:'<path d="M6 8h8l3.5 4L10 21l-7.5-9L6 8ZM2.5 12h15m1.5-9v5m-2.5-2.5h5"/>',
  hard:'<path d="M12 3l7.5 2.8v5.6c0 4.6-3.1 8-7.5 9.6-4.4-1.6-7.5-5-7.5-9.6V5.8L12 3Z"/><path stroke-width="2.4" d="m8 12 2.7 2.7 5.3-5.3"/>',
  expert:'<path d="M7.5 3.5h9v6a4.5 4.5 0 0 1-9 0v-6ZM7.5 5.5H4.5v1.5a3.5 3.5 0 0 0 3.4 3.5M16.5 5.5h3v1.5a3.5 3.5 0 0 1-3.4 3.5M12 14v4M8.5 20.5h7M9.5 18h5"/>',
  multi:'<g fill="currentColor" stroke="none"><rect x="2" y="3" width="5" height="5" rx="1"/><rect x="9.5" y="3" width="5" height="5" rx="1"/><rect x="17" y="3" width="5" height="5" rx="1"/></g><path d="M4.5 11v3h15v-3M12 11v10m-3-3 3 3 3-3"/>'
 };
 
-drawings.finish = '<path d="M5 22V3h15v12H5M5 3l-2-1"/><path fill="currentColor" stroke="none" d="M5 3h5v4H5Zm10 0h5v4h-5ZM10 7h5v4h-5ZM5 11h5v4H5Zm10 0h5v4h-5Z"/>';
+drawings.finish = '<path d="M3 7h4l2-3h6l2 3h4a1.5 1.5 0 0 1 1.5 1.5v10A1.5 1.5 0 0 1 21 20H3a1.5 1.5 0 0 1-1.5-1.5v-10A1.5 1.5 0 0 1 3 7Z"/><circle cx="12" cy="13.5" r="4"/><path d="M18.5 10h1"/>';
 const icons = {"guess.won": "detective", "letters.won": "letters", "connect.words": "connect", "tiles.words": "builder", "tiles.points": "points", "tiles.bingo": "seven", "tiles.len8": "long", "tiles.len10": "longer", "tiles.triple": "triple", "tiles.move100": "century", "tiles.rare1": "rare", "tiles.beatHard": "hard", "tiles.beatExpert": "expert", "tiles.multi3": "multi"};
 drawings['connect.boards'] = '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18M15 9v12M9 15h12"/>'; icons['connect.boards'] = 'connect.boards';
 drawings['letters.lucky'] = '<path d="M12 12C1 13 2 3 8 5c4-6 10 0 4 7 11-1 10 9 4 7-4 6-10 0-4-7ZM12 12l-8 9"/>'; icons['letters.lucky'] = 'letters.lucky';
 drawings['letters.longHaul'] = '<rect x="1" y="8" width="22" height="8" rx="1"/><path d="M6.5 8v8M12 8v8M17.5 8v8M3 20h18m-3-2 3 2-3 2"/>'; icons['letters.longHaul'] = 'letters.longHaul';
 drawings['letters.everyLength'] = '<path d="M4 5h4M4 10h7M4 15h10M4 20h13m-3-13 3 3 5-6"/>'; icons['letters.everyLength'] = 'letters.everyLength';
 drawings['connect.unaided'] = '<path d="m4 12 5 5 11-11"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="19" r="2"/>'; icons['connect.unaided'] = 'connect.unaided';
-drawings['connect.bonusHunter'] = '<path d="m12 2 3 6 6 1-4 5 1 7-6-3-6 3 1-7-4-5 6-1ZM9 12h6M12 9v6"/>'; icons['connect.bonusHunter'] = 'connect.bonusHunter';
-drawings['connect.hardBoard'] = '<path d="m12 2 8 4v6c0 4-4 8-8 10-4-2-8-6-8-10V6ZM8 8h8v8H8ZM12 8v8M8 12h8"/>'; icons['connect.hardBoard'] = 'connect.hardBoard';
+drawings['connect.bonusHunter'] = '<path d="m12 2 3 6 6.6 1-4.8 4.7 1.1 6.6-5.9-3.1-5.9 3.1 1.1-6.6L2.4 9 9 8z"/>'; icons['connect.bonusHunter'] = 'connect.bonusHunter';
+drawings['connect.hardBoard'] = '<rect x="2.7" y="2.7" width="18.6" height="18.6" rx="3"/><path d="M7.7 16.3v-8H16"/><g fill="currentColor" stroke="none"><circle cx="7.7" cy="16.3" r="2.25"/><circle cx="7.7" cy="8.3" r="2.25"/><circle cx="16" cy="8.3" r="2.25"/><circle cx="16" cy="16.3" r="1.15"/></g>'; icons['connect.hardBoard'] = 'connect.hardBoard';
 Object.assign(icons, { 'tiles.photoFinish': 'finish', 'guess.finished': 'detective', 'letters.finished': 'letters', 'connect.bonus': 'connect.bonusHunter', 'tiles.letters': 'points' });
 export const achievementIcon = id => `<svg class="ach-icon" viewBox="0 0 24 24" aria-hidden="true">${drawings[icons[id]]}</svg>`;
 export const tierShape = (i, earned = true) => `<svg class="ach-shape" viewBox="0 0 16 16" aria-hidden="true" style="color:var(--${earned ? 'tier-' + ['common', 'rare', 'epic', 'legendary', 'mythical'][i] : 'line'})">${paths[i]}</svg>`;

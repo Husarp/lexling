@@ -176,10 +176,9 @@ for (const lang of ['en', 'pl']) {
   const label = lang === 'en' ? 'Saved games' : 'Zapisane gry';
   const nav = root.querySelector('.games + .menu.cards');
   assert.equal(nav.previousElementSibling.children.length, 4);
-  assert.deepEqual([...nav.children].map(el => el.hash), ['#/last-games', '#/stats', '#/achievements', '#/collection', '#/settings']);
-  assert.equal(nav.firstElementChild.textContent, label);
-  assert.deepEqual([...root.querySelectorAll('.g-desc')].map(el => el.textContent),
-    ['guess', 'letters', 'connect', 'tiles'].map(mode => t('menu.desc.' + mode)));
+  assert.deepEqual([...nav.children].map(el => el.hash), ['#/stats', '#/achievements', '#/collection', '#/settings', '#/last-games']);
+  assert.equal(nav.lastElementChild.textContent, label);
+  assert.equal(root.querySelectorAll('.g-desc').length, 0);
   lastGamesScreen(root);
   assert.equal(root.querySelector('h1').textContent, label);
   assert.deepEqual([...root.querySelectorAll('.last-game')].map(el => el.hash), newest.map(id => '#/result/' + id));
